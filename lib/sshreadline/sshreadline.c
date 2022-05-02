@@ -10,8 +10,8 @@
  *
  *        Creation          : 19:47 Mar 12 1997 kivinen
  *        Last Modification : 18:07 Oct  8 1998 kivinen
- *        Last check in     : $Date: 1998/10/19 13:23:44 $
- *        Revision number   : $Revision: 1.11 $
+ *        Last check in     : $Date: 1998/11/05 12:24:50 $
+ *        Revision number   : $Revision: 1.12 $
  *        State             : $State: Exp $
  *        Version           : 1.665
  *
@@ -24,7 +24,12 @@
 
 #include "sshincludes.h"
 #include "sshreadline.h"
+#ifdef HAVE_TERMIOS_H
 #include <termios.h>
+#endif
+#ifdef HAVE_TERMIO_H
+#include <termio.h>
+#endif
 #ifdef HAVE_CURSES_H
 #include <curses.h>
 #endif

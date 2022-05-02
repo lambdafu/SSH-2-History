@@ -12,7 +12,7 @@ Created: Wed Jan 24 20:19:53 1996 ylo
 */
 
 /*
- * $Id: userfile.c,v 1.3 1998/10/08 15:23:29 kivinen Exp $
+ * $Id: userfile.c,v 1.5 1998/10/21 17:09:06 tri Exp $
  * $Log: userfile.c,v $
  * $EndLog$
  */
@@ -135,7 +135,7 @@ Created: Wed Jan 24 20:19:53 1996 ylo
 #include "sshgetput.h"
 #include "sshbuffer.h"
 #include "bufaux.h"
-#include "signals.h"
+#include "sshsignals.h"
 #include "filelock.h"
 
 #ifdef SECURE_RPC
@@ -663,7 +663,7 @@ void userfile_init(const char *username, uid_t uid, gid_t gid,
     (*cleanup_callback)(context);
   
   /* Reset signals to their default settings. */
-  signals_reset();
+  ssh_signals_reset();
 
   /* Child.  We will start serving request. */
   if (uid != geteuid() || uid != getuid())

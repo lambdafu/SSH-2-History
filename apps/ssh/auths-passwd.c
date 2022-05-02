@@ -85,16 +85,24 @@ SshAuthServerResult ssh_server_auth_passwd(SshAuthServerOperation op,
         /* Reject the login if the user is not allowed to log in. */
         if (!ssh_user_login_is_allowed(uc))
           {
-            ssh_debug("ssh_server_auth_passwd: login by '%s' not allowed.",
-                      ssh_user_name(uc));
-            goto password_bad;
+            ssh_log_event(SSH_LOGFACILITY_SECURITY,
+                          SSH_LOG_NOTICE,
+                          "login by '%s' not allowed.", ssh_user_name(uc));
+            SSH_DEBUG(2, ("ssh_server_auth_passwd: login by '%s' "\
+                          "not allowed.",\
+                        ssh_user_name(uc)));
+            return SSH_AUTH_SERVER_REJECTED_AND_METHOD_DISABLED;
           }
 #ifndef SSHDIST_WINDOWS
         else if(ssh_user_uid(uc) == SSH_UID_ROOT &&
                 serverconf->permit_root_login == FALSE)
           {
-            /* XXX These should be logged, but where? */
-            ssh_debug("ssh_server_auth_passwd: root logins are not permitted.");
+            /* XXX Add client addresses etc. */
+            ssh_log_event(SSH_LOGFACILITY_SECURITY,
+                          SSH_LOG_NOTICE,
+                          "root logins are not permitted.");
+            SSH_DEBUG(2, ("ssh_server_auth_passwd: root logins are " \
+                      "not permitted."));
             return SSH_AUTH_SERVER_REJECTED_AND_METHOD_DISABLED;
           }
 #endif /* SSHDIST_WINDOWS */
@@ -106,7 +114,7 @@ SshAuthServerResult ssh_server_auth_passwd(SshAuthServerOperation op,
                             SSH_FORMAT_UINT32_STR, &password, NULL,
                             SSH_FORMAT_END) == 0)
         {
-          ssh_debug("ssh_server_auth_passwd: bad packet");
+          SSH_DEBUG(2, ("ssh_server_auth_passwd: bad packet"));
           goto password_bad;
         }
 
@@ -114,7 +122,8 @@ SshAuthServerResult ssh_server_auth_passwd(SshAuthServerOperation op,
          messages. */
       if (change_request)
         {
-          ssh_debug("ssh_server_auth_passwd: changing password cannot start.");
+          SSH_DEBUG(2 ,("ssh_server_auth_passwd: changing password " \
+                        "cannot start."));
           goto password_bad;
         }
       
@@ -122,7 +131,7 @@ SshAuthServerResult ssh_server_auth_passwd(SshAuthServerOperation op,
          functions to avoid buffer overflows in operating system code. */
       if (strlen(password) > 64)
         {
-          ssh_debug("ssh_server_auth_passwd: password too long.");
+          SSH_DEBUG(2, ("ssh_server_auth_passwd: password too long."));
           ssh_xfree(password);
           goto password_bad;
         }
@@ -131,7 +140,11 @@ SshAuthServerResult ssh_server_auth_passwd(SshAuthServerOperation op,
          needed to access disks. */
       if (ssh_user_validate_secure_rpc_password(uc, password))
         {
-          ssh_debug("ssh_server_auth_passwd: accepted by secure rpc");
+          ssh_log_event(SSH_LOGFACILITY_SECURITY,
+                        SSH_LOG_NOTICE,
+                        "User %s's secure rpc password accepted.",
+                        ssh_user_name(uc));
+          SSH_DEBUG(5, ("ssh_server_auth_passwd: accepted by secure rpc"));
           goto password_ok;
         }
 
@@ -139,14 +152,23 @@ SshAuthServerResult ssh_server_auth_passwd(SshAuthServerOperation op,
          disks. */
       if (ssh_user_validate_kerberos_password(uc, password))
         {
-          ssh_debug("ssh_server_auth_passwd: accepted by kerberos passwd");
+          ssh_log_event(SSH_LOGFACILITY_SECURITY,
+                        SSH_LOG_NOTICE,
+                        "User %s's kerberos password accepted.",
+                        ssh_user_name(uc));
+          SSH_DEBUG(5, ("ssh_server_auth_passwd: accepted by " \
+                        "kerberos passwd"));
           goto password_ok;
         }
 
       /* Try a local password (either normal or shadow). */
       if (ssh_user_validate_local_password(uc, password))
         {
-          ssh_debug("ssh_server_auth_passwd: accepted by local passwd");
+          ssh_log_event(SSH_LOGFACILITY_SECURITY,
+                        SSH_LOG_NOTICE,
+                        "User %s's local password accepted.",
+                        ssh_user_name(uc));       
+          SSH_DEBUG(5, ("ssh_server_auth_passwd: accepted by local passwd"));
           goto password_ok;
         }
       
@@ -182,26 +204,29 @@ SshAuthServerResult ssh_server_auth_passwd(SshAuthServerOperation op,
       return SSH_AUTH_SERVER_REJECTED;
       
     case SSH_AUTH_SERVER_OP_CONTINUE:
-      ssh_debug("ssh_server_auth_passwd: XXX CONTINUE not yet implemented");
+      SSH_DEBUG(1, ("ssh_server_auth_passwd: XXX CONTINUE not yet "\
+                    "implemented"));
       return SSH_AUTH_SERVER_REJECTED;
       
     case SSH_AUTH_SERVER_OP_UNDO_LONGTIME:
-    case SSH_AUTH_SERVER_OP_CLEAR_LONGTIME:
       if (uc != NULL)
         {
-          if (!ssh_user_free(uc, op == SSH_AUTH_SERVER_OP_UNDO_LONGTIME))
+          if (!ssh_user_free(uc, TRUE))
             {
               /* XXX failed unto undo everything. Should disconnect, but we
                  don't yet have the interface for that. */
-              ssh_fatal("ssh_server_auth_passwd: undo failed XXX");
+              return SSH_AUTH_SERVER_REJECTED_AND_METHOD_DISABLED;
             }
         }
+      /* fall down... */
+    case SSH_AUTH_SERVER_OP_CLEAR_LONGTIME:
       *longtime_placeholder = NULL;
       return SSH_AUTH_SERVER_REJECTED;
       
     default:
       ssh_fatal("ssh_server_auth_passwd: unknown op %d", (int)op);
     }
-  /*NOTREACHED*/
+  
+  SSH_NOTREACHED;
   return SSH_AUTH_SERVER_REJECTED;
 }

@@ -78,6 +78,8 @@ CONFPROGRAMS = @CONFPROGRAMS@
 COPY_INCLUDE = @COPY_INCLUDE@
 CRYPTO_CONF_OBJS = @CRYPTO_CONF_OBJS@
 ETCDIR = @ETCDIR@
+IPSEC_ARCH_INTC = @IPSEC_ARCH_INTC@
+IPSEC_ARCH_ROUTE = @IPSEC_ARCH_ROUTE@
 LN_S = @LN_S@
 M4 = @M4@
 MAKEINFO = @MAKEINFO@
@@ -100,7 +102,10 @@ libsshapputil_a_SOURCES = userfile.c
 
 include_HEADERS = userfile.h
 
-INCLUDES = -I../.. -I. -I$(srcdir) -I../sshutil -I$(srcdir)/../sshutil -I../sshmath -I$(srcdir)/../sshmath -I../zlib -I$(srcdir)/../zlib
+INCLUDES = -I../.. -I. -I$(srcdir) \
+	-I$(top_builddir) -I$(top_srcdir) \
+	-I../sshutil -I$(srcdir)/../sshutil -I../sshmath \
+	-I$(srcdir)/../sshmath -I../zlib -I$(srcdir)/../zlib
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = ../../sshconf.h
 CONFIG_CLEAN_FILES = 

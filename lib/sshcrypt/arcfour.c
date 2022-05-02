@@ -10,7 +10,7 @@ Author: Tatu Ylonen <ylo@ssh.fi>
 */
 
 /*
- * $Id: arcfour.c,v 1.7 1998/01/28 10:09:42 ylo Exp $
+ * $Id: arcfour.c,v 1.8 1998/11/04 12:04:09 ylo Exp $
  * $Log: arcfour.c,v $
  * $EndLog$
  */
@@ -29,7 +29,7 @@ typedef struct
 } ArcfourContext;
 
 void arcfour_init(void *context, const unsigned char *key, 
-		  size_t keylen, Boolean for_encryption)
+                  size_t keylen, Boolean for_encryption)
 {
   ArcfourContext *ctx = context;
   unsigned int t, u;
@@ -55,7 +55,7 @@ void arcfour_init(void *context, const unsigned char *key,
       state[stateindex] = t;
       state[counter] = u;
       if (++keyindex >= keylen)
-	keyindex = 0;
+        keyindex = 0;
     }
 }
 
@@ -84,7 +84,8 @@ static inline unsigned int arcfour_byte(ArcfourContext *ctx)
 }
 
 void arcfour_transform(void *context, unsigned char *dest, 
-		       const unsigned char *src, size_t len)
+                       const unsigned char *src, size_t len,
+                       unsigned char *iv)
 {
   ArcfourContext *ctx = context;
   
@@ -99,7 +100,8 @@ void arcfour_transform(void *context, unsigned char *dest,
    previous code. (On P133 this runs about 20 - 40 percent faster). */
 
 void arcfour_transform(void *context, unsigned char *dest,
-		       const unsigned char *src, size_t len)
+                       const unsigned char *src, size_t len,
+                       unsigned char *iv)
 {
   ArcfourContext *ctx = context;
   unsigned int i;

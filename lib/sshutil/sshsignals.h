@@ -7,25 +7,25 @@
 
   Created: Mon Jul  8 17:40:06 1996 [ttsalo]
 
-  signals.h
+  sshsignals.h
 
   Derived straight from signals.c
   
   */
 
 /*
- * $Id: signals.h,v 1.5 1998/06/05 05:53:54 tri Exp $
- * $Log: signals.h,v $
+ * $Id: sshsignals.h,v 1.2 1998/10/21 17:08:26 tri Exp $
+ * $Log: sshsignals.h,v $
  * $EndLog$
  */
 
-#ifndef SSH_SIGNALS_H
-#define SSH_SIGNALS_H
+#ifndef SSHSIGNALS_H
+#define SSHSIGNALS_H
 
 void
-signals_prevent_core(void);
+ssh_signals_prevent_core(Boolean use_eloop, void *ctx);
 
 void
-signals_reset(void);
+ssh_signals_reset(void);
 
-#endif /* SSH_SIGNALS_H */
+#endif /* SSHSIGNALS_H */

@@ -25,10 +25,11 @@ libsshutil_a_SOURCES = \
 	sshfilebuffer.c		\
 	sshunixeloop.c		\
 	sshunixfdstream.c	\
+	sshmiscstring.c		\
 	match.c			\
 	mpaux.c			\
 	sshgetput.c		\
-	signals.c		\
+	sshsignals.c		\
 	sshtcp.c		\
 	sshunixtcp.c		\
 	sshstream.c		\
@@ -47,12 +48,14 @@ libsshutil_a_SOURCES = \
 	sshfilexferi.c		\
 	sshunixrealpath.c	\
 	sshurl.c		\
+	sshgetopt.c		\
 	sshinet.c		\
 	cstack.c		\
 	vlint32.c		\
 	crc32.c			\
 	filelock.c		\
 	sshfileio.c		\
+	sshtimemeasure.c	\
 	sshpacketwrapper.c	\
 	sshpacketstream.c	\
 	sshpacketimpl.c		\
@@ -70,7 +73,7 @@ include_HEADERS = \
 	snprintf.h		\
 	sshunixeloop.h		\
 	sshgetput.h		\
-	signals.h		\
+	sshsignals.h		\
 	sshdebug.h		\
 	bufaux.h		\
 	sshbuffer.h		\
@@ -78,6 +81,7 @@ include_HEADERS = \
 	sshenum.h		\
 	sshencode.h		\
 	sshunixfdstream.h	\
+	sshmiscstring.h		\
 	sshstreampair.h		\
 	sshtcp.h		\
 	sshsocks.h		\
@@ -89,12 +93,14 @@ include_HEADERS = \
 	sshlocalstream.h	\
 	sshfilexfer.h		\
 	sshurl.h		\
+	sshgetopt.h		\
 	sshinet.h		\
 	cstack.h		\
 	vlint32.h		\
 	crc32.h			\
 	filelock.h		\
 	sshfileio.h		\
+	sshtimemeasure.h	\
 	sshpacketstream.h	\
 	sshmalloc.h
 
@@ -102,9 +108,10 @@ noinst_HEADERS = sshpacketint.h sshfilexferi.h
 
 EXTRA_DIST = \
 	memmove.c memset.c putenv.c random.c remove.c snprintf.c   \
-	strcasecmp.c strerror.c strncasecmp.c crypt.c sshwindist.h
+	strcasecmp.c strerror.c strncasecmp.c crypt.c getopt.c
 
-INCLUDES = -I../.. -I. -I$(srcdir) 		\
+INCLUDES = -I. -I$(srcdir) -I.. -I$(srcdir)/..	\
+	-I$(top_builddir) -I$(top_srcdir) 	\
 	-I../sshmath -I$(srcdir)/../sshmath 	\
 	-I../zlib -I$(srcdir)/../zlib 		\
 	-I../trq -I$(srcdir)/../trq

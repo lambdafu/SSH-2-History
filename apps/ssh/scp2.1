@@ -54,6 +54,12 @@ scp2 \- secure copy client
 [\c
 .B \-f \c
 ]
+[\c
+.B \-1 \c
+]
+[\c
+.B \-r \c
+]
 [[user@]host[#port]:]file ... [[user@]host[#port]:]file_or_dir
 
 .ad
@@ -75,7 +81,10 @@ authentication.
 .LP
 Any filename may contain a host, user and port specification to
 indicate that the file is to be copied to/from that host.  Copies
-between two remote hosts are permitted.
+between two remote hosts are permitted. ``file'' can contain wildcards
+``*'' and ``?'', in which case they are expanded by scp2. These
+wildcards can be escaped by a ``\\'', in which case the wildcard is
+not expanded.
 
 .SH OPTIONS
 .LP
@@ -146,12 +155,30 @@ Ports can also be defined in a file-to-file basis. See
 .TP
 .B \-t \fRor\fB \-f \c
 These options are reserved for
-.B ssh1
+.B scp1
 compability mode. If they are used with
 .B scp2\fR,
-it execs
-.B ssh1
+it gives them as arguments to
+.B scp1
 to handle the connection.
+.ne 3
+.TP
+.B \-1\c
+This option invokes
+.B scp1
+with given arguments. The
+.B ``-1''
+is removed from the list, however, because scp1 doesn't understand
+this option. Because of this, it is wise to give this option as the
+first argument to
+.B scp2
+and separated from other arguments. Otherwise, it probably won't work.
+.ne 3
+.TP
+.B \-r\c
+This option specifies, that 
+.B scp2
+should copy directories recursively. Does not follow symbolic links.
 
 .SH INSTALLATION
 .LP

@@ -18,7 +18,9 @@ EXTRA_PROGRAMS = t-tr t-cross t-userauth t-conn t-pubkeyencode
 
 LDADD = ../libsshproto.a ../../sshcrypt/libsshcrypt.a ../../sshutil/libsshutil.a ../../sshmath/libsshmath.a ../../zlib/libz.a
 
-INCLUDES = -I../.. -I. -I.. -I$(srcdir) -I$(srcdir)/.. -I../../sshmath \
+INCLUDES = -I../.. -I. -I.. -I$(srcdir) -I$(srcdir)/.. \
+  -I$(top_builddir) -I$(top_srcdir) \
+  -I../../sshmath \
   -I$(srcdir)/../../sshmath -I../../sshutil -I$(srcdir)/../../sshutil \
   -I../../sshcrypt -I$(srcdir)/../../sshcrypt -I../../zlib \
   -I$(srcdir)/../../zlib

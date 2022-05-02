@@ -19,18 +19,20 @@
 #include "sshunixeloop.h"
 #include "sshunixfdstream.h"
 #include "sshfilexfer.h"
-#include "signals.h"
+#include "sshsignals.h"
+
+#define SSH_DEBUG_MODULE "SshSftpServer"
 
 int main(void)
 {       
   SshFileServer server;
     
   ssh_event_loop_initialize();
-  signals_prevent_core(NULL);
+  ssh_signals_prevent_core(TRUE, NULL);
   server = ssh_file_server_wrap(ssh_stream_fd_stdio());
   ssh_event_loop_run();      
   ssh_event_loop_uninitialize();
-  signals_reset();
+  ssh_signals_reset();
   
   return 0;
 }

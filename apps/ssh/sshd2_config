@@ -22,6 +22,8 @@
 	ForcePTTYAllocation		no
 	VerboseMode			no
 	PrintMotd			yes
+	UserConfigDirectory		"%D/.ssh2"
+#	UserConfigDirectory		"/etc/ssh2/auth/%U"
 	
 # subsystem definitions
 

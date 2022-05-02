@@ -22,6 +22,8 @@
 #include "authc-pubkey.h"
 #include "authc-passwd.h"
 
+#define SSH_DEBUG_MODULE "SshAuthMethodClient"
+
 /* table of the supported authentication methods */
 
 SshAuthClientMethod ssh_client_auth_methods[] =

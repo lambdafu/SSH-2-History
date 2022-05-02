@@ -15,7 +15,7 @@ precision integers.
 */
 
 /*
- * $Id: mpaux.h,v 1.4 1998/01/28 10:14:23 ylo Exp $
+ * $Id: mpaux.h,v 1.5 1998/10/28 21:36:22 mkojo Exp $
  * $Log: mpaux.h,v $
  * $EndLog$
  */
@@ -28,12 +28,12 @@ precision integers.
 /* Converts a multiple-precision integer into bytes to be stored in the buffer.
    The buffer will contain the value of the integer, msb first. */
 void mp_linearize_msb_first(unsigned char *buf, unsigned int len, 
-			    MP_INT *value);
+                            MP_INT *value);
 
 /* Extract a multiple-precision integer from buffer.  The value is stored
    in the buffer msb first. */
 void mp_unlinearize_msb_first(MP_INT *value, const unsigned char *buf,
-			      unsigned int len);
+                              unsigned int len);
 
 /* Following routines, which are equivalent to the functions given above
    are used extensively within the crypto library. */
@@ -50,5 +50,6 @@ void ssh_mp_to_buf(unsigned char *cp, size_t len, const MP_INT *x);
 
 void ssh_buf_to_mp(MP_INT *x, const unsigned char *cp, size_t len);
 
+void ssh_buf_to_mp_lsb(MP_INT *x, const unsigned char *cp, size_t len);
 
 #endif /* MPAUX_H */

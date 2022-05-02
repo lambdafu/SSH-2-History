@@ -23,6 +23,7 @@ Processing configuration data in SSH (both client and server).
 #include "match.h"
 #include "sshcipherlist.h"
 
+#define SSH_DEBUG_MODULE "SshUnixConfig"
 
 char *ssh2_config_line_heading_separator(char *linebuf)
 {
@@ -32,9 +33,9 @@ char *ssh2_config_line_heading_separator(char *linebuf)
   while (*hlp) 
     {
       if ((*hlp == ':') && (inquotes == 0))
-	return hlp;
+        return hlp;
       else if (*hlp == '"')
-	inquotes = !inquotes;
+        inquotes = !inquotes;
       hlp++;
     }
   return NULL;
@@ -51,34 +52,34 @@ void ssh2_config_remove_quotes(char *str)
   while (*hlp1)
     {
       switch (*hlp1)
-	{
-	case '"':
-	  if (quoted)
-	    {
-	      *hlp2 = *hlp1;
-	      hlp2++;
-	    }
-	  in_quotes = !in_quotes;
-	  break;
+        {
+        case '"':
+          if (quoted)
+            {
+              *hlp2 = *hlp1;
+              hlp2++;
+            }
+          in_quotes = !in_quotes;
+          break;
 
-	case '\\':
-	  if ((!in_quotes) || quoted)
-	    {
-	      *hlp2 = *hlp1;
-	      hlp2++;
-	      quoted = 0;
-	    }
-	  else
-	    {
-	      quoted = 1;
-	    }
-	  break;
+        case '\\':
+          if ((!in_quotes) || quoted)
+            {
+              *hlp2 = *hlp1;
+              hlp2++;
+              quoted = 0;
+            }
+          else
+            {
+              quoted = 1;
+            }
+          break;
 
-	default:
-	  *hlp2 = *hlp1;
-	  hlp2++;
-	  quoted = 0;
-	}
+        default:
+          *hlp2 = *hlp1;
+          hlp2++;
+          quoted = 0;
+        }
       hlp1++;
     }
   *hlp2 = '\0';
@@ -102,19 +103,19 @@ int ssh2_parse_config(SshUser user, const char *instance, const char *path,
   if (user == NULL)
     {
       if ((f = userfile_open(getuid(), path, O_RDONLY, 0755)) == NULL)
-	{
-	  ssh_debug("Unable to open %s", path);
-	  return -1;
-	}
+        {
+          ssh_debug("Unable to open %s", path);
+          return -1;
+        }
     }
   else
     {
       if ((f = userfile_open(ssh_user_uid(user), path, O_RDONLY, 0755)) ==
-	  NULL)
-	{
-	  ssh_debug("Unable to open %s", path);
-	  return -1;
-	}
+          NULL)
+        {
+          ssh_debug("Unable to open %s", path);
+          return -1;
+        }
     }
 
   line = 0;
@@ -169,13 +170,13 @@ int ssh2_parse_config(SshUser user, const char *instance, const char *path,
       varpos[j++] = 0;
 
       for (; varpos[j] && isspace(varpos[j]); j++)
-	;
+        ;
       valpos = &varpos[j];
 
       /* remove spaces from the tail */
 
       for (j = strlen(valpos) - 1; j > 0 && isspace(valpos[j]); j--)
-	;
+        ;
       valpos[j + 1] = 0;
 
       vars[i] = ssh_xstrdup(varpos);
@@ -203,9 +204,9 @@ int ssh2_parse_config(SshUser user, const char *instance, const char *path,
 }
 
 Boolean ssh_server_load_host_key(SshConfig config,
-				 SshPrivateKey *private_host_key,
-				 unsigned char **public_host_key_blob,
-				 size_t *public_host_key_blob_len,
+                                 SshPrivateKey *private_host_key,
+                                 unsigned char **public_host_key_blob,
+                                 size_t *public_host_key_blob_len,
                                  void *context)
 {
   SshUser user;
@@ -220,26 +221,27 @@ Boolean ssh_server_load_host_key(SshConfig config,
   /* load the host key from (typically) /etc/ssh2/hostkey */
   if(config->host_key_file[0] != '/')
     {    
-      if ((userdir = ssh_userdir(user, TRUE)) == NULL)
-	ssh_fatal("ssh_server_load_host_key: no ssh2 user directory");
+      if ((userdir = ssh_userdir(user, config, TRUE)) == NULL)
+        ssh_fatal("ssh_server_load_host_key: no ssh2 user directory");
       snprintf(hostkeyfile, sizeof(hostkeyfile), "%s/%s",
-	       userdir, config->host_key_file);
+               userdir, config->host_key_file);
     }
   else
     {
       snprintf(hostkeyfile, sizeof(hostkeyfile), "%s",
-	       config->host_key_file);
+               config->host_key_file);
     }
   
   ssh_debug("Reading private host key from %s", hostkeyfile);
-  if ((privkey = ssh_privkey_read(user, hostkeyfile, "", &comment, NULL)) == NULL)
-    ssh_fatal("ssh_privkey_read failed.");
+  if ((privkey = ssh_privkey_read(user, hostkeyfile, "", &comment,
+                                  NULL)) == NULL)
+    ssh_fatal("ssh_privkey_read from %s failed.", hostkeyfile);
 
   /* print the comment just for fun.. */
   if (comment != NULL)
     {
       if (strlen(comment) > 0)
-	ssh_debug("Key comment: %s", comment);
+        ssh_debug("Key comment: %s", comment);
       ssh_xfree(comment);
     }
   *private_host_key = privkey;
@@ -248,21 +250,21 @@ Boolean ssh_server_load_host_key(SshConfig config,
   if(config->public_host_key_file[0] != '/')
     {
       snprintf(hostkeyfile, sizeof(hostkeyfile), "%s/%s", 
-	       userdir, config->public_host_key_file);
+               userdir, config->public_host_key_file);
     }
   else
     {
       snprintf(hostkeyfile, sizeof(hostkeyfile), "%s", 
-	       config->public_host_key_file);
+               config->public_host_key_file);
     }
   
   ssh_debug("Reading public host key from: %s", hostkeyfile);
 
   if (ssh_key_blob_read(user, hostkeyfile, NULL,
-			public_host_key_blob,
-			public_host_key_blob_len, NULL) 
+                        public_host_key_blob,
+                        public_host_key_blob_len, NULL) 
       != SSH_KEY_MAGIC_PUBLIC)
-    ssh_fatal("Unable to load public host key.");
+    ssh_fatal("Unable to load public host key from %s.", hostkeyfile);
 
   ssh_xfree(userdir);
   ssh_user_free(user, FALSE);
@@ -320,8 +322,8 @@ Boolean ssh_config_parse_line(SshConfig config, char *line)
    occurs (displays error messages with ssh_warning.) */
 
 Boolean ssh_config_read_file(SshUser user, SshConfig config,
-			     char *instance, const char *filename,
-			     void *context)
+                             char *instance, const char *filename,
+                             void *context)
 {
   SshUser user_data;
   char **vars, **vals;
@@ -343,7 +345,7 @@ Boolean ssh_config_read_file(SshUser user, SshConfig config,
   if (n < 0)
     {
       if (user_data != user)
-	ssh_user_free(user_data, FALSE);
+        ssh_user_free(user_data, FALSE);
       return FALSE;
     }
 

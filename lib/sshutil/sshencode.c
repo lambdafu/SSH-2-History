@@ -3,7 +3,7 @@
 sshencode.c
 
 Author: Tero Kivinen <kivinen@ssh.fi>
-	Tatu Ylonen <ylo@ssh.fi>
+        Tatu Ylonen <ylo@ssh.fi>
 
 Copyright (c) 1997 SSH Communications Security, Finland
                    All rights reserved
@@ -31,75 +31,84 @@ size_t ssh_encode_va(SshBuffer *buffer, va_list ap)
 {
   SshEncodingFormat format;
   unsigned long longvalue;
+  SshUInt64 u64;
   size_t i;
   Boolean b;
   const unsigned char *p;
   size_t original_bytes;
   MP_INT *mp;
   SshEncoder encoder;
+  unsigned char buf[8];
   
   original_bytes = ssh_buffer_len(buffer);
   for (;;)
     {
       format = va_arg(ap, SshEncodingFormat);
       switch (format)
-	{
-	case SSH_FORMAT_VLINT32_STR:
-	  p = va_arg(ap, unsigned char *);
-	  i = va_arg(ap, size_t);
-	  buffer_put_vlint32_string(buffer, p, i);
-	  break;
+        {
+        case SSH_FORMAT_VLINT32_STR:
+          p = va_arg(ap, unsigned char *);
+          i = va_arg(ap, size_t);
+          buffer_put_vlint32_string(buffer, p, i);
+          break;
 
-	case SSH_FORMAT_UINT32_STR:
-	  p = va_arg(ap, unsigned char *);
-	  i = va_arg(ap, size_t);
-	  buffer_put_uint32_string(buffer, p, i);
-	  break;
+        case SSH_FORMAT_UINT32_STR:
+          p = va_arg(ap, unsigned char *);
+          i = va_arg(ap, size_t);
+          buffer_put_uint32_string(buffer, p, i);
+          break;
 
-	case SSH_FORMAT_VLINT32:
-	  longvalue = va_arg(ap, unsigned long);
-	  buffer_put_vlint32(buffer, longvalue);
-	  break;
+        case SSH_FORMAT_VLINT32:
+          longvalue = va_arg(ap, unsigned long);
+          buffer_put_vlint32(buffer, longvalue);
+          break;
 
-	case SSH_FORMAT_BOOLEAN:
-	  b = va_arg(ap, Boolean);
-	  buffer_put_boolean(buffer, b);
-	  break;
+        case SSH_FORMAT_BOOLEAN:
+          b = va_arg(ap, Boolean);
+          buffer_put_boolean(buffer, b);
+          break;
 
-	case SSH_FORMAT_MP_INT:
-	  mp = va_arg(ap, MP_INT *);
-	  buffer_put_mp_int(buffer, mp);
-	  break;
+        case SSH_FORMAT_MP_INT:
+          mp = va_arg(ap, MP_INT *);
+          buffer_put_mp_int(buffer, mp);
+          break;
 
-	case SSH_FORMAT_UINT32:
-	  longvalue = va_arg(ap, unsigned long);
-	  buffer_put_int(buffer, longvalue);
-	  break;
+        case SSH_FORMAT_UINT32:
+          longvalue = va_arg(ap, unsigned long);
+          buffer_put_int(buffer, longvalue);
+          break;
 
-	case SSH_FORMAT_CHAR:
-	  i = va_arg(ap, unsigned long);
-	  buffer_put_char(buffer, i);
-	  break;
+        case SSH_FORMAT_CHAR:
+          i = va_arg(ap, unsigned long);
+          buffer_put_char(buffer, i);
+          break;
 
-	case SSH_FORMAT_DATA:
-	  p = va_arg(ap, unsigned char *);
-	  i = va_arg(ap, size_t);
-	  ssh_buffer_append(buffer, p, i);
-	  break;
+        case SSH_FORMAT_DATA:
+          p = va_arg(ap, unsigned char *);
+          i = va_arg(ap, size_t);
+          ssh_buffer_append(buffer, p, i);
+          break;
 
-	case SSH_FORMAT_EXTENDED:
-	  encoder = va_arg(ap, SshEncoder);
-	  (*encoder)(buffer, &ap);
-	  break;
-	  
-	case SSH_FORMAT_END:
-	  /* Return the number of bytes added. */
-	  return ssh_buffer_len(buffer) - original_bytes;
+        case SSH_FORMAT_EXTENDED:
+          encoder = va_arg(ap, SshEncoder);
+          (*encoder)(buffer, &ap);
+          break;
 
-	default:
-	  ssh_fatal("ssh_encode_va: invalid format code %d (check arguments and SSH_FORMAT_END)", 
-		    (int)format);
-	}
+        case SSH_FORMAT_UINT64:
+          u64 = va_arg(ap, SshUInt64);
+          SSH_PUT_64BIT(buf, u64);
+          ssh_buffer_append(buffer, buf, 8);
+          break;
+          
+        case SSH_FORMAT_END:
+          /* Return the number of bytes added. */
+          return ssh_buffer_len(buffer) - original_bytes;
+
+        default:
+          ssh_fatal("ssh_encode_va: invalid format code %d "
+                    "(check arguments and SSH_FORMAT_END)", 
+                    (int)format);
+        }
     }
   /*NOTREACHED*/
 }
@@ -176,7 +185,7 @@ size_t ssh_encode_alloc_va(unsigned char **buf_return, va_list ap)
    or 0 if an error was encountered.  The value is returned in *valuep. */
 
 size_t ssh_decode_vlint32(const unsigned char *buf, size_t len,
-			  unsigned long *valuep)
+                          unsigned long *valuep)
 {
   size_t itemlen;
 
@@ -203,8 +212,8 @@ size_t ssh_decode_vlint32(const unsigned char *buf, size_t len,
    easily freed later if necessary. */
 
 unsigned char *ssh_decode_alloc(unsigned int *num_allocs_p,
-				unsigned char ***allocsp,
-				size_t size)
+                                unsigned char ***allocsp,
+                                size_t size)
 {
   unsigned char *p;
 
@@ -215,7 +224,7 @@ unsigned char *ssh_decode_alloc(unsigned int *num_allocs_p,
   else
     if (*num_allocs_p % 16 == 0)
       *allocsp = ssh_xrealloc(*allocsp,
-			      (*num_allocs_p + 16) * sizeof(unsigned char *));
+                              (*num_allocs_p + 16) * sizeof(unsigned char *));
 
   /* Allocate the memory block. */
   p = ssh_xmalloc(size);
@@ -233,7 +242,7 @@ unsigned char *ssh_decode_alloc(unsigned int *num_allocs_p,
    is encountered (the buffer ends too soon). */
 
 size_t ssh_decode_mp_int(const unsigned char *buf, size_t len,
-			 MP_INT *mp)
+                         MP_INT *mp)
 {
   unsigned int bits;
   size_t bytes;
@@ -270,10 +279,11 @@ size_t ssh_decode_mp_int(const unsigned char *buf, size_t len,
    specified length would be exceeded. */
 
 size_t ssh_decode_array_va(const unsigned char *buf, size_t len,
-			   va_list ap)
+                           va_list ap)
 {
   SshEncodingFormat format;
   unsigned long *longp, longvalue;
+  SshUInt64 *u64p;
   Boolean *bp;
   size_t size, *sizep;
   unsigned int *uip;
@@ -301,232 +311,241 @@ size_t ssh_decode_array_va(const unsigned char *buf, size_t len,
       /* Get the next format code. */
       format = va_arg(ap, SshEncodingFormat);
       switch (format)
-	{
-	case SSH_FORMAT_VLINT32_STR:
-	  /* Get length and data pointers. */
-	  pp = va_arg(ap, unsigned char **);
-	  sizep = va_arg(ap, size_t *);
+        {
+        case SSH_FORMAT_VLINT32_STR:
+          /* Get length and data pointers. */
+          pp = va_arg(ap, unsigned char **);
+          sizep = va_arg(ap, size_t *);
 
-	  /* Decode string length, check errors, and skip the length. */
-	  itemlen = ssh_decode_vlint32(buf + offset, len - offset,
-				       &longvalue);
-	  if (itemlen == 0)
-	    goto fail;
-	  offset += itemlen;
+          /* Decode string length, check errors, and skip the length. */
+          itemlen = ssh_decode_vlint32(buf + offset, len - offset,
+                                       &longvalue);
+          if (itemlen == 0)
+            goto fail;
+          offset += itemlen;
 
-	  /* Check that the string is all in the buffer. */
-	  if (longvalue > len - offset)
-	    goto fail;
+          /* Check that the string is all in the buffer. */
+          if (longvalue > len - offset)
+            goto fail;
 
-	  /* Store length if requested. */
-	  if (sizep != NULL)
-	    *sizep = longvalue;
+          /* Store length if requested. */
+          if (sizep != NULL)
+            *sizep = longvalue;
 
-	  /* Retrieve the data if requested. */
-	  if (pp != NULL)
-	    {
-	      *pp = ssh_decode_alloc(&num_allocs, &allocs,
-				     (size_t)longvalue + 1);
-	      memcpy(*pp, buf + offset, (size_t)longvalue);
-	      (*pp)[longvalue] = '\0';
-	    }
+          /* Retrieve the data if requested. */
+          if (pp != NULL)
+            {
+              *pp = ssh_decode_alloc(&num_allocs, &allocs,
+                                     (size_t)longvalue + 1);
+              memcpy(*pp, buf + offset, (size_t)longvalue);
+              (*pp)[longvalue] = '\0';
+            }
 
-	  /* Consume the data. */
-	  offset += longvalue;
-	  break;
+          /* Consume the data. */
+          offset += longvalue;
+          break;
 
-	case SSH_FORMAT_VLINT32_STR_NOCOPY:
-	  /* Get length and data pointers. */
-	  cpp = va_arg(ap, const unsigned char **);
-	  sizep = va_arg(ap, size_t *);
+        case SSH_FORMAT_VLINT32_STR_NOCOPY:
+          /* Get length and data pointers. */
+          cpp = va_arg(ap, const unsigned char **);
+          sizep = va_arg(ap, size_t *);
 
-	  /* Decode string length, check errors, and skip the length. */
-	  itemlen = ssh_decode_vlint32(buf + offset, len - offset,
-				       &longvalue);
-	  if (itemlen == 0)
-	    goto fail;
-	  offset += itemlen;
+          /* Decode string length, check errors, and skip the length. */
+          itemlen = ssh_decode_vlint32(buf + offset, len - offset,
+                                       &longvalue);
+          if (itemlen == 0)
+            goto fail;
+          offset += itemlen;
 
-	  /* Check that the string is all in the buffer. */
-	  if (longvalue > len - offset)
-	    goto fail;
+          /* Check that the string is all in the buffer. */
+          if (longvalue > len - offset)
+            goto fail;
 
-	  /* Store length if requested. */
-	  if (sizep != NULL)
-	    *sizep = longvalue;
+          /* Store length if requested. */
+          if (sizep != NULL)
+            *sizep = longvalue;
 
-	  /* Retrieve the data if requested. */
-	  if (cpp != NULL)
-	    *cpp = buf + offset;
+          /* Retrieve the data if requested. */
+          if (cpp != NULL)
+            *cpp = buf + offset;
 
-	  /* Consume the data. */
-	  offset += longvalue;
-	  break;
-	  
-	case SSH_FORMAT_UINT32_STR:
-	  /* Get length and data pointers. */
-	  pp = va_arg(ap, unsigned char **);
-	  sizep = va_arg(ap, size_t *);
+          /* Consume the data. */
+          offset += longvalue;
+          break;
+          
+        case SSH_FORMAT_UINT32_STR:
+          /* Get length and data pointers. */
+          pp = va_arg(ap, unsigned char **);
+          sizep = va_arg(ap, size_t *);
 
-	  /* Check if the length of the string is there. */
-	  if (len - offset < 4)
-	    goto fail;
+          /* Check if the length of the string is there. */
+          if (len - offset < 4)
+            goto fail;
 
-	  /* Get the length of the string. */
-	  longvalue = SSH_GET_32BIT(buf + offset);
-	  offset += 4;
+          /* Get the length of the string. */
+          longvalue = SSH_GET_32BIT(buf + offset);
+          offset += 4;
 
-	  /* Check that the string is all in the buffer. */
-	  if (longvalue > len - offset)
-	    goto fail;
+          /* Check that the string is all in the buffer. */
+          if (longvalue > len - offset)
+            goto fail;
 
-	  /* Store length if requested. */
-	  if (sizep != NULL)
-	    *sizep = longvalue;
+          /* Store length if requested. */
+          if (sizep != NULL)
+            *sizep = longvalue;
 
-	  /* Retrieve the data if requested. */
-	  if (pp != NULL)
-	    {
-	      *pp = ssh_decode_alloc(&num_allocs, &allocs,
-				     (size_t)longvalue + 1);
-	      memcpy(*pp, buf + offset, (size_t)longvalue);
-	      (*pp)[longvalue] = '\0';
-	    }
+          /* Retrieve the data if requested. */
+          if (pp != NULL)
+            {
+              *pp = ssh_decode_alloc(&num_allocs, &allocs,
+                                     (size_t)longvalue + 1);
+              memcpy(*pp, buf + offset, (size_t)longvalue);
+              (*pp)[longvalue] = '\0';
+            }
 
-	  /* Consume the data. */
-	  offset += longvalue;
-	  break;
+          /* Consume the data. */
+          offset += longvalue;
+          break;
 
-	case SSH_FORMAT_UINT32_STR_NOCOPY:
+        case SSH_FORMAT_UINT32_STR_NOCOPY:
 
-	  /* Get length and data pointers. */
-	  cpp = va_arg(ap, const unsigned char **);
-	  sizep = va_arg(ap, size_t *);
+          /* Get length and data pointers. */
+          cpp = va_arg(ap, const unsigned char **);
+          sizep = va_arg(ap, size_t *);
 
-	  /* Decode string length and skip the length. */
+          /* Decode string length and skip the length. */
 
-	  if (len - offset < 4)
-	    goto fail;
+          if (len - offset < 4)
+            goto fail;
 
-	  longvalue = SSH_GET_32BIT(buf + offset);
-	  offset += 4;
+          longvalue = SSH_GET_32BIT(buf + offset);
+          offset += 4;
 
-	  /* Check that the string is all in the buffer. */
-	  if (longvalue > len - offset)
-	    goto fail;
+          /* Check that the string is all in the buffer. */
+          if (longvalue > len - offset)
+            goto fail;
 
-	  /* Store length if requested. */
-	  if (sizep != NULL)
-	    *sizep = longvalue;
+          /* Store length if requested. */
+          if (sizep != NULL)
+            *sizep = longvalue;
 
-	  /* Retrieve the data if requested. */
-	  if (cpp != NULL)
-	    *cpp = buf + offset;
+          /* Retrieve the data if requested. */
+          if (cpp != NULL)
+            *cpp = buf + offset;
 
-	  /* Consume the data. */
-	  offset += longvalue;
-	  break;
-	  
+          /* Consume the data. */
+          offset += longvalue;
+          break;
+          
 
-	case SSH_FORMAT_VLINT32:
-	  longp = va_arg(ap, unsigned long *);
+        case SSH_FORMAT_VLINT32:
+          longp = va_arg(ap, unsigned long *);
 
-	  /* Decode the value, and check errors, and skip the value. */
-	  itemlen = ssh_decode_vlint32(buf + offset, len - offset,
-				       &longvalue);
-	  if (itemlen == 0)
-	    goto fail;
-	  offset += itemlen;
+          /* Decode the value, and check errors, and skip the value. */
+          itemlen = ssh_decode_vlint32(buf + offset, len - offset,
+                                       &longvalue);
+          if (itemlen == 0)
+            goto fail;
+          offset += itemlen;
 
-	  /* Store the value if requested. */
-	  if (longp != NULL)
-	    *longp = longvalue;
-	  break;
+          /* Store the value if requested. */
+          if (longp != NULL)
+            *longp = longvalue;
+          break;
 
-	case SSH_FORMAT_BOOLEAN:
-	  bp = va_arg(ap, Boolean *);
-	  if (len - offset < 1)
-	    goto fail;
-	  if (bp != NULL)
-	    *bp = buf[offset] != 0;
-	  offset++;
-	  break;
+        case SSH_FORMAT_BOOLEAN:
+          bp = va_arg(ap, Boolean *);
+          if (len - offset < 1)
+            goto fail;
+          if (bp != NULL)
+            *bp = buf[offset] != 0;
+          offset++;
+          break;
 
-	case SSH_FORMAT_MP_INT:
-	  /* Note: there is no need to free mp-ints on error, as they are
-	     already initialized, and thus the caller will eventually
-	     free them. */
-	  mp = va_arg(ap, MP_INT *);
-	  /* Decode the value (note: mp may be NULL). */
-	  itemlen = ssh_decode_mp_int(buf + offset, len - offset, mp);
-	  if (itemlen == 0)
-	    goto fail;
-	  offset += itemlen;
-	  break;
+        case SSH_FORMAT_MP_INT:
+          /* Note: there is no need to free mp-ints on error, as they are
+             already initialized, and thus the caller will eventually
+             free them. */
+          mp = va_arg(ap, MP_INT *);
+          /* Decode the value (note: mp may be NULL). */
+          itemlen = ssh_decode_mp_int(buf + offset, len - offset, mp);
+          if (itemlen == 0)
+            goto fail;
+          offset += itemlen;
+          break;
 
-	case SSH_FORMAT_UINT32:
-	  longp = va_arg(ap, unsigned long *);
-	  if (len - offset < 4)
-	    goto fail;
-	  if (longp)
-	    *longp = SSH_GET_32BIT(buf + offset);
-	  offset += 4;
-	  break;
+        case SSH_FORMAT_UINT32:
+          longp = va_arg(ap, unsigned long *);
+          if (len - offset < 4)
+            goto fail;
+          if (longp)
+            *longp = SSH_GET_32BIT(buf + offset);
+          offset += 4;
+          break;
 
-	case SSH_FORMAT_CHAR:
-	  uip = va_arg(ap, unsigned int *);
-	  if (len - offset < 1)
-	    goto fail;
-	  if (uip)
-	    *uip = buf[offset];
-	  offset++;
-	  break;
+        case SSH_FORMAT_CHAR:
+          uip = va_arg(ap, unsigned int *);
+          if (len - offset < 1)
+            goto fail;
+          if (uip)
+            *uip = buf[offset];
+          offset++;
+          break;
 
-	case SSH_FORMAT_DATA:
-	  p = va_arg(ap, unsigned char *);
-	  size = va_arg(ap, size_t);
-	  if (len - offset < size)
-	    goto fail;
-	  if (p)
-	    memcpy(p, buf + offset, size);
-	  offset += size;
-	  break;
+        case SSH_FORMAT_DATA:
+          p = va_arg(ap, unsigned char *);
+          size = va_arg(ap, size_t);
+          if (len - offset < size)
+            goto fail;
+          if (p)
+            memcpy(p, buf + offset, size);
+          offset += size;
+          break;
 
-	case SSH_FORMAT_EXTENDED:
-	  /* Get the decoder from the argument list. */
-	  decoder = va_arg(ap, SshDecoder);
+        case SSH_FORMAT_EXTENDED:
+          /* Get the decoder from the argument list. */
+          decoder = va_arg(ap, SshDecoder);
 
-	  /* Try decoding. */
-	  start_of_ap = ap;
-	  size = (*decoder)(buf + offset, len - offset, &ap);
-	  if (size == 0)
-	    goto fail;
+          /* Try decoding. */
+          start_of_ap = ap;
+          size = (*decoder)(buf + offset, len - offset, &ap);
+          if (size == 0)
+            goto fail;
 
-	  /* Save the decoder in case we fail later. */
-	  if (num_decoders == 0)
-	    decoders = ssh_xmalloc(sizeof(*decoders));
-	  else
-	    decoders = ssh_xrealloc(decoders,
-				    (num_decoders + 1) * sizeof(*decoders));
-	  decoders[num_decoders].decoder = decoder;
-	  decoders[num_decoders].ap = start_of_ap;
-	  num_decoders++;
+          /* Save the decoder in case we fail later. */
+          if (num_decoders == 0)
+            decoders = ssh_xmalloc(sizeof(*decoders));
+          else
+            decoders = ssh_xrealloc(decoders,
+                                    (num_decoders + 1) * sizeof(*decoders));
+          decoders[num_decoders].decoder = decoder;
+          decoders[num_decoders].ap = start_of_ap;
+          num_decoders++;
 
-	  /* Move over parsed data. */
-	  offset += size;
-	  break;
-	  
-	case SSH_FORMAT_END:
-	  /* Free the allocs array. */
-	  if (num_allocs > 0)
-	    ssh_xfree(allocs);
-	  /* Return the number of bytes consumed. */
-	  return offset;
+          /* Move over parsed data. */
+          offset += size;
+          break;
 
-	default:
-	  ssh_fatal("ssh_decode_array_va: invalid format code %d (check arguments and SSH_FORMAT_END)", 
-		    (int)format);
-	}
+        case SSH_FORMAT_UINT64:
+          u64p = va_arg(ap, SshUInt64 *);
+          if (len - offset < 8)
+            goto fail;
+          if (u64p)
+            *u64p = SSH_GET_64BIT(buf + offset);
+          offset += 8;
+          break;
+          
+        case SSH_FORMAT_END:
+          /* Free the allocs array. */
+          if (num_allocs > 0)
+            ssh_xfree(allocs);
+          /* Return the number of bytes consumed. */
+          return offset;
+
+        default:
+          ssh_fatal("ssh_decode_array_va: invalid format code %d (check arguments and SSH_FORMAT_END)", 
+                    (int)format);
+        }
     }
   /*NOTREACHED*/
   ssh_fatal("ssh_decode_array_va: at end of loop");
@@ -540,7 +559,7 @@ fail:
   if (num_decoders > 0)
     {
       for (i = 0; i < num_decoders; i++)
-	(*decoders[i].decoder)(SSH_DECODE_FREE, 0, &decoders[i].ap);
+        (*decoders[i].decoder)(SSH_DECODE_FREE, 0, &decoders[i].ap);
       ssh_xfree(decoders);
     }
   return 0;

@@ -10,13 +10,16 @@
   */
 
 /*
- * $Id: snprintf.c,v 1.21 1998/10/06 11:32:34 sjl Exp $
+ * $Id: snprintf.c,v 1.23 1998/11/05 21:14:05 ylo Exp $
  * $Log: snprintf.c,v $
  * $EndLog$
  */
 
 #include "sshincludes.h"
 #include "snprintf.h"
+
+#undef isdigit
+#define isdigit(ch) ((ch) >= '0' && (ch) <= '9')
 
 #define MINUS_FLAG 0x1
 #define PLUS_FLAG 0x2
@@ -39,7 +42,7 @@ int
 snprintf_get_directive(const char *str, int *flags, int *width,
                        int *precision, char *format_char, va_list *ap)
 {
-  int length, n;
+  int length, value;
   const char *orig_str = str;
 
   *flags = 0; 
@@ -78,17 +81,13 @@ snprintf_get_directive(const char *str, int *flags, int *width,
       /* Don't pad left-justified numbers withs zeros */
       if ((*flags & MINUS_FLAG) && (*flags & ZERO_PADDING))
         *flags &= ~ZERO_PADDING;
-      
+        
       /* Is width field present? */
       if (isdigit(*str))
         {
-          n = sscanf(str, "%d", width);
-          if (n == 0)
-            return 0;
-
-          /* Step through the field */
-          while (isdigit(*str))
-            str++;
+          for (value = 0; *str && isdigit(*str); str++)
+            value = 10 * value + *str - '0';
+          *width = value;
         }
       else
         if (*str == '*')
@@ -103,13 +102,9 @@ snprintf_get_directive(const char *str, int *flags, int *width,
           str++;
           if (isdigit(*str))
             {
-              n = sscanf(str, "%d", precision);
-              if (n == 0)
-                return 0;
-          
-              /* Step through the field */
-              while (isdigit(*str))
-                str++;
+              for (value = 0; *str && isdigit(*str); str++)
+                value = 10 * value + *str - '0';
+              *precision = value;
             }
           else
             if (*str == '*')
@@ -275,6 +270,8 @@ snprintf_convert_ulong(char *buffer, size_t buf_size, int base, char *digits,
     }
 }
 
+#ifndef KERNEL
+
 int
 snprintf_convert_float(char *buffer, size_t buf_size,
                        double dbl_val, int flags, int width,
@@ -315,12 +312,16 @@ snprintf_convert_float(char *buffer, size_t buf_size,
   *format_str_ptr++ = format_char;
   *format_str_ptr++ = '\0';
 
-  print_buf_len = sprintf(print_buf, format_str, dbl_val);
+  sprintf(print_buf, format_str, dbl_val);
+  print_buf_len = strlen(print_buf);
 
-  if (print_buf_len > buf_size) print_buf_len = buf_size;
+  if (print_buf_len > buf_size)
+    print_buf_len = buf_size;
   strncpy(buffer, print_buf, print_buf_len);
   return print_buf_len;
 }
+
+#endif /* KERNEL */
 
 int
 snprintf(char *str, size_t size, const char *format, ...)
@@ -345,7 +346,9 @@ vsnprintf(char *str, size_t size, const char *format, va_list ap)
   long int long_val;
   unsigned long int ulong_val;
   char *str_val;
+#ifndef KERNEL
   double dbl_val;
+#endif /* KERNEL */
 
   flags = 0;
   while (format_ptr < format + strlen(format))
@@ -521,6 +524,7 @@ vsnprintf(char *str, size_t size, const char *format, va_list ap)
                           *int_ptr = str - orig_str;
                           break;
 
+#ifndef KERNEL
                         case 'f': case 'e': case 'E': case 'g': case 'G':
                           if (flags & IS_LONG_DOUBLE)
                             dbl_val = (double) va_arg(ap, long double);
@@ -533,6 +537,7 @@ vsnprintf(char *str, size_t size, const char *format, va_list ap)
                           str += status;
                           left -= status;
                           break;
+#endif /* KERNEL */
                           
                         default:
                           break;

@@ -3,7 +3,7 @@
 sshgetput.h
 
 Author: Tatu Ylonen <ylo@cs.hut.fi>
-	Mika Kojo <mkojo@ssh.fi>
+        Mika Kojo <mkojo@ssh.fi>
 
 Copyright (c) 1995-1998 SSH Communications Security, Finland
                    All rights reserved
@@ -15,7 +15,7 @@ Macros for storing and retrieving integers in msb first and lsb first order.
 */
 
 /*
- * $Id: sshgetput.h,v 1.4 1998/08/23 06:28:38 ylo Exp $
+ * $Id: sshgetput.h,v 1.5 1998/10/24 23:30:47 ylo Exp $
  * $Log: sshgetput.h,v $
  * $EndLog$
  */
@@ -32,6 +32,29 @@ Macros for storing and retrieving integers in msb first and lsb first order.
   (unsigned char)((*(unsigned char *)(cp) & 0xf0) | ((value) & 0x0f)))
 #define SSH_PUT_4BIT_HIGH(cp, value) (*(unsigned char *)(cp) = \
   (unsigned char)((*(unsigned char *)(cp) & 0x0f) | (((value) & 0x0f) << 4)))
+
+#ifdef SSHUINT64_IS_64BITS
+#define SSH_GET_64BIT(cp) (((SshUInt64)SSH_GET_32BIT((cp)) << 32) | \
+                           ((SshUInt64)SSH_GET_32BIT((cp) + 4)))
+#define SSH_PUT_64BIT(cp, value) do { \
+  SSH_PUT_32BIT((cp), (SshUInt32)((value) >> 32)); \
+  SSH_PUT_32BIT((cp) + 4, (SshUInt32)(value)); } while (0)
+#define SSH_GET_64BIT_LSB_FIRST(cp) \
+     (((SshUInt64)SSH_GET_32BIT_LSB_FIRST((cp))) | \
+      ((SshUInt64)SSH_GET_32BIT_LSB_FIRST((cp) + 4) << 32))
+#define SSH_PUT_64BIT_LSB_FIRST(cp, value) do { \
+  SSH_PUT_32BIT_LSB_FIRST((cp), (SshUInt32)(value)); \
+  SSH_PUT_32BIT_LSB_FIRST((cp) + 4, (SshUInt32)((value) >> 32)); } while (0)
+#else /* SSHUINT64_IS_64BITS */
+#define SSH_GET_64BIT(cp) ((SshUInt64)SSH_GET_32BIT((cp) + 4))
+#define SSH_PUT_64BIT(cp, value) do { \
+  SSH_PUT_32BIT((cp), 0L); \
+  SSH_PUT_32BIT((cp) + 4, (SshUInt32)(value)); } while (0)
+#define SSH_GET_64BIT_LSB_FIRST(cp) ((SshUInt64)SSH_GET_32BIT((cp)))
+#define SSH_PUT_64BIT_LSB_FIRST(cp, value) do { \
+  SSH_PUT_32BIT_LSB_FIRST((cp), (SshUInt32)(value)); \
+  SSH_PUT_32BIT_LSB_FIRST((cp) + 4, 0L); } while (0)
+#endif /* SSHUINT64_IS_64BITS */
 
 #if defined(NO_INLINE_GETPUT) || !defined(__i386__) || !defined(__GNUC__)
 
@@ -100,8 +123,8 @@ Macros for storing and retrieving integers in msb first and lsb first order.
 ({  \
   SshUInt32 __v__; \
   __asm__ ("movl (%1), %0; rolw $8, %0; roll $16, %0; rolw $8, %0;" \
-	  : "=&r" (__v__) \
-	  : "r" (cp)); \
+          : "=&r" (__v__) \
+          : "r" (cp)); \
   __v__; \
 })
 
@@ -109,19 +132,19 @@ Macros for storing and retrieving integers in msb first and lsb first order.
 ({ \
   SshUInt16 __v__; \
   __asm__ ("movw (%1), %0; rolw $8, %0;" \
-	  : "=&r" (__v__) \
-	  : "r" (cp)); \
+          : "=&r" (__v__) \
+          : "r" (cp)); \
   __v__; \
 })
 
 #define SSH_PUT_32BIT(cp, v) \
 __asm__ ("movl %1, %%ecx; rolw $8, %%cx; roll $16, %%ecx; rolw $8, %%cx;" \
-	 "movl %%ecx, (%0);" \
-	 : : "S" (cp), "a" (v) : "%ecx") \
+         "movl %%ecx, (%0);" \
+         : : "S" (cp), "a" (v) : "%ecx") \
 
 #define SSH_PUT_16BIT(cp,v)  \
 __asm__("movw %%ax, %%cx; rolw $8, %%cx; movw %%cx, (%0);"\
-	: : "S" (cp), "a" (v) : "%cx") \
+        : : "S" (cp), "a" (v) : "%cx") \
 
 #endif /* __i386__ */
 

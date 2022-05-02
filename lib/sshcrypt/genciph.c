@@ -9,7 +9,7 @@
     */
 
 /*
- * $Id: genciph.c,v 1.29 1998/08/11 19:18:10 mjos Exp $
+ * $Id: genciph.c,v 1.34 1998/11/14 12:10:46 tri Exp $
  * $Log: genciph.c,v $
  * $EndLog$
  */
@@ -51,7 +51,7 @@
 #endif /* SSHDIST_CRYPT_SAFER */
 
 #ifdef SSHDIST_CRYPT_TWOFISH
-
+#include "twofish.h"
 #endif /* SSHDIST_CRYPT_TWOFISH */
 
 #ifdef SSHDIST_CRYPT_RC5
@@ -75,17 +75,18 @@
 static const SshCipherDef ssh_cipher_algorithms[] =
 {
 #ifdef SSHDIST_CRYPT_DES
-  { "3des-ecb", 8, 24, des3_ctxsize, des3_init, des3_ecb,
-    des3_set_iv, des3_get_iv },
-  { "3des-cbc", 8, 24, des3_ctxsize, des3_init, des3_cbc,
-    des3_set_iv, des3_get_iv },
-  { "3des-cfb", 8, 24, des3_ctxsize, des3_init, des3_cfb,
-    des3_set_iv, des3_get_iv },    
-  { "3des-ofb", 8, 24, des3_ctxsize, des3_init, des3_ofb,
-    des3_set_iv, des3_get_iv },
+  { "3des-ecb", 8, 24, des3_ctxsize, des3_init, des3_ecb },
+  { "3des-cbc", 8, 24, des3_ctxsize, des3_init, des3_cbc },
+  { "3des-cfb", 8, 24, des3_ctxsize, des3_init, des3_cfb },
+  { "3des-ofb", 8, 24, des3_ctxsize, des3_init, des3_ofb },
 #endif /* SSHDIST_CRYPT_DES */
 
 #ifdef SSHDIST_CRYPT_CAST
+
+
+
+
+
 
 
 
@@ -103,31 +104,23 @@ static const SshCipherDef ssh_cipher_algorithms[] =
   
 #ifdef SSHDIST_CRYPT_BLOWFISH
   { "blowfish-ecb", 8, 0,
-    blowfish_ctxsize, blowfish_init,
-    blowfish_ecb, blowfish_set_iv, blowfish_get_iv },
+    blowfish_ctxsize, blowfish_init, blowfish_ecb },
   { "blowfish-cbc", 8, 0,
-    blowfish_ctxsize, blowfish_init,
-    blowfish_cbc, blowfish_set_iv, blowfish_get_iv },
+    blowfish_ctxsize, blowfish_init, blowfish_cbc },
   { "blowfish-cfb", 8, 0,
-    blowfish_ctxsize, blowfish_init,
-    blowfish_cfb, blowfish_set_iv, blowfish_get_iv },
+    blowfish_ctxsize, blowfish_init, blowfish_cfb },
   { "blowfish-ofb", 8, 0,
-    blowfish_ctxsize, blowfish_init,
-    blowfish_ofb, blowfish_set_iv, blowfish_get_iv },
+    blowfish_ctxsize, blowfish_init, blowfish_ofb },
 #endif /* SSHDIST_CRYPT_BLOWFISH */
     
 #ifdef SSHDIST_CRYPT_DES
-  { "des-ecb", 8, 8, des_ctxsize, des_init, des_ecb, des_set_iv, des_get_iv },
-  { "des-cbc", 8, 8, des_ctxsize, des_init, des_cbc, des_set_iv, des_get_iv },
-  { "des-cfb", 8, 8, des_ctxsize, des_init, des_cfb, des_set_iv, des_get_iv },
-  { "des-ofb", 8, 8, des_ctxsize, des_init, des_ofb, des_set_iv, des_get_iv },
+  { "des-ecb", 8, 8, des_ctxsize, des_init, des_ecb },
+  { "des-cbc", 8, 8, des_ctxsize, des_init, des_cbc },
+  { "des-cfb", 8, 8, des_ctxsize, des_init, des_cfb },
+  { "des-ofb", 8, 8, des_ctxsize, des_init, des_ofb },
 #endif /* SSHDIST_CRYPT_DES */
   
 #ifdef SSHDIST_CRYPT_IDEA
-
-
-
-
 
 
 
@@ -156,27 +149,10 @@ static const SshCipherDef ssh_cipher_algorithms[] =
 
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 #endif /* SSHDIST_CRYPT_SAFER */
 
 #ifdef SSHDIST_CRYPT_ARCFOUR
-  { "arcfour", 1, 0, arcfour_ctxsize, arcfour_init, arcfour_transform,
-    NULL, NULL },
+  { "arcfour", 1, 0, arcfour_ctxsize, arcfour_init, arcfour_transform },
 #endif /* SSHDIST_CRYPT_ARCFOUR */
 
 #ifdef SSHDIST_CRYPT_SEAL
@@ -184,33 +160,17 @@ static const SshCipherDef ssh_cipher_algorithms[] =
 #endif /* SSHDIST_CRYPT_SEAL */
 
 #ifdef SSHDIST_CRYPT_TWOFISH
-
-
-
-
-
-
-
-
-
-
-
-
+  { "twofish-ecb", 16, 0,
+    twofish_ctxsize, twofish_init, twofish_ecb },
+  { "twofish-cbc", 16, 0,
+    twofish_ctxsize, twofish_init, twofish_cbc },
+  { "twofish-cfb", 16, 0,
+    twofish_ctxsize, twofish_init, twofish_cfb },
+  { "twofish-ofb", 16, 0,
+    twofish_ctxsize, twofish_init, twofish_ofb },
 #endif /* SSHDIST_CRYPT_TWOFISH */
 
 #ifdef SSHDIST_CRYPT_RC5
-
-
-
-
-
-
-
-
-
-
-
-
 
 
 
@@ -232,17 +192,9 @@ static const SshCipherDef ssh_cipher_algorithms[] =
 
 
 
-
-
-
-
 #endif /* SSHDIST_CRYPT_RC6 */
 
 #ifdef SSHDIST_CRYPT_SKIPJACK
-
-
-
-
 
 
 
@@ -254,25 +206,21 @@ static const SshCipherDef ssh_cipher_algorithms[] =
 
 
 
-
-
-
-
 #endif /* SSHDIST_CRYPT_MARS */
 
-  { "none", 1, 0, NULL, NULL, none_transform, NULL, NULL },
+  { "none", 1, 0, NULL, NULL, none_transform },
   
   { NULL }
 };
 
 /* Mapping from common cipher names to `canonical' ones. */
 struct SshCipherAliasRec {
-  char *name;
-  char *real_name;
+  const char *name;
+  const char *real_name;
 };
 
 /* Common cipher names. */
-struct SshCipherAliasRec ssh_cipher_aliases[] =
+const struct SshCipherAliasRec ssh_cipher_aliases[] =
 {
 #ifdef SSHDIST_CRYPT_DES
   { "des", "des-cbc" },
@@ -293,7 +241,7 @@ struct SshCipherAliasRec ssh_cipher_aliases[] =
 
 #endif /* SSHDIST_CRYPT_SAFER */
 #ifdef SSHDIST_CRYPT_TWOFISH
-
+  { "twofish", "twofish-cbc" },
 #endif /* SSHDIST_CRYPT_TWOFISH */
 #ifdef SSHDIST_CRYPT_RC5
 
@@ -309,6 +257,7 @@ struct SshCipherAliasRec ssh_cipher_aliases[] =
 
 struct SshCipherRec {
   const SshCipherDef *ops;
+  unsigned char iv[32];
   void *context;
 };
 
@@ -323,23 +272,23 @@ static const SshCipherDef *ssh_cipher_get_cipher_def_internal(const char *name)
   for (i = 0; ssh_cipher_algorithms[i].name; i++)
     {
       if (strcmp(ssh_cipher_algorithms[i].name, name) == 0)
-	{
-	  return &(ssh_cipher_algorithms[i]);
-	}
+        {
+          return &(ssh_cipher_algorithms[i]);
+        }
     }
   for (i = 0; ssh_cipher_aliases[i].name; i++)
     {
       if (strcmp(ssh_cipher_aliases[i].name, name) == 0)
-	{
-	  name = ssh_cipher_aliases[i].real_name;
-	  for (j = 0; ssh_cipher_algorithms[j].name; j++)
-	    {
-	      if (strcmp(ssh_cipher_algorithms[j].name, name) == 0)
-		{
-		  return &(ssh_cipher_algorithms[j]);
-		}
-	    }
-	}
+        {
+          name = ssh_cipher_aliases[i].real_name;
+          for (j = 0; ssh_cipher_algorithms[j].name; j++)
+            {
+              if (strcmp(ssh_cipher_algorithms[j].name, name) == 0)
+                {
+                  return &(ssh_cipher_algorithms[j]);
+                }
+            }
+        }
     }
   return NULL;
 }
@@ -403,9 +352,9 @@ ssh_cipher_get_supported_native(void)
   for (i = 0; ssh_cipher_algorithms[i].name != NULL; i++)
     {
       if (ssh_buffer_len(&buf) != 0)
-	ssh_buffer_append(&buf, (unsigned char *) ",", 1);
+        ssh_buffer_append(&buf, (unsigned char *) ",", 1);
       ssh_buffer_append(&buf, (unsigned char *) ssh_cipher_algorithms[i].name,
-		    strlen(ssh_cipher_algorithms[i].name));
+                    strlen(ssh_cipher_algorithms[i].name));
     }
   ssh_buffer_append(&buf, (unsigned char *) "\0", 1);
   list = ssh_xstrdup(ssh_buffer_ptr(&buf));
@@ -431,13 +380,13 @@ ssh_cipher_get_supported(void)
   for (i = 0; ssh_cipher_aliases[i].name != NULL; i++)
     {
       if (ssh_cipher_supported_native(ssh_cipher_aliases[i].real_name))
-	{
-	  if (ssh_buffer_len(&buf) != 0)
-	    ssh_buffer_append(&buf, (unsigned char *) ",", 1);
-	  ssh_buffer_append(&buf, 
-			    (unsigned char *) ssh_cipher_aliases[i].name,
-			    strlen(ssh_cipher_aliases[i].name));
-	}
+        {
+          if (ssh_buffer_len(&buf) != 0)
+            ssh_buffer_append(&buf, (unsigned char *) ",", 1);
+          ssh_buffer_append(&buf, 
+                            (unsigned char *) ssh_cipher_aliases[i].name,
+                            strlen(ssh_cipher_aliases[i].name));
+        }
     }
   ssh_buffer_append(&buf, (unsigned char *) "\0", 1);
   list = ssh_xstrdup(ssh_buffer_ptr(&buf));
@@ -449,12 +398,12 @@ ssh_cipher_get_supported(void)
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_cipher_allocate_internal(const char *name,
-			     const unsigned char *key,
-			     size_t keylen,
-			     Boolean for_encryption,
-			     SshCipher *cipher,
-			     Boolean expand,
-			     Boolean test_weak_keys)
+                             const unsigned char *key,
+                             size_t keylen,
+                             Boolean for_encryption,
+                             SshCipher *cipher,
+                             Boolean expand,
+                             Boolean test_weak_keys)
 {
   unsigned char *expanded_key;
   unsigned int expanded_key_len;
@@ -471,13 +420,13 @@ ssh_cipher_allocate_internal(const char *name,
     {
       expanded_key_len = cipher_def->key_length;
       if (expanded_key_len == 0)
-	expanded_key_len = SSH_CIPHER_MINIMAL_KEY_LENGTH;
+        expanded_key_len = SSH_CIPHER_MINIMAL_KEY_LENGTH;
       
       expanded_key = ssh_xmalloc(expanded_key_len);
       ssh_hash_expand_key_internal(expanded_key, expanded_key_len,
-				   key, keylen,
-				   NULL, 0,
-				   &ssh_hash_sha_def);
+                                   key, keylen,
+                                   NULL, 0,
+                                   &ssh_hash_sha_def);
     }
   else
     {
@@ -488,21 +437,22 @@ ssh_cipher_allocate_internal(const char *name,
   if (expanded_key_len < cipher_def->key_length)
     {
       if (expand)
-	ssh_fatal("internal error: key expansion corrupted.");
+        ssh_fatal("internal error: key expansion corrupted.");
       
       return SSH_CRYPTO_KEY_TOO_SHORT;
     }
   
   *cipher = ssh_xmalloc(sizeof(**cipher));
   (*cipher)->ops = cipher_def;
+  memset((*cipher)->iv, 0, sizeof((*cipher)->iv));
   if (cipher_def->ctxsize)
     {
       (*cipher)->context =
-	ssh_xmalloc((*cipher_def->ctxsize)());
+        ssh_xmalloc((*cipher_def->ctxsize)());
       (*cipher_def->init)((*cipher)->context,
-			  expanded_key,
-			  expanded_key_len,
-			  for_encryption);
+                          expanded_key,
+                          expanded_key_len,
+                          for_encryption);
     }
   else
     {
@@ -517,36 +467,36 @@ ssh_cipher_allocate_internal(const char *name,
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_cipher_allocate(const char *name,
-		    const unsigned char *key,
-		    size_t keylen,
-		    Boolean for_encryption,
-		    SshCipher *cipher)
+                    const unsigned char *key,
+                    size_t keylen,
+                    Boolean for_encryption,
+                    SshCipher *cipher)
 {
   return ssh_cipher_allocate_internal(name, key, keylen, for_encryption,
-				      cipher, FALSE, FALSE);
+                                      cipher, FALSE, FALSE);
 }
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_cipher_allocate_with_passphrase(const char *name,
-				    const char *passphrase,
-				    Boolean for_encryption,
-				    SshCipher *cipher)
+                                    const char *passphrase,
+                                    Boolean for_encryption,
+                                    SshCipher *cipher)
 {
   return ssh_cipher_allocate_internal(name, (unsigned char *) passphrase,
-				      strlen(passphrase),
-				      for_encryption, cipher, TRUE, FALSE);
+                                      strlen(passphrase),
+                                      for_encryption, cipher, TRUE, FALSE);
 }
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_cipher_allocate_and_test_weak_keys(const char *name,
-				       const unsigned char *key,
-				       size_t keylen,
-				       Boolean for_encryption,
-				       SshCipher *cipher)
+                                       const unsigned char *key,
+                                       size_t keylen,
+                                       Boolean for_encryption,
+                                       SshCipher *cipher)
 {
   return ssh_cipher_allocate_internal(name, key, keylen,
-				      for_encryption, cipher,
-				      FALSE, TRUE);
+                                      for_encryption, cipher,
+                                      FALSE, TRUE);
 }
 
 /* Free the cipher context */
@@ -556,6 +506,12 @@ ssh_cipher_free(SshCipher cipher)
 {
   ssh_xfree(cipher->context);
   ssh_xfree(cipher);
+}
+
+DLLEXPORT char * DLLCALLCONV
+ssh_cipher_get_name(SshCipher cipher)
+{
+  return ssh_xstrdup(cipher->ops->name);
 }
 
 DLLEXPORT size_t DLLCALLCONV
@@ -578,37 +534,46 @@ ssh_cipher_get_block_length(SshCipher cipher)
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_cipher_set_iv(SshCipher cipher,
-		  const unsigned char *iv)
+                  const unsigned char *iv)
 {
-  if (cipher->ops->set_iv == NULL)
-    return SSH_CRYPTO_UNSUPPORTED;
-     
-  (*cipher->ops->set_iv)(cipher->context, iv);
+  memcpy(cipher->iv, iv, cipher->ops->block_length);
 
   return SSH_CRYPTO_OK;
 }
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_cipher_get_iv(SshCipher cipher,
-		  unsigned char *iv)
+                  unsigned char *iv)
 {
-  if (cipher->ops->get_iv == NULL)
-    return SSH_CRYPTO_UNSUPPORTED;
-     
-  (*cipher->ops->get_iv)(cipher->context, iv);
-
+  memcpy(iv, cipher->iv, cipher->ops->block_length);
   return SSH_CRYPTO_OK;
 }
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_cipher_transform(SshCipher cipher,
-		     unsigned char *dest,
-		     const unsigned char *src,
-		     size_t len)
+                     unsigned char *dest,
+                     const unsigned char *src,
+                     size_t len)
 {
   /* Check that the src length is divisible by block length of the cipher. */
   if (len % cipher->ops->block_length == 0)
-    (*cipher->ops->transform)(cipher->context, dest, src, len);
+    (*cipher->ops->transform)(cipher->context, dest, src, len, cipher->iv);
+  else
+    return SSH_CRYPTO_BLOCK_SIZE_ERROR;
+
+  return SSH_CRYPTO_OK;
+}
+
+DLLEXPORT SshCryptoStatus DLLCALLCONV
+ssh_cipher_transform_with_iv(SshCipher cipher,
+                             unsigned char *dest,
+                             const unsigned char *src,
+                             size_t len,
+                             unsigned char *iv)
+{
+  /* Check that the src length is divisible by block length of the cipher. */
+  if (len % cipher->ops->block_length == 0)
+    (*cipher->ops->transform)(cipher->context, dest, src, len, iv);
   else
     return SSH_CRYPTO_BLOCK_SIZE_ERROR;
 

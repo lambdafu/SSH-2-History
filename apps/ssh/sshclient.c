@@ -81,7 +81,7 @@ void ssh_client_key_check(const char *server_name,
       return;
     }
 
-  if ((udir = ssh_userdir(client->user_data, TRUE)) == NULL)
+  if ((udir = ssh_userdir(client->user_data, client->config, TRUE)) == NULL)
     ssh_fatal("ssh_client_key_check: no user directory.");
 
   snprintf(filen, sizeof(filen)-20, "%s/hostkeys", udir);

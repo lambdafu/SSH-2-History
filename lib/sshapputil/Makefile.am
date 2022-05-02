@@ -21,7 +21,10 @@ list_libssh_a_objects:
 
 include_HEADERS = userfile.h
 
-INCLUDES = -I../.. -I. -I$(srcdir) -I../sshutil -I$(srcdir)/../sshutil -I../sshmath -I$(srcdir)/../sshmath -I../zlib -I$(srcdir)/../zlib
+INCLUDES = -I../.. -I. -I$(srcdir) \
+	-I$(top_builddir) -I$(top_srcdir) \
+	-I../sshutil -I$(srcdir)/../sshutil -I../sshmath \
+	-I$(srcdir)/../sshmath -I../zlib -I$(srcdir)/../zlib
 
 includes:
 	for file in $(include_HEADERS); do \

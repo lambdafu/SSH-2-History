@@ -20,6 +20,8 @@ SSH2 authentication methods for the server.
 #include "auths-passwd.h"
 #include "auths-pubkey.h"
 
+#define SSH_DEBUG_MODULE "SshAuthMethodServer"
+
 static SshAuthServerMethod server_methods[] =
 {
   { "publickey", ssh_server_auth_pubkey },

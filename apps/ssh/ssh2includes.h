@@ -21,9 +21,9 @@ ssh2includes.h
 #include "ssh2version.h"
 
 /* File executed in user's home directory during login. */
-#define SSH_USER_RC     ".ssh/rc"
-
-#define SSH_SYSTEM_RC   ETCDIR "/sshrc"
+#define SSH_USER_RC             "rc"
+#define SSH_USER_ENV_FILE       "environment"
+#define SSH_SYSTEM_RC           ETCDIR "/sshrc"
 
 /* XXX temporary definition for the ssh2 log facility.  This should
    probably move to a different header later. */

@@ -1,3 +1,6 @@
+# THIS FILE WAS AUTOMAGICALLY GENERATED FROM Makefile.am.raw 
+# You should edit Makefile.am.raw instead of this file. 
+
 ## Process this file with automake to produce Makefile.in
 
 #
@@ -13,74 +16,82 @@ AUTOMAKE_OPTIONS = 1.0 foreign dist-zip no-dependencies
 
 etcdir = @ETCDIR@
 
-bin_PROGRAMS = ssh2 scp2 sftp2 sftp-server2 \
-               ssh-agent2 ssh-keygen2 ssh-add2 @CONFPROGRAMS@
+bin_PROGRAMS = ssh2 \
+	       scp2 \
+	       sftp2 \
+	       sftp-server2 \
+               ssh-agent2 \
+	       ssh-keygen2 \
+	       ssh-add2 \
+	       @CONFPROGRAMS@
+
 sbin_PROGRAMS = sshd2
 EXTRA_PROGRAMS = ssh-askpass2
-man_MANS = ssh2.1 sshd2.8 ssh-keygen2.1 ssh-add2.1 ssh-agent2.1 scp2.1 sftp2.1
+man_MANS = ssh2.1 \
+	   sshd2.8 \
+	   ssh-keygen2.1 \
+	   ssh-add2.1 \
+	   ssh-agent2.1 \
+	   scp2.1 \
+	   sftp2.1
 
 EXTRA_DIST = test-in-host test-analyze-compilation test-analyze-check \
   test-analyze-self-test sshd2_config ssh2_config $(MANS)
 
-noinst_HEADERS = auths-passwd.h readpass.h signals.h ssh2includes.h \
+noinst_HEADERS = auths-passwd.h readpass.h ssh2includes.h \
 	sshauthmethods.h sshclient.h sshcommon.h \
 	sshconfig.h sshserver.h sshstdiofilter.h \
 	ssh2version.h sshuserfiles.h authc-pubkey.h authc-passwd.h \
 	sshagentint.h sshagent.h auths-pubkey.h sshchx11.h sshchagent.h \
 	sshchssh1agent.h sshchsession.h sshchtcpfwd.h \
-	sshgetopt.h
+	sshglob.h sshagentcache.h
+
+noinst_LIBRARIES = libssh2.a
 
 INCLUDES = -I. -I$(srcdir) -I../.. -I$(srcdir) -I../../include \
+	   -I$(top_builddir) -I$(top_srcdir) \
 	   -I$(srcdir)/../../include 
 
-LDADD = -L../../lib -lssh
-DEPENDENCIES = ../../lib/libssh.a
+LDADD = -L. -L../../lib -lssh2 -lssh
+DEPENDENCIES = ./libssh2.a ../../lib/libssh.a
 
-ssh2_SOURCES = ssh2.c sshauthmethodc.c readpass.c sshunixuserfiles.c \
-	       sshuserfiles.c \
-	       sshchx11.c sshchsession.c sshchagent.c sshchssh1agent.c \
-	       sshchtcpfwd.c sshstdiofilter.c \
-	       sshcommon.c sshconfig.c sshunixconfig.c sshclient.c \
-	       agentpath.c authc-pubkey.c authc-passwd.c agentclient.c \
-	       sshgetopt.c
+libssh2_a_SOURCES = agentclient.c sshchagent.c sshserver.c \
+		    agentpath.c sshchsession.c sshstdiofilter.c \
+		    authc-passwd.c sshchssh1agent.c sshunixconfig.c \
+		    authc-pubkey.c sshchtcpfwd.c sshunixuserfiles.c \
+		    auths-passwd.c sshchx11.c sshuserfiles.c \
+		    auths-pubkey.c sshclient.c \
+		    sshcommon.c readpass.c sshconfig.c \
+		    sshauthmethodc.c sshauthmethods.c \
+		    sshglob.c sshagentcache.c
 
+ssh2_SOURCES = ssh2.c
 ssh2_DEPENDENCIES = $(DEPENDENCIES)
 
-sshd2_SOURCES = sshd2.c signals.c sshauthmethods.c auths-passwd.c \
-		auths-pubkey.c sshunixuserfiles.c \
-	        sshuserfiles.c \
-	        sshchx11.c sshchsession.c sshchagent.c sshchssh1agent.c \
-	        sshchtcpfwd.c \
-		sshcommon.c sshconfig.c sshunixconfig.c sshserver.c \
-                agentpath.c \
-		sshgetopt.c
-
-
+sshd2_SOURCES = sshd2.c
 sshd2_DEPENDENCIES = $(DEPENDENCIES)
 
-ssh_agent2_SOURCES = ssh-agent2.c agentpath.c sshunixuserfiles.c \
-	             sshuserfiles.c \
-                     sshconfig.c sshunixconfig.c \
-		     sshgetopt.c
+ssh_agent2_SOURCES = ssh-agent2.c
 ssh_agent2_DEPENDENCIES = $(DEPENDENCIES)
 
-ssh_add2_SOURCES = ssh-add2.c agentclient.c agentpath.c \
-		   sshuserfiles.c \
-	           sshunixuserfiles.c readpass.c sshconfig.c sshunixconfig.c \
-		   sshgetopt.c
+#ifdef SSHDIST_SSH2_F_SECURE_COMMERCIAL
+#
+#
+#
+#
+#endif SSHDIST_SSH2_F_SECURE_COMMERCIAL
+
+ssh_add2_SOURCES = ssh-add2.c
 ssh_add2_DEPENDENCIES = $(DEPENDENCIES)
 
 ssh_askpass2_SOURCES = ssh-askpass2.c 
 ssh_askpass2_LDADD = $(LDADD) $(X_LIBS) $(X_PRE_LIBS) -lX11
 
-ssh_keygen2_SOURCES = readpass.c ssh-keygen2.c sshunixuserfiles.c \
-	              sshuserfiles.c \
-		      sshconfig.c sshunixconfig.c \
-		      sshgetopt.c
+ssh_keygen2_SOURCES = ssh-keygen2.c
 ssh_keygen2_DEPENDENCIES = $(DEPENDENCIES) ../../lib/sshreadline/libsshreadline.a
 ssh_keygen2_LDADD = $(LDADD) -L../../lib/sshreadline -lsshreadline
 
-scp2_SOURCES = scp2.c sshgetopt.c
+scp2_SOURCES = scp2.c
 scp2_DEPENDENCIES = $(DEPENDENCIES)
 
 sftp2_SOURCES = sftp2.c 

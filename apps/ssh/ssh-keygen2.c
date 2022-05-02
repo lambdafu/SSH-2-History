@@ -31,6 +31,8 @@
 #include <sys/types.h>
 #include <pwd.h>
 
+#define SSH_DEBUG_MODULE "SshKeyGen"
+
 /* Standard (assumed) choices.. */
 
 #ifndef KEYGEN_ASSUMED_PUBKEY_LEN
@@ -199,13 +201,13 @@ char *ssh_read_passphrase_twice(char *prompt1, char *prompt2, int from_stdin)
       r2 = ssh_read_passphrase(prompt2, from_stdin);
 
       if (strcmp(r1, r2) != 0)
-	{
-	  keygen_free_str(r1);
-	  keygen_free_str(r2);
-	  fprintf(stderr, "Passphrases do not match.\n");
-	}
+        {
+          keygen_free_str(r1);
+          keygen_free_str(r2);
+          fprintf(stderr, "Passphrases do not match.\n");
+        }
       else
-	break;
+        break;
     }
   keygen_free_str(r2);
 
@@ -250,7 +252,7 @@ void keygen_error(KeyGenCtx *kgc, char *expl)
 /* The progress indicator */
 
 void keygen_prog_ind(SshCryptoProgressID id, unsigned int time_value,
-		     void *incr)
+                     void *incr)
 {
   int i;
 
@@ -264,18 +266,18 @@ void keygen_prog_ind(SshCryptoProgressID id, unsigned int time_value,
   else
     {
       switch( i % 4 )
-	{
-	case 0:	  
-	  printf(".");
-	  break;
-	case 1:
-	case 3:
-	  printf("o");
-	  break;
-	case 2:
-	  printf("O");
-	  break;
-	}
+        {
+        case 0:   
+          printf(".");
+          break;
+        case 1:
+        case 3:
+          printf("o");
+          break;
+        case 2:
+          printf("O");
+          break;
+        }
     }
   fflush(stdout);
 }
@@ -291,19 +293,19 @@ void keygen_choose_filename(KeyGenCtx *kgc)
   if (kgc->out_filename != NULL)
     return;
 
-  if((udir = ssh_userdir(kgc->user, TRUE)) == NULL)
+  if((udir = ssh_userdir(kgc->user, NULL, TRUE)) == NULL)
     {
       ssh_warning("Unable to open user ssh2 directory. "
-		  "Saving to current directory.");
+                  "Saving to current directory.");
       udir = ssh_xstrdup(".");
     }
 
   for (i = 'a'; i <= 'z'; i++)
     {
       snprintf(buf, sizeof (buf), "%s/id_%s_%d_%c",
-	       udir, kgc->keytypecommon, kgc->keybits, i);
+               udir, kgc->keytypecommon, kgc->keybits, i);
       if (stat(buf, &st) == 0)
-	continue;
+        continue;
       kgc->out_filename = ssh_xstrdup(buf);
       goto done;
     }
@@ -334,14 +336,14 @@ int keygen_keygen(KeyGenCtx *kgc)
     }
 
   printf("Generating %d-bit %s key pair\n",
-	 kgc->keybits,
-	 kgc->keytypecommon);
+         kgc->keybits,
+         kgc->keytypecommon);
 
   if ((code = ssh_private_key_generate(kgc->random_state, 
-				       &(kgc->private_key),
-				       kgc->keytype,
-				       SSH_PKF_SIZE, kgc->keybits,
-				       SSH_PKF_END)) != SSH_CRYPTO_OK)
+                                       &(kgc->private_key),
+                                       kgc->keytype,
+                                       SSH_PKF_SIZE, kgc->keybits,
+                                       SSH_PKF_END)) != SSH_CRYPTO_OK)
     {
       keygen_error(kgc, (char *) ssh_crypto_status_message(code));
     }
@@ -356,13 +358,13 @@ int keygen_keygen(KeyGenCtx *kgc)
   if ((! kgc->passphrase) || (! (*(kgc->passphrase)))) {
     if (!(kgc->pass_empty))
       {
-	pass = ssh_read_passphrase_twice("Passphrase : ", 
-					 "Again      : ", 
-					 FALSE);
+        pass = ssh_read_passphrase_twice("Passphrase : ", 
+                                         "Again      : ", 
+                                         FALSE);
       }
     else
       {
-	pass = ssh_xstrdup("");
+        pass = ssh_xstrdup("");
       }
     keygen_free_str(kgc->passphrase);
     kgc->passphrase = pass ? pass : ssh_xstrdup("");
@@ -374,10 +376,10 @@ int keygen_keygen(KeyGenCtx *kgc)
     }
 
   if (ssh_privkey_write(kgc->user,
-			kgc->out_filename, 
-			kgc->passphrase, 
-			kgc->comment,
-			kgc->private_key, kgc->random_state, NULL))
+                        kgc->out_filename, 
+                        kgc->passphrase, 
+                        kgc->comment,
+                        kgc->private_key, kgc->random_state, NULL))
     {
       ssh_warning("Private key not written !");
       r++;
@@ -417,7 +419,7 @@ void stir_stdin(KeyGenCtx *kgc)
     {
       n = fread(buffer, 1, sizeof (buffer), stdin);
       if (n > 0)
-	ssh_random_add_noise(kgc->random_state, buffer, n);
+        ssh_random_add_noise(kgc->random_state, buffer, n);
       bytes += n;
     }
   memset(buffer, 0, sizeof (buffer));
@@ -492,25 +494,25 @@ int keygen_edit_key(KeyGenCtx *kgc)
     {
       seckey = ssh_privkey_read(kgc->user, secfn, "", NULL, NULL);
       if (seckey)
-	{
-	  keygen_free_str(kgc->passphrase);
-	  kgc->passphrase = ssh_xstrdup("");
-	}
+        {
+          keygen_free_str(kgc->passphrase);
+          kgc->passphrase = ssh_xstrdup("");
+        }
     }
     
   if (! kgc->pass_empty)
     {
       if (! seckey)
-	{
-	  keygen_free_str(kgc->passphrase);
-	  printf("Passphrase needed for key \"%s\".\n", oldcomment);
-	  kgc->passphrase = ssh_read_passphrase("Passphrase : ", FALSE);
-	  if (kgc->passphrase)
-	    {
-	      seckey = ssh_privkey_read(kgc->user, secfn, kgc->passphrase, 
-					NULL, NULL);
-	    }
-	}
+        {
+          keygen_free_str(kgc->passphrase);
+          printf("Passphrase needed for key \"%s\".\n", oldcomment);
+          kgc->passphrase = ssh_read_passphrase("Passphrase : ", FALSE);
+          if (kgc->passphrase)
+            {
+              seckey = ssh_privkey_read(kgc->user, secfn, kgc->passphrase, 
+                                        NULL, NULL);
+            }
+        }
     }
 
   if (! seckey)
@@ -533,46 +535,46 @@ int keygen_edit_key(KeyGenCtx *kgc)
   while (! ok)
     {
       if (! newcomment)
-	newcomment = ssh_xstrdup(oldcomment);
+        newcomment = ssh_xstrdup(oldcomment);
       printf("Your key comment is \"%s\". ", newcomment);
       if (ssh_read_confirmation("Do you want to edit it (yes or no)? "))
-	{
-	  if (ssh_readline("New key comment: ", 
-			   (unsigned char **)&newcomment, 
-			   TRUE) < 0)
-	    {
-	      fprintf(stderr, "Abort!  Key unedited and unsaved.\n");
-	      keygen_free_str(newpass);
-	      keygen_free_str(newcomment);
-	      keygen_free_str(oldcomment);
-	      return 1;
-	    }
-	  putchar('\n');
-	}
+        {
+          if (ssh_readline("New key comment: ", 
+                           (unsigned char **)&newcomment, 
+                           TRUE) < 0)
+            {
+              fprintf(stderr, "Abort!  Key unedited and unsaved.\n");
+              keygen_free_str(newpass);
+              keygen_free_str(newcomment);
+              keygen_free_str(oldcomment);
+              return 1;
+            }
+          putchar('\n');
+        }
       if (! newpass)
-	newpass = ssh_xstrdup(kgc->passphrase);
+        newpass = ssh_xstrdup(kgc->passphrase);
       if (! kgc->pass_empty)
-	{
-	  if (ssh_read_confirmation("Do you want to edit passphrase (yes or no)? "))
-	    {
-	      keygen_free_str(newpass);
-	      newpass = ssh_read_passphrase_twice("New passphrase : ", 
-						  "Again          : ", 
-						  FALSE);
-	      if (! newpass)
-		{
-		  fprintf(stderr, "Abort!  Key unedited and unsaved.\n");
-		  keygen_free_str(newcomment);
-		  keygen_free_str(oldcomment);
-		  return 0;
-		}
-	    }
-	}
+        {
+          if (ssh_read_confirmation("Do you want to edit passphrase (yes or no)? "))
+            {
+              keygen_free_str(newpass);
+              newpass = ssh_read_passphrase_twice("New passphrase : ", 
+                                                  "Again          : ", 
+                                                  FALSE);
+              if (! newpass)
+                {
+                  fprintf(stderr, "Abort!  Key unedited and unsaved.\n");
+                  keygen_free_str(newcomment);
+                  keygen_free_str(oldcomment);
+                  return 0;
+                }
+            }
+        }
       printf("Do you want to continue editing key \"%s\" ", newcomment);
       if (ssh_read_confirmation("(yes or no)? "))
-	ok = 0;
+        ok = 0;
       else
-	ok = 1;
+        ok = 1;
     }
   if ((strcmp(newpass, kgc->passphrase) == 0) &&
       (strcmp(newcomment, oldcomment) == 0))
@@ -596,44 +598,44 @@ int keygen_edit_key(KeyGenCtx *kgc)
   if (strcmp(outsecfn, kgc->in_filename) == 0)
     {
       if (rename(outsecfn, secbu) != 0)
-	{
-	  ssh_warning("Unable to backup private key.");
-	  keygen_free_str(newpass);
-	  keygen_free_str(newcomment);
-	  keygen_free_str(oldcomment);
-	  fprintf(stderr, "Abort!\n");
-	  return 1;
-	}
+        {
+          ssh_warning("Unable to backup private key.");
+          keygen_free_str(newpass);
+          keygen_free_str(newcomment);
+          keygen_free_str(oldcomment);
+          fprintf(stderr, "Abort!\n");
+          return 1;
+        }
     }
 
   if (strcmp(outpubfn, pubfn) == 0)
     {
       if (rename(outpubfn, pubbu) != 0)
-	{
-	  ssh_warning("Unable to backup private key.");
-	  if (strcmp(outsecfn, secfn) == 0)
-	    (void)rename(secbu, outsecfn);
-	  keygen_free_str(newpass);
-	  keygen_free_str(newcomment);
-	  keygen_free_str(oldcomment);
-	  fprintf(stderr, "Abort!\n");
-	  return 1;
-	}
+        {
+          ssh_warning("Unable to backup private key.");
+          if (strcmp(outsecfn, secfn) == 0)
+            (void)rename(secbu, outsecfn);
+          keygen_free_str(newpass);
+          keygen_free_str(newcomment);
+          keygen_free_str(oldcomment);
+          fprintf(stderr, "Abort!\n");
+          return 1;
+        }
     }
 
   if (ssh_privkey_write(kgc->user,
-			outsecfn, 
-			newpass, 
-			newcomment,
-			seckey, 
-			kgc->random_state, 
-			NULL))
+                        outsecfn, 
+                        newpass, 
+                        newcomment,
+                        seckey, 
+                        kgc->random_state, 
+                        NULL))
     {
       ssh_warning("Unable to write private key.!");
       if (strcmp(outsecfn, secfn) == 0)
-	(void)rename(secbu, outsecfn);
+        (void)rename(secbu, outsecfn);
       if (strcmp(outpubfn, pubfn) == 0)
-	(void)rename(pubbu, outpubfn);
+        (void)rename(pubbu, outpubfn);
       keygen_free_str(newpass);
       keygen_free_str(newcomment);
       keygen_free_str(oldcomment);
@@ -642,17 +644,17 @@ int keygen_edit_key(KeyGenCtx *kgc)
     }
 
   if (ssh_pubkey_write(kgc->user,
-		       outpubfn,
-		       newcomment,
-		       pubkey, 
-		       NULL))
+                       outpubfn,
+                       newcomment,
+                       pubkey, 
+                       NULL))
     {
       ssh_warning("Unable to write public key.!");
       unlink(outsecfn);
       if (strcmp(outsecfn, secfn) == 0)
-	(void)rename(secbu, outsecfn);
+        (void)rename(secbu, outsecfn);
       if (strcmp(outpubfn, pubfn) == 0)
-	(void)rename(pubbu, outpubfn);
+        (void)rename(pubbu, outpubfn);
       keygen_free_str(newpass);
       keygen_free_str(newcomment);
       keygen_free_str(oldcomment);
@@ -686,105 +688,105 @@ int main(int argc, char **argv)
   while ((ch = ssh_getopt(argc, argv, "vhqr?P1:t:b:p:o:i:e:c:", NULL)) != EOF)
     {
       if (!ssh_optval)
-	{
-	  printf("%s", keygen_helptext);
-	  keygen_free_ctx(kgc);
-	  exit(1);
-	}
+        {
+          printf("%s", keygen_helptext);
+          keygen_free_ctx(kgc);
+          exit(1);
+        }
       switch (ch) 
-	{
-	  /* -b: specify the strength of the key */
+        {
+          /* -b: specify the strength of the key */
 
-	case 'b':
-	  if (kgc->keybits != 0)
-	    keygen_error(kgc, "Multiple -b parameters");
-	  kgc->keybits = atoi(ssh_optarg);
-	  if (kgc->keybits < 128 || kgc->keybits > 0x10000)
-	    keygen_error(kgc, "Illegal key size.");
-	  break;
+        case 'b':
+          if (kgc->keybits != 0)
+            keygen_error(kgc, "Multiple -b parameters");
+          kgc->keybits = atoi(ssh_optarg);
+          if (kgc->keybits < 128 || kgc->keybits > 0x10000)
+            keygen_error(kgc, "Illegal key size.");
+          break;
 
-	  /* -t: specify the key type. */
-	case 't':
-	  /* the kgc->keytype gets the crypto library name of the alg. */
-	  
-	  if (kgc->keytype != NULL)
-	    keygen_error(kgc, "multiple key types specified.");
+          /* -t: specify the key type. */
+        case 't':
+          /* the kgc->keytype gets the crypto library name of the alg. */
+          
+          if (kgc->keytype != NULL)
+            keygen_error(kgc, "multiple key types specified.");
 
-	  for (i = 0; keygen_common_names[i][0] != NULL; i++)
-	    {
-	      if (strcasecmp(keygen_common_names[i][0], ssh_optarg) == 0)
-		{
-		  kgc->keytypecommon = ssh_xstrdup(keygen_common_names[i][0]);
-		  kgc->keytype = ssh_xstrdup(keygen_common_names[i][1]);
-		  break;
-		}
-	    }
-	  if (keygen_common_names[i][0] == NULL)
-	    keygen_error(kgc, "unknown key type.");
-	  break;
+          for (i = 0; keygen_common_names[i][0] != NULL; i++)
+            {
+              if (strcasecmp(keygen_common_names[i][0], ssh_optarg) == 0)
+                {
+                  kgc->keytypecommon = ssh_xstrdup(keygen_common_names[i][0]);
+                  kgc->keytype = ssh_xstrdup(keygen_common_names[i][1]);
+                  break;
+                }
+            }
+          if (keygen_common_names[i][0] == NULL)
+            keygen_error(kgc, "unknown key type.");
+          break;
 
-	  /* -c: Comment string. */
-	case 'c':
-	  kgc->comment = ssh_xstrdup(ssh_optarg);
-	  break;
+          /* -c: Comment string. */
+        case 'c':
+          kgc->comment = ssh_xstrdup(ssh_optarg);
+          break;
 
-	  /* -e: Edit key file. */
-	case 'e':
-	  kgc->edit_key = TRUE;
-	  kgc->in_filename = ssh_xstrdup(ssh_optarg);
+          /* -e: Edit key file. */
+        case 'e':
+          kgc->edit_key = TRUE;
+          kgc->in_filename = ssh_xstrdup(ssh_optarg);
 
-	  /* -p: Provide passphrase. */
-	case 'p':
-	  kgc->passphrase = ssh_xstrdup(ssh_optarg);
-	  break;
+          /* -p: Provide passphrase. */
+        case 'p':
+          kgc->passphrase = ssh_xstrdup(ssh_optarg);
+          break;
 
-	  /* -P: Don't provide passphrase. */
-	case 'P':
-	  kgc->pass_empty = TRUE;
-	  keygen_free_str(kgc->passphrase);
-	  kgc->passphrase = NULL;
-	  break;
+          /* -P: Don't provide passphrase. */
+        case 'P':
+          kgc->pass_empty = TRUE;
+          keygen_free_str(kgc->passphrase);
+          kgc->passphrase = NULL;
+          break;
 
-	  /* -1: Convert a key from SSH1 format to SSH2 format. */
-	case '1':
-	  kgc->convert = TRUE;
-	  kgc->in_filename = ssh_xstrdup(ssh_optarg);
-	  break;
+          /* -1: Convert a key from SSH1 format to SSH2 format. */
+        case '1':
+          kgc->convert = TRUE;
+          kgc->in_filename = ssh_xstrdup(ssh_optarg);
+          break;
 
-	  /* -o: Provide the output filename. */
-	case 'o':
-	  kgc->out_filename = ssh_xstrdup(ssh_optarg);
-	  break;
+          /* -o: Provide the output filename. */
+        case 'o':
+          kgc->out_filename = ssh_xstrdup(ssh_optarg);
+          break;
 
-	  /* -v: print the version number */
-	case 'v':
-	  printf("ssh2-keygen version " SSH2_VERSION
-		 ", compiled "__DATE__".\n");
-	  /* XXX more stuff here possibly */ 
-	  keygen_free_ctx(kgc);
-	  exit(0);
+          /* -v: print the version number */
+        case 'v':
+          printf("ssh2-keygen version " SSH2_VERSION
+                 ", compiled "__DATE__".\n");
+          /* XXX more stuff here possibly */ 
+          keygen_free_ctx(kgc);
+          exit(0);
 
-	  /* -h: print a short help text */
-	case '?':
-	case 'h':
-	  printf("%s", keygen_helptext);
-	  keygen_free_ctx(kgc);
-	  exit(0);
+          /* -h: print a short help text */
+        case '?':
+        case 'h':
+          printf("%s", keygen_helptext);
+          keygen_free_ctx(kgc);
+          exit(0);
 
-	  /* -q: supress the progress indicator */
-	case 'q':
-	  kgc->have_prog_ind = FALSE;
-	  break;
+          /* -q: supress the progress indicator */
+        case 'q':
+          kgc->have_prog_ind = FALSE;
+          break;
 
-	  /* -r: stir in data from stdin to the random pool */
-	case 'r':
-	  kgc->read_stdin = TRUE;
-	  break;
-	  
-	  /* -i: display (all) information about a key */
-	case 'i':
-	  ssh_fatal("-i not yet implemented XXX");
-	}
+          /* -r: stir in data from stdin to the random pool */
+        case 'r':
+          kgc->read_stdin = TRUE;
+          break;
+          
+          /* -i: display (all) information about a key */
+        case 'i':
+          ssh_fatal("-i not yet implemented XXX");
+        }
     }
 
   
@@ -810,61 +812,61 @@ int main(int argc, char **argv)
       kgc->newkey = TRUE;
 
       if (kgc->keybits == 0)
-	{
-	  kgc->keybits = KEYGEN_ASSUMED_PUBKEY_LEN;
-	}
+        {
+          kgc->keybits = KEYGEN_ASSUMED_PUBKEY_LEN;
+        }
 
       if (kgc->keytype == NULL)
-	{
-	  kgc->keytypecommon = ssh_xstrdup(keygen_common_names[0][0]);
-	  kgc->keytype = ssh_xstrdup(keygen_common_names[0][1]);
-	}
+        {
+          kgc->keytypecommon = ssh_xstrdup(keygen_common_names[0][0]);
+          kgc->keytype = ssh_xstrdup(keygen_common_names[0][1]);
+        }
 
       if (kgc->comment == NULL)
-	{
-	  pw = getpwuid(getuid());
-	  if (!pw)
-	    keygen_error(kgc, "Could not get user's password structure.");
-	  t = ssh_xmalloc(64);
-	  gethostname(t, 64);
-	  kgc->comment = ssh_xmalloc(256);
-	  time(&now);
-	  snprintf(kgc->comment, 256, "%d-bit %s, created by %s@%s %s", 
-		   kgc->keybits, kgc->keytypecommon,
-		   pw->pw_name, t, ctime(&now));
-	  kgc->comment[strlen(kgc->comment) - 1] = '\0';
-	  ssh_xfree(t);
-	}
+        {
+          pw = getpwuid(getuid());
+          if (!pw)
+            keygen_error(kgc, "Could not get user's password structure.");
+          t = ssh_xmalloc(64);
+          gethostname(t, 64);
+          kgc->comment = ssh_xmalloc(256);
+          time(&now);
+          snprintf(kgc->comment, 256, "%d-bit %s, created by %s@%s %s", 
+                   kgc->keybits, kgc->keytypecommon,
+                   pw->pw_name, t, ctime(&now));
+          kgc->comment[strlen(kgc->comment) - 1] = '\0';
+          ssh_xfree(t);
+        }
 
       if (ssh_optind >= argc)
-	{
-	  /* generate single key. if no file names given, make up one. */
-	  if (kgc->out_filename == NULL)
-	    keygen_choose_filename(kgc);
-	  r = keygen_keygen(kgc);
-	}
+        {
+          /* generate single key. if no file names given, make up one. */
+          if (kgc->out_filename == NULL)
+            keygen_choose_filename(kgc);
+          r = keygen_keygen(kgc);
+        }
       else
-	{ 
-	  if (kgc->out_filename != NULL)
-	    keygen_keygen(kgc);
+        { 
+          if (kgc->out_filename != NULL)
+            keygen_keygen(kgc);
 
-	  /* iterate over additional filenames */
+          /* iterate over additional filenames */
 
-	  for (i = ssh_optind; i < argc; i++)
-	    {
-	      if (kgc->out_filename != NULL)
-		ssh_xfree(kgc->out_filename);
-	      kgc->out_filename = ssh_xstrdup(argv[i]);
-	      rr = keygen_keygen(kgc);
-	      if (rr != 0)
-		{
-		if (r == 0)
-		  r = rr;
-		else
-		  r = -1;
-		}
-	    }
-	}
+          for (i = ssh_optind; i < argc; i++)
+            {
+              if (kgc->out_filename != NULL)
+                ssh_xfree(kgc->out_filename);
+              kgc->out_filename = ssh_xstrdup(argv[i]);
+              rr = keygen_keygen(kgc);
+              if (rr != 0)
+                {
+                if (r == 0)
+                  r = rr;
+                else
+                  r = -1;
+                }
+            }
+        }
     }
 
   keygen_free_ctx(kgc);

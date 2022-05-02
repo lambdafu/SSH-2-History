@@ -24,6 +24,7 @@ all-local: includes
 includes:
 	-if test '!' -d include; then mkdir include; fi
 	$(COPY_INCLUDE) sshconf.h include
+	$(COPY_INCLUDE) $(top_srcdir)/sshdistdefs.h include
 	-for dir in $(SUBDIRS); do \
 		( cd $$dir && $(MAKE) includes) ; \
 	done

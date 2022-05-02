@@ -11,7 +11,7 @@ Copyright (C) 1996 SSH Security Communications Oy, Espoo, Finland
 */
 
 /*
- * $Id: genhash.c,v 1.22 1998/10/10 06:54:09 mkojo Exp $
+ * $Id: genhash.c,v 1.23 1998/11/04 12:17:34 ylo Exp $
  * $Log: genhash.c,v $
  * $EndLog$
  */
@@ -184,7 +184,7 @@ ssh_hash_allocate_internal(const SshHashDef *hash_def)
    
    This function is currently meant only for internal use. */
 
-void ssh_hash_expand_key_internal(unsigned char *buffer, size_t ssh_buffer_len,
+void ssh_hash_expand_key_internal(unsigned char *buffer, size_t buffer_len,
                                   const unsigned char *ps, size_t ps_len,
                                   unsigned char *magic, size_t magic_len,
                                   const SshHashDef *hash)
@@ -203,8 +203,7 @@ void ssh_hash_expand_key_internal(unsigned char *buffer, size_t ssh_buffer_len,
      */
 
   /* Allocate enough memory. */
-  hash_buf_len = ((ssh_buffer_len +
-                   hash->digest_length) / hash->digest_length) *
+  hash_buf_len = ((buffer_len + hash->digest_length) / hash->digest_length) *
     hash->digest_length;
 
   /* Allocate just once for simplicity in freeing memory. */
@@ -223,7 +222,7 @@ void ssh_hash_expand_key_internal(unsigned char *buffer, size_t ssh_buffer_len,
       (*hash->final)(context, hash_buf + i);
     }
   /* Copy and free. */
-  memcpy(buffer, hash_buf, ssh_buffer_len);
+  memcpy(buffer, hash_buf, buffer_len);
   memset(hash_buf, 0, hash_buf_len);
   ssh_xfree(context);
 }

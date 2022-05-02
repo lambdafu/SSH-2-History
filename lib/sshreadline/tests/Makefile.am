@@ -15,8 +15,10 @@ EXTRA_PROGRAMS = t-readline
 
 LDADD = ../libsshreadline.a ../../sshutil/libsshutil.a -ltermcap
 
-INCLUDES = -I../.. -I. -I.. -I$(srcdir) -I$(srcdir)/.. -I../../sshmath \
-  -I$(srcdir)/../../sshmath -I../../sshutil -I$(srcdir)/../../sshutil
+INCLUDES = -I../.. -I. -I.. -I$(srcdir) -I$(srcdir)/.. \
+	-I$(top_builddir) -I$(top_srcdir) \
+	-I../../sshmath -I$(srcdir)/../../sshmath \
+	-I../../sshutil -I$(srcdir)/../../sshutil
 
 t_readline_SOURCES = t-readline.c
 t_readline_DEPENDENCIES = $(LDADD)

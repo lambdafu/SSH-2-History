@@ -20,6 +20,7 @@ LDADD = ../libsshapputil.a \
 	../../sshmath/libsshmath.a
 
 INCLUDES = -I../.. -I. -I.. -I$(srcdir) -I$(srcdir)/.. \
+	   -I$(top_builddir) -I$(top_srcdir) \
 	   -I../../sshutil -I$(srcdir)/../../sshutil \
 	   -I../../sshmath -I$(srcdir)/../../sshmath
 

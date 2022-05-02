@@ -1,12 +1,14 @@
-SSH 2.0.10
+SSH 2.0.11
 ==============
 
         Timo J. Rinne <tri@ssh.fi>
 	Sami Lehtinen <sjl@ssh.fi>
-        17 September 1998
+        16 November 1998
 	
 	See file LICENSING for licensing terms.
 
+	See file SSH2.QUICKSTART for Mr. Yamamoto's guide on
+	installing and using ssh2 and ssh1 in compatibility mode.
 
    What has changed since ssh 1 ?
    ------------------------------
@@ -36,10 +38,13 @@ SSH 2.0.10
    Feedback
    --------
 
-      bugs:   ssh2-bugs@ssh.fi
-      other:  ssh2@ssh.fi
+      bugs:   www-form: http://www.ssh.fi/support/bug-report.html
+              email:    ssh2-bugs@ssh.fi
 
+      other: ssh2@ssh.fi
 
+      feature-requests can also be submitted via
+      http://www.ssh.fi/support/feature-request.html
 
 SSH2 Binaries
 =============
@@ -204,29 +209,76 @@ Platforms
 	ix86		NetBSD		1.2, 1.3
 	ix86		FreeBSD		2.2.x, 3.0-current
 	ix86		Linux		2.0.34
-	sparc		Solaris		2.6
-			AIX		4.1
+	sparc		Solaris		2.6, 2.5.1
+	PowerPC		AIX		4.1, 4.2.x
+	hppa1.1		HPUX		10.20
+	mips		IRIX		6.2
 
-NOTES ON INSTALLATION AND USE:
+NOTES ON INSTALLATION AND USE
+=============================
 
-	* Scp2 isn't compatible with scp1. If target server is
-	running ssh-1.x.x, use scp1-command (the compatibility will, if
-	possible, get fixed in the future).
+	* Use 'scp2 -1' to enable compatibility with scp1.
 
 	* If your system doesn't support, or has a broken version of
-	non-blocking connect, run ./configure with
-	-enable-blocking-connect .
+	  non-blocking connect, run ./configure with
+	  -enable-blocking-connect .
+
+	* If you get errors when compiling assembler files, configure
+	  with --disable-asm and recompile.
 
 	* compability with ssh1 works correctly ONLY IF your ssh1-version
-	is 1.2.26 or better (1.2.26 is the latest). So be sure you have
-	that!
-
-	* IRIX-support still isn't complete.
+	  is 1.2.26 or better (1.2.26 is the latest). So be sure you have
+	  that!
 
 	* If your Sun boots during a connect to sshd2, do the following.
-	Fetch the latest patches from Sun, generate a new hostkey with the
-	patched version, and try again (also, you might want to try
-	--enable-blocking-connect etc).
+	  Fetch the latest patches from Sun, generate a new hostkey with the
+	  patched version, and try again (also, you might want to try
+	  --enable-blocking-connect etc).
+
+	* if configure complains 'configure: error: configuring with X
+	  but xauth not found - aborting', try ./configure --without-x .
+
+	* Use 'ssh-keygen -P' to create keys without passphrases (for
+	  use with rsync etc.).
+
+	* configure option --disable-crypt-asm no longer exists.
+
+KNOWN BUGS
+==========
+
+	* When using the '-p' option together with '-r' option,
+	  directory modification times are not properly set. 
+
+	* Assembler-optimizations don't compile on BSDI. configure
+	  with --disable-asm.
+
+	* Reportedly sshd2 child process can sometimes end up in a
+	  busy loop on the server side, consuming CPU-time. (this has been
+	  reported mainly on Solaris, and some other systems as well). Haven't
+	  been able to reproduce this, so no fix is currently available.
+
+	* Reportedly sshd2 doesn't for correctly to background on some
+	  AIX systems. We haven't been able to reproduce this.
+	
+	* ssh-keygen2 dumps core on Linux/PowerPC environments. This
+	  is probably due to egcs's different arg_list. Matter is
+	  being investigated, and a patch/release will be released as
+	  soon as this bug is found and fixed.
+
+	* With C2 security package, all the C2 charasteristics are not
+	  properly used.
+
+REMEMBER
+========
+
+* Ssh compilation success/failure web-page. You can fill in the reply
+  form about your compilation at
+  <URL:http://www.ssh.fi/tech/ssh_form.html>. You can query about the
+  success/failure database from
+  <URL:http://www.ssh.fi/tech/ssh_query.html>.
+
+* Latest news about ssh can be found in
+  <URL:http://www.ssh.fi/sshprotocols2/>
 
 THANKS
 ======	
@@ -239,7 +291,10 @@ THANKS
 	Troy Barbee
 	Simon Burge
 	Luigi Pugnetti
-	
+	Youki Kadobayashi
+	Georgi Kuzmanov
+	Hirotaka Yamamoto
+
 	... and everyone else who submitted bug-reports,
 	feature-requests and patches.
 

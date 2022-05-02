@@ -14,7 +14,7 @@ trcommon.c
 */
 
 /*
- * $Id: trcommon.c,v 1.44 1998/10/19 13:19:31 sjl Exp $
+ * $Id: trcommon.c,v 1.48 1998/11/14 12:12:12 tri Exp $
  * $Log: trcommon.c,v $
  * $EndLog$
  */
@@ -70,6 +70,7 @@ void ssh_tr_kex_cleanup(SshTransportCommon tr)
     }
   if (tr->server)
     {
+      /* XXX */
     }
   else
     {
@@ -268,7 +269,9 @@ Boolean ssh_tr_output_outgoing(SshTransportCommon tr)
   while (ssh_buffer_len(&tr->outgoing) > 0)
     {
       len = ssh_buffer_len(&tr->outgoing);
-      len = ssh_stream_write(tr->connection, ssh_buffer_ptr(&tr->outgoing), len);
+      len = ssh_stream_write(tr->connection, 
+                             ssh_buffer_ptr(&tr->outgoing), 
+                             len);
       if (len < 0)
         {
           SSH_DEBUG(6, ("ssh_tr_output_outgoing: cannot write more now"));
@@ -486,9 +489,65 @@ Boolean ssh_tr_input_version(SshTransportCommon tr)
 {
   int len;
   char *verstring_p, *temp_verstring;
+#if 1
+  static int string_index = 0;
+  /* XXX This should be done a bit smarter, as we MAY display the
+     information sent by the server.*/
+  static char temp_string[100];
   
   SSH_DEBUG(5, ("ssh_tr_input_version"));
-  
+
+  /* According to the draft: The server MAY send other lines of
+     data before sending the version string.  Each line SHOULD be
+     terminated by a carriage return and newline.  Such lines MUST NOT
+     begin with "SSH-""... */
+
+  /* check if we havent received 'SSH-' and we are client */
+  if (tr->remote_version_index == 0 && !tr->server)
+    {
+      for (;;)
+        {
+          /* Read a single character.  We cannot read more as we are
+             waiting 'SSH-' */
+          len = ssh_stream_read(tr->connection,
+                                (unsigned char *)temp_string +
+                                string_index, 1);
+          if (len == 0)
+            {
+              ssh_tr_up_disconnect(tr, TRUE, FALSE,
+                                   SSH_DISCONNECT_CONNECTION_LOST,
+                                   "Connection closed by remote host.");
+              return FALSE;
+            }
+          if (len < 0)
+            return FALSE; /* No more data available yet. */
+
+          /* Check if we have a match */
+          if (!memcmp(&temp_string[string_index - 3], "SSH-", 4))
+            {
+              memmove(tr->remote_version, "SSH-", 4);
+              tr->remote_version_index = 4;
+              break;
+            }
+          
+          /* Don't read it too much. Wrap around. (It would be
+             against the draft to disconnect. Theoretically, the
+             server should be allowed to send the collected works
+             of Shakespeare if it wanted to.) */
+          if (string_index >= sizeof(temp_string) - 1)
+            {
+              /* Move the last 4 read chars to the beginning, so we
+                 don't lose any part of the (possible) version string */
+              memmove(temp_string, &temp_string[string_index - 4], 4);
+              string_index = 4;
+              continue;
+            }
+
+          /* Count these characters. */
+          string_index++;
+        }
+    }
+#endif /* 0 or 1 */  
   /* Keep reading until the version identifier has been received. */
   for (;;)
     {
@@ -515,7 +574,7 @@ Boolean ssh_tr_input_version(SshTransportCommon tr)
       if (len < 0)
         return FALSE; /* No more data available yet. */
       
-      /* Check if we are at end of version id.  Note that we don't include the
+      /* Check if we are at end of version id. Note that we don't include the
          newline in the version number string. */
       if (tr->remote_version[tr->remote_version_index] == '\n')
         break;
@@ -523,7 +582,7 @@ Boolean ssh_tr_input_version(SshTransportCommon tr)
       if (tr->remote_version[tr->remote_version_index] == '\r')
         continue;  /* Ignore carriage return. */
       
-      /* Count these character. */
+      /* Count these characters. */
       tr->remote_version_index++;
     }
 
@@ -560,15 +619,25 @@ Boolean ssh_tr_input_version(SshTransportCommon tr)
             {
               verstring_p = '\0';
             }
-          
-          if (strlen(temp_verstring) >= 5)
+          if (ssh_tr_version_string_equal("2.0.6", temp_verstring) ||
+              ssh_tr_version_string_equal("2.0.7", temp_verstring) ||
+              ssh_tr_version_string_equal("2.0.8", temp_verstring) ||
+              ssh_tr_version_string_equal("2.0.9", temp_verstring))
             {
-              if (!strncmp(temp_verstring, "2.0.7", 5) ||
-                  !strncmp(temp_verstring, "2.0.8", 5) ||
-                  !strncmp(temp_verstring, "2.0.9", 5))
-                {
-                  tr->ssh_old_mac_bug_compat = TRUE;
-                }
+              SSH_DEBUG(5, ("Remote version has MAC calculation order bug."));
+              tr->ssh_old_mac_bug_compat = TRUE;
+            }
+          if (ssh_tr_version_string_equal("2.0.6", temp_verstring) ||
+              ssh_tr_version_string_equal("2.0.7", temp_verstring) ||
+              ssh_tr_version_string_equal("2.0.8", temp_verstring) ||
+              ssh_tr_version_string_equal("2.0.9", temp_verstring) ||
+              ssh_tr_version_string_equal("2.0.10", temp_verstring) ||
+              ssh_tr_version_string_equal("2.0.11-beta2", temp_verstring) ||
+              ssh_tr_version_string_equal("2.0.11-beta12", temp_verstring) ||
+              ssh_tr_version_string_equal("2.0.11-beta19", temp_verstring))
+            {
+              SSH_DEBUG(5, ("Remote version has key size reduction bug."));
+              tr->ssh_old_keygen_bug_compat = TRUE;
             }
           ssh_xfree(temp_verstring);
         }
@@ -1352,13 +1421,19 @@ void ssh_tr_set_keys(SshTransportCommon tr, struct SideKexInfo *info,
     
   key_len = ssh_cipher_get_key_length(info->cipher_name);
   if (key_len == 0)
-    key_len = 16;  /* Use 128 bits if variable length keys. */
-  assert(key_len < sizeof(info->encryption_key));
+    {
+      if ((strcasecmp("twofish", info->cipher_name) == 0) ||
+          (strncasecmp("twofish-", info->cipher_name, 8) == 0))
+        key_len = 32;  /* Twofish uses 256 bit key. */
+      else
+        key_len = 16;  /* Default is 128 bits if variable length keys. */
+    }
+  assert(key_len <= sizeof(info->encryption_key));
 
   if (ssh_cipher_allocate(info->cipher_name, info->encryption_key, key_len,
                           is_outgoing, cipherp) != SSH_CRYPTO_OK)
     ssh_fatal("ssh_tr_set_keys: cipher init failed: %.100s",
-          info->cipher_name);
+              info->cipher_name);
   *granularityp = ssh_cipher_get_block_length(*cipherp);
   if (*granularityp < 8)
     *granularityp = 8;
@@ -2757,7 +2832,8 @@ SshTransportCommon ssh_tr_create(SshStream connection,
   tr->exchange_hash_len = 0;
 
   tr->ssh_old_mac_bug_compat = FALSE;
-  
+  tr->ssh_old_keygen_bug_compat = FALSE;
+
   /* initialize the key excange parameters */
 
   mpz_init(tr->dh_p);
@@ -2782,6 +2858,28 @@ SshStream ssh_tr_create_final(SshTransportCommon tr)
   tr->up_stream = up_stream;
   ssh_stream_set_callback(tr->connection, ssh_tr_callback, (void *)tr);
   return up_stream;
+}
+
+/* Compare version strings.  The first argument is locally stored 
+   constant version string and the second argument is a version
+   string received from the remote connection.  Strings do not 
+   have to be identical for this function to return TRUE.
+   For example ssh_tr_version_string_equal("2.0.1", "2.0.1")
+   and ssh_tr_version_string_equal("2.0.1", "2.0.1-beta3") return
+   TRUE whereas ssh_tr_version_string_equal("2.0.1", "2.0.10")
+   and ssh_tr_version_string_equal("2.0.1-beta3", "2.0.1") 
+   return FALSE. */
+
+Boolean ssh_tr_version_string_equal(const char *version,
+                                    const char *soft_version)
+{
+  size_t vlen;
+
+  assert(version != NULL);
+  assert(soft_version != NULL);
+  vlen = strlen(version);
+  return ((strncmp(soft_version, version, vlen) == 0) && 
+          (!(isdigit(soft_version[vlen]))));
 }
 
 /* XXX eliminate calls to assert or ssh_fatal on data that might come from

@@ -81,6 +81,8 @@ CONFPROGRAMS = @CONFPROGRAMS@
 COPY_INCLUDE = @COPY_INCLUDE@
 CRYPTO_CONF_OBJS = @CRYPTO_CONF_OBJS@
 ETCDIR = @ETCDIR@
+IPSEC_ARCH_INTC = @IPSEC_ARCH_INTC@
+IPSEC_ARCH_ROUTE = @IPSEC_ARCH_ROUTE@
 LN_S = @LN_S@
 M4 = @M4@
 MAKEINFO = @MAKEINFO@
@@ -114,6 +116,7 @@ libsshcrypt_a_SOURCES = \
   des.c \
   blowfish.c \
   arcfour.c \
+  twofish.c \
   \
   genpkcs.c \
   genmp.c \
@@ -141,6 +144,7 @@ include_HEADERS = \
   des.h \
   blowfish.h \
   arcfour.h \
+  twofish.h \
   hmac.h \
   macs.h \
   genmp.h \
@@ -166,7 +170,9 @@ CLEANFILES = tmp-*.s
 
 LDADD = libsshcrypt.a \
 ../sshutil/libsshutil.a ../sshmath/libsshmath.a
-INCLUDES = -I../.. -I. -I$(srcdir) -I../sshutil -I$(srcdir)/../sshutil \
+INCLUDES = -I../.. -I. -I$(srcdir) \
+	-I$(top_builddir) -I$(top_srcdir) \
+	-I../sshutil -I$(srcdir)/../sshutil \
 	-I../sshmath -I$(srcdir)/../sshmath -I../zlib -I$(srcdir)/../zlib \
 	-I../sshscard -I$(srcdir)/../sshscard \
 	-I../trq -I$(srcdir)/../trq
@@ -185,9 +191,9 @@ X_LIBS = @X_LIBS@
 X_EXTRA_LIBS = @X_EXTRA_LIBS@
 X_PRE_LIBS = @X_PRE_LIBS@
 libsshcrypt_a_OBJECTS =  genhash.o md5.o sha.o ripemd160.o genmac.o \
-hmac.o macs.o genciph.o nociph.o des.o blowfish.o arcfour.o genpkcs.o \
-genmp.o dlglue.o dlfix.o bufzip.o genaux.o genrand.o namelist.o \
-keyblob.o libmonitor.o
+hmac.o macs.o genciph.o nociph.o des.o blowfish.o arcfour.o twofish.o \
+genpkcs.o genmp.o dlglue.o dlfix.o bufzip.o genaux.o genrand.o \
+namelist.o keyblob.o libmonitor.o
 CFLAGS = @CFLAGS@
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS)
 LINK = $(CC) $(CFLAGS) $(LDFLAGS) -o $@

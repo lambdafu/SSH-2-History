@@ -26,6 +26,8 @@ implementation is actually shared with the client (in sshcommon.c).
 #include "sshuserfiles.h"
 #include "sshcipherlist.h"
 
+#define SSH_DEBUG_MODULE "SshServer"
+
 /* Fetches values for the transport parameters (e.g., encryption algorithms)
    from the config data. */
 

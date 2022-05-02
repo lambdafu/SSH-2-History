@@ -23,6 +23,9 @@
 #include "userfile.h"
 #include "sshconfig.h"
 #include "base64.h"
+#include "sshmiscstring.h"
+
+#define SSH_DEBUG_MODULE "SshUserFiles"
 
 /* List of identifier strings for public key blobs. */
 typedef struct Ssh2PkFormatNameListRec
@@ -45,9 +48,9 @@ Ssh2PkFormatNameList ssh2_pk_format_name_list[] =
   
 /* Miscellenous routines for ascii key format handling. */
 unsigned int ssh_key_blob_match(unsigned char *buf, size_t buf_size,
-				int type,
-				size_t *ret_start,
-				size_t *ret_end)
+                                int type,
+                                size_t *ret_start,
+                                size_t *ret_end)
 {
   size_t i, j, start, end, keep, tmp_pos;
   char tmp[1024];
@@ -55,81 +58,81 @@ unsigned int ssh_key_blob_match(unsigned char *buf, size_t buf_size,
   for (i = 0, keep = 0, tmp_pos = 0, start = 0, end = 0; i < buf_size; i++)
     {
       if (buf[i] == '\n')
-	{
-	  tmp[tmp_pos] = '\0';
-	  end = i;
-	  
-	  /* Try to match against the strings. */
-	  switch (type)
-	    {
-	    case 0:
-	      for (j = 0; ssh2_pk_format_name_list[j].head; j++)
-		{
-		  if (strcmp(ssh2_pk_format_name_list[j].head,
-			     tmp) == 0)
-		    {
-		      *ret_start = start;
-		      *ret_end   = end;
-		      return ssh2_pk_format_name_list[j].magic;
-		    }
-		}
-	      break;
-	    case 1:
-	      for (j = 0; ssh2_pk_format_name_list[j].tail; j++)
-		{
-		  if (strcmp(ssh2_pk_format_name_list[j].tail,
-			     tmp) == 0)
-		    {
-		      *ret_start = start;
-		      *ret_end   = end;
-		      return ssh2_pk_format_name_list[j].magic;
-		    }
-		}
-	      break;
-	    default:
-	      return SSH_KEY_MAGIC_FAIL;
-	    }
-	  tmp_pos = 0;
-	  start = i + 1;
-	  continue;
-	}
+        {
+          tmp[tmp_pos] = '\0';
+          end = i;
+          
+          /* Try to match against the strings. */
+          switch (type)
+            {
+            case 0:
+              for (j = 0; ssh2_pk_format_name_list[j].head; j++)
+                {
+                  if (strcmp(ssh2_pk_format_name_list[j].head,
+                             tmp) == 0)
+                    {
+                      *ret_start = start;
+                      *ret_end   = end;
+                      return ssh2_pk_format_name_list[j].magic;
+                    }
+                }
+              break;
+            case 1:
+              for (j = 0; ssh2_pk_format_name_list[j].tail; j++)
+                {
+                  if (strcmp(ssh2_pk_format_name_list[j].tail,
+                             tmp) == 0)
+                    {
+                      *ret_start = start;
+                      *ret_end   = end;
+                      return ssh2_pk_format_name_list[j].magic;
+                    }
+                }
+              break;
+            default:
+              return SSH_KEY_MAGIC_FAIL;
+            }
+          tmp_pos = 0;
+          start = i + 1;
+          continue;
+        }
 
       switch (buf[i])
-	{
-	  /* Handle these whitespace values with some care. */
-	case '\n':
-	case ' ':
-	case '\t':
-	case '\r':
-	  if (tmp_pos == 0)
-	    {
-	      keep = 0;
-	      break;
-	    }
-	  keep = 1;
-	  break;
-	default:
-	  if (keep)
-	    {
-	      tmp[tmp_pos] = ' ';
-	      tmp_pos++;
-	      keep = 0;
-	    }
-	  tmp[tmp_pos] = buf[i];
-	  tmp_pos++;
-	  break;
-	}
+        {
+          /* Handle these whitespace values with some care. */
+        case '\n':
+        case ' ':
+        case '\t':
+        case '\r':
+          if (tmp_pos == 0)
+            {
+              keep = 0;
+              break;
+            }
+          keep = 1;
+          break;
+        default:
+          if (keep)
+            {
+              tmp[tmp_pos] = ' ';
+              tmp_pos++;
+              keep = 0;
+            }
+          tmp[tmp_pos] = buf[i];
+          tmp_pos++;
+          break;
+        }
 
       /* Sadly we will now just overlap? */
       if (tmp_pos >= 1024)
-	tmp_pos = 0;
+        tmp_pos = 0;
     }
 
   return SSH_KEY_MAGIC_FAIL;
 }
 
 size_t ssh_key_blob_match_keywords(unsigned char *buf, size_t len,
-				   char *keyword)
+                                   char *keyword)
 {
   size_t i;
   
@@ -137,23 +140,23 @@ size_t ssh_key_blob_match_keywords(unsigned char *buf, size_t len,
     {
       /* Skip whitespace. */
       switch (buf[i])
-	{
-	case ' ':
-	case '\n':
-	case '\t':
-	case '\r':
-	  continue;
-	default:
-	  break;
-	}
+        {
+        case ' ':
+        case '\n':
+        case '\t':
+        case '\r':
+          continue;
+        default:
+          break;
+        }
       
       if (buf[i] == keyword[0])
-	{
-	  if (len - i < strlen(keyword))
-	    return 0;
-	  if (memcmp(&buf[i], keyword, strlen(keyword)) == 0)
-	    return i + strlen(keyword);
-	}
+        {
+          if (len - i < strlen(keyword))
+            return 0;
+          if (memcmp(&buf[i], keyword, strlen(keyword)) == 0)
+            return i + strlen(keyword);
+        }
       break;
     }
   return 0;
@@ -161,7 +164,7 @@ size_t ssh_key_blob_match_keywords(unsigned char *buf, size_t len,
 
 /* Handle the quoted string parsing. */
 size_t ssh_key_blob_get_string(unsigned char *buf, size_t len,
-			       char **string)
+                               char **string)
 {
   unsigned int quoting, ret_quoting;
   SshBuffer buffer;
@@ -171,53 +174,53 @@ size_t ssh_key_blob_get_string(unsigned char *buf, size_t len,
   for (i = 0, step = 0, quoting = 0, ret_quoting = 0; i < len; i++)
     {
       switch (quoting)
-	{
-	case 0:
-	  switch (buf[i])
-	    {
-	    case ' ':
-	    case '\n':
-	    case '\r':
-	    case '\t':
-	      /* Skip! */
-	      break;
-	    case '\"': /* " */
-	      quoting = 2;
-	      ret_quoting = 0;
-	      break;
-	    default:
-	      /* End! */
-	      step = i;
-	      goto end;
-	    }
-	  break;
-	case 1:
-	  if (buf[i] == '\n')
-	    {
-	      for (j = 0; isspace(buf[i + j]) && i + j < len;
-		   j++)
-		;
-	      i = i + j - 1;
-	    }
-	  quoting = ret_quoting;
-	  ret_quoting = 0;
-	  break;
-	case 2:
-	  switch (buf[i])
-	    {
-	    case '\\':
-	      quoting = 1;
-	      ret_quoting = 2;
-	      break;
-	    case '\"': /* " */
-	      quoting = 0;
-	      ret_quoting = 0;
-	      break;
-	    default:
-	      ssh_buffer_append(&buffer, &buf[i], 1);
-	      break;
-	    }
-	}
+        {
+        case 0:
+          switch (buf[i])
+            {
+            case ' ':
+            case '\n':
+            case '\r':
+            case '\t':
+              /* Skip! */
+              break;
+            case '\"': /* " */
+              quoting = 2;
+              ret_quoting = 0;
+              break;
+            default:
+              /* End! */
+              step = i;
+              goto end;
+            }
+          break;
+        case 1:
+          if (buf[i] == '\n')
+            {
+              for (j = 0; isspace(buf[i + j]) && i + j < len;
+                   j++)
+                ;
+              i = i + j - 1;
+            }
+          quoting = ret_quoting;
+          ret_quoting = 0;
+          break;
+        case 2:
+          switch (buf[i])
+            {
+            case '\\':
+              quoting = 1;
+              ret_quoting = 2;
+              break;
+            case '\"': /* " */
+              quoting = 0;
+              ret_quoting = 0;
+              break;
+            default:
+              ssh_buffer_append(&buffer, &buf[i], 1);
+              break;
+            }
+        }
     }
 
 end:
@@ -234,7 +237,7 @@ end:
 
 /* Handle the parsing of the single line string. */
 size_t ssh_key_blob_get_line(unsigned char *buf, size_t len,
-			     char **string)
+                             char **string)
 {
   size_t i, step, keep;
   SshBuffer buffer;
@@ -243,30 +246,30 @@ size_t ssh_key_blob_get_line(unsigned char *buf, size_t len,
   for (i = 0, step = 0, keep = 0; i < len; i++)
     {
       switch (buf[i])
-	{
-	case '\n':
-	  /* End. */
-	  step = i;
-	  goto end;
-	case ' ':
-	case '\t':
-	case '\r':
-	  if (ssh_buffer_len(&buffer) == 0)
-	    {
-	      keep = 0;
-	      break;
-	    }
-	  keep = 1;
-	  break;
-	default:
-	  if (keep)
-	    {
-	      ssh_buffer_append(&buffer, (const unsigned char *)" ", 1);
-	      keep = 0;
-	    }
-	  ssh_buffer_append(&buffer, &buf[i], 1);
-	  break;
-	}
+        {
+        case '\n':
+          /* End. */
+          step = i;
+          goto end;
+        case ' ':
+        case '\t':
+        case '\r':
+          if (ssh_buffer_len(&buffer) == 0)
+            {
+              keep = 0;
+              break;
+            }
+          keep = 1;
+          break;
+        default:
+          if (keep)
+            {
+              ssh_buffer_append(&buffer, (const unsigned char *)" ", 1);
+              keep = 0;
+            }
+          ssh_buffer_append(&buffer, &buf[i], 1);
+          break;
+        }
     }
 
 end:
@@ -284,7 +287,7 @@ end:
 /* This is not very smart way of doing anything. But should be sufficient
    for the first implementation. */
 size_t ssh_key_blob_keywords(unsigned char *buf, size_t len,
-			     char **name, char **comment)
+                             char **name, char **comment)
 {
   size_t pos, total, change;
 
@@ -297,41 +300,41 @@ size_t ssh_key_blob_keywords(unsigned char *buf, size_t len,
       change = 0;
       /* Check for subject. */
       pos = ssh_key_blob_match_keywords(buf + total, len - total,
-					"Subject:");
+                                        "Subject:");
       if (pos)
-	{
-	  /* Read the line. */
-	  total += pos;
-	  pos = ssh_key_blob_get_line(buf + total, len - total,
-				      name);
-	  if (pos == 0)
-	    return total;
-	  total += pos;
+        {
+          /* Read the line. */
+          total += pos;
+          pos = ssh_key_blob_get_line(buf + total, len - total,
+                                      name);
+          if (pos == 0)
+            return total;
+          total += pos;
 
-	  /* Something changed. */
-	  change++;
-	}
+          /* Something changed. */
+          change++;
+        }
       
       /* Check for comment. */
       pos = ssh_key_blob_match_keywords(buf + total, len - total,
-					"Comment:");
+                                        "Comment:");
 
       if (pos)
-	{
-	  /* Read the comment string. */
-	  total += pos;
-	  pos = ssh_key_blob_get_string(buf + total, len - total,
-					comment);
-	  
-	  if (pos == 0)
-	    return total;
-	  
-	  /* Move forward again. */
-	  total += pos;
+        {
+          /* Read the comment string. */
+          total += pos;
+          pos = ssh_key_blob_get_string(buf + total, len - total,
+                                        comment);
+          
+          if (pos == 0)
+            return total;
+          
+          /* Move forward again. */
+          total += pos;
 
-	  /* Something changed. */
-	  change++;
-	}
+          /* Something changed. */
+          change++;
+        }
     }
   return total;
 }
@@ -339,9 +342,9 @@ size_t ssh_key_blob_keywords(unsigned char *buf, size_t len,
 /* Decoding of the SSH2 ascii key blob format. */
 
 unsigned long ssh_key_blob_read(SshUser user, const char *fname, 
-				char **comment,
-				unsigned char **blob,
-				size_t *bloblen, void *context)
+                                char **comment,
+                                unsigned char **blob,
+                                size_t *bloblen, void *context)
 {
   unsigned char *pkeypem = NULL, *tmp, *whitened;
   char *my_name, *my_comment;
@@ -353,15 +356,15 @@ unsigned long ssh_key_blob_read(SshUser user, const char *fname,
 
   /* Match first the heading. */
   magic = ssh_key_blob_match(pkeypem, pkeylen,
-			     0, /* head */
-			     &start, &end);
+                             0, /* head */
+                             &start, &end);
 
   if (magic == SSH_KEY_MAGIC_FAIL)
     goto fail;
   /* Match then the tail. */
   magic2 = ssh_key_blob_match(pkeypem, pkeylen,
-			      1, /* tail */
-			      &start2, &end2);
+                              1, /* tail */
+                              &start2, &end2);
 
   if (magic2 != magic)
     goto fail;
@@ -372,7 +375,7 @@ unsigned long ssh_key_blob_read(SshUser user, const char *fname,
     
   /* Read the keywords. */
   step = ssh_key_blob_keywords(pkeypem + end + 1, pkeylen - end - 1,
-			       &my_name, &my_comment);
+                               &my_name, &my_comment);
 
   /* XXX Ignore the name for now. We don't have any means of handling
      them nicely. */
@@ -415,7 +418,7 @@ fail:
    */
 
 void ssh_key_blob_dump_quoted_str(SshBuffer *buffer, size_t indend,
-				  const char *buf)
+                                  const char *buf)
 {
   size_t pos = indend;
   size_t i, buf_len = strlen(buf);
@@ -425,10 +428,10 @@ void ssh_key_blob_dump_quoted_str(SshBuffer *buffer, size_t indend,
   for (i = 0; i < buf_len; i++)
     {
       if (pos > 0 && (pos % 70) == 0)
-	{
-	  ssh_buffer_append(buffer, (const unsigned char *)"\\\n", 2);
-	  pos = 0;
-	}
+        {
+          ssh_buffer_append(buffer, (const unsigned char *)"\\\n", 2);
+          pos = 0;
+        }
       ssh_buffer_append(buffer, (const unsigned char *)&buf[i], 1);
       pos++;
     }
@@ -447,10 +450,10 @@ void ssh_key_blob_dump_str(SshBuffer *buffer, const char *str)
   for (i = 0, pos = 0; i < str_len; i++)
     {
       if (pos > 0 && (pos % 70) == 0)
-	{
-	  ssh_buffer_append(buffer, (const unsigned char *)"\n", 1);
-	  pos = 0;
-	}
+        {
+          ssh_buffer_append(buffer, (const unsigned char *)"\n", 1);
+          pos = 0;
+        }
       ssh_buffer_append(buffer, (const unsigned char *)&str[i], 1);
       pos++;
     }
@@ -462,9 +465,9 @@ void ssh_key_blob_dump_lf(SshBuffer *buffer)
 }
 
 Boolean ssh_key_blob_write(SshUser user, const char *fname, mode_t mode,
-			   unsigned long magic,
-			   const char *comment, const unsigned char *key,
-			   size_t keylen, void *context)
+                           unsigned long magic,
+                           const char *comment, const unsigned char *key,
+                           size_t keylen, void *context)
 {
   SshBuffer buffer;
   char *base64;
@@ -490,7 +493,7 @@ Boolean ssh_key_blob_write(SshUser user, const char *fname, mode_t mode,
 
   /* Add the head for the key. */
   ssh_key_blob_dump_line_str(&buffer,
-			     ssh2_pk_format_name_list[key_index].head);
+                             ssh2_pk_format_name_list[key_index].head);
   ssh_key_blob_dump_lf(&buffer);
 
   /* Handle key words. */
@@ -511,19 +514,19 @@ Boolean ssh_key_blob_write(SshUser user, const char *fname, mode_t mode,
     }
 
   /* Now add the base64 formatted stuff. */
-  base64 = ssh_buf_to_base64(key, keylen);
+  base64 = (char *)ssh_buf_to_base64(key, keylen);
   ssh_key_blob_dump_str(&buffer, base64);
   ssh_key_blob_dump_lf(&buffer);
   ssh_xfree(base64);
 
   /* Add the tail for the key. */
   ssh_key_blob_dump_line_str(&buffer,
-			     ssh2_pk_format_name_list[key_index].tail);
+                             ssh2_pk_format_name_list[key_index].tail);
   ssh_key_blob_dump_lf(&buffer);
 
   if (ssh_blob_write(user, fname, mode,
-		     ssh_buffer_ptr(&buffer), ssh_buffer_len(&buffer),
-		     context))
+                     ssh_buffer_ptr(&buffer), ssh_buffer_len(&buffer),
+                     context))
     {
       ssh_buffer_uninit(&buffer);
       return TRUE;
@@ -551,7 +554,7 @@ SshRandomState ssh_randseed_open(SshUser user, SshConfig config)
 /* Read a public key from a file. Return NULL on failure. */
 
 SshPublicKey ssh_pubkey_read(SshUser user, const char *fname, char **comment, 
-			     void *context)
+                             void *context)
 {
   unsigned char *pkeybuf;
   size_t pkeylen;
@@ -583,7 +586,7 @@ fail:
 /* Write a public key to a file. Returns TRUE on error. */
 
 Boolean ssh_pubkey_write(SshUser user, const char *fname, const char *comment, 
-			 SshPublicKey key, void *context)
+                         SshPublicKey key, void *context)
 {
   unsigned char *pkeybuf;
   size_t pkeylen;
@@ -593,8 +596,8 @@ Boolean ssh_pubkey_write(SshUser user, const char *fname, const char *comment,
     return TRUE;
 
   ret = ssh_key_blob_write(user, fname, 0644, 
-			   SSH_KEY_MAGIC_PUBLIC,
-			   comment, pkeybuf, pkeylen, context);
+                           SSH_KEY_MAGIC_PUBLIC,
+                           comment, pkeybuf, pkeylen, context);
   memset(pkeybuf, 0, pkeylen);
   ssh_xfree(pkeybuf);
 
@@ -605,8 +608,8 @@ Boolean ssh_pubkey_write(SshUser user, const char *fname, const char *comment,
 /* Read a private key from a file. Returns NULL on failure. */
 
 SshPrivateKey ssh_privkey_read(SshUser user, 
-			       const char *fname, const char *passphrase, 
-			       char **comment, void *context)
+                               const char *fname, const char *passphrase, 
+                               char **comment, void *context)
 {
   SshCryptoStatus code;
   SshPrivateKey privkey;
@@ -625,31 +628,31 @@ SshPrivateKey ssh_privkey_read(SshUser user,
     {
     case SSH_KEY_MAGIC_PRIVATE:
       if ((code = ssh_private_key_import_with_passphrase(pkeybuf,
-							 pkeylen,
-							 "",
-							 &privkey) 
-	   != SSH_CRYPTO_OK))
-	{
-	  ssh_warning("ssh_privkey_read: %s.", 
-		      ssh_crypto_status_message(code));
-	  goto fail;
-	}
+                                                         pkeylen,
+                                                         "",
+                                                         &privkey) 
+           != SSH_CRYPTO_OK))
+        {
+          ssh_warning("ssh_privkey_read: %s.", 
+                      ssh_crypto_status_message(code));
+          goto fail;
+        }
       break;
 
     case SSH_KEY_MAGIC_PRIVATE_ENCRYPTED:
       
       if ((code = ssh_private_key_import_with_passphrase(pkeybuf,
-							 pkeylen,
-							 passphrase,
-							 &privkey) 
-	   != SSH_CRYPTO_OK))
-	{
+                                                         pkeylen,
+                                                         passphrase,
+                                                         &privkey) 
+           != SSH_CRYPTO_OK))
+        {
 #if 0
-	  ssh_warning("ssh_privkey_read: %s.", 
-		      ssh_crypto_status_message(code));
+          ssh_warning("ssh_privkey_read: %s.", 
+                      ssh_crypto_status_message(code));
 #endif
-	  goto fail;
-	}
+          goto fail;
+        }
       break;
 
     default:
@@ -676,10 +679,10 @@ fail:
 /* Write a private key to a file with a passphrase. Return TRUE on error. */
 
 Boolean ssh_privkey_write(SshUser user,
-			  const char *fname, const char *passphrase,
-			  const char *comment,
-			  SshPrivateKey key, SshRandomState rand, 
-			  void *context)
+                          const char *fname, const char *passphrase,
+                          const char *comment,
+                          SshPrivateKey key, SshRandomState rand, 
+                          void *context)
 {
   unsigned char *pkeybuf;
   size_t pkeylen;
@@ -687,11 +690,11 @@ Boolean ssh_privkey_write(SshUser user,
   Boolean ret;
 
   if((code = ssh_private_key_export_with_passphrase(key, 
-						    SSH_PASSPHRASE_CIPHER,
-						    passphrase,
-						    rand,
-						    &pkeybuf,
-						    &pkeylen))
+                                                    SSH_PASSPHRASE_CIPHER,
+                                                    passphrase,
+                                                    rand,
+                                                    &pkeybuf,
+                                                    &pkeylen))
      != SSH_CRYPTO_OK)
     {
       ssh_warning("ssh_privkey_write: %s.", ssh_crypto_status_message(code));
@@ -699,10 +702,43 @@ Boolean ssh_privkey_write(SshUser user,
     }
 
   ret = ssh_key_blob_write(user, fname, 0600, 
-			   SSH_KEY_MAGIC_PRIVATE_ENCRYPTED,
-			   comment, pkeybuf, pkeylen, context);
+                           SSH_KEY_MAGIC_PRIVATE_ENCRYPTED,
+                           comment, pkeybuf, pkeylen, context);
   memset(pkeybuf, 0, pkeylen);
   ssh_xfree(pkeybuf);
   
   return ret;
 }
+
+/* Generate a name string from any blob.  String consists of
+   caller given string and space and sha1 hash of the blob in hex. 
+   String is allocated with ssh_xmalloc. */
+char *ssh_generate_name_from_blob(char *name,
+                                  unsigned char *blob,
+                                  size_t bloblen)
+{
+  SshHash hash;
+  char *buf;
+  unsigned char *digest;
+  size_t len, namelen;
+  int i;
+
+  if (!name)
+    name = "???";
+  if (ssh_hash_allocate("sha1", &hash) != SSH_CRYPTO_OK)
+      return ssh_xstrdup(name);
+  namelen = strlen(name);
+  ssh_hash_update(hash, blob, bloblen);
+  len = ssh_hash_digest_length(hash);
+  digest = ssh_xmalloc(len);
+  ssh_hash_final(hash, digest);
+  ssh_hash_free(hash);
+  buf = ssh_xmalloc(namelen + 1 + (len * 2) + 1);
+  strncpy(buf, name, namelen);
+  buf[namelen] = ' ';
+  for (i = 0; i < len; i++)
+    snprintf(&(buf[namelen + 1 + (i * 2)]), 3, "%02x", digest[i]);
+  ssh_xfree(digest);
+  return buf;
+}
+

@@ -23,6 +23,8 @@ Code for creating a listener to the SSH authentication agent.
 #include "sshagentint.h"
 #include "sshlocalstream.h"
 
+#define SSH_DEBUG_MODULE "SshAgentPath"
+
 /* Determines the directory in which to place the agent socket.  This
    is unix-specific.  This creates the appropriate directories.  This returns
    FALSE if the directories could not be created with safe modes, and
@@ -30,9 +32,9 @@ Code for creating a listener to the SSH authentication agent.
    if this returns FALSE (the path is set in any case). */
 
 Boolean ssh_agenti_determine_path(char *buf, 
-				  size_t buflen, 
-				  uid_t uid,
-				  Boolean ssh1_agent)
+                                  size_t buflen, 
+                                  uid_t uid,
+                                  Boolean ssh1_agent)
 {
   struct passwd *pw;
   const char *user;
@@ -47,15 +49,15 @@ Boolean ssh_agenti_determine_path(char *buf,
     user = "unknown";
 
   snprintf(socket_dir_name, sizeof(socket_dir_name), SSH_AGENT_SOCKET_DIR,
-	   user);
+           user);
 
   snprintf(buf, buflen,
-	   ((!ssh1_agent)
-	    ? 
-	    (SSH_AGENT_SOCKET_DIR "/" SSH_AGENT_SOCKET)
-	    :
-	    (SSH_AGENT_SOCKET_DIR "/" SSH1_AGENT_SOCKET)),
-	   user, (int)getpid());
+           ((!ssh1_agent)
+            ? 
+            (SSH_AGENT_SOCKET_DIR "/" SSH_AGENT_SOCKET)
+            :
+            (SSH_AGENT_SOCKET_DIR "/" SSH1_AGENT_SOCKET)),
+           user, (int)getpid());
   
   /* Check that the per-user socket directory either doesn't exist
      or has good modes */
@@ -63,21 +65,21 @@ Boolean ssh_agenti_determine_path(char *buf,
   if (ret < 0 && errno != ENOENT)
     {
       ssh_warning("ssh_agenti_determine_path: stat %s: %s",
-		  socket_dir_name, strerror(errno));
+                  socket_dir_name, strerror(errno));
       return FALSE;
     }
   if (ret < 0 && errno == ENOENT)
     {
       if (mkdir(socket_dir_name, S_IRWXU) < 0)
-	{
-	  ssh_warning("ssh_agenti_determine_path: mkdir %s: %s",
-		      socket_dir_name, strerror(errno));
-	  return FALSE;
-	}
+        {
+          ssh_warning("ssh_agenti_determine_path: mkdir %s: %s",
+                      socket_dir_name, strerror(errno));
+          return FALSE;
+        }
       else
-	{
-	  (void)chown(socket_dir_name, uid, 0);
-	}
+        {
+          (void)chown(socket_dir_name, uid, 0);
+        }
     }
 
   /* Check the owner and permissions */
@@ -85,7 +87,7 @@ Boolean ssh_agenti_determine_path(char *buf,
       (st.st_mode & 077) != 0)
     {
       ssh_warning("ssh_agenti_determine_path: bad modes or owner for directory '%s'\n",
-		  socket_dir_name);
+                  socket_dir_name);
       return FALSE;
     }
 
@@ -94,7 +96,7 @@ Boolean ssh_agenti_determine_path(char *buf,
   if (ret < 0 && errno != ENOENT)
     {
       ssh_warning("ssh_agenti_determine_path: '%s' already exists - removed",
-		  buf);
+                  buf);
       remove(buf);
     }
 
@@ -110,9 +112,9 @@ Boolean ssh_agenti_determine_path(char *buf,
    when no longer needed. */
 
 SshLocalListener ssh_agenti_create_listener(uid_t uid, char **path_return,
-					    SshLocalCallback callback,
-					    Boolean ssh1_agent,
-					    void *context)
+                                            SshLocalCallback callback,
+                                            Boolean ssh1_agent,
+                                            void *context)
 {
   char path[100];
   SshLocalListener listener;
@@ -120,7 +122,7 @@ SshLocalListener ssh_agenti_create_listener(uid_t uid, char **path_return,
   if (!ssh_agenti_determine_path(path, sizeof(path), uid, ssh1_agent))
     {
       if (path_return)
-	*path_return = ssh_xstrdup(path);
+        *path_return = ssh_xstrdup(path);
       return NULL;
     }
   if (path_return)
@@ -147,8 +149,8 @@ SshLocalListener ssh_agenti_create_listener(uid_t uid, char **path_return,
    is complete. */
 
 void ssh_agenti_connect(SshLocalCallback callback, 
-			Boolean ssh1_agent,
-			void *context)
+                        Boolean ssh1_agent,
+                        void *context)
 {
   const char *path;
   
@@ -163,9 +165,9 @@ void ssh_agenti_connect(SshLocalCallback callback,
   if (getuid() != geteuid())
     {
       /* XXX much more checking and care is needed to make this work in
-	 suid programs.  Talk to kivinen@ssh.fi or ylo@ssh.fi before 
-	 attempting to do anything for that.  Compare with the code in
-	 ssh-1.22. */
+         suid programs.  Talk to kivinen@ssh.fi or ylo@ssh.fi before 
+         attempting to do anything for that.  Compare with the code in
+         ssh-1.22. */
       ssh_warning("ssh_agenti_connect has not been written to work securely in a suid program.");
       ssh_warning("Refusing to connect to agent.");
       (*callback)(NULL, context);

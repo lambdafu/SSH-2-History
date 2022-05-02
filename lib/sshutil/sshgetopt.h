@@ -8,10 +8,6 @@
 
    Header for ssh_getopt.
 
-   Implemets also IEEE Std1003.2-1992 compatible getopt as a macro.
-   The exception is that no variables like `optarg' can be explicitely
-   defined externs in the source.
-
 */
 
 #ifndef SSHGETOPT_H
@@ -48,15 +44,16 @@ extern struct SshGetOptDataRec ssh_getopt_default_data;
 #define ssh_optargval            (ssh_getopt_default_data.arg_val)
 #define ssh_optallowplus         (ssh_getopt_default_data.allow_plus)
 
-#define opterr                   ssh_opterr
-#define optind                   ssh_optind
-#define optopt                   ssh_optopt
-#define optreset                 ssh_optreset
-#define optarg                   ssh_optarg
-
-#define getopt(argc, argv, ostr) ssh_getopt((argc), (argv), (ostr), (void *)0)
-
 #endif /* ! SSHGETOPT_C */
+
+/*
+ * This struct contents can be used as an initializer to the static version
+ * of struct SshGetOptDataRec.
+ *
+ * REMEMBER TO UPDATE THIS IF YOU CHANGE THE SshGetOptDataRec STRUCTURE!!!
+ */
+#define SSH_GETOPT_DATA_INITIALIZER \
+                                { 1, 1, 0, 0, 0, NULL, 0, 0, 0, 0, "" }
 
 /*
  * Works like getopt(3).  If data pointer is NULL, the internal data
@@ -65,7 +62,7 @@ extern struct SshGetOptDataRec ssh_getopt_default_data;
  * NULL, the structure should be initialized with ssh_getopt_init_data()
  * before the first call of ssh_getopt().
  */
-int ssh_getopt(int argc, char **argv, char *ostr, SshGetOptData data);
+int ssh_getopt(int argc, char **argv, const char *ostr, SshGetOptData data);
 
 /*
  * Initialize pre-allocated SshGetOptData data structure.
@@ -74,4 +71,4 @@ void ssh_getopt_init_data(SshGetOptData data);
 
 #endif /* ! SSHGETOPT_H */
 
-/* eof (sshgetopt.c) */
+/* eof (sshgetopt.h) */

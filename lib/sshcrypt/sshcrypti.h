@@ -14,7 +14,7 @@
   */
 
 /*
- * $Id: sshcrypti.h,v 1.13 1998/10/10 06:54:18 mkojo Exp $
+ * $Id: sshcrypti.h,v 1.14 1998/11/04 12:10:25 ylo Exp $
  * $Log: sshcrypti.h,v $
  * $EndLog$
  */
@@ -49,7 +49,7 @@ typedef unsigned int SshCryptoType;
 typedef struct
 {
   const char *name;
-  char *asn1_oid;
+  const char *asn1_oid;
   unsigned char iso_identifier;
   size_t digest_length;
   size_t input_block_length;
@@ -74,9 +74,8 @@ typedef struct
   void (*init)(void *context, const unsigned char *key,
                size_t keylen, Boolean for_encryption);
   void (*transform)(void *context, unsigned char *dest,
-                    const unsigned char *src, size_t len);
-  void (*set_iv)(void *context, const unsigned char *iv);
-  void (*get_iv)(void *context, unsigned char *iv);
+                    const unsigned char *src, size_t len,
+                    unsigned char *iv);
 } SshCipherDef;
 
 /* Definition structure for mac functions. */

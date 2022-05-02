@@ -28,8 +28,10 @@ EXTRA_PROGRAMS = t-buffer t-crc32 t-encode \
 	t-sshlist
 
 LDADD = ../libsshutil.a ../../sshmath/libsshmath.a
-INCLUDES = -I../.. -I. -I.. -I$(srcdir) -I$(srcdir)/.. -I../../sshmath \
-  -I$(srcdir)/../../sshmath -I../../sshscard -I../../sshcrypt -I../../trq
+INCLUDES = -I../.. -I. -I.. -I$(srcdir) -I$(srcdir)/..  \
+	-I$(top_builddir) -I$(top_srcdir) 	\
+	-I../../sshmath -I$(srcdir)/../../sshmath -I../../sshscard \
+	-I../../sshcrypt -I../../trq
 
 
 t_buffer_SOURCES = t-buffer.c

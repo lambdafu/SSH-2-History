@@ -123,7 +123,7 @@ void ssh_common_disconnect(int reason, const char *msg, void *context)
 
   /* Log the disconnect in the system log. */
   ssh_log_event(SSH_LOGFACILITY, SSH_LOG_INFORMATIONAL,
-		"Remote host disconnected: %s", msg);
+                "Remote host disconnected: %s", msg);
 
   /* Call the disconnect function.  Note that it is always given.
      This will call ssh_common_destroy, destroying the SshCommon object
@@ -147,37 +147,37 @@ void ssh_common_debug(int type, const char *msg, void *context)
 /* Processes a special packet received from the connection protocol. */
 
 void ssh_common_special(SshCrossPacketType type, const unsigned char *data,
-			size_t len, void *context)
+                        size_t len, void *context)
 {
   SshCommon common = (SshCommon)context;
 
   SSH_DEBUG(1, ("special packet received from connection protocol: %d",
-		(int)type));
+                (int)type));
 
   switch (type)
     {
     case SSH_CROSS_AUTHENTICATED:
       if (ssh_decode_array(data, len,
-			   SSH_FORMAT_UINT32_STR, &common->user, NULL,
-			   SSH_FORMAT_END) == 0)
-	ssh_fatal("ssh_common_special: bad AUTHENTICATED packet");
+                           SSH_FORMAT_UINT32_STR, &common->user, NULL,
+                           SSH_FORMAT_END) == 0)
+        ssh_fatal("ssh_common_special: bad AUTHENTICATED packet");
 
       /* XXX change to use data saved in HostBased authentication. */
       common->authenticated_client_host = ssh_xstrdup("XXX");
 
       /* In server, retrieve information about the authenticated user.  This
-	 is not used in the client. */
+         is not used in the client. */
       if (!common->client)
-	{
-	  common->user_data = ssh_user_initialize(common->user, TRUE);
-	  if (!common->user_data)
-	    ssh_fatal("ssh_common_special: user data init failed for '%s'",
-		      common->user);
-	}
+        {
+          common->user_data = ssh_user_initialize(common->user, TRUE);
+          if (!common->user_data)
+            ssh_fatal("ssh_common_special: user data init failed for '%s'",
+                      common->user);
+        }
 
       /* Call the authenticated notify function if given. */
       if (common->authenticated_notify)
-	(*common->authenticated_notify)(common->user, common->context);
+        (*common->authenticated_notify)(common->user, common->context);
 
       break;
 
@@ -208,15 +208,15 @@ void ssh_common_special(SshCrossPacketType type, const unsigned char *data,
    a ``close_notify'' callback (see below).  */
 
 SshCommon ssh_common_wrap(SshStream connection,
-			  SshStream auth,
-			  Boolean client,
-			  SshConfig config,
-			  SshRandomState random_state,
-			  const char *server_host_name,
-			  SshConnDisconnectProc disconnect,
-			  SshConnDebugProc debug,
-			  SshCommonAuthenticatedNotify authenticated_notify,
-			  void *context)
+                          SshStream auth,
+                          Boolean client,
+                          SshConfig config,
+                          SshRandomState random_state,
+                          const char *server_host_name,
+                          SshConnDisconnectProc disconnect,
+                          SshConnDebugProc debug,
+                          SshCommonAuthenticatedNotify authenticated_notify,
+                          void *context)
 {
   SshCommon common;
   int i, j, num_requests, num_types;
@@ -254,6 +254,11 @@ SshCommon ssh_common_wrap(SshStream connection,
   common->local_port = ssh_xmalloc(100);
   if (!ssh_tcp_get_local_port(connection, common->local_port, 100))
     strcpy(common->local_port, "UNKNOWN");
+  /*
+   * Set remote host name to ip address.  If reverse mapping is done
+   * later, this string should be set to real host name from DNS PTR.
+   */
+  common->remote_host = ssh_xstrdup(common->remote_ip);
 
   SSH_DEBUG(5, ("initializing channel types and requests"));
   
@@ -264,17 +269,17 @@ SshCommon ssh_common_wrap(SshStream connection,
     {
       num_types++;
       for (j = 0; ssh_channel_types[i].global_requests[j].name; j++)
-	num_requests++;
+        num_requests++;
     }
   assert(num_types == i);
 
   /* Allocate memory for channel types and global requests. */
   common->global_requests = ssh_xcalloc(num_requests + 1,
-					sizeof(common->global_requests[0]));
+                                        sizeof(common->global_requests[0]));
   common->channel_opens = ssh_xcalloc(num_types + 1,
-				      sizeof(common->channel_opens[0]));
+                                      sizeof(common->channel_opens[0]));
   common->type_contexts = ssh_xcalloc(num_types,
-				      sizeof(common->type_contexts[0]));
+                                      sizeof(common->type_contexts[0]));
   /* Note: the arrays are initialized to zero.  The code below relies on the
      last element (after ones that we initialize below) already being
      zeroed. */
@@ -284,28 +289,28 @@ SshCommon ssh_common_wrap(SshStream connection,
   for (i = 0; ssh_channel_types[i].name; i++)
     {
       for (j = 0; ssh_channel_types[i].global_requests[j].name; j++)
-	{
-	  common->global_requests[num_requests++] =
-	    ssh_channel_types[i].global_requests[j];
-	}
+        {
+          common->global_requests[num_requests++] =
+            ssh_channel_types[i].global_requests[j];
+        }
       common->channel_opens[i].name = ssh_channel_types[i].name;
       common->channel_opens[i].proc = ssh_channel_types[i].open_proc;
       if (ssh_channel_types[i].type_create_proc)
-	common->type_contexts[i] =
-	  (*ssh_channel_types[i].type_create_proc)(common);
+        common->type_contexts[i] =
+          (*ssh_channel_types[i].type_create_proc)(common);
       else
-	common->type_contexts[i] = NULL;
+        common->type_contexts[i] = NULL;
     }
 
   /* Create connection protocol object. */
   SSH_DEBUG(5, ("creating connection protocol"));
   common->conn = ssh_conn_wrap(auth, SSH_CONNECTION_SERVICE,
-			       common->global_requests,
-			       common->channel_opens,
-			       ssh_common_disconnect,
-			       ssh_common_debug,
-			       ssh_common_special,
-			       (void *)common);
+                               common->global_requests,
+                               common->channel_opens,
+                               ssh_common_disconnect,
+                               ssh_common_debug,
+                               ssh_common_special,
+                               (void *)common);
   SSH_DEBUG(5, ("connection protocol created"));
   
   return common;
@@ -335,7 +340,7 @@ void ssh_common_destroy(SshCommon common)
   for (i = 0; ssh_channel_types[i].name; i++)
     {
       if (ssh_channel_types[i].type_destroy_proc)
-	(*ssh_channel_types[i].type_destroy_proc)(common->type_contexts[i]);
+        (*ssh_channel_types[i].type_destroy_proc)(common->type_contexts[i]);
       common->type_contexts[i] = NULL;
     }
   
@@ -382,7 +387,7 @@ void *ssh_common_get_channel_type_context(SshCommon common, const char *name)
   for (i = 0; ssh_channel_types[i].name; i++)
     {
       if (strcmp(ssh_channel_types[i].name, name) == 0)
-	return common->type_contexts[i];
+        return common->type_contexts[i];
     }
   
   SSH_DEBUG(5, ("type '%s' not found", name));

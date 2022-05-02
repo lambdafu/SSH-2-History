@@ -78,6 +78,8 @@ CONFPROGRAMS = @CONFPROGRAMS@
 COPY_INCLUDE = @COPY_INCLUDE@
 CRYPTO_CONF_OBJS = @CRYPTO_CONF_OBJS@
 ETCDIR = @ETCDIR@
+IPSEC_ARCH_INTC = @IPSEC_ARCH_INTC@
+IPSEC_ARCH_ROUTE = @IPSEC_ARCH_ROUTE@
 LN_S = @LN_S@
 M4 = @M4@
 MAKEINFO = @MAKEINFO@
@@ -108,8 +110,10 @@ EXTRA_PROGRAMS = t-buffer t-crc32 t-encode \
 	t-sshlist
 
 LDADD = ../libsshutil.a ../../sshmath/libsshmath.a
-INCLUDES = -I../.. -I. -I.. -I$(srcdir) -I$(srcdir)/.. -I../../sshmath \
-  -I$(srcdir)/../../sshmath -I../../sshscard -I../../sshcrypt -I../../trq
+INCLUDES = -I../.. -I. -I.. -I$(srcdir) -I$(srcdir)/..  \
+	-I$(top_builddir) -I$(top_srcdir) 	\
+	-I../../sshmath -I$(srcdir)/../../sshmath -I../../sshscard \
+	-I../../sshcrypt -I../../trq
 
 t_buffer_SOURCES = t-buffer.c
 t_buffer_DEPENDENCIES = $(LDADD)

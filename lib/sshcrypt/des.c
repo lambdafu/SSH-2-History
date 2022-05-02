@@ -25,7 +25,7 @@ cryptography and data security, including the following:
 */
 
 /*
- * $Id: des.c,v 1.20 1998/01/28 10:09:52 ylo Exp $
+ * $Id: des.c,v 1.22 1998/11/05 14:16:45 ylo Exp $
  * $Log: des.c,v $
  * $EndLog$
  */
@@ -42,7 +42,6 @@ typedef struct
   SshUInt32 key_schedule[32];
 
   Boolean for_encryption;
-  SshUInt32 iv[2];
 } DESContext;
 
 typedef struct
@@ -51,7 +50,6 @@ typedef struct
   /* DESContext des_context[3]; */
 
   Boolean for_encryption;
-  SshUInt32 iv[2];
 } TripleDESContext;
 
 /* Table for key generation.  This used to be in sk.h. */
@@ -343,75 +341,75 @@ const SshUInt32 SSH_CODE_SEGMENT des_SPtrans[8][64]={
 0x08000000, 0x08200020, 0x00008000, 0x00208020 }};
 
 /* Some stuff that used to be in des_locl.h.  Heavily modified. */
-	/* IP and FP
-	 * The problem is more of a geometric problem that random bit fiddling.
-	 0  1  2  3  4  5  6  7      62 54 46 38 30 22 14  6
-	 8  9 10 11 12 13 14 15      60 52 44 36 28 20 12  4
-	16 17 18 19 20 21 22 23      58 50 42 34 26 18 10  2
-	24 25 26 27 28 29 30 31  to  56 48 40 32 24 16  8  0
+        /* IP and FP
+         * The problem is more of a geometric problem that random bit fiddling.
+         0  1  2  3  4  5  6  7      62 54 46 38 30 22 14  6
+         8  9 10 11 12 13 14 15      60 52 44 36 28 20 12  4
+        16 17 18 19 20 21 22 23      58 50 42 34 26 18 10  2
+        24 25 26 27 28 29 30 31  to  56 48 40 32 24 16  8  0
 
-	32 33 34 35 36 37 38 39      63 55 47 39 31 23 15  7
-	40 41 42 43 44 45 46 47      61 53 45 37 29 21 13  5
-	48 49 50 51 52 53 54 55      59 51 43 35 27 19 11  3
-	56 57 58 59 60 61 62 63      57 49 41 33 25 17  9  1
+        32 33 34 35 36 37 38 39      63 55 47 39 31 23 15  7
+        40 41 42 43 44 45 46 47      61 53 45 37 29 21 13  5
+        48 49 50 51 52 53 54 55      59 51 43 35 27 19 11  3
+        56 57 58 59 60 61 62 63      57 49 41 33 25 17  9  1
 
-	The output has been subject to swaps of the form
-	0 1 -> 3 1 but the odd and even bits have been put into
-	2 3    2 0
-	different words.  The main trick is to remember that
-	t=((l>>size)^r)&(mask);
-	r^=t;
-	l^=(t<<size);
-	can be used to swap and move bits between words.
+        The output has been subject to swaps of the form
+        0 1 -> 3 1 but the odd and even bits have been put into
+        2 3    2 0
+        different words.  The main trick is to remember that
+        t=((l>>size)^r)&(mask);
+        r^=t;
+        l^=(t<<size);
+        can be used to swap and move bits between words.
 
-	So l =  0  1  2  3  r = 16 17 18 19
-	        4  5  6  7      20 21 22 23
-	        8  9 10 11      24 25 26 27
-	       12 13 14 15      28 29 30 31
-	becomes (for size == 2 and mask == 0x3333)
-	   t =   2^16  3^17 -- --   l =  0  1 16 17  r =  2  3 18 19
-		 6^20  7^21 -- --        4  5 20 21       6  7 22 23
-		10^24 11^25 -- --        8  9 24 25      10 11 24 25
-		14^28 15^29 -- --       12 13 28 29      14 15 28 29
+        So l =  0  1  2  3  r = 16 17 18 19
+                4  5  6  7      20 21 22 23
+                8  9 10 11      24 25 26 27
+               12 13 14 15      28 29 30 31
+        becomes (for size == 2 and mask == 0x3333)
+           t =   2^16  3^17 -- --   l =  0  1 16 17  r =  2  3 18 19
+                 6^20  7^21 -- --        4  5 20 21       6  7 22 23
+                10^24 11^25 -- --        8  9 24 25      10 11 24 25
+                14^28 15^29 -- --       12 13 28 29      14 15 28 29
 
-	Thanks for hints from Richard Outerbridge - he told me IP&FP
-	could be done in 15 xor, 10 shifts and 5 ands.
-	When I finally started to think of the problem in 2D
-	I first got ~42 operations without xors.  When I remembered
-	how to use xors :-) I got it to its final state.
-	*/
+        Thanks for hints from Richard Outerbridge - he told me IP&FP
+        could be done in 15 xor, 10 shifts and 5 ands.
+        When I finally started to think of the problem in 2D
+        I first got ~42 operations without xors.  When I remembered
+        how to use xors :-) I got it to its final state.
+        */
 #define PERM_OP(a,b,t,n,m) ((t)=((((a)>>(n))^(b))&(m)),\
-	(b)^=(t),\
-	(a)^=((t)<<(n)))
+        (b)^=(t),\
+        (a)^=((t)<<(n)))
 
 #if !defined(ASM_DES)
      
 #define IP(l,r,t) \
-	PERM_OP(r,l,t, 4,0x0f0f0f0f); \
-	PERM_OP(l,r,t,16,0x0000ffff); \
-	PERM_OP(r,l,t, 2,0x33333333); \
-	PERM_OP(l,r,t, 8,0x00ff00ff); \
-	PERM_OP(r,l,t, 1,0x55555555);
+        PERM_OP(r,l,t, 4,0x0f0f0f0f); \
+        PERM_OP(l,r,t,16,0x0000ffff); \
+        PERM_OP(r,l,t, 2,0x33333333); \
+        PERM_OP(l,r,t, 8,0x00ff00ff); \
+        PERM_OP(r,l,t, 1,0x55555555);
 
 #define FP(l,r,t) \
-	PERM_OP(l,r,t, 1,0x55555555); \
-	PERM_OP(r,l,t, 8,0x00ff00ff); \
-	PERM_OP(l,r,t, 2,0x33333333); \
-	PERM_OP(r,l,t,16,0x0000ffff); \
-	PERM_OP(l,r,t, 4,0x0f0f0f0f);
+        PERM_OP(l,r,t, 1,0x55555555); \
+        PERM_OP(r,l,t, 8,0x00ff00ff); \
+        PERM_OP(l,r,t, 2,0x33333333); \
+        PERM_OP(r,l,t,16,0x0000ffff); \
+        PERM_OP(l,r,t, 4,0x0f0f0f0f);
 
-#define D_ENCRYPT(L,R,S)	\
-	u=(R^s[S  ]); \
-	t=R^s[S+1]; \
-	t=((t>>4)+(t<<28)); \
-	L^=	des_SPtrans[1][(t    )&0x3f]| \
-		des_SPtrans[3][(t>> 8)&0x3f]| \
-		des_SPtrans[5][(t>>16)&0x3f]| \
-		des_SPtrans[7][(t>>24)&0x3f]| \
-		des_SPtrans[0][(u    )&0x3f]| \
-		des_SPtrans[2][(u>> 8)&0x3f]| \
-		des_SPtrans[4][(u>>16)&0x3f]| \
-		des_SPtrans[6][(u>>24)&0x3f];
+#define D_ENCRYPT(L,R,S)        \
+        u=(R^s[S  ]); \
+        t=R^s[S+1]; \
+        t=((t>>4)+(t<<28)); \
+        L^=     des_SPtrans[1][(t    )&0x3f]| \
+                des_SPtrans[3][(t>> 8)&0x3f]| \
+                des_SPtrans[5][(t>>16)&0x3f]| \
+                des_SPtrans[7][(t>>24)&0x3f]| \
+                des_SPtrans[0][(u    )&0x3f]| \
+                des_SPtrans[2][(u>> 8)&0x3f]| \
+                des_SPtrans[4][(u>>16)&0x3f]| \
+                des_SPtrans[6][(u>>24)&0x3f];
 
 #if 0
 #define SWAP_32BIT(a,b,t) \
@@ -423,7 +421,7 @@ const SshUInt32 SSH_CODE_SEGMENT des_SPtrans[8][64]={
 /* Copyright (C) 1993 Eric Young - see README for more details */
 
 void des_encrypt(SshUInt32 l, SshUInt32 r, SshUInt32 *output, SshUInt32 *s, 
-		 int encrypt)
+                 int for_encryption)
 {
   register SshUInt32 t,u;
   register int i;
@@ -447,21 +445,21 @@ void des_encrypt(SshUInt32 l, SshUInt32 r, SshUInt32 *output, SshUInt32 *s,
  
   /* I don't know if it is worth the effort of loop unrolling the
    * inner loop */
-  if (encrypt)
+  if (for_encryption)
     {
       for (i=0; i<32; i+=4)
-	{
-	  D_ENCRYPT(l,r,i+0); /*  1 */
-	  D_ENCRYPT(r,l,i+2); /*  2 */
-	}
+        {
+          D_ENCRYPT(l,r,i+0); /*  1 */
+          D_ENCRYPT(r,l,i+2); /*  2 */
+        }
     }
   else
     {
       for (i=30; i>0; i-=4)
-	{
-	  D_ENCRYPT(l,r,i-0); /* 16 */
-	  D_ENCRYPT(r,l,i-2); /* 15 */
-	}
+        {
+          D_ENCRYPT(l,r,i-0); /* 16 */
+          D_ENCRYPT(r,l,i-2); /* 15 */
+        }
     }
   l=(l>>1)|(l<<31);
   r=(r>>1)|(r<<31);
@@ -479,8 +477,8 @@ void des_encrypt(SshUInt32 l, SshUInt32 r, SshUInt32 *output, SshUInt32 *s,
 
 /* Triple des encrypt/decrypt/encrypt and decrypt/encrypt/decrypt */
 
-void des_ede_encrypt(SshUInt32 l, SshUInt32 r, SshUInt32 output[2], SshUInt32 *s,
-		     Boolean encrypt)
+void des_ede_encrypt(SshUInt32 l, SshUInt32 r, SshUInt32 output[2],
+                     SshUInt32 *s, Boolean for_encryption)
 {
   register SshUInt32 t,u;
   register int i;
@@ -504,41 +502,41 @@ void des_ede_encrypt(SshUInt32 l, SshUInt32 r, SshUInt32 output[2], SshUInt32 *s
  
   /* I don't know if it is worth the effort of loop unrolling the
    * inner loop */
-  if (encrypt)
+  if (for_encryption)
     {
       for (i=0; i<32; i+=4)
-	{
-	  D_ENCRYPT(l,r,i+0); /*  1 */
-	  D_ENCRYPT(r,l,i+2); /*  2 */
-	}
+        {
+          D_ENCRYPT(l,r,i+0); /*  1 */
+          D_ENCRYPT(r,l,i+2); /*  2 */
+        }
       for (i = 62; i > 32; i-=4)
-	{
-	  D_ENCRYPT(r,l,i-0);
-	  D_ENCRYPT(l,r,i-2);
-	}
+        {
+          D_ENCRYPT(r,l,i-0);
+          D_ENCRYPT(l,r,i-2);
+        }
       for (i = 64; i < 96; i+=4)
-	{
-	  D_ENCRYPT(l,r,i+0);
-	  D_ENCRYPT(r,l,i+2);
-	}      
+        {
+          D_ENCRYPT(l,r,i+0);
+          D_ENCRYPT(r,l,i+2);
+        }      
     }
   else
     {
       for (i=94; i>64; i-=4)
-	{
-	  D_ENCRYPT(l,r,i-0); /*  127 */
-	  D_ENCRYPT(r,l,i-2); /*  126 */
-	}
+        {
+          D_ENCRYPT(l,r,i-0); /*  127 */
+          D_ENCRYPT(r,l,i-2); /*  126 */
+        }
       for (i = 32; i < 64; i+=4)
-	{
-	  D_ENCRYPT(r,l,i+0);
-	  D_ENCRYPT(l,r,i+2);
-	}
+        {
+          D_ENCRYPT(r,l,i+0);
+          D_ENCRYPT(l,r,i+2);
+        }
       for (i = 30; i > 0; i-=4)
-	{
-	  D_ENCRYPT(l,r,i-0);
-	  D_ENCRYPT(r,l,i-2);
-	}
+        {
+          D_ENCRYPT(l,r,i-0);
+          D_ENCRYPT(r,l,i-2);
+        }
     }
   l=(l>>1)|(l<<31);
   r=(r>>1)|(r<<31);
@@ -558,10 +556,10 @@ void des_ede_encrypt(SshUInt32 l, SshUInt32 r, SshUInt32 output[2], SshUInt32 *s
 /* Prototypes for assembler code. */
 
 void des_encrypt(SshUInt32 l, SshUInt32 r, SshUInt32 *output, SshUInt32 *s, 
-		 int encrypt);
+                 int for_encryption);
 
-void des_ede_encrypt(SshUInt32 l, SshUInt32 r, SshUInt32 output[2], SshUInt32 *s,
-		     int encrypt);
+void des_ede_encrypt(SshUInt32 l, SshUInt32 r, SshUInt32 output[2],
+                     SshUInt32 *s, int for_encryption);
 
 #endif /* !ASM_DES */
 
@@ -569,7 +567,7 @@ void des_ede_encrypt(SshUInt32 l, SshUInt32 r, SshUInt32 output[2], SshUInt32 *s
 /* Copyright (C) 1993 Eric Young - see README for more details */
 
 #define HPERM_OP(a,t,n,m) ((t)=((((a)<<(16-(n)))^(a))&(m)),\
-	(a)=(a)^(t)^(t>>(16-(n))))
+        (a)=(a)^(t)^(t>>(16-(n))))
 
 void des_set_key(const unsigned char *key, SshUInt32 *schedule)
 {
@@ -596,9 +594,9 @@ void des_set_key(const unsigned char *key, SshUInt32 *schedule)
   for (i=0; i < 16; i++)
     {
       if (shifts & 1)
-	{ c=((c>>2)|(c<<26)); d=((d>>2)|(d<<26)); }
+        { c=((c>>2)|(c<<26)); d=((d>>2)|(d<<26)); }
       else
-	{ c=((c>>1)|(c<<27)); d=((d>>1)|(d<<27)); }
+        { c=((c>>1)|(c<<27)); d=((d>>1)|(d<<27)); }
       shifts >>= 1;
       c&=0x0fffffff;
       d&=0x0fffffff;
@@ -607,14 +605,14 @@ void des_set_key(const unsigned char *key, SshUInt32 *schedule)
        * point in time to investigate */
 
       s = des_skb[0][ (c    )&0x3f                ] |
-	  des_skb[1][((c>> 6)&0x03)|((c>> 7)&0x3c)] |
-	  des_skb[2][((c>>13)&0x0f)|((c>>14)&0x30)] |
-	  des_skb[3][((c>>20)&0x01)|((c>>21)&0x06)|((c>>22)&0x38)];
+          des_skb[1][((c>> 6)&0x03)|((c>> 7)&0x3c)] |
+          des_skb[2][((c>>13)&0x0f)|((c>>14)&0x30)] |
+          des_skb[3][((c>>20)&0x01)|((c>>21)&0x06)|((c>>22)&0x38)];
 
       t = des_skb[4][ (d    )&0x3f                ] |
-	  des_skb[5][((d>> 7)&0x03)|((d>> 8)&0x3c)] |
-	  des_skb[6][ (d>>15)&0x3f                ] |
-	  des_skb[7][((d>>21)&0x0f)|((d>>22)&0x30)];
+          des_skb[5][((d>> 7)&0x03)|((d>> 8)&0x3c)] |
+          des_skb[6][ (d>>15)&0x3f                ] |
+          des_skb[7][((d>>21)&0x0f)|((d>>22)&0x30)];
 
       /* table contained 0213 4657 */
       *schedule++ = ((t << 16) | (s & 0xffff));
@@ -631,33 +629,17 @@ size_t des_ctxsize()
 }
 
 void des_init(void *ptr, const unsigned char *key, size_t keylen,
-	      Boolean for_encryption)
+              Boolean for_encryption)
 {
   DESContext *ctx = (DESContext *)ptr;
 
   ctx->for_encryption = for_encryption;
-  ctx->iv[0] = ctx->iv[1] = 0;
   des_set_key(key, ctx->key_schedule);
 }
-
-void des_set_iv(void *context, const unsigned char *iv)
-{
-  DESContext *ctx = (DESContext *)context;
-
-  ctx->iv[0] = SSH_GET_32BIT_LSB_FIRST(iv);
-  ctx->iv[1] = SSH_GET_32BIT_LSB_FIRST(iv + 4);
-}
-
-void des_get_iv(void *context, unsigned char *iv)
-{
-  DESContext *ctx = (DESContext *)context;
-
-  SSH_PUT_32BIT_LSB_FIRST(iv,     ctx->iv[0]);
-  SSH_PUT_32BIT_LSB_FIRST(iv + 4, ctx->iv[1]);
-}
-			 
+                         
 void des_ecb(void *context, unsigned char *dest,
-	     const unsigned char *src, size_t len)
+             const unsigned char *src, size_t len,
+             unsigned char *iv)
 {
   DESContext *ctx = (DESContext *)context;
   SshUInt32 output[2], l, r;
@@ -680,124 +662,125 @@ void des_ecb(void *context, unsigned char *dest,
 }
 
 void des_cbc(void *context, unsigned char *dest,
-	     const unsigned char *src, size_t len)
+             const unsigned char *src, size_t len,
+             unsigned char *iv_arg)
 {
   DESContext *ctx = (DESContext *)context;
   SshUInt32 l, r, iv[2], temp[2];
   Boolean for_encryption = ctx->for_encryption;
 
-  iv[0] = ctx->iv[0];
-  iv[1] = ctx->iv[1];
+  iv[0] = SSH_GET_32BIT_LSB_FIRST(iv_arg);
+  iv[1] = SSH_GET_32BIT_LSB_FIRST(iv_arg + 4);
   
   if (for_encryption)
     {
       while (len)
-	{
-	  l = SSH_GET_32BIT_LSB_FIRST(src) ^ iv[0];
-	  r = SSH_GET_32BIT_LSB_FIRST(src + 4) ^ iv[1];
+        {
+          l = SSH_GET_32BIT_LSB_FIRST(src) ^ iv[0];
+          r = SSH_GET_32BIT_LSB_FIRST(src + 4) ^ iv[1];
 
-	  des_encrypt(l, r, iv, ctx->key_schedule, for_encryption);
+          des_encrypt(l, r, iv, ctx->key_schedule, for_encryption);
 
-	  SSH_PUT_32BIT_LSB_FIRST(dest, iv[0]);
-	  SSH_PUT_32BIT_LSB_FIRST(dest + 4, iv[1]);
+          SSH_PUT_32BIT_LSB_FIRST(dest, iv[0]);
+          SSH_PUT_32BIT_LSB_FIRST(dest + 4, iv[1]);
 
-	  src += 8;
-	  dest += 8;
-	  len -= 8;
-	}
+          src += 8;
+          dest += 8;
+          len -= 8;
+        }
     }
   else
     {
       while (len)
-	{
-	  l = SSH_GET_32BIT_LSB_FIRST(src);
-	  r = SSH_GET_32BIT_LSB_FIRST(src + 4);
+        {
+          l = SSH_GET_32BIT_LSB_FIRST(src);
+          r = SSH_GET_32BIT_LSB_FIRST(src + 4);
 
-	  des_encrypt(l, r, temp, ctx->key_schedule, for_encryption);
+          des_encrypt(l, r, temp, ctx->key_schedule, for_encryption);
 
-	  temp[0] ^= iv[0];
-	  temp[1] ^= iv[1];
-	  
-	  SSH_PUT_32BIT_LSB_FIRST(dest, temp[0]);
-	  SSH_PUT_32BIT_LSB_FIRST(dest + 4, temp[1]);
+          temp[0] ^= iv[0];
+          temp[1] ^= iv[1];
+          
+          SSH_PUT_32BIT_LSB_FIRST(dest, temp[0]);
+          SSH_PUT_32BIT_LSB_FIRST(dest + 4, temp[1]);
 
-	  iv[0] = l;
-	  iv[1] = r;
-	  
-	  src += 8;
-	  dest += 8;
-	  len -= 8;
-	}
+          iv[0] = l;
+          iv[1] = r;
+          
+          src += 8;
+          dest += 8;
+          len -= 8;
+        }
     }
 
-  ctx->iv[0] = iv[0];
-  ctx->iv[1] = iv[1];
-  
+  SSH_PUT_32BIT_LSB_FIRST(iv_arg, iv[0]);
+  SSH_PUT_32BIT_LSB_FIRST(iv_arg + 4, iv[1]);
 }
 
 void des_cfb(void *context, unsigned char *dest,
-	     const unsigned char *src, size_t len)
+             const unsigned char *src, size_t len,
+             unsigned char *iv)
 {
   DESContext *ctx = (DESContext *)context;
   SshUInt32 l, r, temp[2];
 
-  l = ctx->iv[0];
-  r = ctx->iv[1];
+  l = SSH_GET_32BIT_LSB_FIRST(iv);
+  r = SSH_GET_32BIT_LSB_FIRST(iv + 4);
   
   if (ctx->for_encryption)
     {
       while (len)
-	{
-	  des_encrypt(l, r, temp, ctx->key_schedule, TRUE); 
-	  
-	  l = SSH_GET_32BIT_LSB_FIRST(src) ^ temp[0];
-	  r = SSH_GET_32BIT_LSB_FIRST(src + 4) ^ temp[1];
+        {
+          des_encrypt(l, r, temp, ctx->key_schedule, TRUE); 
+          
+          l = SSH_GET_32BIT_LSB_FIRST(src) ^ temp[0];
+          r = SSH_GET_32BIT_LSB_FIRST(src + 4) ^ temp[1];
 
-	  temp[0] = l;
-	  temp[1] = r;
-	  
-	  SSH_PUT_32BIT_LSB_FIRST(dest, temp[0]);
-	  SSH_PUT_32BIT_LSB_FIRST(dest + 4, temp[1]);
+          temp[0] = l;
+          temp[1] = r;
+          
+          SSH_PUT_32BIT_LSB_FIRST(dest, temp[0]);
+          SSH_PUT_32BIT_LSB_FIRST(dest + 4, temp[1]);
 
-	  src += 8;
-	  dest += 8;
-	  len -= 8;
-	}
+          src += 8;
+          dest += 8;
+          len -= 8;
+        }
     }
   else
     {
       while (len)
-	{
-	  des_encrypt(l, r, temp, ctx->key_schedule, TRUE);
-	  
-	  l = SSH_GET_32BIT_LSB_FIRST(src);
-	  r = SSH_GET_32BIT_LSB_FIRST(src + 4);
+        {
+          des_encrypt(l, r, temp, ctx->key_schedule, TRUE);
+          
+          l = SSH_GET_32BIT_LSB_FIRST(src);
+          r = SSH_GET_32BIT_LSB_FIRST(src + 4);
 
-	  temp[0] ^= l;
-	  temp[1] ^= r;
-	  
-	  SSH_PUT_32BIT_LSB_FIRST(dest, temp[0]);
-	  SSH_PUT_32BIT_LSB_FIRST(dest + 4, temp[1]);
+          temp[0] ^= l;
+          temp[1] ^= r;
+          
+          SSH_PUT_32BIT_LSB_FIRST(dest, temp[0]);
+          SSH_PUT_32BIT_LSB_FIRST(dest + 4, temp[1]);
 
-	  src += 8;
-	  dest += 8;
-	  len -= 8;
-	}
+          src += 8;
+          dest += 8;
+          len -= 8;
+        }
     }
 
-  ctx->iv[0] = l;
-  ctx->iv[1] = r;
-  
+  SSH_PUT_32BIT_LSB_FIRST(iv, l);
+  SSH_PUT_32BIT_LSB_FIRST(iv + 4, r);
 }
 
 void des_ofb(void *context, unsigned char *dest,
-	     const unsigned char *src, size_t len)
+             const unsigned char *src, size_t len,
+             unsigned char *iv_arg)
 {
   DESContext *ctx = (DESContext *)context;
   SshUInt32 iv[2], l, r;
 
-  iv[0] = ctx->iv[0];
-  iv[1] = ctx->iv[1];
+  iv[0] = SSH_GET_32BIT_LSB_FIRST(iv_arg);
+  iv[1] = SSH_GET_32BIT_LSB_FIRST(iv_arg + 4);
   
   while (len)
     {
@@ -817,9 +800,8 @@ void des_ofb(void *context, unsigned char *dest,
       len -= 8;
     }
 
-  ctx->iv[0] = iv[0];
-  ctx->iv[1] = iv[1];
-  
+  SSH_PUT_32BIT_LSB_FIRST(iv_arg, iv[0]);
+  SSH_PUT_32BIT_LSB_FIRST(iv_arg + 4, iv[1]);
 }
 
 /* Triple des */
@@ -830,36 +812,20 @@ size_t des3_ctxsize()
 }
 
 void des3_init(void *ptr, const unsigned char *key, size_t keylen,
-		   Boolean for_encryption)
+                   Boolean for_encryption)
 {
   TripleDESContext *ctx = (TripleDESContext *)ptr;
   
   ctx->for_encryption = for_encryption;
-  ctx->iv[0] = ctx->iv[1] = 0;
   
   des_set_key(key, &ctx->key_schedule[0]);
   des_set_key(&key[8], &ctx->key_schedule[1*32]);
   des_set_key(&key[16], &ctx->key_schedule[2*32]);
 }
-
-void des3_set_iv(void *context, const unsigned char *iv)
-{
-  TripleDESContext *ctx = (TripleDESContext *)context;
-
-  ctx->iv[0] = SSH_GET_32BIT_LSB_FIRST(iv);
-  ctx->iv[1] = SSH_GET_32BIT_LSB_FIRST(iv + 4);
-}
-
-void des3_get_iv(void *context, unsigned char *iv)
-{
-  TripleDESContext *ctx = (TripleDESContext *)context;
-
-  SSH_PUT_32BIT_LSB_FIRST(iv,     ctx->iv[0]);
-  SSH_PUT_32BIT_LSB_FIRST(iv + 4, ctx->iv[1]);
-}
-	 
+         
 void des3_ecb(void *context, unsigned char *dest,
-	     const unsigned char *src, size_t len)
+              const unsigned char *src, size_t len,
+              unsigned char *iv)
 {
   TripleDESContext *ctx = (TripleDESContext *)context;
   SshUInt32 output[2], l, r;
@@ -871,7 +837,7 @@ void des3_ecb(void *context, unsigned char *dest,
       r = SSH_GET_32BIT_LSB_FIRST(src + 4);
 
       des_ede_encrypt(l, r, output, ctx->key_schedule, for_encryption);
-	  
+          
       SSH_PUT_32BIT_LSB_FIRST(dest, output[0]);
       SSH_PUT_32BIT_LSB_FIRST(dest + 4, output[1]);
       
@@ -882,121 +848,122 @@ void des3_ecb(void *context, unsigned char *dest,
 }
 
 void des3_cbc(void *context, unsigned char *dest,
-	     const unsigned char *src, size_t len)
+              const unsigned char *src, size_t len,
+              unsigned char *iv_arg)
 {
   TripleDESContext *ctx = (TripleDESContext *)context;
   SshUInt32 l, r, iv[2], temp[2];
   Boolean for_encryption = ctx->for_encryption;
 
-  iv[0] = ctx->iv[0];
-  iv[1] = ctx->iv[1];
+  iv[0] = SSH_GET_32BIT_LSB_FIRST(iv_arg);
+  iv[1] = SSH_GET_32BIT_LSB_FIRST(iv_arg + 4);
   
   if (for_encryption)
     {
       while (len)
-	{
-	  l = SSH_GET_32BIT_LSB_FIRST(src) ^ iv[0];
-	  r = SSH_GET_32BIT_LSB_FIRST(src + 4) ^ iv[1];
+        {
+          l = SSH_GET_32BIT_LSB_FIRST(src) ^ iv[0];
+          r = SSH_GET_32BIT_LSB_FIRST(src + 4) ^ iv[1];
 
-	  des_ede_encrypt(l, r, iv, ctx->key_schedule, for_encryption);
+          des_ede_encrypt(l, r, iv, ctx->key_schedule, for_encryption);
 
-	  SSH_PUT_32BIT_LSB_FIRST(dest, iv[0]);
-	  SSH_PUT_32BIT_LSB_FIRST(dest + 4, iv[1]);
+          SSH_PUT_32BIT_LSB_FIRST(dest, iv[0]);
+          SSH_PUT_32BIT_LSB_FIRST(dest + 4, iv[1]);
 
-	  src += 8;
-	  dest += 8;
-	  len -= 8;
-	}
+          src += 8;
+          dest += 8;
+          len -= 8;
+        }
     }
   else
     {
       while (len)
-	{
-	  l = SSH_GET_32BIT_LSB_FIRST(src);
-	  r = SSH_GET_32BIT_LSB_FIRST(src + 4);
+        {
+          l = SSH_GET_32BIT_LSB_FIRST(src);
+          r = SSH_GET_32BIT_LSB_FIRST(src + 4);
 
-	  des_ede_encrypt(l, r, temp, ctx->key_schedule, for_encryption);
+          des_ede_encrypt(l, r, temp, ctx->key_schedule, for_encryption);
 
-	  temp[0] ^= iv[0];
-	  temp[1] ^= iv[1];
-	  
-	  SSH_PUT_32BIT_LSB_FIRST(dest, temp[0]);
-	  SSH_PUT_32BIT_LSB_FIRST(dest + 4, temp[1]);
+          temp[0] ^= iv[0];
+          temp[1] ^= iv[1];
+          
+          SSH_PUT_32BIT_LSB_FIRST(dest, temp[0]);
+          SSH_PUT_32BIT_LSB_FIRST(dest + 4, temp[1]);
 
-	  iv[0] = l;
-	  iv[1] = r;
-	  
-	  src += 8;
-	  dest += 8;
-	  len -= 8;
-	}
+          iv[0] = l;
+          iv[1] = r;
+          
+          src += 8;
+          dest += 8;
+          len -= 8;
+        }
     }
 
-  ctx->iv[0] = iv[0];
-  ctx->iv[1] = iv[1];
-  
+  SSH_PUT_32BIT_LSB_FIRST(iv_arg, iv[0]);
+  SSH_PUT_32BIT_LSB_FIRST(iv_arg + 4, iv[1]);
 }
 
 void des3_cfb(void *context, unsigned char *dest,
-	     const unsigned char *src, size_t len)
+              const unsigned char *src, size_t len,
+              unsigned char *iv)
 {
   TripleDESContext *ctx = (TripleDESContext *)context;
   SshUInt32 l, r, temp[2];
 
-  l = ctx->iv[0];
-  r = ctx->iv[1];
+  l = SSH_GET_32BIT_LSB_FIRST(iv);
+  r = SSH_GET_32BIT_LSB_FIRST(iv + 4);
   
   if (ctx->for_encryption)
     {
       while (len)
-	{
-	  des_ede_encrypt(l, r, temp, ctx->key_schedule, TRUE); 
-	  
-	  l = temp[0] ^= SSH_GET_32BIT_LSB_FIRST(src);
-	  r = temp[1] ^= SSH_GET_32BIT_LSB_FIRST(src + 4);
+        {
+          des_ede_encrypt(l, r, temp, ctx->key_schedule, TRUE); 
+          
+          l = temp[0] ^= SSH_GET_32BIT_LSB_FIRST(src);
+          r = temp[1] ^= SSH_GET_32BIT_LSB_FIRST(src + 4);
 
-	  SSH_PUT_32BIT_LSB_FIRST(dest, temp[0]);
-	  SSH_PUT_32BIT_LSB_FIRST(dest + 4, temp[1]);
+          SSH_PUT_32BIT_LSB_FIRST(dest, temp[0]);
+          SSH_PUT_32BIT_LSB_FIRST(dest + 4, temp[1]);
 
-	  src += 8;
-	  dest += 8;
-	  len -= 8;
-	}
+          src += 8;
+          dest += 8;
+          len -= 8;
+        }
     }
   else
     {      
       while (len)
-	{
-	  des_ede_encrypt(l, r, temp, ctx->key_schedule, TRUE);
+        {
+          des_ede_encrypt(l, r, temp, ctx->key_schedule, TRUE);
 
-	  l = SSH_GET_32BIT_LSB_FIRST(src);
-	  r = SSH_GET_32BIT_LSB_FIRST(src + 4);
+          l = SSH_GET_32BIT_LSB_FIRST(src);
+          r = SSH_GET_32BIT_LSB_FIRST(src + 4);
 
-	  temp[0] ^= l;
-	  temp[1] ^= r;
-	  
-	  SSH_PUT_32BIT_LSB_FIRST(dest, temp[0]);
-	  SSH_PUT_32BIT_LSB_FIRST(dest + 4, temp[1]);
+          temp[0] ^= l;
+          temp[1] ^= r;
+          
+          SSH_PUT_32BIT_LSB_FIRST(dest, temp[0]);
+          SSH_PUT_32BIT_LSB_FIRST(dest + 4, temp[1]);
 
-	  src += 8;
-	  dest += 8;
-	  len -= 8;
-	}
+          src += 8;
+          dest += 8;
+          len -= 8;
+        }
     }
 
-  ctx->iv[0] = l;
-  ctx->iv[1] = r;
-  
+  SSH_PUT_32BIT_LSB_FIRST(iv, l);
+  SSH_PUT_32BIT_LSB_FIRST(iv + 4, r);
 }
 
 void des3_ofb(void *context, unsigned char *dest,
-	     const unsigned char *src, size_t len)
+              const unsigned char *src, size_t len,
+              unsigned char *iv_arg)
 {
   TripleDESContext *ctx = (TripleDESContext *)context;
   SshUInt32 iv[2], l, r;
 
-  iv[0] = ctx->iv[0];
-  iv[1] = ctx->iv[1];
+  iv[0] = SSH_GET_32BIT_LSB_FIRST(iv_arg);
+  iv[1] = SSH_GET_32BIT_LSB_FIRST(iv_arg + 4);
 
   while (len)
     {
@@ -1004,7 +971,7 @@ void des3_ofb(void *context, unsigned char *dest,
       r = iv[1];
       
       des_ede_encrypt(l, r, iv, ctx->key_schedule, TRUE);
-	  
+          
       l = SSH_GET_32BIT_LSB_FIRST(src) ^ iv[0];
       r = SSH_GET_32BIT_LSB_FIRST(src + 4) ^ iv[1];
       
@@ -1016,11 +983,8 @@ void des3_ofb(void *context, unsigned char *dest,
       len -= 8;
     }
 
-  ctx->iv[0] = iv[0];
-  ctx->iv[1] = iv[1];
-  
+  SSH_PUT_32BIT_LSB_FIRST(iv_arg, iv[0]);
+  SSH_PUT_32BIT_LSB_FIRST(iv_arg + 4, iv[1]);
 }
 
 #endif /* WITHOUT_DES */
-
-

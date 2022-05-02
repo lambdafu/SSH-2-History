@@ -81,6 +81,8 @@ CONFPROGRAMS = @CONFPROGRAMS@
 COPY_INCLUDE = @COPY_INCLUDE@
 CRYPTO_CONF_OBJS = @CRYPTO_CONF_OBJS@
 ETCDIR = @ETCDIR@
+IPSEC_ARCH_INTC = @IPSEC_ARCH_INTC@
+IPSEC_ARCH_ROUTE = @IPSEC_ARCH_ROUTE@
 LN_S = @LN_S@
 M4 = @M4@
 MAKEINFO = @MAKEINFO@
@@ -97,17 +99,20 @@ AUTOMAKE_OPTIONS = 1.0 foreign dist-zip no-dependencies
 
 TESTS = t-mathtest \
 t-mathspeed t-sophie-germain
+# factor
 
-EXTRA_PROGRAMS = t-mathtest t-test-ec t-mathspeed t-sophie-germain
+EXTRA_PROGRAMS = t-mathtest t-test-ec t-mathspeed t-sophie-germain factor
 
 EXTRA_DIST = 
 
 noinst_HEADERS = timeit.h
 
 LDADD = ../libsshmath.a ../../sshutil/libsshutil.a
-INCLUDES = -I../.. -I. -I.. -I$(srcdir) -I$(srcdir)/.. -I../../sshmath \
-  -I$(srcdir)/../../sshmath -I../../sshutil -I$(srcdir)/../../sshutil \
-  -I../../zlib -I$(srcdir)/../../zlib
+INCLUDES = -I../.. -I. -I.. -I$(srcdir) -I$(srcdir)/.. \
+	-I$(top_builddir) -I$(top_srcdir) \
+	-I../../sshmath \
+	-I$(srcdir)/../../sshmath -I../../sshutil -I$(srcdir)/../../sshutil \
+	-I../../zlib -I$(srcdir)/../../zlib
 
 t_mathtest_SOURCES = t-mathtest.c
 t_mathtest_DEPENDENCIES = $(LDADD)
@@ -120,6 +125,8 @@ t_mathspeed_DEPENDENCIES = $(LDADD)
 
 t_sophie_germain_SOURCES = t-sophie-germain.c
 t_sophie_germain_DEPENDENCIES = $(LDADD)
+factor_SOURCES = factor.c
+factor_DEPENDENCIES = $(LDADD)
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = ../../../sshconf.h
 CONFIG_CLEAN_FILES = 
@@ -146,6 +153,9 @@ t_mathspeed_LDFLAGS =
 t_sophie_germain_OBJECTS =  t-sophie-germain.o
 t_sophie_germain_LDADD = $(LDADD)
 t_sophie_germain_LDFLAGS = 
+factor_OBJECTS =  factor.o
+factor_LDADD = $(LDADD)
+factor_LDFLAGS = 
 CFLAGS = @CFLAGS@
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS)
 LINK = $(CC) $(CFLAGS) $(LDFLAGS) -o $@
@@ -158,8 +168,8 @@ DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
 
 TAR = tar
 GZIP = --best
-SOURCES = $(t_mathtest_SOURCES) t-test-ec.c $(t_mathspeed_SOURCES) $(t_sophie_germain_SOURCES)
-OBJECTS = $(t_mathtest_OBJECTS) t-test-ec.o $(t_mathspeed_OBJECTS) $(t_sophie_germain_OBJECTS)
+SOURCES = $(t_mathtest_SOURCES) t-test-ec.c $(t_mathspeed_SOURCES) $(t_sophie_germain_SOURCES) $(factor_SOURCES)
+OBJECTS = $(t_mathtest_OBJECTS) t-test-ec.o $(t_mathspeed_OBJECTS) $(t_sophie_germain_OBJECTS) $(factor_OBJECTS)
 
 all: Makefile $(HEADERS)
 
@@ -207,6 +217,10 @@ t-mathspeed: $(t_mathspeed_OBJECTS) $(t_mathspeed_DEPENDENCIES)
 t-sophie-germain: $(t_sophie_germain_OBJECTS) $(t_sophie_germain_DEPENDENCIES)
 	@rm -f t-sophie-germain
 	$(LINK) $(t_sophie_germain_LDFLAGS) $(t_sophie_germain_OBJECTS) $(t_sophie_germain_LDADD) $(LIBS)
+
+factor: $(factor_OBJECTS) $(factor_DEPENDENCIES)
+	@rm -f factor
+	$(LINK) $(factor_LDFLAGS) $(factor_OBJECTS) $(factor_LDADD) $(LIBS)
 
 tags: TAGS
 

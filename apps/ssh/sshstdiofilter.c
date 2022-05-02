@@ -18,23 +18,30 @@
 #include "sshtcp.h"
 #include "sshcommon.h"
 #include "sshstdiofilter.h"
-#include "tty.h"
+#include "sshtty.h"
 
-#define STATE_BASIC	0
-#define STATE_HAVE_CR	1
-#define STATE_HAVE_ESC	2
+#define SSH_DEBUG_MODULE "SshStdIOFilter"
+
+#define STATE_BASIC     0
+#define STATE_HAVE_CR   1
+#define STATE_HAVE_ESC  2
 
 static int stdio_filter_state = STATE_BASIC;
 
+void ssh_cancel_nonblocking(void);
+void ssh_set_nonblocking(void);
+
 #if 1
+void ssh_buffer_consume_middle(SshBuffer *buffer, size_t offset, size_t bytes);
+
 void ssh_buffer_consume_middle(SshBuffer *buffer, size_t offset, size_t bytes)
 {
     if (bytes + offset > buffer->end - buffer->offset)
-	ssh_fatal("buffer_consume_middle trying to get too many bytes");
+        ssh_fatal("buffer_consume_middle trying to get too many bytes");
 
     memmove(buffer->buf + buffer->offset + offset,
-	    buffer->buf + buffer->offset + offset + bytes,
-	    buffer->end - buffer->offset - offset - bytes);
+            buffer->buf + buffer->offset + offset + bytes,
+            buffer->end - buffer->offset - offset - bytes);
     buffer->end -= bytes;
 }
 #endif
@@ -48,28 +55,28 @@ void ssh_escape_char_help(int esc_char)
     "  Supported escape sequences:\n");
   fprintf(stderr,
     "  %c.  - terminate connection\n",
-	  esc_char);
+          esc_char);
   fprintf(stderr,
     "  %c^Z - suspend ssh\n",
-	  esc_char);
+          esc_char);
   fprintf(stderr,
     "  %c#  - list forwarded connections\n",
-	  esc_char);
+          esc_char);
   fprintf(stderr,
     "  %c?  - this message\n",
-	  esc_char);
+          esc_char);
   fprintf(stderr,
     "  %c-  - disable escape character uncancellably\n",
-	  esc_char);
+          esc_char);
   fprintf(stderr,
     "  %c&  - background ssh (when waiting for connections to terminate)\n",
-	  esc_char);
+          esc_char);
   fprintf(stderr,
     "  %c?  - this message\n",
-	  esc_char);
+          esc_char);
   fprintf(stderr,
     "  %c%c  - send the escape character by typing it twice\n",
-	  esc_char, esc_char);
+          esc_char, esc_char);
   fprintf(stderr,
     "  (Note that escapes are only recognized immediately after newline.)\n");
   ssh_enter_raw_mode();
@@ -170,9 +177,9 @@ void ssh_escape_char_list_connections(int esc_char)
 }
 
 int ssh_stdio_output_filter(SshBuffer *data,
-			    size_t offset,
-			    Boolean eof_received,
-			    void *context)
+                            size_t offset,
+                            Boolean eof_received,
+                            void *context)
 {
   size_t received_len;
 
@@ -182,9 +189,9 @@ int ssh_stdio_output_filter(SshBuffer *data,
 }
 
 int ssh_stdio_input_filter(SshBuffer *data,
-			   size_t offset, 
-			   Boolean eof_received,
-			   void *context)
+                           size_t offset, 
+                           Boolean eof_received,
+                           void *context)
 {
   size_t received_len;
   unsigned char *ucp;
@@ -204,69 +211,69 @@ int ssh_stdio_input_filter(SshBuffer *data,
     c = ucp[i];
     switch (stdio_filter_state) {
     case STATE_BASIC:
-	if ((c == '\n') || (c == '\r'))
-	    stdio_filter_state = STATE_HAVE_CR;
-	break;
+        if ((c == '\n') || (c == '\r'))
+            stdio_filter_state = STATE_HAVE_CR;
+        break;
     case STATE_HAVE_CR:
-	if (c == e) {
-	    stdio_filter_state = STATE_HAVE_ESC;
-	    ssh_buffer_consume_middle(data, offset + i, 1);
-	    received_len--; /* Buffer is now shorter    */
-	    i--;            /* Re-exam current position */
-	} else {
-	    if ((c != '\n') && (c != '\r'))
-		stdio_filter_state = STATE_BASIC;
-	}
-	break;
+        if (c == e) {
+            stdio_filter_state = STATE_HAVE_ESC;
+            ssh_buffer_consume_middle(data, offset + i, 1);
+            received_len--; /* Buffer is now shorter    */
+            i--;            /* Re-exam current position */
+        } else {
+            if ((c != '\n') && (c != '\r'))
+                stdio_filter_state = STATE_BASIC;
+        }
+        break;
     case STATE_HAVE_ESC:
-	switch (c) {
-	case '?':
-	    ssh_buffer_consume_middle(data, offset + i, 1);
-	    received_len--; /* Buffer is now shorter    */
-	    i--;            /* Re-exam current position */
-	    ssh_escape_char_help(e);
-	    break;
-	case '.':
-	    ssh_buffer_consume_middle(data, offset + i, 1);
-	    received_len--; /* Buffer is now shorter    */
-	    i--;            /* Re-exam current position */
-	    ssh_escape_char_quit(e);
-	    break;
-	case '&':
-	    ssh_buffer_consume_middle(data, offset + i, 1);
-	    received_len--; /* Buffer is now shorter    */
-	    i--;            /* Re-exam current position */
-	    ssh_escape_char_background(e);
-	    break;
-	case 26: /* ^Z */
-	    ssh_buffer_consume_middle(data, offset + i, 1);
-	    received_len--; /* Buffer is now shorter    */
-	    i--;            /* Re-exam current position */
-	    ssh_escape_char_suspend(e);
-	    break;
-	case '#':
-	    ssh_buffer_consume_middle(data, offset + i, 1);
-	    received_len--; /* Buffer is now shorter    */
-	    i--;            /* Re-exam current position */
-	    ssh_escape_char_list_connections(e);
-	    break;
-	case '-':
-	    ssh_buffer_consume_middle(data, offset + i, 1);
-	    received_len--; /* Buffer is now shorter    */
-	    i--;            /* Re-exam current position */
-	    return SSH_FILTER_SHORTCIRCUIT;
-	default:
-	    if (c != e) {
-		ssh_buffer_consume_middle(data, offset + i, 1);
-		received_len--; /* Buffer is now shorter    */
-		i--;            /* Re-exam current position */
-	    }
-	    break;
-	}
-	stdio_filter_state = STATE_BASIC;
-	break;
+        switch (c) {
+        case '?':
+            ssh_buffer_consume_middle(data, offset + i, 1);
+            received_len--; /* Buffer is now shorter    */
+            i--;            /* Re-exam current position */
+            ssh_escape_char_help(e);
+            break;
+        case '.':
+            ssh_buffer_consume_middle(data, offset + i, 1);
+            received_len--; /* Buffer is now shorter    */
+            i--;            /* Re-exam current position */
+            ssh_escape_char_quit(e);
+            break;
+        case '&':
+            ssh_buffer_consume_middle(data, offset + i, 1);
+            received_len--; /* Buffer is now shorter    */
+            i--;            /* Re-exam current position */
+            ssh_escape_char_background(e);
+            break;
+        case 26: /* ^Z */
+            ssh_buffer_consume_middle(data, offset + i, 1);
+            received_len--; /* Buffer is now shorter    */
+            i--;            /* Re-exam current position */
+            ssh_escape_char_suspend(e);
+            break;
+        case '#':
+            ssh_buffer_consume_middle(data, offset + i, 1);
+            received_len--; /* Buffer is now shorter    */
+            i--;            /* Re-exam current position */
+            ssh_escape_char_list_connections(e);
+            break;
+        case '-':
+            ssh_buffer_consume_middle(data, offset + i, 1);
+            received_len--; /* Buffer is now shorter    */
+            i--;            /* Re-exam current position */
+            return SSH_FILTER_SHORTCIRCUIT;
+        default:
+            if (c != e) {
+                ssh_buffer_consume_middle(data, offset + i, 1);
+                received_len--; /* Buffer is now shorter    */
+                i--;            /* Re-exam current position */
+            }
+            break;
+        }
+        stdio_filter_state = STATE_BASIC;
+        break;
     default:
-	ssh_fatal("Unknown state in stdio filter.");
+        ssh_fatal("Unknown state in stdio filter.");
     }
   }
 

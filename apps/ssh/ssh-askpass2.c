@@ -17,6 +17,8 @@ Copyright (c) 1997 SSH Communications Security, Finland
 #include <X11/cursorfont.h>
 #include "sshmalloc.h"
 
+#define SSH_DEBUG_MODULE "SshAskPass"
+
 #define DISPLAY_VARIABLE "DISPLAY"
 #define RESOURCES_MAX_LENGTH 20000L
 #define CANCEL_STRING "Cancel"
@@ -24,7 +26,7 @@ Copyright (c) 1997 SSH Communications Security, Finland
 /* 'none' must be the last one in this enum, starting from zero */
 
 typedef enum { background, hilight, shadow, text,
-	       dark_led, light_led, none } color_type;
+               dark_led, light_led, none } color_type;
 
 /* X data structures */
 
@@ -121,8 +123,8 @@ void create_GCs()
     {
       values.foreground = color[i];
       gc[i] = XCreateGC(display, main_window, GCForeground | GCBackground |
-			GCFillStyle | GCFunction | GCFont,
-			&values);
+                        GCFillStyle | GCFunction | GCFont,
+                        &values);
     }
 }
 
@@ -139,11 +141,11 @@ void create_GCs_bw()
   for (i = 0; i < none; i++)
     {
       values.foreground = ((i == text || i == shadow || i == dark_led)
-			   ? BlackPixel(display, DefaultScreen(display))
-			   : WhitePixel(display, DefaultScreen(display)));
+                           ? BlackPixel(display, DefaultScreen(display))
+                           : WhitePixel(display, DefaultScreen(display)));
       gc[i] = XCreateGC(display, main_window, GCForeground | GCBackground |
-			GCFillStyle | GCFunction | GCFont,
-			&values);
+                        GCFillStyle | GCFunction | GCFont,
+                        &values);
     }
 }
 
@@ -157,7 +159,7 @@ void allocate_colors()
 
   map = DefaultColormap(display, DefaultScreen(display));
   if(!XAllocNamedColor(display, map, background_color_name,
-		       &xcolor, &exact_color))
+                       &xcolor, &exact_color))
     goto revert;
 
   color[background] = xcolor.pixel;
@@ -199,7 +201,7 @@ void allocate_colors()
   color[shadow] = exact_color.pixel;
   
   if (!XAllocNamedColor(display, map, foreground_color_name,
-		   &xcolor, &exact_color))
+                   &xcolor, &exact_color))
     goto revert;
 
   color[text] = xcolor.pixel;
@@ -235,7 +237,7 @@ void button_dimensions(char *string, int *width, int *height)
   XCharStruct overall;
   int dir, asc, desc;
   XTextExtents(font_struct, string, strlen(string),
-	       &dir, &asc, &desc, &overall);
+               &dir, &asc, &desc, &overall);
   *width = overall.width + 4 + 2 * margin;
   *height = overall.ascent + overall.descent + 1 + 4 + 2*margin;
 }
@@ -252,10 +254,10 @@ void open_windows()
   attributes.cursor = XCreateFontCursor(display, XC_X_cursor);
 
   main_window = XCreateWindow(display, DefaultRootWindow(display),
-			      w_x, w_y, w_width, w_height, 0,
-			      CopyFromParent, InputOutput,
-			      CopyFromParent, CWCursor | CWBackingStore,
-			      &attributes);
+                              w_x, w_y, w_width, w_height, 0,
+                              CopyFromParent, InputOutput,
+                              CopyFromParent, CWCursor | CWBackingStore,
+                              &attributes);
 
   hints->flags = PPosition | PSize | PMinSize | PMaxSize | PWinGravity;
   hints->x = w_x; hints->y = w_y;
@@ -269,18 +271,18 @@ void open_windows()
 
   /* This is a dialog box, I think. */
   XSetTransientForHint(display, main_window,
-		       DefaultRootWindow(display));
+                       DefaultRootWindow(display));
   XFree(hints);
 
   cancel_button = XCreateWindow(display, main_window,
-				w_width - relief - margin - b_width,
-				w_height - relief - margin - b_height,
-				b_width, b_height,
-				0,
-				CopyFromParent, InputOutput,
-				CopyFromParent, CWCursor |
-				CWBackingStore,
-				&attributes);
+                                w_width - relief - margin - b_width,
+                                w_height - relief - margin - b_height,
+                                b_width, b_height,
+                                0,
+                                CopyFromParent, InputOutput,
+                                CopyFromParent, CWCursor |
+                                CWBackingStore,
+                                &attributes);
   
   leds = (w_width - relief * 2 - margin * 2 + (led_width - led_i_width)) /
     led_width;
@@ -293,7 +295,7 @@ void open_windows()
   
   attributes.cursor = XCreateFontCursor(display, XC_top_left_arrow);
   XChangeWindowAttributes(display, cancel_button, CWCursor | CWBackingStore,
-			  &attributes);
+                          &attributes);
 }
 
 /* Map the windows. */
@@ -313,7 +315,7 @@ void get_font()
     {
       font_struct = XLoadQueryFont(display, font_fall_back);
       if (!font_struct)
-	fatal ("Cannot load any font.");
+        fatal ("Cannot load any font.");
     }
   font = font_struct->fid;
 }
@@ -329,7 +331,7 @@ void compute_dimensions()
   XCharStruct overall;
 
   XTextExtents(font_struct, prompt, strlen(prompt),
-	       &dir, &asc, &desc, &overall);
+               &dir, &asc, &desc, &overall);
 
   button_dimensions(CANCEL_STRING, &b_width, &b_height);
 
@@ -343,7 +345,7 @@ void compute_dimensions()
   status = XGetGeometry(display, DefaultRootWindow(display),
                         &root, &dummy, &dummy, (unsigned int *)&d_width,
                         (unsigned int *)&d_height, (unsigned int *)&dummy, 
-			(unsigned int *)&dummy);
+                        (unsigned int *)&dummy);
   w_x = (d_width - w_width) / 2;
   w_y = (d_height - w_height) / 2;
 }
@@ -373,24 +375,24 @@ void read_resources()
   XrmInitialize();
 
   err = XGetWindowProperty(display,
-			   DefaultRootWindow(display),
-			   XA_RESOURCE_MANAGER,
-			   0L, RESOURCES_MAX_LENGTH,
-			   False,
-			   XA_STRING,
-			   &atom_return,
-			   &format_return,
-			   &nitems_return,
-			   &bytes_return,
-			   &prop_return);
+                           DefaultRootWindow(display),
+                           XA_RESOURCE_MANAGER,
+                           0L, RESOURCES_MAX_LENGTH,
+                           False,
+                           XA_STRING,
+                           &atom_return,
+                           &format_return,
+                           &nitems_return,
+                           &bytes_return,
+                           &prop_return);
 
   if (err == Success)
     {
       if (prop_return != NULL)
-	{
-	  database = XrmGetStringDatabase(prop_return);
-	  XFree(prop_return);
-	}
+        {
+          database = XrmGetStringDatabase(prop_return);
+          XFree(prop_return);
+        }
     }
   else
     {
@@ -401,11 +403,11 @@ void read_resources()
 
   get_resource("ssh.askpass.font", "SSH.AskPass.Font", &font_spec);
   get_resource("ssh.askpass.background","SSH.AskPass.Background",
-	       &background_color_name);
+               &background_color_name);
   get_resource("ssh.askpass.foreground","SSH.AskPass.Foreground",
-	       &foreground_color_name);
+               &foreground_color_name);
   get_resource("ssh.askpass.prompt","SSH.AskPass.Prompt",
-	       &prompt);
+               &prompt);
 }
 
 /* A function to print a string. Return the y-coordinate of the bottom
@@ -416,35 +418,35 @@ int put_string(int x, int y, char *string, int color, Window window)
   XCharStruct overall;
   int dir, asc, desc;
   XTextExtents(font_struct, string, strlen(string),
-	       &dir, &asc, &desc, &overall);
+               &dir, &asc, &desc, &overall);
   y += overall.ascent;
   XDrawString(display, window, gc[color],
-	      x, y, string, strlen(string));
+              x, y, string, strlen(string));
   return (y + overall.descent);
 }
 
 /* Draw a raised/sunken box. */
 
 void relief_box(int x, int y, int a, int b, int left, int right, int depth,
-		int fill, Window window)
+                int fill, Window window)
 {
   int i;
   for (i = 0; i < depth; i++)
     {
       XDrawLine(display, window, gc[left],
-		i + x, i + y, i + x, b - i);
+                i + x, i + y, i + x, b - i);
       XDrawLine(display, window, gc[left],
-		i + x, i + y, a - i, i + y);
+                i + x, i + y, a - i, i + y);
       XDrawLine(display, window, gc[right],
-		a - i, b - i,
-		i + x, b - i);
+                a - i, b - i,
+                i + x, b - i);
       XDrawLine(display, window, gc[right],
-		a - i, b - i,
-		a - i, i + y);
+                a - i, b - i,
+                a - i, i + y);
     }
   if (fill != none)
     XFillRectangle(display, window,
-		   gc[fill], i + x, i + y, a - x - 2*i + 1, b - y - 2*i + 1);
+                   gc[fill], i + x, i + y, a - x - 2*i + 1, b - y - 2*i + 1);
 }
 
 /* Draw a specific led. */
@@ -452,28 +454,28 @@ void relief_box(int x, int y, int a, int b, int left, int right, int depth,
 void draw_led(int no, int on)
 {
   relief_box(leds_x + led_width * no, leds_y,
-	     leds_x + led_width * no + led_i_width,
-	     leds_y + led_height, shadow, hilight, 2, 
-	     on ? light_led : dark_led, main_window);
+             leds_x + led_width * no + led_i_width,
+             leds_y + led_height, shadow, hilight, 2, 
+             on ? light_led : dark_led, main_window);
 }
 
 /* Draw a button with certain string inside. */
 
 void draw_button(char *string, Window window, int width, int height,
-		 int pushed)
+                 int pushed)
 {
   if (!pushed)
     {
       relief_box(0, 0, width - 1, height - 1, hilight, shadow,
-		 2, background, window);
+                 2, background, window);
       put_string(1 + margin, 1 + margin, string, text, window);
     }
   else
     {
       relief_box(2, 2, width - 1, height - 1, shadow, hilight,
-		 2, background, window);
+                 2, background, window);
       relief_box(0, 0, width - 1, height - 1, shadow, hilight,
-		 2, none, window);
+                 2, none, window);
       put_string(3 + margin, 3 + margin, string, text, window);
     }
 }
@@ -484,7 +486,7 @@ void draw_it()
 {
   int y; int i;
   relief_box(0, 0, w_width - 1, w_height - 1, hilight, shadow, relief,
-	     background, main_window);
+             background, main_window);
   y = put_string(relief + margin, relief + margin, prompt, text, main_window);
 
   leds_y = y + margin;
@@ -511,15 +513,15 @@ void button_release(XButtonEvent *event)
   if (event->subwindow != cancel_button)
     {
       if (cancel_pressed)
-	{
-	  draw_button(CANCEL_STRING, cancel_button, b_width, b_height, 0);
-	  cancel_pressed = 0;
-	}
+        {
+          draw_button(CANCEL_STRING, cancel_button, b_width, b_height, 0);
+          cancel_pressed = 0;
+        }
     }
   else
     {
       if (cancel_pressed)
-	exiting = 2;
+        exiting = 2;
     }
 }
 
@@ -551,39 +553,39 @@ void key_press(XKeyEvent *event)
   if ((sym != NoSymbol) && (sym & (0xff)) == sym)
     {
       while(in_buf-- > 0)
-	{
-	  if ((ppointer - phrase) < 255)
-	    {
-	      *ppointer++ = *ptr++;
-	      advance_leds();
-	    }
-	}
+        {
+          if ((ppointer - phrase) < 255)
+            {
+              *ppointer++ = *ptr++;
+              advance_leds();
+            }
+        }
     }
   else
     /* Some special symbol. */
     {
       switch(sym)
-	{
-	  /* These cause the last character to be eaten. */
-	case XK_Delete:
-	case XK_BackSpace:
-	  if (ppointer != phrase)
-	    {
-	      ppointer--;
-	      backward_leds();	      
-	    }
-	  break;
-	  /* These cause the event loop to terminate. */
-	case XK_Return:
-	case XK_Linefeed:
-	case XK_KP_Enter:
-	  exiting = 1;
-	  return;
-	case XK_Escape:
-	case XK_Cancel:
-	  exiting = 2;
-	  return;
-	}
+        {
+          /* These cause the last character to be eaten. */
+        case XK_Delete:
+        case XK_BackSpace:
+          if (ppointer != phrase)
+            {
+              ppointer--;
+              backward_leds();        
+            }
+          break;
+          /* These cause the event loop to terminate. */
+        case XK_Return:
+        case XK_Linefeed:
+        case XK_KP_Enter:
+          exiting = 1;
+          return;
+        case XK_Escape:
+        case XK_Cancel:
+          exiting = 2;
+          return;
+        }
     }
 }
 
@@ -599,8 +601,8 @@ void event_loop()
   int focused = 0;
   XEvent event;
   XSelectInput(display, main_window, ButtonPressMask |
-	       VisibilityChangeMask | StructureNotifyMask |	       
-	       ExposureMask | ButtonReleaseMask | KeyPressMask);
+               VisibilityChangeMask | StructureNotifyMask |            
+               ExposureMask | ButtonReleaseMask | KeyPressMask);
 
   /* Windows must be mapped not before XSelectInput, so that the
      mapping notify will certainly arrive to our event loop. */
@@ -610,27 +612,27 @@ void event_loop()
     {
       XNextEvent(display, &event);
       switch (event.type)
-	{
-	case ButtonPress:
-	  button_press(&event.xbutton);
-	  break;
-	case ButtonRelease:
-	  button_release(&event.xbutton);
-	  break;
-	case KeyPress:
-	  key_press(&event.xkey);
-	  break;
-	case Expose:
-	  if (event.xexpose.count == 0) {
-	    draw_it();
-	    if (!focused) {
-	      XSetInputFocus(display, main_window, RevertToPointerRoot,
-			     CurrentTime);
-	      focused = 1;
-	    }
-	  }
-	  break;		     
-	}
+        {
+        case ButtonPress:
+          button_press(&event.xbutton);
+          break;
+        case ButtonRelease:
+          button_release(&event.xbutton);
+          break;
+        case KeyPress:
+          key_press(&event.xkey);
+          break;
+        case Expose:
+          if (event.xexpose.count == 0) {
+            draw_it();
+            if (!focused) {
+              XSetInputFocus(display, main_window, RevertToPointerRoot,
+                             CurrentTime);
+              focused = 1;
+            }
+          }
+          break;                     
+        }
     }
   switch (exiting)
     {

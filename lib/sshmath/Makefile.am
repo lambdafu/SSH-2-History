@@ -45,7 +45,10 @@ SUFFIXES = .S .s
 CLEANFILES = tmp-*.s
 
 LDADD = libsshmath.a
-INCLUDES = -I../.. -I. -I$(srcdir)  -I../sshutil/ -I$(srcdir)/../sshutil
+INCLUDES = -I../.. \
+	-I$(top_builddir) -I$(top_srcdir) \
+	-I. -I$(srcdir)  -I../sshutil/ \
+	-I$(srcdir)/../sshutil
 
 .s.o:
 	$(CC) -c $(CFLAGS) $(SFLAGS) $<

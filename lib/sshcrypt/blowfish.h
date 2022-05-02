@@ -12,7 +12,7 @@ The blowfish encryption algorithm, created by Bruce Schneier.
 */
 
 /*
- * $Id: blowfish.h,v 1.16 1998/10/04 02:49:48 ylo Exp $
+ * $Id: blowfish.h,v 1.17 1998/11/04 12:05:31 ylo Exp $
  * $Log: blowfish.h,v $
  * $EndLog$
  */
@@ -30,27 +30,25 @@ void blowfish_init(void *context,
                    const unsigned char *key, size_t keylen,
                    Boolean for_encryption);
 
-/* Sets the initialization vector. */
-void blowfish_set_iv(void *context, const unsigned char *iv);
-
-/* Gets the initialization vector. */
-void blowfish_get_iv(void *context, unsigned char *iv);
-
 /* Encrypt/decrypt in electronic code book mode. */
 void blowfish_ecb(void *context, unsigned char *dest,
-                  const unsigned char *src, size_t len);
+                  const unsigned char *src, size_t len,
+                  unsigned char *iv);
 
 /* Encrypt/decrypt in cipher block chaining mode. */
 void blowfish_cbc(void *context, unsigned char *dest,
-                  const unsigned char *src, size_t len);
+                  const unsigned char *src, size_t len,
+                  unsigned char *iv);
 
 /* Encrypt/decrypt in cipher feedback mode. */
 void blowfish_cfb(void *context, unsigned char *dest,
-                  const unsigned char *src, size_t len);
+                  const unsigned char *src, size_t len,
+                  unsigned char *iv);
 
 /* Encrypt/decrypt in output feedback mode. */
 void blowfish_ofb(void *context, unsigned char *dest,
-                  const unsigned char *src, size_t len);
+                  const unsigned char *src, size_t len,
+                  unsigned char *iv);
 
 #endif
 

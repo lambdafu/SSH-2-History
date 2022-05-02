@@ -33,6 +33,7 @@ libsshcrypt_a_SOURCES = \
   des.c \
   blowfish.c \
   arcfour.c \
+  twofish.c \
   \
   genpkcs.c \
   genmp.c \
@@ -63,6 +64,7 @@ include_HEADERS = \
   des.h \
   blowfish.h \
   arcfour.h \
+  twofish.h \
   hmac.h \
   macs.h \
   genmp.h \
@@ -89,7 +91,9 @@ CLEANFILES = tmp-*.s
 
 LDADD = libsshcrypt.a \
 ../sshutil/libsshutil.a ../sshmath/libsshmath.a
-INCLUDES = -I../.. -I. -I$(srcdir) -I../sshutil -I$(srcdir)/../sshutil \
+INCLUDES = -I../.. -I. -I$(srcdir) \
+	-I$(top_builddir) -I$(top_srcdir) \
+	-I../sshutil -I$(srcdir)/../sshutil \
 	-I../sshmath -I$(srcdir)/../sshmath -I../zlib -I$(srcdir)/../zlib \
 	-I../sshscard -I$(srcdir)/../sshscard \
 	-I../trq -I$(srcdir)/../trq

@@ -14,13 +14,17 @@ Common include files for various platforms.
 */
 
 /*
- * $Id: sshincludes.h,v 1.22 1998/10/02 01:32:33 ylo Exp $
+ * $Id: sshincludes.h,v 1.25 1998/11/06 01:12:14 ylo Exp $
  * $Log: sshincludes.h,v $
  * $EndLog$
  */
 
-#ifndef INCLUDES_H
-#define INCLUDES_H
+#ifndef SSHINCLUDES_H
+#define SSHINCLUDES_H
+
+#if defined(KERNEL) || defined(_KERNEL)
+#include "kernel_includes.h"
+#else /* KERNEL || _KERNEL */
 
 #if (defined(_WINDOWS) || defined(WIN32)) && !defined(WINDOWS)
 #define WINDOWS
@@ -36,14 +40,12 @@ Common include files for various platforms.
 #include <stat.h>
 #endif
 
+#include "sshdistdefs.h"
+
 #ifdef WINDOWS
 #include "sshwindefines.h" 
-#include "sshwindist.h" 
 #else /* WINDOWS */
-#ifdef HAVE_CONFIG_H
-/* Note: autoconf documentation tells to use the <...> syntax and have -I. */
 #include "sshconf.h"
-#endif /* HAVE_CONFIG_H */
 #endif /* WINDOWS */
 
 #ifdef WINDOWS
@@ -63,23 +65,23 @@ Common include files for various platforms.
 #define DLLEXPORT 
 #endif /* WINDOWS */
 
-typedef unsigned char SshUInt8;		/* At least 8 bits. */
-typedef signed char SshInt8;		/* At least 8 bits. */
+typedef unsigned char SshUInt8;         /* At least 8 bits. */
+typedef signed char SshInt8;            /* At least 8 bits. */
 
-typedef unsigned short SshUInt16;	/* At least 16 bits. */
-typedef short SshInt16;			/* At least 16 bits. */
+typedef unsigned short SshUInt16;       /* At least 16 bits. */
+typedef short SshInt16;                 /* At least 16 bits. */
 
 #if SIZEOF_LONG == 4
-typedef unsigned long SshUInt32;	/* At least 32 bits. */
-typedef long SshInt32;			/* At least 32 bits. */
+typedef unsigned long SshUInt32;        /* At least 32 bits. */
+typedef long SshInt32;                  /* At least 32 bits. */
 #else
 #if SIZEOF_INT == 4
-typedef unsigned int SshUInt32;		/* At least 32 bits. */
-typedef int SshInt32;			/* At least 32 bits. */
+typedef unsigned int SshUInt32;         /* At least 32 bits. */
+typedef int SshInt32;                   /* At least 32 bits. */
 #else
 #if SIZEOF_SHORT >= 4
-typedef unsigned short SshUInt32;	/* At least 32 bits. */
-typedef short SshInt32;			/* At least 32 bits. */
+typedef unsigned short SshUInt32;       /* At least 32 bits. */
+typedef short SshInt32;                 /* At least 32 bits. */
 #else
 #error "Autoconfig error, your compiler doesn't seem to support any 32 bit type"
 #endif
@@ -89,10 +91,12 @@ typedef short SshInt32;			/* At least 32 bits. */
 #if SIZEOF_LONG >= 8
 typedef unsigned long SshUInt64;
 typedef long SshInt64;
+#define SSHUINT64_IS_64BITS
 #else
 #if SIZEOF_LONG_LONG >= 8
 typedef unsigned long long SshUInt64;
 typedef long long SshInt64;
+#define SSHUINT64_IS_64BITS
 #else
 /* No 64 bit type; SshUInt64 and SshInt64 will be 32 bits. */
 typedef unsigned long SshUInt64;
@@ -134,34 +138,6 @@ typedef long SshInt64;
 #include <string.h>
 #include <stdarg.h>
 #else /* STDC_HEADERS */
-
-
-
-#ifdef SSHIPSEC
-#ifdef WINDOWS
-
-#include <wisock.h>
-
-#else
-
-#include <sys/socket.h>
-
-#include <arpa/inet.h>
-
-#include <netinet/in.h>
-#include <netinet/ip.h>
-#include <netinet/udp.h>
-#include <netinet/ip_icmp.h>
-#include <netinet/in_systm.h>
-
-#include <net/if.h>
-
-#include <sys/types.h>
-#include <sys/ipc.h>
-#include <sys/sem.h>
-
-#endif
-#endif
 
 /* stdarg.h is present almost everywhere, and comes with gcc; I am too lazy
    to make things work with both it and varargs. */
@@ -232,18 +208,18 @@ char *strchr(), *strrchr();
 /* These POSIX macros are not defined in every system. */
 
 #ifndef S_IRWXU
-#define S_IRWXU 00700		/* read, write, execute: owner */
-#define S_IRUSR 00400		/* read permission: owner */
-#define S_IWUSR 00200		/* write permission: owner */
-#define S_IXUSR 00100		/* execute permission: owner */
-#define S_IRWXG 00070		/* read, write, execute: group */
-#define S_IRGRP 00040		/* read permission: group */
-#define S_IWGRP 00020		/* write permission: group */
-#define S_IXGRP 00010		/* execute permission: group */
-#define S_IRWXO 00007		/* read, write, execute: other */
-#define S_IROTH 00004		/* read permission: other */
-#define S_IWOTH 00002		/* write permission: other */
-#define S_IXOTH 00001		/* execute permission: other */
+#define S_IRWXU 00700           /* read, write, execute: owner */
+#define S_IRUSR 00400           /* read permission: owner */
+#define S_IWUSR 00200           /* write permission: owner */
+#define S_IXUSR 00100           /* execute permission: owner */
+#define S_IRWXG 00070           /* read, write, execute: group */
+#define S_IRGRP 00040           /* read permission: group */
+#define S_IWGRP 00020           /* write permission: group */
+#define S_IXGRP 00010           /* execute permission: group */
+#define S_IRWXO 00007           /* read, write, execute: other */
+#define S_IROTH 00004           /* read permission: other */
+#define S_IWOTH 00002           /* write permission: other */
+#define S_IXOTH 00001           /* execute permission: other */
 #endif /* S_IRWXU */
 
 #ifndef S_ISUID
@@ -398,4 +374,7 @@ typedef unsigned int Boolean;
 int strcasecmp(const char *s1, const char *s2);
 int strncasecmp(const char *s1, const char *s2, size_t len);
 #endif
-#endif /* INCLUDES_H */
+
+#endif /* KERNEL || _KERNEL */
+
+#endif /* SSHINCLUDES_H */

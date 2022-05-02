@@ -14,7 +14,7 @@
   */
 
 /*
- * $Id: genmac.c,v 1.27 1998/10/13 21:07:38 kivinen Exp $
+ * $Id: genmac.c,v 1.28 1998/11/04 12:17:01 ylo Exp $
  * $Log: genmac.c,v $
  * $EndLog$
  */
@@ -446,14 +446,3 @@ ssh_mac_final(SshMac mac, unsigned char *digest)
     if (mac->ops->final)
       (*mac->ops->final)(mac->context, digest);
 }
-  
-DLLEXPORT void DLLCALLCONV
-ssh_mac_of_buffer(SshMac mac, unsigned char *src, size_t len,
-                  unsigned char *digest)
-{
-  if (mac->ops)
-    if (mac->ops->mac_of_buffer)
-      (*mac->ops->mac_of_buffer)(mac->context, src, len, digest);
-}
-
-/* Actual mac's */

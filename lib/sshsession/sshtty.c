@@ -10,7 +10,7 @@ Copyright (c) 1997 SSH Communications Security, Finland
 */
 
 #include "sshsessionincludes.h"
-#include "tty.h"
+#include "sshtty.h"
 
 Boolean ssh_in_raw_mode = FALSE;
 Boolean ssh_in_non_blocking_mode = FALSE;
@@ -35,11 +35,11 @@ void ssh_leave_raw_mode()
     {
 #ifdef USING_TERMIOS
       if (tcsetattr(fileno(stdin), TCSADRAIN, &saved_tio) < 0)
-	perror("tcsetattr");
+        perror("tcsetattr");
 #endif /* USING_TERMIOS */
 #ifdef USING_SGTTY
       if (ioctl(fileno(stdin), TIOCSETP, &saved_tio) < 0)
-	perror("ioctl(stdin, TIOCSETP, ...)");
+        perror("ioctl(stdin, TIOCSETP, ...)");
 #endif /* USING_SGTTY */
     }
 }
@@ -54,7 +54,7 @@ void ssh_enter_raw_mode()
       struct termios tio;
 
       if (tcgetattr(fileno(stdin), &tio) < 0)
-	perror("tcgetattr");
+        perror("tcgetattr");
       saved_tio = tio;
       tio.c_iflag |= IGNPAR;
       tio.c_iflag &= ~(ISTRIP|INLCR|IGNCR|ICRNL|IXON|IXANY|IXOFF);
@@ -66,19 +66,19 @@ void ssh_enter_raw_mode()
       tio.c_cc[VMIN] = 1;
       tio.c_cc[VTIME] = 0;
       if (tcsetattr(fileno(stdin), TCSADRAIN, &tio) < 0)
-	perror("tcsetattr");
+        perror("tcsetattr");
       ssh_in_raw_mode = TRUE;
 #endif /* USING_TERMIOS */
 #ifdef USING_SGTTY
       struct sgttyb tio;
 
       if (ioctl(fileno(stdin), TIOCGETP, &tio) < 0)
-	perror("ioctl(stdin, TIOCGETP, ...)");
+        perror("ioctl(stdin, TIOCGETP, ...)");
       saved_tio = tio;
       tio.sg_flags &= ~(CBREAK | ECHO | CRMOD | LCASE | TANDEM);
       tio.sg_flags |= (RAW | ANYP);
       if (ioctl(fileno(stdin), TIOCSETP, &tio) < 0)
-	perror("ioctl(stdin, TIOCSETP, ...)");
+        perror("ioctl(stdin, TIOCSETP, ...)");
       ssh_in_raw_mode = TRUE;
 #endif /* USING_SGTTY */
     }

@@ -10,11 +10,11 @@
  *        $Author: kivinen $
  *
  *        Creation          : 11:03 Oct  9 1998 kivinen
- *        Last Modification : 13:39 Oct  9 1998 kivinen
- *        Last check in     : $Date: 1998/10/09 13:13:22 $
- *        Revision number   : $Revision: 1.2 $
+ *        Last Modification : 12:09 Nov  5 1998 kivinen
+ *        Last check in     : $Date: 1998/11/05 11:50:21 $
+ *        Revision number   : $Revision: 1.4 $
  *        State             : $State: Exp $
- *        Version           : 1.77
+ *        Version           : 1.82
  *
  *        Description       : Read and write file from and to the disk
  *                            in various formats.
@@ -237,7 +237,7 @@ Boolean ssh_write_file_base64(const char *file_name,
 {
   FILE *fp;
   char *tmp;
-  size_t len, i, j;
+  size_t len, i;
 
   tmp = (char *) ssh_buf_to_base64(buf, buf_len);
   if (tmp == NULL)
@@ -269,7 +269,13 @@ Boolean ssh_write_file_base64(const char *file_name,
           return FALSE;
         }
     }
-  if (fprintf(fp, "%s\n", end) < 0)
+  if (fwrite(tmp + i, 1, len - i, fp) != (len - i))
+    {
+      if (file_name)
+        fclose(fp);
+      return FALSE;
+    }
+  if (fprintf(fp, "\n%s\n", end) < 0)
     {
       if (file_name)
         fclose(fp);

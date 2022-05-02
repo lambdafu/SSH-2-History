@@ -27,16 +27,18 @@
 #include "sshuser.h"
 #include "userfile.h"
 #include "sshconfig.h"
+#include "sshmiscstring.h"
+
+#define SSH_DEBUG_MODULE "SshUnixUserFiles"
 
 /* Return a pointer to user's ssh2 directory.
    The directory is created if `create_if_needed' is TRUE. 
    Return NULL on failure. The caller is responsible for freeing the returned
    value with ssh_xfree when no longer needed. */
 
-char *ssh_userdir(SshUser user, Boolean create_if_needed)
+char *ssh_userdir(SshUser user, SshConfig config, Boolean create_if_needed)
 {
   char *sshdir;
-  size_t sshdirlen;
   struct stat st;
 
   /* create the .ssh2 directory name */
@@ -47,26 +49,24 @@ char *ssh_userdir(SshUser user, Boolean create_if_needed)
     }
   else
     {
-      sshdirlen = sizeof(SSH_USER_DIR) + strlen(ssh_user_dir(user)) + 4;
-      sshdir = ssh_xmalloc(sshdirlen);
-      snprintf(sshdir, sshdirlen, "%s/%s", ssh_user_dir(user), SSH_USER_DIR);
+      sshdir = ssh_user_conf_dir(config, user);
     } 
 
   if (stat(sshdir, &st) < 0)
     {
       if (create_if_needed)
-	{
-	  if (mkdir(sshdir, 0755) < 0)
-	    ssh_warning("ssh_userdir: could not create user's ssh" 
-			"directory %s", sshdir);
-	  ssh_xfree(sshdir);
-	  return NULL;
-	}
+        {
+          if (mkdir(sshdir, 0755) < 0)
+            ssh_debug("ssh_userdir: could not create user's ssh" 
+                        "directory %s", sshdir);
+          ssh_xfree(sshdir);
+          return NULL;
+        }
       else
-	{
-	  ssh_xfree(sshdir);
-	  return NULL;
-	}
+        {
+          ssh_xfree(sshdir);
+          return NULL;
+        }
     }
 
   return sshdir;
@@ -91,7 +91,7 @@ char *ssh_randseed_file(SshUser user, SshConfig config)
 
   /* See if the random seed directory exists */
   
-  if ((sshdir = ssh_userdir(user, TRUE)) == NULL)
+  if ((sshdir = ssh_userdir(user, config, TRUE)) == NULL)
     return NULL;
   sshseedlen = sizeof(SSH_RANDSEED_FILE) + strlen(sshdir) + 4;
   sshseed = ssh_xmalloc(sshseedlen);
@@ -102,14 +102,14 @@ char *ssh_randseed_file(SshUser user, SshConfig config)
   if (userfile_stat(ssh_user_uid(user), sshseed, &st) < 0)
     {
       if ((f = userfile_open(ssh_user_uid(user), sshseed, O_RDWR | O_CREAT, 
-			    0600)) == NULL)
-	{
-	  ssh_warning("ssh_randseed_file: Could not create random"
-		      "seed file %s.", sshseed);
-	  ssh_xfree(sshdir);
-	  ssh_xfree(sshseed);
-	  return NULL;
-	}
+                            0600)) == NULL)
+        {
+          ssh_debug("ssh_randseed_file: Could not create random"
+                      "seed file %s.", sshseed);
+          ssh_xfree(sshdir);
+          ssh_xfree(sshseed);
+          return NULL;
+        }
       userfile_close(f);
     }
   
@@ -122,7 +122,7 @@ char *ssh_randseed_file(SshUser user, SshConfig config)
    in the seed file into the generator. */
 
 void ssh_randseed_load(SshUser user, SshRandomState random_state,
-		       SshConfig config)
+                       SshConfig config)
 {
   int i;
   UserFile f;
@@ -140,7 +140,7 @@ void ssh_randseed_load(SshUser user, SshRandomState random_state,
   if ((f = userfile_open(ssh_user_uid(user), sshseed, O_RDONLY, 0)) != NULL)
     {
       while ((nbytes = userfile_read(f, randbuf, sizeof(randbuf))) > 0)
-	ssh_random_add_noise(random_state, randbuf, nbytes);
+        ssh_random_add_noise(random_state, randbuf, nbytes);
       userfile_close(f);
     }
   ssh_xfree(sshseed); 
@@ -169,9 +169,9 @@ void ssh_randseed_update(SshUser user, SshRandomState rs, SshConfig config)
   /* Write data from the generator into the random seed file. */
   sshseed = ssh_randseed_file(user, config);
   if ((f = userfile_open(ssh_user_uid(user), sshseed, O_CREAT | O_WRONLY, 
-			 0600)) == NULL)
+                         0600)) == NULL)
     {
-      ssh_warning("ssh_randseed_close: unable to write the random seed file!");
+      ssh_debug("ssh_randseed_close: unable to write the random seed file!");
       goto error;
     }
   for (i = 0; i < SSH_RANDSEED_LEN; i++)
@@ -191,7 +191,7 @@ error:
    `*blob' with ssh_xfree when no longer needed. */
 
 Boolean ssh_blob_read(SshUser user, const char *fname, unsigned char **blob, 
-		      size_t *bloblen, void *context)
+                      size_t *bloblen, void *context)
 {
   UserFile f;
   unsigned char *data;
@@ -203,22 +203,23 @@ Boolean ssh_blob_read(SshUser user, const char *fname, unsigned char **blob,
 
   if (userfile_stat(ssh_user_uid(user), fname, &st) < 0)
     {
-      ssh_warning("ssh_blob_read: file %s does not exist.", fname);
+      ssh_debug("ssh_blob_read: file %s does not exist.", fname);
       return TRUE;
     }
+  
   datalen = st.st_size;
   data = ssh_xmalloc(datalen);
 
   if ((f = userfile_open(ssh_user_uid(user), fname, O_RDONLY, 0)) == NULL) 
     {
-      ssh_warning("ssh_blob_read: Could not open %s.", fname);
+      ssh_debug("ssh_blob_read: Could not open %s.", fname);
       ssh_xfree(data);
       return TRUE;
     }
 
   if (userfile_read(f, data, datalen) != datalen)
     {
-      ssh_warning("ssh_blob_read: Error while reading %s.", fname);
+      ssh_debug("ssh_blob_read: Error while reading %s.", fname);
       memset(data, 0, datalen);
       ssh_xfree(data);
       userfile_close(f); 
@@ -236,20 +237,20 @@ Boolean ssh_blob_read(SshUser user, const char *fname, unsigned char **blob,
 /* Write a blob. Return TRUE on failure. */
 
 Boolean ssh_blob_write(SshUser user, const char *fname, mode_t mode,
-		       const unsigned char *blob, size_t bloblen, void *context)
+                       const unsigned char *blob, size_t bloblen, void *context)
 {
   UserFile f;
 
   if ((f = userfile_open(ssh_user_uid(user), fname, O_WRONLY | O_CREAT, 
-			 mode)) == NULL)
+                         mode)) == NULL)
     {
-      ssh_warning("ssh_blob_write: could not open %s.", fname);
+      ssh_debug("ssh_blob_write: could not open %s.", fname);
       return TRUE;
     }
 
   if(userfile_write(f, blob, bloblen) != bloblen)
     {
-      ssh_warning("ssh_blob_write: failed to write %s.", fname);
+      ssh_debug("ssh_blob_write: failed to write %s.", fname);
       return TRUE;
     }
 
@@ -268,17 +269,17 @@ char **ssh_privkey_list(SshUser user, char *host, SshConfig config)
   int i, j, n;
   char *udir, **vars, **vals, **prklist, buf[1024];
 
-  if ((udir = ssh_userdir(user, TRUE)) == NULL)
+  if ((udir = ssh_userdir(user, config, TRUE)) == NULL)
     {
-      ssh_warning("ssh_privkey_list: no user directory.");
+      ssh_debug("ssh_privkey_list: no user directory.");
       return NULL;
     }
 
   /* read and sort the names */
 
   snprintf(buf, sizeof(buf)-1, "%s/%s", udir, 
-	   config == NULL || config->identity_file == NULL ?
-	   SSH_IDENTIFICATION_FILE : config->identity_file);
+           config == NULL || config->identity_file == NULL ?
+           SSH_IDENTIFICATION_FILE : config->identity_file);
   n = ssh2_parse_config(user, host, buf, &vars, &vals, NULL);
 
   if (n < 0)
@@ -295,11 +296,11 @@ char **ssh_privkey_list(SshUser user, char *host, SshConfig config)
   for (i = 0; i < n; i++)
     {
       if (strcmp(vars[i], "idkey") == 0)
-	{
-	  snprintf(buf, sizeof(buf), "%s/%s",
-		   udir, vals[i]);
-	  prklist[j++] = ssh_xstrdup(buf);
-	}
+        {
+          snprintf(buf, sizeof(buf), "%s/%s",
+                   udir, vals[i]);
+          prklist[j++] = ssh_xstrdup(buf);
+        }
     }
   prklist[j++] = NULL;
   ssh_free_varsvals(n, vars, vals);
@@ -308,3 +309,47 @@ char **ssh_privkey_list(SshUser user, char *host, SshConfig config)
   return prklist;
 }
 
+char *ssh_user_conf_dir(SshConfig config, SshUser user)
+{
+  const char *user_str;
+  char *conf_dir;
+  unsigned long x;
+  char buf[32];
+  char *tmp;
+
+  /* Get template from config data */
+  conf_dir = ssh_xstrdup((config && config->user_conf_dir) ? 
+                         config->user_conf_dir : SSH_USER_CONFIG_DIRECTORY);
+
+  /* Replace %D with home directory */
+  user_str = ssh_user_dir(user);
+  tmp = ssh_replace_in_string(conf_dir, 
+                              "%D", (user_str != NULL) ? user_str : "");
+  ssh_xfree(conf_dir);
+  conf_dir = tmp;
+
+  /* Ssh_Replace %U with user login name */
+  user_str = ssh_user_name(user);
+  tmp = ssh_replace_in_string(conf_dir, 
+                              "%U", (user_str != NULL) ? user_str : "");
+  ssh_xfree(conf_dir);
+  conf_dir = tmp;
+
+  /* Ssh_Replace %IU with user ID number */
+  x = (unsigned long)ssh_user_uid(user);
+  snprintf(buf, sizeof (buf), "%lu", x);
+  tmp = ssh_replace_in_string(conf_dir, 
+                              "%IU", (user_str != NULL) ? user_str : "");
+  ssh_xfree(conf_dir);
+  conf_dir = tmp;
+
+  /* Ssh_Replace %IG with group ID number */
+  x = (unsigned long)ssh_user_gid(user);
+  snprintf(buf, sizeof (buf), "%lu", x);
+  tmp = ssh_replace_in_string(conf_dir, 
+                              "%IG", (user_str != NULL) ? user_str : "");
+  ssh_xfree(conf_dir);
+  conf_dir = tmp;
+
+  return conf_dir;
+}

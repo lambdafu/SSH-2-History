@@ -10,7 +10,7 @@ Test time measurement.
 */
 
 /*
- * $Id: t-timemeasure.c,v 1.5 1998/08/13 13:14:49 tri Exp $
+ * $Id: t-timemeasure.c,v 1.6 1998/10/20 17:39:50 tri Exp $
  * $Log: t-timemeasure.c,v $
  * $EndLog$
  */
@@ -46,6 +46,14 @@ Test time measurement.
 
 #define SET(x, v)  (printf("Set timer %s (%.12f seconds) -> %.12f\n",       \
                           #x, ssh_time_measure_set(x, v), v))
+
+#define GET_INT(x) do {                                                     \
+                      SshUInt32 _s, _n;                                     \
+                      ssh_time_measure_get_integer((x), &_s, &_n);          \
+                      printf("Timer %s value %u sec, %u nanosec.\n",        \
+                             #x, _s, _n);                                   \
+                   } while (0);
+
 
 #ifdef HAVE_USLEEP
 #define USLEEP(x)                                                           \
@@ -174,17 +182,17 @@ int main()
   STOP(timer_1);
   STOP(timer_2);
   printf("Time elapsed %.12f seconds (%.12f seconds/timestamp", 
-	 ssh_time_measure_intermediate(timer_1),
-	 ssh_time_measure_intermediate(timer_1) / (double)TIMESTAMPS);
+         ssh_time_measure_intermediate(timer_1),
+         ssh_time_measure_intermediate(timer_1) / (double)TIMESTAMPS);
   if (ssh_time_measure_intermediate(timer_1) > 0.0)
     printf(", %d timestamps/second",
-	   (int)((double)TIMESTAMPS / ssh_time_measure_intermediate(timer_1)));
+           (int)((double)TIMESTAMPS / ssh_time_measure_intermediate(timer_1)));
   printf(")\n");
 
   ssh_time_measure_reset(timer_3);
   ssh_time_measure_reset(timer_4);
   printf("\nFor reference generating %d timestamps with time(3).\n", 
-	 TIMESTAMPS);
+         TIMESTAMPS);
   START(timer_4);
   START(timer_3);
   for (i = 1; i < TIMESTAMPS; i++)
@@ -194,25 +202,25 @@ int main()
   STOP(timer_3);
   STOP(timer_4);
   printf("Time elapsed %.12f seconds (%.12f seconds/timestamp", 
-	 ssh_time_measure_intermediate(timer_3),
-	 ssh_time_measure_intermediate(timer_3) / (double)TIMESTAMPS);
+         ssh_time_measure_intermediate(timer_3),
+         ssh_time_measure_intermediate(timer_3) / (double)TIMESTAMPS);
   if (ssh_time_measure_intermediate(timer_3) > 0.0)
     printf(", %d timestamps/second",
-	   (int)((double)TIMESTAMPS / ssh_time_measure_intermediate(timer_3)));
+           (int)((double)TIMESTAMPS / ssh_time_measure_intermediate(timer_3)));
   printf(")\n");
 
   if ((ssh_time_measure_intermediate(timer_1) > 0.0) &&
       (ssh_time_measure_intermediate(timer_3) > 0.0))
     printf("Using time(3) is %2.1f%% faster than ssh_..._stamp.\n", 
-	   ((ssh_time_measure_intermediate(timer_1) - 
-	     ssh_time_measure_intermediate(timer_3)) /
-	    ssh_time_measure_intermediate(timer_1)) * 100.0);
+           ((ssh_time_measure_intermediate(timer_1) - 
+             ssh_time_measure_intermediate(timer_3)) /
+            ssh_time_measure_intermediate(timer_1)) * 100.0);
 
 #ifdef HAVE_GETTIMEOFDAY
   ssh_time_measure_reset(timer_3);
   ssh_time_measure_reset(timer_4);
   printf("\nFor reference generating %d timestamps with gettimeofday.\n", 
-	 TIMESTAMPS);
+         TIMESTAMPS);
   START(timer_4);
   START(timer_3);
   for (i = 1; i < TIMESTAMPS; i++)
@@ -222,22 +230,28 @@ int main()
   STOP(timer_3);
   STOP(timer_4);
   printf("Time elapsed %.12f seconds (%.12f seconds/timestamp", 
-	 ssh_time_measure_intermediate(timer_3),
-	 ssh_time_measure_intermediate(timer_3) / (double)TIMESTAMPS);
+         ssh_time_measure_intermediate(timer_3),
+         ssh_time_measure_intermediate(timer_3) / (double)TIMESTAMPS);
   if (ssh_time_measure_intermediate(timer_3) > 0.0)
     printf(", %d timestamps/second",
-	   (int)((double)TIMESTAMPS / ssh_time_measure_intermediate(timer_3)));
+           (int)((double)TIMESTAMPS / ssh_time_measure_intermediate(timer_3)));
   printf(")\n");
 
   if ((ssh_time_measure_intermediate(timer_1) > 0.0) &&
       (ssh_time_measure_intermediate(timer_3) > 0.0))
     printf("Using gettimeofday(3) is %2.1f%% faster than ssh_..._stamp.\n", 
-	   ((ssh_time_measure_intermediate(timer_1) - 
-	     ssh_time_measure_intermediate(timer_3)) /
-	    ssh_time_measure_intermediate(timer_1)) * 100.0);
+           ((ssh_time_measure_intermediate(timer_1) - 
+             ssh_time_measure_intermediate(timer_3)) /
+            ssh_time_measure_intermediate(timer_1)) * 100.0);
 #endif /* HAVE_GETTIMEOFDAY */
   
   STOP(total_timer);
+  GET_INT(timer_1);
+  GET_INT(timer_2);
+  GET_INT(timer_3);
+  GET_INT(timer_4);
+  GET_INT(timer_5);
+  GET_INT(total_timer);
   ssh_time_measure_free(timer_5);
   ssh_time_measure_free(timer_4);
   ssh_time_measure_free(timer_3);

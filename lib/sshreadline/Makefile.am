@@ -22,7 +22,11 @@ list_libssh_a_objects:
 include_HEADERS = sshreadline.h
 # noinst_HEADERS = 
 
-INCLUDES = -I$(srcdir) -I. -I../.. -I$(srcdir)/../sshmath -I$(srcdir)/../zlib -I$(srcdir)/../sshutil
+INCLUDES = -I$(srcdir) -I. -I../.. \
+	-I$(top_builddir) -I$(top_srcdir) \
+	-I../sshmath -I$(srcdir)/../sshmath \
+	-I../zlib -I$(srcdir)/../zlib \
+	-I../sshutil -I$(srcdir)/../sshutil
 
 includes:
 	for file in $(include_HEADERS); do \

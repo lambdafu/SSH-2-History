@@ -28,7 +28,11 @@ noinst_HEADERS = trcommon.h trkex.h
 
 # EXTRA_SOURCES = keydatab.c keydatab.h
 
-INCLUDES = -I../.. -I. -I$(srcdir) -I../sshcrypt -I$(srcdir)/../sshcrypt -I../sshutil -I$(srcdir)/../sshutil -I../sshmath -I$(srcdir)/../sshmath
+INCLUDES = -I../.. -I. -I$(srcdir) \
+	-I$(top_builddir) -I$(top_srcdir) \
+	-I../sshcrypt -I$(srcdir)/../sshcrypt \
+	-I../sshutil -I$(srcdir)/../sshutil \
+	-I../sshmath -I$(srcdir)/../sshmath
 
 includes:
 	for file in $(include_HEADERS); do \

@@ -67,6 +67,10 @@
 #define FORCED_COMMAND_ID "command"
 #endif /* FORCED_COMMAND_ID */
 
+#ifndef SSH_USER_CONFIG_DIRECTORY
+#define SSH_USER_CONFIG_DIRECTORY "%D/" SSH_USER_DIR
+#endif
+
 /* the standard "identification" file */
 
 #ifndef SSH_IDENTIFICATION_FILE
@@ -140,7 +144,7 @@
    Return NULL on failure.  The returned value has been allocated with ssh_xmalloc,
    and the caller is responsible for freeing it with ssh_xfree when no longer
    needed. */
-char *ssh_userdir(SshUser user, Boolean create_if_needed);
+char *ssh_userdir(SshUser user, SshConfig config, Boolean create_if_needed);
 
 /* Make sure that the random seed file exists and return a pointer to it. 
    return NULL on failure. The file name is found from `config'. 
@@ -218,10 +222,23 @@ Boolean ssh_privkey_write(SshUser user,
                           SshPrivateKey key, SshRandomState rand,
                           void *context);
 
-/* build a list of private key files that should be tried when
+/* Build a list of private key files that should be tried when
    logging into `host'.  The list's last entry is NULL.
    The caller should free the array and all strings in it with ssh_xfree when 
    no longer needed. */
 char **ssh_privkey_list(SshUser user, char *host, SshConfig config);
+
+
+/* Generate a name string from any blob.  String consists of
+   caller given string and space and sha1 hash of the blob in hex. 
+   String is allocated with ssh_xmalloc. */
+char *ssh_generate_name_from_blob(char *name,
+                                  unsigned char *blob,
+                                  size_t bloblen);
+
+/* Generate a directory, where the config files of given user
+   are.  This is usually %D/.ssh2 where %D is user's home
+   directory. */
+char *ssh_user_conf_dir(SshConfig config, SshUser user);
 
 #endif /* SSHUSERFILES_H */

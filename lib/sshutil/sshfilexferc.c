@@ -540,6 +540,36 @@ void ssh_file_client_stat(SshFileClient client,
   request->context = context;
 }
 
+/* Sends a lstat request. */
+
+void ssh_file_client_lstat(SshFileClient client,
+                          const char *name,
+                          SshFileAttributeCallback callback,
+                          void *context)
+{
+  SshFileClientRequest request;
+
+  if (!client->version_received)
+    {
+      (*callback)(SSH_FX_NO_CONNECTION, NULL, context);
+      return;      
+    }
+    
+  if (client->eof_received)
+    {
+      (*callback)(SSH_FX_CONNECTION_LOST, NULL, context);
+      return;
+    }
+
+  request = ssh_file_request(client, SSH_FXP_LSTAT,
+                             SSH_FILEXFER_ATTRS_REPLY,
+                             SSH_FORMAT_UINT32_STR, 
+                               name, strlen(name),
+                             SSH_FORMAT_END);
+  request->attribute_callback = callback;
+  request->context = context;
+}
+
 /* Sends an fstat request. */
 
 void ssh_file_client_fstat(SshFileHandle handle,

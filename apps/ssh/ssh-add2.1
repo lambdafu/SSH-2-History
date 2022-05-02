@@ -30,6 +30,27 @@ ssh-add2 \- adds identities for the authentication agent
 .B \-D\c
 ]
 [\c
+.B \-L\c
+]
+[\c
+.B \-U\c
+]
+[\c
+.B \-1\c
+]
+[\c
+.B \-u\c
+]
+[\c
+.B \-f forwarding steps\c
+]
+[\c
+.B \-F forwarding constraint\c
+]
+[\c
+.B \-t key timeout in minutes\c
+]
+[\c
 .B files\c
 \&.\|.\|.\|]
 
@@ -79,6 +100,43 @@ Instead of adding the identity, removes the identity from the agent.
 .TP
 .B \-D
 Deletes all identities from the agent.
+.TP
+.B \-L
+Temporarily locks the agent with a password.
+.TP
+.B \-U
+Unlocks the locked agent.
+.TP
+.B \-1
+Agent is not allowed to use keys added with this command
+in ssh1 compatibility operations.	
+.TP
+.B \-u
+The keys added are not read from the file, but instead the key is 
+given to the agent as URL.  With this functionality, agent can get
+information about the additional key sources, like smartcards.
+.TP
+.B \-f forwarding steps
+Key can be used only through as many forwarding steps as directed by
+the argument.  Argument 0 states that key can only be used locally.
+Be aware, that ssh1 does not submit forwarding information, so with
+ssh1 compatibility, this constraint may not work as expected.
+.TP
+.B \-F forwarding constraint
+The argument is a comma separated list, through which kind of steps
+the key can be forwarded.  For example constraint string
+"*.ssh.fi,rinne.iki.fi" 
+states that key can be forwarded to any host in domain 
+.I ssh.fi
+and also to host
+.I rinne.iki.fi
+and used locally.
+Be aware, that ssh1 does not submit forwarding information, so with
+ssh1 compatibility, this constraint may not work as expected.
+.TP
+.B \-t timeout
+The agent is adviced to delete the key after timeout.  Timeout is
+given in minutes.
 
 .SH RETURN STATUS
 

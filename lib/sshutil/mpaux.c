@@ -15,7 +15,7 @@ precision integers.
 */
 
 /*
- * $Id: mpaux.c,v 1.6 1998/09/23 11:14:30 tmo Exp $
+ * $Id: mpaux.c,v 1.7 1998/10/28 21:36:22 mkojo Exp $
  * $Log: mpaux.c,v $
  * $EndLog$
  */
@@ -72,16 +72,37 @@ void ssh_buf_to_mp(MP_INT *x, const unsigned char *cp, size_t len)
     }
 }
 
+/* Converting a stream of 8 bit octets to multiple precision integer. */
+
+void ssh_buf_to_mp_lsb(MP_INT *x, const unsigned char *cp, size_t len)
+{
+  size_t i, j;
+  unsigned long limb;
+
+  mpz_set_ui(x, 0);
+  for (i = len - 3; i > 4; i -= 4)
+    {
+      limb = SSH_GET_32BIT(cp + i - 1);
+      mpz_mul_2exp(x, x, 32);
+      mpz_add_ui(x, x, limb);
+    }
+  for (; i > 0; i--)
+    {
+      mpz_mul_2exp(x, x, 8);
+      mpz_add_ui(x, x, cp[i - 1]);
+    }
+}
+
 /* Operation of above functions is identical so use them. These functions
    might be used somewhere so we don't want to delete anything yet. */
 void mp_linearize_msb_first(unsigned char *buf, unsigned int len, 
-			    MP_INT *value)
+                            MP_INT *value)
 {
   ssh_mp_to_buf(buf, len, value);
 }
 
 void mp_unlinearize_msb_first(MP_INT *value, const unsigned char *buf,
-			      unsigned int len)
+                              unsigned int len)
 {
   ssh_buf_to_mp(value, buf, len);
 }
@@ -93,7 +114,7 @@ void mp_unlinearize_msb_first(MP_INT *value, const unsigned char *buf,
    The buffer will contain the value of the integer, msb first. */
 
 void mp_linearize_msb_first(unsigned char *buf, unsigned int len, 
-			    MP_INT *value)
+                            MP_INT *value)
 {
   unsigned int i;
   MP_INT aux;
@@ -116,7 +137,7 @@ void mp_linearize_msb_first(unsigned char *buf, unsigned int len,
    in the buffer msb first. */
 
 void mp_unlinearize_msb_first(MP_INT *value, const unsigned char *buf,
-			      unsigned int len)
+                              unsigned int len)
 {
   unsigned int i;
   mpz_set_ui(value, 0);

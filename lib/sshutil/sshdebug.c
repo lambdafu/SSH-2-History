@@ -128,14 +128,14 @@ void ssh_debug_output(const char *file, unsigned int line,
     }
 
   /* Format process id. */
-#ifdef HAVE_GETPID
+#if defined(HAVE_GETPID) && !defined(KERNEL)
   if (ssh_debug_flags & SSH_DEBUG_FLAG_PID)
     snprintf(pid_buf, sizeof(pid_buf), "pid %ld: ", (long)getpid());
   else
     strcpy(pid_buf, "");
-#else /* HAVE_GETPID */
+#else /* HAVE_GETPID && !KERNEL */
   strcpy(pid_buf, "");
-#endif /* HAVE_GETPID */
+#endif /* HAVE_GETPID && !KERNEL */
 
   /* Format module name. */
   if (ssh_debug_flags & SSH_DEBUG_FLAG_MODULE)
@@ -226,7 +226,7 @@ void ssh_debug_set_module_level(const char *module, unsigned int level)
 void ssh_debug_set_level_string(const char *string)
 {
   const char *name_start, *name_end, *level_start;
-  char *level_end, *name;
+  char *name;
   int name_len;
   long level_value;
   Boolean error;
@@ -264,15 +264,17 @@ void ssh_debug_set_level_string(const char *string)
             string++;
           
           level_start = string;
-          level_value = strtol(string, &level_end, 0);
-          if (level_value == 0 && level_end == level_start)
+          if (isdigit(*string))
             {
-              ssh_warning("ssh_debug_set_level_string: Invalid numeric argument for %s", name_start);
-              error = TRUE;
+              level_value = atoi(string);
+              for (; *string && isdigit(*string); string++)
+                ;
             }
           else
             {
-              string = level_end;
+              ssh_warning("ssh_debug_set_level_string: Invalid numeric "
+                          "argument for %s", name_start);
+              error = TRUE;
             }
           
           /* Skip whitespace */
@@ -283,7 +285,8 @@ void ssh_debug_set_level_string(const char *string)
         if (*string != ',')
           {
             if (!error)
-              ssh_warning("ssh_debug_set_level_string: Ignored junk after command : %s", string);
+              ssh_warning("ssh_debug_set_level_string: Ignored junk after "
+                          "command : %s", string);
             while (*string && *string != ',')
               string++;
           }
@@ -478,14 +481,14 @@ void ssh_fatal(const char *fmt, ...)
     (*ssh_debug_fatal_callback)(buf, ssh_debug_error_context);
   else
     {
-#ifndef _KERNEL
+#if !defined(KERNEL)
 #ifdef WINDOWS
       _tprintf(TEXT("%s\n"), TEXT(buf));
 #else /* WINDOWS */     
       fprintf(stderr, "%s\n", buf);
       fflush(stderr);
 #endif /* UNIX */
-#endif /* _KERNEL */
+#endif /* !KERNEL */
     }
 
   /* Exit the current program; this is the fatal error handler, and should
@@ -501,33 +504,49 @@ void ssh_generic_assert(int value, const char *expression,
                         unsigned int line, const char *module,
                         const char *function, int type)
 {
-  char *msg;
+  const char *ts;
 
   if (value)
     return; /* Assertion ok */
 
   switch (type)
     {
-    case 0: msg = "Precondition"; /* FALL THROUGH */
-    case 1: msg = "Postcondition"; /* FALL THROUGH */
-    case 2: msg = "Assertion"; /* FALL THROUGH */
-    case 3: msg = "Invariant"; /* FALL THROUGH */
-    case 5: msg = "Verified expression";
-      ssh_debug_output(file, line, module, function,
-                       ssh_debug_format("%s %s failed.", msg, expression));
+    case 0:
+      ts = "Precondition failed";
+      break;
+    case 1:
+      ts = "Postcondition failed";
+      break;
+    case 2:
+      ts = "Assertion failed";
+      break;
+    case 3:
+      ts = "Invariant failed";
+      break;
+    case 5:
+      ts = "Verified expression failed";
       break;
 
     case 4:
-      ssh_debug_output(file, line, module, function,
-                       ssh_xstrdup("Invalid code reached."));
+      ts = "Unreachable code failed";
+      expression = "Invalid code reached.";
       break;
 
     default:
-      ssh_fatal("Internal bug in ssh_generic_assert.");
+      ts = "unknown generic_assert";
+      break;
     }
 
+  if (file == NULL)
+    file = "(file unavailable)";
+  if (module == NULL)
+    module = "(module unavailable)";
+  if (function == NULL)
+    function = "(function name unavailable)";
+
   /* Call ssh_fatal() to exit. */
-  ssh_fatal("Assertion failed (check debug output for more info).");
+  ssh_fatal("%s:%d %s %s %s: %s",
+            file, line, module, function, ts, expression);
 }
 
 /* Defines callbacks that will receive the debug, warning, and fatal error

@@ -16,6 +16,8 @@ Functions for reading passphrases and passwords.
 #include "ssh2includes.h"
 #include "readpass.h"
 
+#define SSH_DEBUG_MODULE "SshReadPass"
+
 /* Saved old terminal mode for read_passphrase. */
 #ifdef USING_TERMIOS
 static struct termios saved_tio;
@@ -68,87 +70,87 @@ char *ssh_read_passphrase(const char *prompt, int from_stdin)
   else
     {
       /* Read the passphrase from /dev/tty to make it possible to ask it even 
-	 when stdin has been redirected. */
+         when stdin has been redirected. */
       f = fopen("/dev/tty", "r");
       if (!f)
-	{
-	  if (getenv("DISPLAY"))
-	    {
-	      char command[512];
-	      
-	      fprintf(stderr,
-		      "Executing ssh-askpass to query the password...\n");
-	      fflush(stdout);
-	      fflush(stderr);
-	      for(p = (unsigned const char *) prompt, i = 0;
-		  i < sizeof(quoted_prompt) - 5 && *p;
-		  i++, p++)
-		{
-		  if (*p == '\'')
-		    {
-		      quoted_prompt[i++] = '\'';
-		      quoted_prompt[i++] = '\\';
-		      quoted_prompt[i++] = '\'';
-		      quoted_prompt[i] = '\'';
-		    }
-		  else if (isprint(*p) || isspace(*p))
-		    quoted_prompt[i] = *p;
-		  else if (iscntrl(*p))
-		    {
-		      quoted_prompt[i++] = '^';
-		      if (*p < ' ')
-			quoted_prompt[i] = *p + '@';
-		      else
-			quoted_prompt[i] = '?';
-		    }
-		  else if (*p > 128)
-		    quoted_prompt[i] = *p;
-		}
-	      quoted_prompt[i] = '\0';
+        {
+          if (getenv("DISPLAY"))
+            {
+              char command[512];
+              
+              fprintf(stderr,
+                      "Executing ssh-askpass to query the password...\n");
+              fflush(stdout);
+              fflush(stderr);
+              for(p = (unsigned const char *) prompt, i = 0;
+                  i < sizeof(quoted_prompt) - 5 && *p;
+                  i++, p++)
+                {
+                  if (*p == '\'')
+                    {
+                      quoted_prompt[i++] = '\'';
+                      quoted_prompt[i++] = '\\';
+                      quoted_prompt[i++] = '\'';
+                      quoted_prompt[i] = '\'';
+                    }
+                  else if (isprint(*p) || isspace(*p))
+                    quoted_prompt[i] = *p;
+                  else if (iscntrl(*p))
+                    {
+                      quoted_prompt[i++] = '^';
+                      if (*p < ' ')
+                        quoted_prompt[i] = *p + '@';
+                      else
+                        quoted_prompt[i] = '?';
+                    }
+                  else if (*p > 128)
+                    quoted_prompt[i] = *p;
+                }
+              quoted_prompt[i] = '\0';
   
-	      snprintf(command, sizeof(command),
-		       "ssh-askpass '%.400s'", quoted_prompt);
-	      
-	      f = popen(command, "r");
-	      if (f == NULL)
-		{
-		  fprintf(stderr, "Could not query passphrase: '%.200s' failed.\n",
-			  command);
-		  return NULL;
-		}
-	      if (!fgets(buf, sizeof(buf), f))
-		{
-		  pclose(f);
-		  fprintf(stderr, "No passphrase supplied.\n");
-		  return NULL;
-		}
-	      pclose(f);
-	      if (strchr(buf, '\n'))
-		*strchr(buf, '\n') = 0;
-	      return ssh_xstrdup(buf);
-	    }
+              snprintf(command, sizeof(command),
+                       "ssh-askpass '%.400s'", quoted_prompt);
+              
+              f = popen(command, "r");
+              if (f == NULL)
+                {
+                  fprintf(stderr, "Could not query passphrase: '%.200s' failed.\n",
+                          command);
+                  return NULL;
+                }
+              if (!fgets(buf, sizeof(buf), f))
+                {
+                  pclose(f);
+                  fprintf(stderr, "No passphrase supplied.\n");
+                  return NULL;
+                }
+              pclose(f);
+              if (strchr(buf, '\n'))
+                *strchr(buf, '\n') = 0;
+              return ssh_xstrdup(buf);
+            }
 
-	  /* No controlling terminal and no DISPLAY.  Nowhere to read. */
-	  fprintf(stderr, "You have no controlling tty and no DISPLAY.  Cannot read passphrase.\n");
-	  return NULL;
-	}
+          /* No controlling terminal and no DISPLAY.  Nowhere to read. */
+          fprintf(stderr, "You have no controlling tty and no DISPLAY.  Cannot read passphrase.\n");
+          return NULL;
+        }
     }
 
   for(p = (unsigned const char *) prompt, i = 0;
       i < sizeof(quoted_prompt) - 4 && *p; i++, p++)
     {
       if (isprint(*p) || isspace(*p))
-	quoted_prompt[i] = *p;
+        quoted_prompt[i] = *p;
       else if (iscntrl(*p))
-	{
-	  quoted_prompt[i++] = '^';
-	  if (*p < ' ')
-	    quoted_prompt[i] = *p + '@';
-	  else
-	    quoted_prompt[i] = '?';
-	}
+        {
+          quoted_prompt[i++] = '^';
+          if (*p < ' ')
+            quoted_prompt[i] = *p + '@';
+          else
+            quoted_prompt[i] = '?';
+        }
       else if (*p > 128)
-	quoted_prompt[i] = *p;
+        quoted_prompt[i] = *p;
     }
   quoted_prompt[i] = '\0';
   
@@ -195,7 +197,7 @@ char *ssh_read_passphrase(const char *prompt, int from_stdin)
       fprintf(stderr, "\n");
       /* Close the file. */
       if (f != stdin)
-	fclose(f);
+        fclose(f);
       return NULL;
     }
   /* Restore terminal modes. */
@@ -237,14 +239,14 @@ Boolean ssh_read_confirmation(const char *prompt)
   else
     {
       /* Read the passphrase from /dev/tty to make it possible to ask it even 
-	 when stdin has been redirected. */
+         when stdin has been redirected. */
       f = fopen("/dev/tty", "r");
       if (!f)
-	{
-	  fprintf(stderr, "You have no controlling tty.  Cannot read "
-		  "confirmation.\n");
-	  return FALSE;
-	}
+        {
+          fprintf(stderr, "You have no controlling tty.  Cannot read "
+                  "confirmation.\n");
+          return FALSE;
+        }
     }
 
   /* Read the passphrase from the terminal. */
@@ -256,29 +258,29 @@ Boolean ssh_read_confirmation(const char *prompt)
       fflush(stderr);
       /* Read line */
       if (fgets(buf, sizeof(buf), f) == NULL)
-	{
-	  /* Got EOF.  Just exit. */
-	  /* Print a newline (the prompt probably didn\'t have one). */
-	  fprintf(stderr, "\n");
-	  fprintf(stderr, "Aborted by user");
-	  /* Close the file. */
-	  if (f != stdin)
-	    fclose(f);
-	  return FALSE;
-	}
+        {
+          /* Got EOF.  Just exit. */
+          /* Print a newline (the prompt probably didn\'t have one). */
+          fprintf(stderr, "\n");
+          fprintf(stderr, "Aborted by user");
+          /* Close the file. */
+          if (f != stdin)
+            fclose(f);
+          return FALSE;
+        }
       p = buf + strlen(buf) - 1;
       while (p > buf && isspace(*p))
-	*p-- = '\0';
+        *p-- = '\0';
       p = buf;
       while (*p && isspace(*p))
-	p++;
+        p++;
       if (strcmp(p, "no") == 0)
-	{
-	  /* Close the file. */
-	  if (f != stdin)
-	    fclose(f);
-	  return FALSE;
-	}
+        {
+          /* Close the file. */
+          if (f != stdin)
+            fclose(f);
+          return FALSE;
+        }
     } while (strcmp(p, "yes") != 0);
   /* Close the file. */
   if (f != stdin)

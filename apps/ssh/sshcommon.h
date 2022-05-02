@@ -24,18 +24,18 @@
 #include "sshcrypt.h"
 #include "sshconn.h"
 
-#ifdef SSHDIST_SSH_INTERNAL_RELEASE
+#ifdef SSHDIST_SSH2_INTERNAL_RELEASE
 
 
-#else /* SSHDIST_SSH_INTERNAL_RELEASE */
-#ifdef SSHDIST_F_SECURE_COMMERCIAL
+#else /* SSHDIST_SSH2_INTERNAL_RELEASE */
+#ifdef SSHDIST_SSH2_F_SECURE_COMMERCIAL
 
 
-#else /* SSHDIST_F_SECURE_COMMERCIAL */
+#else /* SSHDIST_SSH2_F_SECURE_COMMERCIAL */
 #define SSH2_PROTOCOL_VERSION_STRING \
                 SSH2_VERSION " (non-commercial)"
-#endif /* SSHDIST_F_SECURE_COMMERCIAL */
-#endif /* SSHDIST_SSH_INTERNAL_RELEASE */
+#endif /* SSHDIST_SSH2_F_SECURE_COMMERCIAL */
+#endif /* SSHDIST_SSH2_INTERNAL_RELEASE */
 
 /* XXX temporarily defined here. */
 #ifndef SSHDIST_WINDOWS
@@ -102,6 +102,7 @@ struct SshCommonRec
   /* Remote ip address and port. */
   char *remote_ip;
   char *remote_port;
+  char *remote_host; /* Hostname or ip number */
 
   /* Local ip address and port. */
   char *local_ip;

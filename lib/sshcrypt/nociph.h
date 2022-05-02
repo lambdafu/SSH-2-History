@@ -14,7 +14,7 @@
   */
 
 /*
- * $Id: nociph.h,v 1.4 1998/01/28 10:10:43 ylo Exp $
+ * $Id: nociph.h,v 1.5 1998/11/04 12:06:46 ylo Exp $
  * $Log: nociph.h,v $
  * $EndLog$
  */
@@ -23,6 +23,7 @@
 #define NOCIPH_H
 
 void none_transform(void *context, unsigned char *dest,
-		    const unsigned char *src, size_t len);
+                    const unsigned char *src, size_t len,
+                    unsigned char *iv);
 
 #endif /* NOCIPH_H */

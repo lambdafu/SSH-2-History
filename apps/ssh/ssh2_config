@@ -12,6 +12,9 @@
 	PasswordPrompt			"%U's password: "
 	#LocalForward			"110:pop3.ssh.fi:110"
 	#RemoteForward			"3000:foobar:22"
+	Ssh1AgentCompatibility		none
+	#Ssh1AgentCompatibility		traditional
+	#Ssh1AgentCompatibility		ssh2
 	
 #alpha*:
 #	Host				alpha.hut.fi

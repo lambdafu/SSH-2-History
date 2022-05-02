@@ -3,7 +3,7 @@
  * For conditions of distribution and use, see copyright notice in zlib.h 
  */
 
-/* @(#) $Id: zutil.c,v 1.5 1998/07/20 14:13:57 kivinen Exp $ */
+/* @(#) $Id: zutil.c,v 1.6 1998/11/12 15:05:35 tmo Exp $ */
 
 #include "zutil.h"
 
@@ -205,20 +205,23 @@ extern voidp  calloc OF((uInt items, uInt size));
 extern void   free   OF((voidpf ptr));
 #endif
 
+void *ssh_xcalloc(unsigned long nitems, unsigned long size);
+void ssh_xfree(void *ptr);
+
 voidpf zcalloc (opaque, items, size)
     voidpf opaque;
     unsigned items;
     unsigned size;
 {
     if (opaque) items += size - size; /* make compiler happy */
-    return (voidpf)calloc(items, size);
+    return (voidpf)ssh_xcalloc(items, size);
 }
 
 void  zcfree (opaque, ptr)
     voidpf opaque;
     voidpf ptr;
 {
-    free(ptr);
+    ssh_xfree(ptr);
     if (opaque) return; /* make compiler happy */
 }
 

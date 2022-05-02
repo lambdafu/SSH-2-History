@@ -181,6 +181,13 @@ void ssh_file_client_stat(SshFileClient client,
                           SshFileAttributeCallback callback,
                           void *context);
 
+/* Sends a lstat request, and calls the given callback when complete.  The
+   callback will be called either during this call or any time later. */
+void ssh_file_client_lstat(SshFileClient client,
+                          const char *name,
+                          SshFileAttributeCallback callback,
+                           void *context);
+
 /* Sends an fstat request, and calls the given callback when complete.  The
    callback will be called either during this call or any time later. */
 void ssh_file_client_fstat(SshFileHandle handle,

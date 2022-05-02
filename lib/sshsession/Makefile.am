@@ -12,13 +12,13 @@
 AUTOMAKE_OPTIONS = 1.0 foreign dist-zip no-dependencies
 
 noinst_LIBRARIES = libsshsession.a
-include_HEADERS = sshunixpipestream.h sshunixptystream.h sigchld.h tty.h \
-	ttymodes.h \
+include_HEADERS = sshunixpipestream.h sshunixptystream.h sigchld.h sshtty.h \
+	sshttymodes.h \
 	sshsessionincludes.h sshuser.h tcbc2.h
 noinst_HEADERS = pty-int.h
 
 libsshsession_a_SOURCES = sshunixpipestream.c sshunixptystream.c sigchld.c \
-	tty.c sshunixuser.c wtmp.c
+	sshtty.c sshunixuser.c wtmp.c
 list_libssh_a_objects:
 	@echo BEGIN_FILE_LIST: $(libsshsession_a_OBJECTS) $(libsshsession_a_LIBADD) :END_FILE_LIST
 
@@ -28,7 +28,9 @@ libsshsession_a_LIBADD = $(SSHSESSION_CONFOBJS)
 EXTRA_DIST = tcbc2.c pty-bsd.c pty-cray.c pty-getpseudotty.c pty-getpty.c \
 	pty-openpty.c pty-ptmx.c pty-pts.c pty-sco.c
 
-INCLUDES = -I../.. -I. -I$(srcdir) -I../sshutil -I$(srcdir)/../sshutil
+INCLUDES = -I../.. -I. -I$(srcdir) 		\
+	-I$(top_builddir) -I$(top_srcdir) 	\
+	-I../sshutil -I$(srcdir)/../sshutil
 
 includes:
 	for file in $(include_HEADERS); do \

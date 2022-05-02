@@ -36,9 +36,11 @@ noinst_HEADERS = readfile.h
 LDADD = ../libsshcrypt.a ../../sshutil/libsshutil.a \
 	../../sshmath/libsshmath.a ../../zlib/libz.a
 
-INCLUDES = -I../.. -I. -I.. -I$(srcdir) -I$(srcdir)/.. -I../../sshmath \
-  -I$(srcdir)/../../sshmath -I../../sshutil -I$(srcdir)/../../sshutil \
-  -I../../zlib -I$(srcdir)/../../zlib
+INCLUDES = -I../.. -I. -I.. -I$(srcdir) -I$(srcdir)/.. \
+	-I$(top_builddir) -I$(top_srcdir) \
+	-I../../sshmath \
+	-I$(srcdir)/../../sshmath -I../../sshutil -I$(srcdir)/../../sshutil \
+	-I../../zlib -I$(srcdir)/../../zlib
 
 testsrcpath.h:
 	rm -f testsrcpath.h

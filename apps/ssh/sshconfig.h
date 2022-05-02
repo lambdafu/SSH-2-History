@@ -26,8 +26,8 @@
 
 typedef struct SshSubsystemRec
 {
-  char *name; 			       /* name of the subsystem */
-  char *path;  			       /* command and arguments to execute */
+  char *name;                          /* name of the subsystem */
+  char *path;                          /* command and arguments to execute */
 } *SshSubsystem;
 
 /* Definition for SshForward */
@@ -39,6 +39,17 @@ typedef struct SshForwardRec {
   char *connect_to_host;
   char *connect_to_port;
 } *SshForward;
+
+typedef enum {
+  /* No ssh1 agent compatibility */
+  SSH_AGENT_COMPAT_NONE = 0, 
+  /* Forward connections for old ssh1 agent.  Also ssh2 agent works with 
+     this mode, but no agent forwarding path is added to the data. */
+  SSH_AGENT_COMPAT_TRADITIONAL = 1,
+  /* Forward connections for ssh2 agent emulating ssh1 agent.  Ssh1 agent
+     do not work with this mode. */
+  SSH_AGENT_COMPAT_SSH2 = 2
+} SshAgentSsh1CompatMode;
 
 /* Data type for SSH server configuration data. */
 
@@ -73,6 +84,7 @@ struct SshConfigRec
 
   char *port;      
   char *ciphers;   
+  char *user_conf_dir;
   char *identity_file;
   char *authorization_file;
   char *random_seed_file;
@@ -117,6 +129,9 @@ struct SshConfigRec
   /* Flag specifying whether to enable ssh1 compatibility. */
   Boolean ssh1compatibility;
 
+  /* Ssh1 agent forwarding compatibility mode */
+  SshAgentSsh1CompatMode ssh_agent_compat;
+
   /* Path to ssh1/sshd1.*/
   char *ssh1_path;
   
@@ -153,15 +168,15 @@ void ssh_config_free(SshConfig config);
 /* Reads config data from the given file.  Returns FALSE if an error
    occurs (displays error messages with ssh_warning) */
 Boolean ssh_config_read_file(SshUser user, SshConfig config, char *instance, 
-			     const char *filename, void *context);
+                             const char *filename, void *context);
 
 /* Reads the host key that is defined in the config data. Returns
    TRUE if succesful. */
 
 Boolean ssh_server_load_host_key(SshConfig config,
-				 SshPrivateKey *private_host_key,
-				 unsigned char **public_host_key_blob,
-				 size_t *public_host_key_blob_len, 
+                                 SshPrivateKey *private_host_key,
+                                 unsigned char **public_host_key_blob,
+                                 size_t *public_host_key_blob_len, 
                                  void *context);
 
 /* Set the variable corresponding to `var' to `val' in config. Return

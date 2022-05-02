@@ -16,7 +16,7 @@ Common (client+server) internal definitions for the transport layer protocol.
 */
 
 /*
- * $Id: trcommon.h,v 1.18 1998/10/19 13:20:27 sjl Exp $
+ * $Id: trcommon.h,v 1.19 1998/11/13 18:43:33 tri Exp $
  * $Log: trcommon.h,v $
  * $EndLog$
  */
@@ -200,12 +200,6 @@ typedef struct
   SshPrivateKey private_server_key;
   SshBuffer *public_server_key_blob;
 
-  /* Compatibility with older ssh-2.0.x versions */
-
-  /* MAC-bug, which is in versions ssh-2.0.9 and earlier (here our
-     implementation was conflicting with the draft) */
-  Boolean ssh_old_mac_bug_compat;
-  
   /* For dh methods: the group, "secret" and the exchange buffer */
 
   mpz_t dh_p;
@@ -214,6 +208,17 @@ typedef struct
   mpz_t dh_f;
   mpz_t dh_k;
   mpz_t dh_secret;
+
+  /* Compatibility with older ssh-2 versions.  Variables in this section
+     are set to defaults in ssh_tr_create and filled in properly in
+     ssh_tr_input_version. */
+
+  /* MAC-bug, which is in versions ssh-2.0.9 and earlier (here our
+     implementation was conflicting with the draft) */
+  Boolean ssh_old_mac_bug_compat;
+
+  /* Key generation bug, which is in versions ssh-2.0.10 and earlier. */
+  Boolean ssh_old_keygen_bug_compat;
 
 } *SshTransportCommon;
 
@@ -253,6 +258,18 @@ SshStream ssh_tr_create_final(SshTransportCommon tr);
 void ssh_tr_up_disconnect(SshTransportCommon tr, Boolean locally_generated,
                           Boolean send_to_other_side,
                           unsigned int reason, const char *fmt, ...);
+
+/* Compare version strings.  The first argument is locally stored 
+   constant version string and the second argument is a version
+   string received from the remote connection.  Strings do not 
+   have to be identical for this function to return TRUE.
+   For example ssh_tr_version_string_equal("2.0.1", "2.0.1")
+   and ssh_tr_version_string_equal("2.0.1", "2.0.1-beta3") return
+   TRUE whereas ssh_tr_version_string_equal("2.0.1", "2.0.10")
+   and ssh_tr_version_string_equal("2.0.1-beta3", "2.0.1") 
+   return FALSE. */
+Boolean ssh_tr_version_string_equal(const char *version,
+                                    const char *soft_version);
 
 /* Methods table for transport streams. */
 extern const SshStreamMethodsTable ssh_tr_methods;

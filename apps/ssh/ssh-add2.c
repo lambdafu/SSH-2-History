@@ -16,7 +16,7 @@ Adds an identity to the authentication server, or removes an identity.
 */
 
 /*
- * $Id: ssh-add2.c,v 1.7 1998/10/01 13:21:49 tri Exp $
+ * $Id: ssh-add2.c,v 1.14 1998/11/15 13:33:43 tri Exp $
  * $Log: ssh-add2.c,v $
  * $EndLog$
  */
@@ -31,19 +31,39 @@ Adds an identity to the authentication server, or removes an identity.
 #include "sshunixeloop.h"
 #include "sshgetopt.h"
 
-#define EXIT_STATUS_OK		0
-#define EXIT_STATUS_NOAGENT	1
-#define EXIT_STATUS_BADPASS	2
-#define EXIT_STATUS_NOFILE	3
-#define EXIT_STATUS_NOIDENTITY	4
-#define EXIT_STATUS_ERROR	5
+#define SSH_DEBUG_MODULE "SshAdd"
 
-typedef enum { LIST, ADD, DELETE_ALL } SshAgentAction;
+#define EXIT_STATUS_OK          0
+#define EXIT_STATUS_NOAGENT     1
+#define EXIT_STATUS_BADPASS     2
+#define EXIT_STATUS_NOFILE      3
+#define EXIT_STATUS_NOIDENTITY  4
+#define EXIT_STATUS_ERROR       5
+
+typedef enum 
+{ 
+  LIST, 
+  ADD, 
+  ADD_URL,
+  DELETE,
+  DELETE_URL,
+  DELETE_ALL, 
+  LOCK, 
+  UNLOCK 
+} SshAgentAction;
 
 /* Files to add/delete from agent. */
 char **files;
 int num_files;
 SshAgentAction action;
+
+/* Possible attributes */
+SshUInt32 path_limit = 0xffffffff;
+char *path_constraint = NULL;
+Boolean forbid_compat = FALSE;
+time_t key_timeout = 0;
+Boolean have_attrs = FALSE;
+SshUInt32 use_limit = 0xffffffff;
 
 /* Force to read passphrases from stdin. */
 int use_stdin = FALSE;
@@ -64,6 +84,28 @@ void add_file(SshAgent agent, const char *filename)
   unsigned long magic;
   struct stat st;
 
+  if (action == ADD_URL)
+    {
+      printf("Adding URL identity: %s\n", filename);
+      snprintf(privname, sizeof(privname), "%s", filename);
+      if (have_attrs)
+        ssh_agent_add_with_attrs(agent, NULL, NULL, 0, privname,
+                                 path_limit, path_constraint, use_limit,
+                                 forbid_compat, key_timeout,
+                                 agent_completion, (void *)agent);
+      else
+        ssh_agent_add(agent, NULL, NULL, 0, privname,
+                      agent_completion, (void *)agent);
+      return;
+    }
+  else if (action == DELETE_URL)
+    {
+      printf("Deleting URL identity: %s\n", filename);
+      snprintf(privname, sizeof(privname), "%s", filename);
+      ssh_agent_delete(agent, NULL, 0, privname,
+                       agent_completion, (void *)agent);
+      return;
+    }
   /* Construct the names of the public and private key files. */
   if (strlen(filename) > 4 &&
       strcmp(filename + strlen(filename) - 4, ".pub") == 0)
@@ -78,7 +120,10 @@ void add_file(SshAgent agent, const char *filename)
       snprintf(privname, sizeof(privname), "%s", filename);
     }
 
-  printf("Adding identity: %s\n", pubname);
+  if (action == ADD)
+    printf("Adding identity: %s\n", pubname);
+  else if (action == DELETE)
+    printf("Deleting identity: %s\n", pubname);
 
   if (stat(pubname, &st) < 0)
     {
@@ -96,7 +141,7 @@ void add_file(SshAgent agent, const char *filename)
   
   /* Read the public key blob. */
   magic = ssh_key_blob_read(user, pubname, &saved_comment, &certs, &certs_len,
-			    NULL);
+                            NULL);
   if (magic != SSH_KEY_MAGIC_PUBLIC)
     {
       printf("Bad public key file %s\n", pubname);
@@ -104,73 +149,101 @@ void add_file(SshAgent agent, const char *filename)
       return;
     }
   
-  /* Loop until we manage to load the file, or a maximum number of
-     attempts have been made.  First try with an empty passphrase. */
-  pass = ssh_xstrdup("");
-  query_cnt = 0;
-  while ((key = ssh_privkey_read(user, privname, pass, &comment, NULL)) == NULL)
+  if (action == ADD)
     {
-      char buf[1024];
-      FILE *f;
+      /* Loop until we manage to load the file, or a maximum number of
+         attempts have been made.  First try with an empty passphrase. */
+      pass = ssh_xstrdup("");
+      query_cnt = 0;
+      while ((key = ssh_privkey_read(user, privname, pass, &comment, NULL)) == 
+             NULL)
+        {
+          char buf[1024];
+          FILE *f;
       
-      /* Free the old passphrase. */
+          /* Free the old passphrase. */
+          memset(pass, 0, strlen(pass));
+          ssh_xfree(pass);
+          
+          query_cnt++;
+          if (query_cnt > 5)
+            {
+              fprintf(stderr,
+                      "You don't seem to know the correct passphrase.\n");
+              exit(EXIT_STATUS_BADPASS);
+            }
+          
+          /* Ask for a passphrase. */
+          if (!use_stdin && getenv("DISPLAY") && !isatty(fileno(stdin)))
+            {
+              snprintf(buf, sizeof(buf),
+                       "ssh-askpass2 '%sEnter passphrase for %.100s'", 
+                       ((query_cnt <= 1) ? 
+                        "" : 
+                        "You entered wrong passphrase.  "), 
+                       saved_comment);
+              f = popen(buf, "r");
+              if (!fgets(buf, sizeof(buf), f))
+                {
+                  pclose(f);
+                  ssh_xfree(saved_comment);
+                  exit(EXIT_STATUS_BADPASS);
+                }
+              pclose(f);
+              if (strchr(buf, '\n'))
+                *strchr(buf, '\n') = 0;
+              pass = ssh_xstrdup(buf);
+            }
+          else
+            {
+              if (query_cnt <= 1)
+                printf("Need passphrase for %s (%s).\n", 
+                       privname, saved_comment);
+              else
+                printf("Bad passphrase.\n");
+              pass = ssh_read_passphrase("Enter passphrase: ", use_stdin);
+              if (pass == NULL || strcmp(pass, "") == 0)
+                {
+                  ssh_xfree(saved_comment);
+                  ssh_xfree(pass);
+                  exit(EXIT_STATUS_BADPASS);
+                }
+            }
+        }
       memset(pass, 0, strlen(pass));
       ssh_xfree(pass);
-
-      query_cnt++;
-      if (query_cnt > 5)
-	{
-	  fprintf(stderr, "You don't seem to know the correct passphrase.\n");
-	  exit(EXIT_STATUS_BADPASS);
-	}
-      
-      /* Ask for a passphrase. */
-      if (!use_stdin && getenv("DISPLAY") && !isatty(fileno(stdin)))
-	{
-	  snprintf(buf, sizeof(buf),
-		   "ssh-askpass2 '%sEnter passphrase for %.100s'", 
-		  query_cnt <= 1 ? "" : "You entered wrong passphrase.  ", 
-		  saved_comment);
-	  f = popen(buf, "r");
-	  if (!fgets(buf, sizeof(buf), f))
-	    {
-	      pclose(f);
-	      ssh_xfree(saved_comment);
-	      exit(EXIT_STATUS_BADPASS);
-	    }
-	  pclose(f);
-	  if (strchr(buf, '\n'))
-	    *strchr(buf, '\n') = 0;
-	  pass = ssh_xstrdup(buf);
-	}
-      else
-	{
-	  if (query_cnt <= 1)
-	    printf("Need passphrase for %s (%s).\n", privname, saved_comment);
-	  else
-	    printf("Bad passphrase.\n");
-	  pass = ssh_read_passphrase("Enter passphrase: ", use_stdin);
-	  if (pass == NULL || strcmp(pass, "") == 0)
-	    {
-	      ssh_xfree(saved_comment);
-	      ssh_xfree(pass);
-	      exit(EXIT_STATUS_BADPASS);
-	    }
-	}
+      ssh_xfree(saved_comment);
+      /* Construct a comment for the key by combining file name and comment in
+         the file. */
+      snprintf(privname, sizeof(privname), "%s: %s", pubname, comment);
+      ssh_xfree(comment);
     }
-  memset(pass, 0, strlen(pass));
-  ssh_xfree(pass);
-  ssh_xfree(saved_comment);
+  else
+    {
+      /* Construct a comment for the key by combining file name and comment in
+         the file. */
+      snprintf(privname, sizeof(privname), "%s: %s", pubname, saved_comment);
+      ssh_xfree(saved_comment);
+    }
 
-  /* Construct a comment for the key by combining file name and comment in
-     the file. */
-  snprintf(privname, sizeof(privname), "%s: %s", pubname, comment);
-
-  /* Send the key to the authentication agent. */
-  ssh_agent_add(agent, key, certs, certs_len, privname,
-		agent_completion, (void *)agent);
-  ssh_private_key_free(key);
-  ssh_xfree(comment);
+  if (action == ADD)
+    {
+      /* Send the key to the authentication agent. */
+      if (have_attrs)
+        ssh_agent_add_with_attrs(agent, key, certs, certs_len, privname,
+                                 path_limit, path_constraint, use_limit,
+                                 forbid_compat, key_timeout,
+                                 agent_completion, (void *)agent);
+      else
+        ssh_agent_add(agent, key, certs, certs_len, privname,
+                      agent_completion, (void *)agent);
+      ssh_private_key_free(key);
+    }
+  else if (action == DELETE)
+    {
+      ssh_agent_delete(agent, certs, certs_len, privname,
+                       agent_completion, (void *)agent);
+    }
 }
 
 void agent_completion(SshAgentError result, void *context)
@@ -188,7 +261,7 @@ void agent_completion(SshAgentError result, void *context)
       
     case SSH_AGENT_ERROR_KEY_NOT_FOUND:
       fprintf(stderr,
-	      "Requested key not in possession of authentication agent.\n");
+              "Requested key not in possession of authentication agent.\n");
       exit(EXIT_STATUS_NOIDENTITY);
       
     case SSH_AGENT_ERROR_DECRYPT_FAILED:
@@ -200,7 +273,8 @@ void agent_completion(SshAgentError result, void *context)
       exit(EXIT_STATUS_ERROR);
       
     case SSH_AGENT_ERROR_KEY_NOT_SUITABLE:
-      fprintf(stderr, "The specified key is not suitable for the operation.\n");
+      fprintf(stderr, 
+              "The specified key is not suitable for the operation.\n");
       exit(EXIT_STATUS_ERROR);
       
     case SSH_AGENT_ERROR_DENIED:
@@ -221,7 +295,7 @@ void agent_completion(SshAgentError result, void *context)
       
     default:
       fprintf(stderr, "Authentication agent failed with error %d\n",
-	      (int)result);
+              (int)result);
       exit(EXIT_STATUS_ERROR);
     }
 
@@ -239,7 +313,7 @@ void agent_completion(SshAgentError result, void *context)
 }
 
 void agent_list_callback(SshAgentError error, unsigned int num_keys,
-			     SshAgentKeyInfo keys, void *context)
+                             SshAgentKeyInfo keys, void *context)
 {
   SshAgent agent = (SshAgent)context;
   int i;
@@ -255,21 +329,25 @@ void agent_list_callback(SshAgentError error, unsigned int num_keys,
   else
     {
       if (num_keys == 1)
-	printf("The authorization agent has one key:\n");
+        printf("The authorization agent has one key:\n");
       else
-	printf("The authorization agent has %d keys:\n", num_keys);
+        printf("The authorization agent has %d keys:\n", num_keys);
       for (i = 0; i < num_keys; i++)
-	printf("%s\n", keys[i].description);
+        printf("%s\n", keys[i].description);
     }
   agent_completion(SSH_AGENT_ERROR_OK, (void *)agent);
 }
 
 void agent_open_callback(SshAgent agent, void *context)
 {
+  char buf[1024];
+  FILE *f;
+  char *password;
+
   if (!agent)
     {
       fprintf(stderr,
-	"Failed to connect to authentication agent - agent not running?\n");
+        "Failed to connect to authentication agent - agent not running?\n");
       exit(EXIT_STATUS_NOAGENT);
     }
 
@@ -285,7 +363,64 @@ void agent_open_callback(SshAgent agent, void *context)
       ssh_agent_list(agent, agent_list_callback, (void *)agent);
       break;
       
+    case LOCK:
+      if (!use_stdin && getenv("DISPLAY") && !isatty(fileno(stdin)))
+        {
+          snprintf(buf, sizeof (buf),
+                   "ssh-askpass2 'Enter lock passphrase'");
+          f = popen(buf, "r");
+          if (! fgets(buf, sizeof (buf), f))
+            {
+              pclose(f);
+              exit(EXIT_STATUS_BADPASS);
+            }
+          pclose(f);
+          if (strchr(buf, '\n'))
+            *strchr(buf, '\n') = 0;
+          password = ssh_xstrdup(buf);
+        }
+      else
+        {
+          password = ssh_read_passphrase("Enter lock password: ", use_stdin);
+          if (password == NULL)
+            {
+              exit(EXIT_STATUS_BADPASS);
+            }
+        }
+      ssh_agent_lock(agent, password, agent_completion, (void *)agent);
+      break;
+
+    case UNLOCK:
+      if (!use_stdin && getenv("DISPLAY") && !isatty(fileno(stdin)))
+        {
+          snprintf(buf, sizeof (buf),
+                   "ssh-askpass2 'Enter unlock passphrase'");
+          f = popen(buf, "r");
+          if (! fgets(buf, sizeof (buf), f))
+            {
+              pclose(f);
+              exit(EXIT_STATUS_BADPASS);
+            }
+          pclose(f);
+          if (strchr(buf, '\n'))
+            *strchr(buf, '\n') = 0;
+          password = ssh_xstrdup(buf);
+        }
+      else
+        {
+          password = ssh_read_passphrase("Enter lock password: ", use_stdin);
+          if (password == NULL)
+            {
+              exit(EXIT_STATUS_BADPASS);
+            }
+        }
+      ssh_agent_unlock(agent, password, agent_completion, (void *)agent);
+      break;
+
+    case DELETE:
+    case DELETE_URL:
     case ADD:
+    case ADD_URL:
       /* Let the completion do all the work. */
       agent_completion(SSH_AGENT_ERROR_OK, (void *)agent);
       break;
@@ -293,6 +428,12 @@ void agent_open_callback(SshAgent agent, void *context)
     default:
       ssh_fatal("agent_open_callback: bad action %d\n", (int)action);
     }
+}
+
+void usage(void);
+void usage()
+{
+  fprintf(stderr, "Usage: ssh-add [-l] [-d] [-p] [-t key_exp] [-f hop_limit] [-1] [files...]\n");
 }
 
 /* This is the main program for the agent. */
@@ -304,34 +445,82 @@ int main(int ac, char **av)
   char *ssh2dirname;
   Boolean dynamic_array = FALSE;
   struct dirent * cand;
-  
+
   user = ssh_user_initialize(NULL, FALSE);
   
   action = ADD;
-  while ((opt = ssh_getopt(ac, av, "ldDp", NULL)) != EOF)
+  while ((opt = ssh_getopt(ac, av, "ldDput:f:F:1LU", NULL)) != EOF)
     {
       if (!ssh_optval)
-	{
-	  fprintf(stderr, "Usage: ssh-add [-l] [-d] [-p] [files...]\n");
-	  exit(EXIT_STATUS_ERROR);
-	}
+        {
+          fprintf(stderr, "Usage: ssh-add [-l] [-d] [-u] [-p] [files...]\n");
+          exit(EXIT_STATUS_ERROR);
+        }
       switch (opt)
-	{
-	case 'l':
-	  action = LIST;
-	  break;
-	case 'p':
-	  use_stdin = TRUE;
-	  break;
-	case 'd':
-	  /* XXX should be able to delete identities one at a time. */
-	case 'D':
-	  action = DELETE_ALL;
-	  break;
-	default:
-	  fprintf(stderr, "Usage: ssh-add [-l] [-d] [-p] [files...]\n");
-	  exit(EXIT_STATUS_ERROR);
-	}
+        {
+        case 'l':
+          action = LIST;
+          break;
+        case 'p':
+          use_stdin = TRUE;
+          break;
+        case 'd':
+          if (action == ADD_URL)
+            action = DELETE_URL;
+          else
+            action = DELETE;
+          break;
+        case 'D':
+          action = DELETE_ALL;
+          break;
+        case 't':
+          if (ssh_optargnum)
+            {
+              key_timeout = (time_t)(ssh_optargval * 60);
+            }
+          else
+            {
+              usage();
+              exit(EXIT_STATUS_ERROR);
+            }
+          have_attrs = TRUE;
+          break;
+        case 'f':
+          if (ssh_optargnum)
+            {
+              path_limit = (SshUInt32)ssh_optargval;
+            }
+          else
+            {
+              usage();
+              exit(EXIT_STATUS_ERROR);
+            }
+          have_attrs = TRUE;
+          break;
+        case 'F':
+          path_constraint = ssh_xstrdup(ssh_optarg);
+          have_attrs = TRUE;
+          break;
+        case '1':
+          forbid_compat = TRUE;
+          have_attrs = TRUE;
+          break;
+        case 'u':
+          if (action == DELETE)
+            action = DELETE_URL;
+          else
+            action = ADD_URL;
+          break;
+        case 'L':
+          action = LOCK;
+          break;
+        case 'U':
+          action = UNLOCK;
+          break;
+        default:
+          usage();
+          exit(EXIT_STATUS_ERROR);
+        }
     }
 
   files = &av[ssh_optind];
@@ -350,23 +539,23 @@ int main(int ac, char **av)
       
       ssh2dir = opendir(ssh2dirname);
       while ((cand = readdir(ssh2dir)) != NULL)
-	{
-	  if (strlen(cand->d_name) >= strlen(ID_PREFIX) &&
-	      strncmp(cand->d_name, ID_PREFIX, strlen(ID_PREFIX)) == 0)
-	    {
-	      files = ssh_xcalloc(2, sizeof(char *));
+        {
+          if (strlen(cand->d_name) >= strlen(ID_PREFIX) &&
+              strncmp(cand->d_name, ID_PREFIX, strlen(ID_PREFIX)) == 0)
+            {
+              files = ssh_xcalloc(2, sizeof(char *));
 
-	      /* len includes '/' and '\0'*/
-	      len = strlen(ssh2dirname) + strlen(cand->d_name) + 2; 
-								      
-	      files[0] = ssh_xcalloc(len, sizeof(char));
-	      snprintf(files[0],len, "%s/%s", ssh2dirname, cand->d_name);
-	      ssh_xfree(ssh2dirname);
-	      num_files++;
-	      dynamic_array = TRUE;
-	      break;
-	    }
-	}
+              /* len includes '/' and '\0'*/
+              len = strlen(ssh2dirname) + strlen(cand->d_name) + 2; 
+                                                                      
+              files[0] = ssh_xcalloc(len, sizeof(char));
+              snprintf(files[0],len, "%s/%s", ssh2dirname, cand->d_name);
+              ssh_xfree(ssh2dirname);
+              num_files++;
+              dynamic_array = TRUE;
+              break;
+            }
+        }
       (void)closedir(ssh2dir);
     }
   
@@ -379,12 +568,12 @@ int main(int ac, char **av)
   ssh_event_loop_run();
   ssh_event_loop_uninitialize();
 
-  if(dynamic_array)
+  if (dynamic_array)
     {
       for(i = 0; i < num_files ; i++)
-	{
-	  ssh_xfree(files[i]);
-	}
+        {
+          ssh_xfree(files[i]);
+        }
       ssh_xfree(files);
     }
   

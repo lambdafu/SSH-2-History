@@ -103,7 +103,7 @@ ssh2 \- secure shell client (remote login program)
 [\c
 .BI \-h \c
 ]
-.I hostname
+.I [login_name@]hostname
 [\c
 .IR command \c
 ]
@@ -672,6 +672,21 @@ must be
 .YN
 .ne 3
 .TP
+.B Ssh1AgentCompatibility
+Specifies whether to forward also SSH1 agent connection.
+Legal values for this option are "\fBnone\fR", "\fBtraditional\fR" and
+"\fBssh2\fR".  With value "\fBnone\fR" (default), SSH1 agent
+connection is not forwarded at all.  With value "\fBtraditional\fR",
+SSH1 agent connection is forwarded transparently like in SSH1.  Value 
+"\fBtraditional\fR" can always be used, but it constitutes a security
+risk, because agent does not get the information about the forwarding
+path.  Value "\fBssh2\fR" makes SSH1 agent forwarding similar to SSH2
+agent forwarding and with this mode agent gets the information about
+the agent forwarding path.  Note that value "\fBssh2\fR" can only be
+used, if you use ssh-agent2 in SSH1 compatibility mode.
+.YN
+.ne 3
+.TP
 .B Ssh1Path
 Specifies the path to
 .B ssh1 
@@ -780,7 +795,7 @@ three space-separated values: client ip-address, client port number,
 and server port number.
 .ne 3
 .TP
-.B SSH_ORIGINAL_COMMAND
+.B SSH2_ORIGINAL_COMMAND
 This will be the original command given to 
 .B ssh2 
 if a forced command is run. It can be used to fetch arguments etc.

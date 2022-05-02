@@ -6,11 +6,11 @@ Author: Antti Huima <huima@ssh.fi>
 
 Copyright (C) 1996 SSH Security Communications Oy, Espoo, Finland
                    All rights reserved
-		 
+                 
 */
 
 /*
- * $Id: genrand.c,v 1.12 1998/06/04 14:18:50 tri Exp $
+ * $Id: genrand.c,v 1.13 1998/10/26 08:01:45 tri Exp $
  * $Log: genrand.c,v $
  * $EndLog$
  */
@@ -40,7 +40,7 @@ struct SshRandomStateRec {
 /* Cryptographically strong random number functions */
 
 void ssh_random_xor_noise(SshRandomState state, size_t i,
-			  SshUInt32 value)
+                          SshUInt32 value)
 {
   if (4 * i >= SSH_RANDOM_STATE_BYTES)
     ssh_fatal("ssh_random_xor_noise: internal error.");
@@ -69,15 +69,15 @@ void ssh_random_acquire_light_environmental_noise(SshRandomState state)
       len = read(f, buf, sizeof(buf));
       close(f);
       if (len > 0)
-	ssh_random_add_noise(state, buf, len);
+        ssh_random_add_noise(state, buf, len);
     }
 #endif /* WINDOWS, DOS */
 
   /* Get miscellaneous noise from various system parameters and statistics. */
   ssh_random_xor_noise(state,
-		       (size_t)(state->state[0] + 256*state->state[1]) % 
-		       (SSH_RANDOM_STATE_BYTES / 4),
-		       (SshUInt32)time(NULL));
+                       (size_t)(state->state[0] + 256*state->state[1]) % 
+                       (SSH_RANDOM_STATE_BYTES / 4),
+                       (SshUInt32)time(NULL));
 #ifdef HAVE_CLOCK
     ssh_random_xor_noise(state, 3, (SshUInt32)clock());
 #endif /* HAVE_CLOCK */
@@ -94,9 +94,9 @@ void ssh_random_acquire_light_environmental_noise(SshRandomState state)
     struct tms tm;
     ssh_random_xor_noise(state, 2, (SshUInt32)times(&tm));
     ssh_random_xor_noise(state, 4, (SshUInt32)(tm.tms_utime ^
-					    (tm.tms_stime << 8) ^ 
-					    (tm.tms_cutime << 16) ^ 
-					    (tm.tms_cstime << 24)));
+                                            (tm.tms_stime << 8) ^ 
+                                            (tm.tms_cutime << 16) ^ 
+                                            (tm.tms_cstime << 24)));
   }
 #endif /* HAVE_TIMES */
 #ifdef HAVE_GETRUSAGE
@@ -105,9 +105,9 @@ void ssh_random_acquire_light_environmental_noise(SshRandomState state)
     getrusage(RUSAGE_SELF, &ru);
     getrusage(RUSAGE_CHILDREN, &cru);
     ssh_random_xor_noise(state, 0, (SshUInt32)(ru.ru_utime.tv_usec + 
-					    cru.ru_utime.tv_usec));
+                                            cru.ru_utime.tv_usec));
     ssh_random_xor_noise(state, 2, (SshUInt32)(ru.ru_stime.tv_usec + 
-					    cru.ru_stime.tv_usec));
+                                            cru.ru_stime.tv_usec));
     ssh_random_xor_noise(state, 5, (SshUInt32)(ru.ru_maxrss + cru.ru_maxrss));
     ssh_random_xor_noise(state, 6, (SshUInt32)(ru.ru_ixrss + cru.ru_ixrss));
     ssh_random_xor_noise(state, 7, (SshUInt32)(ru.ru_idrss + cru.ru_idrss));
@@ -117,9 +117,9 @@ void ssh_random_acquire_light_environmental_noise(SshRandomState state)
     ssh_random_xor_noise(state, 11, (SshUInt32)(ru.ru_inblock + cru.ru_inblock));
     ssh_random_xor_noise(state, 12, (SshUInt32)(ru.ru_oublock + cru.ru_oublock));
     ssh_random_xor_noise(state, 13, (SshUInt32)((ru.ru_msgsnd ^ ru.ru_msgrcv ^ 
-					  ru.ru_nsignals) +
-					 (cru.ru_msgsnd ^ cru.ru_msgrcv ^ 
-					  cru.ru_nsignals)));
+                                          ru.ru_nsignals) +
+                                         (cru.ru_msgsnd ^ cru.ru_msgrcv ^ 
+                                          cru.ru_nsignals)));
     ssh_random_xor_noise(state, 14, (SshUInt32)(ru.ru_nvcsw + cru.ru_nvcsw));
     ssh_random_xor_noise(state, 15, (SshUInt32)(ru.ru_nivcsw + cru.ru_nivcsw));
   }
@@ -152,11 +152,14 @@ void ssh_random_acquire_light_environmental_noise(SshRandomState state)
 DLLEXPORT SshRandomState DLLCALLCONV
 ssh_random_allocate(void)
 {
-  SshRandomState created = ssh_xmalloc(sizeof(*created));
-  
+  size_t ctx_len;
+  SshRandomState created;
+
+  ctx_len = sizeof(*created);
+  created = ssh_xmalloc(ctx_len);
   /* This isn't stricly necessary, but will keep programs like 3rd degree or
      purify silent. */
-  memset(created, 0, sizeof(*created)); 
+  memset(created, 0, ctx_len); 
 
   created->add_position = 0;
   created->next_available_byte = sizeof(created->stir_key);
@@ -171,17 +174,17 @@ ssh_random_allocate(void)
 
 DLLEXPORT void DLLCALLCONV
 ssh_random_add_noise(SshRandomState state, const void *buf,
-		     size_t bytes)
+                     size_t bytes)
 {
   size_t pos = state->add_position;
   const unsigned char *input = buf;
   while (bytes > 0)
     {
       if (pos >= SSH_RANDOM_STATE_BYTES)
-	{
-	  pos = 0;
-	  ssh_random_stir(state);
-	}
+        {
+          pos = 0;
+          ssh_random_stir(state);
+        }
       state->state[pos] ^= *input;
       input++;
       bytes--;

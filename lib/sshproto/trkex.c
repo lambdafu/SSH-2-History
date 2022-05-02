@@ -16,7 +16,7 @@ Key exchange methods.
 */
 
 /*
- * $Id: trkex.c,v 1.22 1998/07/11 12:36:58 tri Exp $
+ * $Id: trkex.c,v 1.23 1998/11/13 18:43:34 tri Exp $
  * $Log: trkex.c,v $
  * $EndLog$
  */
@@ -40,10 +40,10 @@ void ssh_kex_keycheck_callback(Boolean result, void *ctx);
 /* Prepares the client side for key exchange. */
 
 void ssh_tr_client_init_kex(SshTransportCommon tr,
-			    const char *service_name,
-			    const char *server_host_name,
-			    SshKeyCheckCallback key_check,
-			    void *key_check_context)
+                            const char *service_name,
+                            const char *server_host_name,
+                            SshKeyCheckCallback key_check,
+                            void *key_check_context)
 {
   tr->service_name = ssh_xstrdup(service_name);
   tr->server_host_name = ssh_xstrdup(server_host_name);
@@ -54,10 +54,10 @@ void ssh_tr_client_init_kex(SshTransportCommon tr,
 /* Prepares the server side for key exchange. */
 
 void ssh_tr_server_init_kex(SshTransportCommon tr,
-			    SshPrivateKey private_host_key,
-			    SshPrivateKey private_server_key,
-			    const unsigned char *public_host_key_blob,
-			    size_t public_host_key_blob_len)
+                            SshPrivateKey private_host_key,
+                            SshPrivateKey private_server_key,
+                            const unsigned char *public_host_key_blob,
+                            size_t public_host_key_blob_len)
 {
   SshPublicKey public_server_key;
   unsigned char *buf;
@@ -71,24 +71,24 @@ void ssh_tr_server_init_kex(SshTransportCommon tr,
   if (private_server_key)
     {
       if (ssh_private_key_copy(private_server_key, &tr->private_server_key) !=
-	  SSH_CRYPTO_OK)
-	ssh_fatal("ssh_tr_client_init_kex: private server key copy failed");
+          SSH_CRYPTO_OK)
+        ssh_fatal("ssh_tr_client_init_kex: private server key copy failed");
     }
   else
     tr->private_server_key = NULL;
 
   tr->public_host_key_blob = ssh_buffer_allocate();
   ssh_buffer_append(tr->public_host_key_blob, public_host_key_blob,
-		public_host_key_blob_len);
+                public_host_key_blob_len);
 
   /* Derive the public server key and construct a blob from it. */
   if (private_server_key)
     {
       public_server_key =
-	ssh_private_key_derive_public_key(private_server_key);
+        ssh_private_key_derive_public_key(private_server_key);
       len = ssh_encode_pubkeyblob(public_server_key, &buf);
       if (len == 0)
-	ssh_fatal("ssh_tr_client_init_kex: public server key encoding failed");
+        ssh_fatal("ssh_tr_client_init_kex: public server key encoding failed");
       ssh_public_key_free(public_server_key);
       tr->public_server_key_blob = ssh_buffer_allocate();
       ssh_buffer_append(tr->public_server_key_blob, buf, len);
@@ -103,7 +103,7 @@ void ssh_tr_server_init_kex(SshTransportCommon tr,
    returns a SshCryptoStatus. */
 
 SshCryptoStatus ssh_kexdh_make_group(SshTransportCommon tr, 
-				     const char *group_name)
+                                     const char *group_name)
 {
   int i;
 
@@ -126,7 +126,7 @@ SshCryptoStatus ssh_kexdh_make_group(SshTransportCommon tr,
   if (strcmp(group_name, "diffie-hellman-group1") != 0)
     {  
       ssh_debug("ssh_kexdh_make_group: unsupported type %s",
-		group_name);
+                group_name);
       return SSH_CRYPTO_UNKNOWN_GROUP_TYPE;
     }
 
@@ -149,11 +149,11 @@ SshCryptoStatus ssh_kexdh_make_group(SshTransportCommon tr,
     {
       mpz_mul_2exp(tr->dh_secret, tr->dh_secret, 8);
       mpz_add_ui(tr->dh_secret, tr->dh_secret, 
-		 ssh_random_get_byte(tr->random_state));
+                 ssh_random_get_byte(tr->random_state));
     }
   
   mpz_powm(tr->server ? tr->dh_f : tr->dh_e, 
-	   tr->dh_g, tr->dh_secret, tr->dh_p);
+           tr->dh_g, tr->dh_secret, tr->dh_p);
 
   return SSH_CRYPTO_OK;
 }
@@ -182,7 +182,7 @@ Boolean ssh_kexdh_compute_h(SshTransportCommon tr)
   /* compute the shared secret */
 
   mpz_powm(tr->dh_k, tr->server ? tr->dh_e : tr->dh_f, 
-	   tr->dh_secret, tr->dh_p);
+           tr->dh_secret, tr->dh_p);
 
   /* ok, compute the exchange hash */
   
@@ -191,33 +191,33 @@ Boolean ssh_kexdh_compute_h(SshTransportCommon tr)
   if (tr->server)
     {
       ssh_encode_buffer(buf, 
-			SSH_FORMAT_UINT32_STR, 
- 			  tr->remote_version, strlen(tr->remote_version),
-			SSH_FORMAT_UINT32_STR, 
-			  tr->own_version, strlen(tr->own_version),
-			SSH_FORMAT_END);
+                        SSH_FORMAT_UINT32_STR, 
+                          tr->remote_version, strlen(tr->remote_version),
+                        SSH_FORMAT_UINT32_STR, 
+                          tr->own_version, strlen(tr->own_version),
+                        SSH_FORMAT_END);
     }
   else
     {
       ssh_encode_buffer(buf, 
-			SSH_FORMAT_UINT32_STR, 
- 			  tr->own_version, strlen(tr->own_version),
-			SSH_FORMAT_UINT32_STR, 
-			  tr->remote_version, strlen(tr->remote_version),
-			SSH_FORMAT_END);
+                        SSH_FORMAT_UINT32_STR, 
+                          tr->own_version, strlen(tr->own_version),
+                        SSH_FORMAT_UINT32_STR, 
+                          tr->remote_version, strlen(tr->remote_version),
+                        SSH_FORMAT_END);
     }
 
   ssh_encode_buffer(buf,
-		    SSH_FORMAT_UINT32_STR, 
-		      ssh_buffer_ptr(tr->client_kexinit_packet),
-		      ssh_buffer_len(tr->client_kexinit_packet),
-		    SSH_FORMAT_UINT32_STR,
-		      ssh_buffer_ptr(tr->server_kexinit_packet),
-		      ssh_buffer_len(tr->server_kexinit_packet),
-		    SSH_FORMAT_UINT32_STR, 
-		      ssh_buffer_ptr(tr->public_host_key_blob),
-		      ssh_buffer_len(tr->public_host_key_blob),
-		    SSH_FORMAT_END);
+                    SSH_FORMAT_UINT32_STR, 
+                      ssh_buffer_ptr(tr->client_kexinit_packet),
+                      ssh_buffer_len(tr->client_kexinit_packet),
+                    SSH_FORMAT_UINT32_STR,
+                      ssh_buffer_ptr(tr->server_kexinit_packet),
+                      ssh_buffer_len(tr->server_kexinit_packet),
+                    SSH_FORMAT_UINT32_STR, 
+                      ssh_buffer_ptr(tr->public_host_key_blob),
+                      ssh_buffer_len(tr->public_host_key_blob),
+                    SSH_FORMAT_END);
   buffer_put_mp_int_ssh2style(buf, tr->dh_e);
   buffer_put_mp_int_ssh2style(buf, tr->dh_f);
   buffer_put_mp_int_ssh2style(buf, tr->dh_k);
@@ -299,7 +299,7 @@ Boolean ssh_kexdh_server_input_kex1(SshTransportCommon tr, SshBuffer *input)
   if (code != SSH_MSG_KEXDH_INIT)
     {
       ssh_debug("ssh_kexdh_server_input_kex1: expected SSH_MSG_KEXDH_INIT"
-		", got %d", (int) code);
+                ", got %d", (int) code);
       ssh_buffer_free(input);
       return FALSE;
     }
@@ -332,20 +332,20 @@ SshBuffer *ssh_kexdh_server_make_kex2(SshTransportCommon tr)
   /* do the private key operation to sign H */
 
   if (ssh_private_key_sign(tr->private_host_key, 
-			   tr->exchange_hash, tr->exchange_hash_len,
-			   signature, sig_len, &sig_len,
-			   tr->random_state) != SSH_CRYPTO_OK)
+                           tr->exchange_hash, tr->exchange_hash_len,
+                           signature, sig_len, &sig_len,
+                           tr->random_state) != SSH_CRYPTO_OK)
     return NULL;
 
   /* construct the packet */
 
   packet = ssh_buffer_allocate();
   ssh_encode_buffer(packet, 
-		    SSH_FORMAT_CHAR, SSH_MSG_KEXDH_REPLY,
-		    SSH_FORMAT_UINT32_STR, 
-		      ssh_buffer_ptr(tr->public_host_key_blob),
-		      ssh_buffer_len(tr->public_host_key_blob),
-		    SSH_FORMAT_END);
+                    SSH_FORMAT_CHAR, SSH_MSG_KEXDH_REPLY,
+                    SSH_FORMAT_UINT32_STR, 
+                      ssh_buffer_ptr(tr->public_host_key_blob),
+                      ssh_buffer_len(tr->public_host_key_blob),
+                    SSH_FORMAT_END);
   buffer_put_mp_int_ssh2style(packet, tr->dh_f);
   buffer_put_uint32_string(packet, signature, sig_len);
 
@@ -383,17 +383,17 @@ Boolean ssh_kexdh_client_input_kex2(SshTransportCommon tr, SshBuffer *input)
   if ((code = buffer_get_char(input)) != SSH_MSG_KEXDH_REPLY)
     {
       ssh_debug("ssh_kexdh_client_input_kex2: received illegal packet %d",
-		code);
+                code);
       return FALSE;
     }
 
   /* get the public key */
 
   if (ssh_decode_buffer(input, SSH_FORMAT_UINT32_STR, &pubkey, &pubkey_len,
-			SSH_FORMAT_END) == 0)
+                        SSH_FORMAT_END) == 0)
     {
       ssh_debug("ssh_kexdh_client_input_kex2: failed to parse the pubkey "
-		"and certificates.");
+                "and certificates.");
       return FALSE;
     }
 
@@ -408,7 +408,7 @@ Boolean ssh_kexdh_client_input_kex2(SshTransportCommon tr, SshBuffer *input)
   else
     {
       ssh_debug("received pubkey of type %s not in list %s\n",
-		pubkeytype, tr->host_key_names);
+                pubkeytype, tr->host_key_names);
     }
   ssh_xfree(pubkeytype);
 
@@ -424,7 +424,7 @@ Boolean ssh_kexdh_client_input_kex2(SshTransportCommon tr, SshBuffer *input)
   if (tr->key_check)
     {
       (*tr->key_check)(tr->server_host_name, pubkey, pubkey_len,
-		       ssh_kex_keycheck_callback, tr, tr->key_check_context);
+                       ssh_kex_keycheck_callback, tr, tr->key_check_context);
   
       /* XXX THIS IS A TEMPORARY KLUDGE.  We currently rely on the
        *     completion callback being called before key_check returns.
@@ -432,14 +432,14 @@ Boolean ssh_kexdh_client_input_kex2(SshTransportCommon tr, SshBuffer *input)
        *     here so that all the remaining work is done in the
        *     callback. */
       if (tr->key_check_returned == FALSE)
-	ssh_fatal("ssh_kexdh_client_input_kex2: the callback was not called.");
+        ssh_fatal("ssh_kexdh_client_input_kex2: the callback was not called.");
       
       if (tr->key_check_result == FALSE)
-	{
-	  if (pubkey != NULL)
-	    ssh_xfree(pubkey);
-	  return FALSE;
-	}
+        {
+          if (pubkey != NULL)
+            ssh_xfree(pubkey);
+          return FALSE;
+        }
     }
 
   tr->public_host_key_blob = ssh_buffer_allocate();
@@ -455,9 +455,9 @@ Boolean ssh_kexdh_client_input_kex2(SshTransportCommon tr, SshBuffer *input)
     return FALSE;
 
   if (ssh_public_key_verify_signature(tr->public_host_key,
-				      signature, sig_len,
-				      tr->exchange_hash, 
-				      tr->exchange_hash_len) == FALSE)
+                                      signature, sig_len,
+                                      tr->exchange_hash, 
+                                      tr->exchange_hash_len) == FALSE)
     {
       ssh_xfree(signature);
       return FALSE;
@@ -475,27 +475,37 @@ Boolean ssh_kexdh_client_input_kex2(SshTransportCommon tr, SshBuffer *input)
 /* derive one key */
 
 void ssh_kex_derive_key(SshTransportCommon tr,
-			unsigned char id,
-			unsigned char *key_ptr, size_t key_len)
+                        unsigned char id,
+                        unsigned char *key_ptr, size_t key_len)
 {
   unsigned char buf[SSH_MAX_HASH_DIGEST_LENGTH];
   size_t len, hash_len, i;
+  SshBuffer buffer;
 
   hash_len = ssh_hash_digest_length(tr->hash);
 
   /* Compute the first part of the key. */
 
   ssh_hash_reset(tr->hash);
+  if (! tr->ssh_old_keygen_bug_compat)
+    {
+      ssh_buffer_init(&buffer);
+      buffer_put_mp_int_ssh2style(&buffer, tr->dh_k);
+      ssh_hash_update(tr->hash, 
+                      ssh_buffer_ptr(&buffer),
+                      ssh_buffer_len(&buffer));
+    }
   ssh_hash_update(tr->hash, tr->exchange_hash, tr->exchange_hash_len);
   ssh_hash_update(tr->hash, &id, 1);
-  ssh_hash_update(tr->hash, tr->session_identifier, 
-		  tr->session_identifier_len);
+  ssh_hash_update(tr->hash, 
+                  tr->session_identifier, 
+                  tr->session_identifier_len);
   ssh_hash_final(tr->hash, buf);
 
   /* Expand the key. Note that this will not increase entropy in 
      any real sense. */
 
-  for (i = 0; i < key_len;)
+  for (i = 0; i < key_len; /*NOTHING*/)
     {
       len = key_len - i;
       len = len > hash_len ? hash_len : len;
@@ -503,14 +513,25 @@ void ssh_kex_derive_key(SshTransportCommon tr,
       i += len;
 
       if (i < key_len)
-	{
-	  ssh_hash_reset(tr->hash);
-	  ssh_hash_update(tr->hash, tr->exchange_hash, tr->exchange_hash_len);
-	  ssh_hash_update(tr->hash, key_ptr, i);
-	  ssh_hash_final(tr->hash, buf);
-	}
+        {
+          ssh_hash_reset(tr->hash);
+          if (! tr->ssh_old_keygen_bug_compat)
+            {
+              ssh_hash_update(tr->hash, 
+                              ssh_buffer_ptr(&buffer),
+                              ssh_buffer_len(&buffer));
+            }
+          ssh_hash_update(tr->hash, tr->exchange_hash, tr->exchange_hash_len);
+          ssh_hash_update(tr->hash, key_ptr, i);
+          ssh_hash_final(tr->hash, buf);
+        }
     }
 
+  if (! tr->ssh_old_keygen_bug_compat)
+    {
+      memset(ssh_buffer_ptr(&buffer), 0, ssh_buffer_len(&buffer));
+      ssh_buffer_uninit(&buffer);
+    }
   memset(buf, 0, sizeof(buf));
 }
 
@@ -521,13 +542,13 @@ Boolean ssh_kex_derive_keys(SshTransportCommon tr)
   ssh_kex_derive_key(tr, 'A', tr->c_to_s.iv, sizeof(tr->c_to_s.iv));
   ssh_kex_derive_key(tr, 'B', tr->s_to_c.iv, sizeof(tr->s_to_c.iv));
   ssh_kex_derive_key(tr, 'C', tr->c_to_s.encryption_key, 
-		     sizeof(tr->c_to_s.encryption_key));
+                     sizeof(tr->c_to_s.encryption_key));
   ssh_kex_derive_key(tr, 'D', tr->s_to_c.encryption_key, 
-		     sizeof(tr->s_to_c.encryption_key));
+                     sizeof(tr->s_to_c.encryption_key));
   ssh_kex_derive_key(tr, 'E', tr->c_to_s.integrity_key, 
-		     sizeof(tr->c_to_s.integrity_key));
+                     sizeof(tr->c_to_s.integrity_key));
   ssh_kex_derive_key(tr, 'F', tr->s_to_c.integrity_key, 
-		     sizeof(tr->s_to_c.integrity_key));
+                     sizeof(tr->s_to_c.integrity_key));
 
   return TRUE;
 }
@@ -576,9 +597,9 @@ char *ssh_kex_get_supported()
   for (i = 0; ssh_kex_algorithms[i].name != NULL; i++)
     {
       if (ssh_buffer_len(&buffer) > 0)
-	ssh_buffer_append(&buffer, (unsigned char *) ",", 1);
+        ssh_buffer_append(&buffer, (unsigned char *) ",", 1);
       ssh_buffer_append(&buffer, (unsigned char *) ssh_kex_algorithms[i].name,
-		    strlen(ssh_kex_algorithms[i].name));
+                    strlen(ssh_kex_algorithms[i].name));
     }
   ssh_buffer_append(&buffer, (unsigned char *) "\0", 1);
   cp = ssh_xstrdup(ssh_buffer_ptr(&buffer));
@@ -608,12 +629,12 @@ SshHash ssh_kex_allocate_hash(const char *name)
   for (i = 0; ssh_kex_algorithms[i].name != NULL; i++)
     {
       if (strcmp(ssh_kex_algorithms[i].name, name) == 0)
-	{  
-	  if (ssh_hash_allocate(ssh_kex_algorithms[i].hash_name, &hash)
-	      != SSH_CRYPTO_OK)
-	    return NULL;
-	  return hash;
-	}
+        {  
+          if (ssh_hash_allocate(ssh_kex_algorithms[i].hash_name, &hash)
+              != SSH_CRYPTO_OK)
+            return NULL;
+          return hash;
+        }
     }  
   return NULL;  
 }

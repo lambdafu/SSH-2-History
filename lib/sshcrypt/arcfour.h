@@ -10,7 +10,7 @@ Author: Tatu Ylonen <ylo@ssh.fi>
 */
 
 /*
- * $Id: arcfour.h,v 1.7 1998/08/06 12:11:29 tmo Exp $
+ * $Id: arcfour.h,v 1.8 1998/11/04 12:04:19 ylo Exp $
  * $Log: arcfour.h,v $
  * $EndLog$
  */
@@ -23,14 +23,15 @@ size_t arcfour_ctxsize(void);
 
 /* Sets arcfour key for encryption. */
 void arcfour_init(void *context,
-		  const unsigned char *key, size_t keylen,
-		  Boolean for_encryption);
+                  const unsigned char *key, size_t keylen,
+                  Boolean for_encryption);
 
 /* Destroys any sensitive data in the context. */
 void arcfour_free(void *context);
 
 /* Encrypt/decrypt data. */
 void arcfour_transform(void *context, unsigned char *dest,
-		       const unsigned char *src, size_t len);
+                       const unsigned char *src, size_t len,
+                       unsigned char *iv);
 
 #endif /* ARCFOUR_H */

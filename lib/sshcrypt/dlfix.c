@@ -14,7 +14,7 @@
   */
 
 /*
- * $Id: dlfix.c,v 1.5 1998/07/19 13:22:39 mkojo Exp $
+ * $Id: dlfix.c,v 1.6 1998/10/20 15:40:31 mkojo Exp $
  * $Log: dlfix.c,v $
  * $EndLog$
  */
@@ -49,6 +49,28 @@ typedef struct
 
 const SshDLFixedParams ssh_dlp_fixed_params[] =
 {
+  {
+    /* 1024 bits with 160 bit order. */
+    "ssh-dl-modp-group-dsa-1024bit-1",
+
+     /* p */
+    "18870663758990450276373834564151209634609185541696849681710763012"
+    "47168050869633674293178701749077483982698046837347550634094699186"
+    "01446907583820305901431915822615633146396545907952461810328182170"
+    "35078613084684987462347222332164074368740586436373161810202065699"
+    "4755732156870258013519880675646961814649650297159",
+
+    /* q */
+    "994432737688160994497917820104112624205251325913",
+
+    /* g */
+    "13752365807134022918504845143590215341528782407193227118193168220"
+    "74331779978192018552914874329836913766220048777129900873815708450"
+    "16796174527842910698477887372037694495736629521026242476079522482"
+    "50227332682970988562298735692890934535992768521461586958206432475"
+    "6777888883265989982517946734947352536810316486901"
+  },
+  
   {
     /* 1024 bits DSA style. */
     "ssh-dl-modp-group-1024bit-1",
@@ -141,10 +163,10 @@ char *ssh_dlp_param_get_predefined_groups(void)
   for (i = 0; ssh_dlp_fixed_params[i].name; i++)
     {
       if (ssh_buffer_len(&buffer) > 0)
-	ssh_buffer_append(&buffer, (unsigned char *) ",", 1);
+        ssh_buffer_append(&buffer, (unsigned char *) ",", 1);
       ssh_buffer_append(&buffer,
-			(unsigned char *) ssh_dlp_fixed_params[i].name,
-			strlen(ssh_dlp_fixed_params[i].name));
+                        (unsigned char *) ssh_dlp_fixed_params[i].name,
+                        strlen(ssh_dlp_fixed_params[i].name));
     }
   ssh_buffer_append(&buffer, (unsigned char *) "\0", 1);
   list = ssh_xstrdup(ssh_buffer_ptr(&buffer));
@@ -153,7 +175,7 @@ char *ssh_dlp_param_get_predefined_groups(void)
 }
 
 Boolean ssh_dlp_set_param(const char *name, const char **outname,
-			  MP_INT *p, MP_INT *q, MP_INT *g)
+                          MP_INT *p, MP_INT *q, MP_INT *g)
 {
   int i;
 
@@ -163,7 +185,7 @@ Boolean ssh_dlp_set_param(const char *name, const char **outname,
   for (i = 0; ssh_dlp_fixed_params[i].name; i++)
     {
       if (strcmp(ssh_dlp_fixed_params[i].name, name) == 0)
-	break;
+        break;
     }
   if (ssh_dlp_fixed_params[i].name == NULL)
     return FALSE;

@@ -3,7 +3,7 @@
 sshencode.h
 
 Author: Tero Kivinen <kivinen@ssh.fi>
-	Tatu Ylonen <ylo@ssh.fi>
+        Tatu Ylonen <ylo@ssh.fi>
 
 Copyright (c) 1997 SSH Communications Security, Finland
                    All rights reserved
@@ -37,7 +37,7 @@ typedef void (*SshEncoder)(SshBuffer *buffer, va_list *app);
    should be checked, and any memory allocated by the original call should
    be freed.  Other arguments are return value are ignored in this case. */
 typedef size_t (*SshDecoder)(const unsigned char *buf, size_t len,
-			     va_list *app);
+                             va_list *app);
 
 /* The packet encoding/decoding functions take a variable number of arguments,
    and decode data from a SshBuffer or a character array as specified by a
@@ -48,16 +48,16 @@ typedef size_t (*SshDecoder)(const unsigned char *buf, size_t len,
 typedef enum {
   /* Specifies a string with vlint32-coded length.  This has two arguments.
      For encoding,
-	 const unsigned char *data
+         const unsigned char *data
          size_t len
      For decoding,
-	 unsigned char **data_return
+         unsigned char **data_return
          size_t *len_return
      When decoding, either or both arguments may be NULL, in which case they
-     are not stored.  The returned data is allocated by ssh_xmalloc, and an extra
-     nul (\0) character is automatically added at the end to make it easier
-     to retrieve strings. */
-  SSH_FORMAT_VLINT32_STR,	/* char *, size_t */
+     are not stored.  The returned data is allocated by ssh_xmalloc, and an
+     extra nul (\0) character is automatically added at the end to make it
+     easier to retrieve strings. */
+  SSH_FORMAT_VLINT32_STR,       /* char *, size_t */
 
   /* This code can only be used while decoding.  This specifies string with
      vlint32-coded length.  This has two arguments:
@@ -73,7 +73,7 @@ typedef enum {
 
   /* A string with uint32-coded length.  Otherwise identical to
      SSH_FORMAT_VLINT32_STR. */
-  SSH_FORMAT_UINT32_STR,	/* char *, size_t */
+  SSH_FORMAT_UINT32_STR,        /* char *, size_t */
 
   /* A string with uint32-coded lenght.  Otherwise identical to
      SSH_FORMAT_UINT32_STR. */
@@ -83,39 +83,39 @@ typedef enum {
      "unsigned long" argument (the value), and for decoding an
      "unsigned long *" argument, where the value will be stored.  The argument
      may be NULL in which case the value is not stored. */
-  SSH_FORMAT_VLINT32,		/* unsigned long */
+  SSH_FORMAT_VLINT32,           /* unsigned long */
 
-  /* An uint32-coded integer value.  Otherwise like SSH_FORMAT_VLINT32. */
-  SSH_FORMAT_UINT32,		/* unsigned long */
+  /* An 32-bit MSB first integer value.  Otherwise like SSH_FORMAT_VLINT32. */
+  SSH_FORMAT_UINT32,            /* unsigned long */
 
   /* A boolean value.  For encoding, this has a single "Boolean" argument.
      For decoding, this has a "Boolean *" argument, where the value will
      be stored.  The argument may be NULL in which case the value is not
      stored. */
-  SSH_FORMAT_BOOLEAN,		/* Boolean */
+  SSH_FORMAT_BOOLEAN,           /* Boolean */
 
   /* A multiple-precision integer value.  The argument is of type "MP_INT *".
      When decoding, the MP_INT must already have been initialized.  The
      value may also be NULL when decoding, in which case the value is not
      stored.  The format is 32-bit MSB first number of bits, followed by
      (bits+7)/8 bytes of data, MSB first (unsigned only). */
-  SSH_FORMAT_MP_INT,		/* MP_INT * (both decode / encode) */
+  SSH_FORMAT_MP_INT,            /* MP_INT * (both decode / encode) */
 
   /* A single one-byte character.  The argument is of type "unsigned int"
      when encoding, and of type "unsigned int *" when decoding.  The value
      may also be NULL when decoding, in which case the value is ignored. */
-  SSH_FORMAT_CHAR,		/* unsigned int */
+  SSH_FORMAT_CHAR,              /* unsigned int */
 
   /* A fixed-length character array, without explicit length.  When
      encoding, the arguments are
-	 const unsigned char *buf
+         const unsigned char *buf
          size_t len
      and when decoding,
-	 unsigned char *buf
+         unsigned char *buf
          size_t len
      The buffer must be preallocated when decoding; data is simply copied
      there.  `buf' may also be NULL, in which the value is ignored. */
-  SSH_FORMAT_DATA,		/* char * (fixed length!), size_t */
+  SSH_FORMAT_DATA,              /* char * (fixed length!), size_t */
 
   /* Extended, application-defined format.  The first argument is
      a function to do the encoding or decoding.  It is followed by a 
@@ -124,9 +124,15 @@ typedef enum {
      ssh_decode_register_format.  For encoding, the first argument must be
      of type SshEncoder, and for decoding it must be of type SshDecoder. */
   SSH_FORMAT_EXTENDED,
+
+  /* A 64-bit MSB first integer value.  For encoding, this has a single
+     "SshUInt64" argument (the value), and for decoding an
+     "SshUInt64 *" argument, where the value will be stored.  The argument
+     may be NULL in which case the value is not stored. */
+  SSH_FORMAT_UINT64,
   
   /* Marks end of the argument list. */
-  SSH_FORMAT_END
+  SSH_FORMAT_END = 0x0d0e0a0d
 } SshEncodingFormat;
 
 /* Appends data at the end of the buffer as specified by the variable-length

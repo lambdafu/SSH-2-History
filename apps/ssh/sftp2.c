@@ -28,6 +28,8 @@
 #include "sshstreampair.h"
 #include "sshunixpipestream.h"
 
+#define SSH_DEBUG_MODULE "SshSftp"
+
 /* saved program name */
 const char *av0;
 
@@ -352,6 +354,22 @@ Boolean sftp_file_stat(Sftp sftp, SshFileClient client, const char *name)
 {
   sftp->called = FALSE;
   ssh_file_client_stat(client, name, sftp_file_attribute_callback, sftp);  
+  if (!sftp->called)
+    {
+      ssh_register_timeout(sftp->timeout, 0, sftp_timeout_callback, sftp);    
+      ssh_event_loop_run();
+      ssh_cancel_timeouts(sftp_timeout_callback, sftp);
+    }
+      
+  return sftp_error(sftp); 
+}
+
+/* lstat a file */
+
+Boolean sftp_file_lstat(Sftp sftp, SshFileClient client, const char *name)
+{
+  sftp->called = FALSE;
+  ssh_file_client_lstat(client, name, sftp_file_attribute_callback, sftp);  
   if (!sftp->called)
     {
       ssh_register_timeout(sftp->timeout, 0, sftp_timeout_callback, sftp);    

@@ -323,6 +323,12 @@ ssh_cipher_allocate_and_test_weak_keys(const char *type,
 
 DLLEXPORT void DLLCALLCONV ssh_cipher_free(SshCipher cipher);
 
+/* Returns the native algorithm name of the allocated cipher.
+   Returned string has to be freed with ssh_xfree. */
+
+DLLEXPORT char * DLLCALLCONV
+ssh_cipher_get_name(SshCipher cipher);
+
 /* Query for the key length needed for a cipher. This returns the
    number of bytes that a key of the given cipher consists of. If the
    cipher can utilize variable length keys (i.e., all lengths go), the
@@ -373,6 +379,21 @@ ssh_cipher_transform(SshCipher cipher,
                      unsigned char *dest,
                      const unsigned char *src,
                      size_t len);
+
+/* This performs a combined ssh_cipher_set_iv, ssh_cipher_transform,
+   and ssh_cipher_get_iv sequence (except that the iv stored in the
+   cipher context is not actually changed by this sequence).  This
+   function can be safely called from multiple threads concurrently
+   (i.e., the iv is only stored on the stack).  This function can only
+   be used for block ciphers. */
+
+DLLEXPORT SshCryptoStatus DLLCALLCONV
+ssh_cipher_transform_with_iv(SshCipher cipher,
+                             unsigned char *dest,
+                             const unsigned char *src,
+                             size_t len,
+                             unsigned char *iv);
+
 #endif /* SSHDIST_CRYPT_GENCIPH */
 
 #ifdef SSHDIST_CRYPT_GENMAC

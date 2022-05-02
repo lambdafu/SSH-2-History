@@ -1,34 +1,93 @@
+1998-11-16  Sami Lehtinen  <sjl@ssh.fi>
+
+	* Previous: Fixed a draft inconsistency in the client's version
+ 	  string handling. Should reduce those "Protocol error"'s.
+
+	* Hopefully fixed the busyloop-timeout problem in scp2. Now it the
+	  background ssh2 process before exiting itself.
+
+1998-11-12  Timo J. Rinne  <tri@ssh.fi>
+
+	* Added twofish encryption.
+
+1998-11-12  Sami Lehtinen  <sjl@ssh.fi>
+
+	* Previous: the #include bug in sshreadline.c, which manifested
+	  itself in solaris 2.[456].x, should now be fixed. (atleast in our
+	  server compiles ok).
+
+	* Added --disable-asm flag to configure. If asm-optimizations
+	  don't work, use this.
+
+	* Added code to configure to properly add libipc for
+	  bsdi2.1. In AIX 4.* utmpx is now disabled (utmpx.h is reportedly
+	  broken). With HPUX _HPUX_SOURCE is now properly defined.
+
+	* Changed handling of setsid-errors in ssh2 and sshd2. Previously
+	  if setsid() call failed, ssh{2,d2} called ssh_fatal. Now, it gives
+	  warning in ssh2 and logs the event in sshd2. This is the same
+	  behavior as in ssh1.
+
+	* Implemented '-r'-flag (copy directories recursively) in
+	  scp2. Also cleaned up code in scp2.
+
+1998-11-05  Sami Lehtinen  <sjl@ssh.fi>
+
+	* Added '-1' flag, which enables scp1 compatibility. Use it as the
+ 	  first argument to scp2. Implemented wildcard-expansion
+ 	  (globbing). Currently supported wildcards are '?' and '*'.
+
+1998-10-29  Sami Lehtinen  <sjl@ssh.fi>
+
+	* Made progress-indicator default in scp2. Added some code to
+	  display transfer-times and transfer-speed.
+
+1998-10-29  Timo J. Rinne  <tri@ssh.fi>
+
+	* Ssh-agent2 now more or less fully supports also requests
+	  sent by ssh1 and ssh-add1. To enable ssh1 compatibility
+	  in ssh-agent2 you have to start it with option -1.
+	  CAUTION: ssh-agent2 works properly only with versions
+	  ssh-2.0.11 and above, if run with -1 option.  Without
+	  -1 option it's compatible with earlier ssh-2.0.* versions
+	  too.
+
+1998-10-21  Timo J. Rinne  <tri@ssh.fi>
+
+	* Moved utmp update to the child.  It now seems to work
+	  at least in BSD.
+
 1998-10-19  Sami Lehtinen  <sjl@ssh.fi>
 
 	* Added correct parsing for specifying 'user@host' on the
-	commandline. (`ssh2 user@host' equals `ssh2 -luser host')
+	  commandline. (`ssh2 user@host' equals `ssh2 -luser host')
 
 	* Fixed --with-etcdir and --with-libwrap options in configure and
-	apps/ssh/Makefile.am.
+	  apps/ssh/Makefile.am.
 
 	* Fixed calculating MAC, as it was done against the draft. Added
-	compatibility code, so that we can work with older
-	ssh-2.0.x-versions (2.0.{7,8,9}) still.
+	  compatibility code, so that we can work with older
+	  ssh-2.0.x-versions (2.0.[789]) still.
 
 	* Implemented PasswordAuthentication and PubkeyAuthentication
-	keywords in the server. Still need to be done in the client.
+	  keywords in the server. Still need to be done in the client.
 	
 1998-10-07  Sami Lehtinen  <sjl@ssh.fi>
 
 	* Added code to configure, so that it detects whether compiled
-	symbols are prepended with underscore or not. With changes to the
-	assembler files, this should fix the problems with commercial
-	versions assembler-optimized crypto functions.
+	  symbols are prepended with underscore or not. With changes to the
+	  assembler files, this should fix the problems with commercial
+	  versions assembler-optimized crypto functions.
 
 	* Fixed a _lot_ of buggy code in sftp2. Shouldn't seg fault
- 	anymore.
+ 	  anymore.
 
-1998-10-06  Timo Rinne  <tri@ssh.fi>
+1998-10-06  Timo J. Rinne  <tri@ssh.fi>
 
-	*  Fixed -t flag in ssh2 client to have an desired 
-	   effect (force pty allocation).
+	* Fixed -t flag in ssh2 client to have an desired 
+	  effect (force pty allocation).
 
-1998-10-02  Timo Rinne  <tri@ssh.fi>
+1998-10-02  Timo J. Rinne  <tri@ssh.fi>
 
 	* Added O_TRUNC into scp.  Existing target files are now
 	  also truncated.
@@ -45,52 +104,52 @@
 1998-09-17  Sami Lehtinen  <sjl@ssh.fi>
 
 	* Added support for environment variable DESTDIR in
- 	apps/ssh/Makefile.
+ 	  apps/ssh/Makefile.
 
 	* Added --with-etcdir configuration option.
 
 	* Added libwrap-support. (still partially untested)
 
 	* Fixed a bug in sshd2, which caused sshd2  to go to busy-loop if
-	ssh2-client was killed with, for example, kill -9 .
+	  ssh2-client was killed with, for example, kill -9 .
 
 	* Fixed bug in sshmp.c, which caused FPE in ssh-keygen2, when it
-	was compiled on Alpha with gcc.
+	  was compiled on Alpha with gcc.
 
 	* Fixed little bugs here and there.
 	
 1998-09-07  Sami Lehtinen  <sjl@ssh.fi>
 
 	* Added clean-up-old -target to apps/ssh/Makefile.am to allow easy
-	removal of the *.old-files made by the installation.
+	  removal of the *.old-files made by the installation.
 
 	* Fixed a bug in initilization of variables in ssh2 (and other
-	programs, which were run with user-privileges) which caused
-	annoying messages with shadow passwords etc.
+	  programs, which were run with user-privileges) which caused
+	  annoying messages with shadow passwords etc.
 
 	* Fixed a bug in 'make install'.
 
 1998-08-27  Sami Lehtinen  <sjl@ssh.fi>
 
 	* Changed 'make install' so that it now renames the old files to
-	have '.old'-trailer.
+	  have '.old'-trailer.
 
 1998-08-26  Sami Lehtinen  <sjl@ssh.fi>
 
 	* Earlier addition: Fixed ssh2-client to not kill all forwarded
-	connections on session_close, but instead fork to background to
-	wait for their completion.
+	  connections on session_close, but instead fork to background to
+	  wait for their completion.
 
 	* Fixed problems with compilation.
 	
-1998-08-06  Timo Rinne  <tri@ssh.fi>
+1998-08-06  Timo J. Rinne  <tri@ssh.fi>
 
 	* Made ssh forward also ssh1 agent connections.
 
 1998-08-05  Sami Lehtinen  <sjl@ssh.fi>
 
 	* Changed ssh-add2 to fetch first key named 'id_*' when executed
-	without aurguments.
+	  without arguments.
 	
 	* Changed ssh-add2 to use ssh-askpass2 instead of ssh2-askpass.
 	

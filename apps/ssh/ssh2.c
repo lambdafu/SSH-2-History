@@ -16,8 +16,8 @@
 #include "ssh2includes.h"
 #include "sshclient.h"
 #include "sshunixptystream.h"
-#include "tty.h"
-#include "signals.h"
+#include "sshtty.h"
+#include "sshsignals.h"
 #include "sshtimeouts.h"
 #include "sshfilterstream.h"
 #include "sshtcp.h"
@@ -31,6 +31,7 @@
 #include "sshunixeloop.h"
 #include "sshstdiofilter.h"
 #include "sshgetopt.h"
+#include "sshmiscstring.h"
 
 #define SSH_DEBUG_MODULE "Ssh2"
 
@@ -59,44 +60,83 @@ void client_disconnect(int reason, const char *msg, void *context)
   switch(reason)
     {
     case SSH_DISCONNECT_CONNECTION_LOST:
-      ssh_warning("\r\nDisconnected; connection lost.");
+      ssh_warning("\r\nDisconnected; connection lost%s%s%s.",
+                  ((msg && msg[0]) ? " (" : ""),
+                  ((msg && msg[0]) ? msg  : ""),
+                  ((msg && msg[0]) ? ")"  : ""));
       break;
     case SSH_DISCONNECT_BY_APPLICATION:
-      ssh_warning("\r\nDisconnected by application.");
+      ssh_warning("\r\nDisconnected by application%s%s%s.",
+                  ((msg && msg[0]) ? " (" : ""),
+                  ((msg && msg[0]) ? msg  : ""),
+                  ((msg && msg[0]) ? ")"  : ""));
       break;
     case SSH_DISCONNECT_PROTOCOL_ERROR:
-      ssh_warning("\r\nDisconnected; protocol error.");
+      ssh_warning("\r\nDisconnected; protocol error%s%s%s.",
+                  ((msg && msg[0]) ? " (" : ""),
+                  ((msg && msg[0]) ? msg  : ""),
+                  ((msg && msg[0]) ? ")"  : ""));
       break;
     case SSH_DISCONNECT_SERVICE_NOT_AVAILABLE:
-      ssh_warning("\r\nDisconnected; service not available.");
+      ssh_warning("\r\nDisconnected; service not available%s%s%s.",
+                  ((msg && msg[0]) ? " (" : ""),
+                  ((msg && msg[0]) ? msg  : ""),
+                  ((msg && msg[0]) ? ")"  : ""));
       break;
     case SSH_DISCONNECT_MAC_ERROR:
-      ssh_warning("\r\nDisconnected; MAC error.");
+      ssh_warning("\r\nDisconnected; MAC error%s%s%s.",
+                  ((msg && msg[0]) ? " (" : ""),
+                  ((msg && msg[0]) ? msg  : ""),
+                  ((msg && msg[0]) ? ")"  : ""));
       break;
     case SSH_DISCONNECT_COMPRESSION_ERROR:
-      ssh_warning("\r\nDisconnected; compression error.");
+      ssh_warning("\r\nDisconnected; compression error%s%s%s%s%s%s.",
+                  ((msg && msg[0]) ? " (" : ""),
+                  ((msg && msg[0]) ? msg  : ""),
+                  ((msg && msg[0]) ? ")"  : ""));
       break;
     case SSH_DISCONNECT_HOST_NOT_ALLOWED_TO_CONNECT:
-      ssh_warning("\r\nDisconnected; host not allowed to connect.");
+      ssh_warning("\r\nDisconnected; host not allowed to connect%s%s%s.",
+                  ((msg && msg[0]) ? " (" : ""),
+                  ((msg && msg[0]) ? msg  : ""),
+                  ((msg && msg[0]) ? ")"  : ""));
       break;
     case SSH_DISCONNECT_HOST_AUTHENTICATION_FAILED:
-      ssh_warning("\r\nDisconnected; host authentication failed.");
+      ssh_warning("\r\nDisconnected; host authentication failed%s%s%s.",
+                  ((msg && msg[0]) ? " (" : ""),
+                  ((msg && msg[0]) ? msg  : ""),
+                  ((msg && msg[0]) ? ")"  : ""));
       break;
     case SSH_DISCONNECT_PROTOCOL_VERSION_NOT_SUPPORTED:
-      ssh_warning("\r\nDisconnected; protocol version not supported.");
+      ssh_warning("\r\nDisconnected; protocol version not supported%s%s%s.",
+                  ((msg && msg[0]) ? " (" : ""),
+                  ((msg && msg[0]) ? msg  : ""),
+                  ((msg && msg[0]) ? ")"  : ""));
       break;
     case SSH_DISCONNECT_HOST_KEY_NOT_VERIFIABLE:
-      ssh_warning("\r\nDisconnected; host key not verifiable.");
+      ssh_warning("\r\nDisconnected; host key not verifiable%s%s%s.",
+                  ((msg && msg[0]) ? " (" : ""),
+                  ((msg && msg[0]) ? msg  : ""),
+                  ((msg && msg[0]) ? ")"  : ""));
       break;
     case SSH_DISCONNECT_AUTHENTICATION_ERROR:
-      ssh_warning("\r\nDisconnected; authentication error.");
+      ssh_warning("\r\nDisconnected; authentication error%s%s%s.",
+                  ((msg && msg[0]) ? " (" : ""),
+                  ((msg && msg[0]) ? msg  : ""),
+                  ((msg && msg[0]) ? ")"  : ""));
       break;
     case SSH_DISCONNECT_KEY_EXCHANGE_FAILED:
-      ssh_warning("\r\nDisconnected; key exchange or algorith negotiation failed.");
+      ssh_warning("\r\nDisconnected; key exchange or algorith negotiation failed%s%s%s.",
+                  ((msg && msg[0]) ? " (" : ""),
+                  ((msg && msg[0]) ? msg  : ""),
+                  ((msg && msg[0]) ? ")"  : ""));
       break;
     default:
-      ssh_warning("\r\nDisconnected; unknown disconnect code %d (message: %s).",
-                  reason, msg);
+      ssh_warning("\r\nDisconnected; unknown disconnect code %d%s%s%s.",
+                  reason,
+                  ((msg && msg[0]) ? " (" : ""),
+                  ((msg && msg[0]) ? msg  : ""),
+                  ((msg && msg[0]) ? ")"  : ""));
       break;      
     }
   
@@ -210,7 +250,7 @@ void session_close(void *context)
       setpgrp(0, 0);
 #else /* ultrix */
       if (setsid() < 0)
-        ssh_fatal("setsid: %.100s", strerror(errno));
+        ssh_warning("setsid: %.100s", strerror(errno));
 #endif /* ultrix */
 #endif /* HAVE_SETSID */
 #endif /* HAVE_DAEMON*/
@@ -272,7 +312,7 @@ void client_authenticated(const char *user, void *context)
       setpgrp(0, 0);
 #else /* ultrix */
       if (setsid() < 0)
-        ssh_fatal("setsid: %.100s", strerror(errno));
+        ssh_warning("setsid: %.100s", strerror(errno));
 #endif /* ultrix */
 #endif /* HAVE_SETSID */
 #endif /* HAVE_DAEMON*/
@@ -352,7 +392,8 @@ void connect_done(SshIpError error, SshStream stream, void *context)
   SshClientData data = (SshClientData)context;
 
   if (error != SSH_IP_OK)
-    ssh_fatal(ssh_tcp_error_string(error));
+    ssh_fatal("Connecting to %s failed: %s",
+              data->config->host_to_connect, ssh_tcp_error_string(error));
   
   /* Save the file descriptor for ssh1 compatibility code. */
   data->config->ssh1_fd = ssh_stream_fd_get_readfd(stream);
@@ -371,56 +412,14 @@ void connect_done(SshIpError error, SshStream stream, void *context)
   data->client->common->no_session_channel = data->no_session_channel;
 }
 
-static char *str_concat_3(char *s1, char *s2, char *s3)
-{
-  int l1, l2, l3;
-  char *r;
-
-  l1 = s1 ? strlen(s1) : 0;
-  l2 = s1 ? strlen(s2) : 0;
-  l3 = s3 ? strlen(s3) : 0;
-  r = ssh_xmalloc(l1 + l2 + l3 + 1);
-
-  if (l1 > 0)
-    strcpy(r, s1);
-  else
-    *r = '\000';
-  if (l2 > 0)
-    strcpy(&(r[l1]), s2);
-  if (l3 > 0)
-    strcpy(&(r[l1 + l2]), s3);
-
-  return r;
-}
-
-static char *replace_in_string(char *str, char *src, char *dst)
-{
-  char *hlp1, *hlp2;
-
-  str = ssh_xstrdup(str);
-
-  if ((dst == NULL) || ((*dst) == '\000') || 
-      (src == NULL) || ((*src) == '\000') ||
-      ((hlp1 = strstr(str, src)) == NULL))
-    return str;
-    
-  *hlp1 = '\000';
-  hlp2 = str_concat_3(str, dst, &(hlp1[strlen(src)]));
-  ssh_xfree(str);
-  hlp1 = replace_in_string(hlp2, src, dst);
-  ssh_xfree(hlp2);
-
-  return hlp1;
-}
-
 static void finalize_password_prompt(char **prompt, char *host, char *user)
 {
   char *tmp;
 
-  tmp = replace_in_string(*prompt, "%H", (host != NULL) ? host : "");
+  tmp = ssh_replace_in_string(*prompt, "%H", host);
   ssh_xfree(*prompt);
   *prompt = tmp;
-  tmp = replace_in_string(*prompt, "%U", (user != NULL) ? user : "");
+  tmp = ssh_replace_in_string(*prompt, "%U", user);
   ssh_xfree(*prompt);
   *prompt = tmp;
 }
@@ -428,13 +427,13 @@ static void finalize_password_prompt(char **prompt, char *host, char *user)
 void ssh2_version(const char *name)
 {
   fprintf(stderr, "%s: ", name);
-#ifdef SSHDIST_SSH_INTERNAL_RELEASE
+#ifdef SSHDIST_SSH2_INTERNAL_RELEASE
 
-#else /* SSHDIST_SSH_INTERNAL_RELEASE */
-#ifdef SSHDIST_F_SECURE_COMMERCIAL
+#else /* SSHDIST_SSH2_INTERNAL_RELEASE */
+#ifdef SSHDIST_SSH2_F_SECURE_COMMERCIAL
 
-#endif /* SSHDIST_F_SECURE_COMMERCIAL */
-#endif /* SSHDIST_SSH_INTERNAL_RELEASE */
+#endif /* SSHDIST_SSH2_F_SECURE_COMMERCIAL */
+#endif /* SSHDIST_SSH2_INTERNAL_RELEASE */
   fprintf(stderr, "SSH Version %s\n", SSH2_VERSION);
 }
 
@@ -572,7 +571,7 @@ int main(int argc, char **argv)
     }
   
   /* Prevent core dumps from revealing sensitive information. */
-  signals_prevent_core(data);
+  ssh_signals_prevent_core(TRUE, data);
   ssh_register_signal(SIGPIPE, NULL, NULL);
   
   /* Try to read the global configuration file */
@@ -616,7 +615,7 @@ int main(int argc, char **argv)
 
   /* Try to read in the user configuration file. */
 
-  userdir = ssh_userdir(tuser, TRUE);
+  userdir = ssh_userdir(tuser, data->config, TRUE);
   snprintf(temp_s, sizeof (temp_s), "%s/%s",
            userdir, SSH_CLIENT_CONFIG_FILE);
   ssh_xfree(userdir);
@@ -675,9 +674,9 @@ int main(int argc, char **argv)
                 {
                   char *newcommand;
 
-                  newcommand = str_concat_3(command, 
-                                            " ", 
-                                            argv[ssh_optind + i]);
+                  newcommand = ssh_string_concat_3(command, 
+                                                   " ", 
+                                                   argv[ssh_optind + i]);
                   ssh_xfree(command);
                   command = newcommand;
                 }
@@ -739,9 +738,9 @@ int main(int argc, char **argv)
               }
             else
               {                                 
-                char *hlp = str_concat_3(data->config->ciphers, 
-                                         ",", 
-                                         cname);
+                char *hlp = ssh_string_concat_3(data->config->ciphers, 
+                                                ",", 
+                                                cname);
                 ssh_xfree(data->config->ciphers);
                 data->config->ciphers = hlp;
               }
@@ -834,7 +833,7 @@ int main(int argc, char **argv)
             ssh_fatal("Bad local forward definition \"%s\"", ssh_optarg);
           i++;
 #else /* SSH_CHANNEL_TCPFWD */
-          ssh_fatal("TCP forwariding disabled.");
+          ssh_fatal("TCP forwarding disabled.");
 #endif /* SSH_CHANNEL_TCPFWD */
           break;
 
@@ -875,7 +874,7 @@ int main(int argc, char **argv)
         case 's':
           if (data->is_subsystem)
             {
-              ssh_fatal("%s: No multiple -s flags allowed.");
+              ssh_fatal("%s: No multiple -s flags allowed.", av0);
             }
           data->is_subsystem = (ssh_optval != 0);
           command = ssh_xstrdup(ssh_optarg);
@@ -905,7 +904,7 @@ int main(int argc, char **argv)
             ssh_fatal("Bad remote forward definition \"%s\"", ssh_optarg);
           i++;
 #else /* SSH_CHANNEL_TCPFWD */
-          ssh_fatal("TCP forwariding disabled.");
+          ssh_fatal("TCP forwarding disabled.");
 #endif /* SSH_CHANNEL_TCPFWD */
           break;
 
@@ -972,7 +971,7 @@ int main(int argc, char **argv)
   ssh_debug("entering event loop");
   ssh_event_loop_run();
 
-  signals_reset();
+  ssh_signals_reset();
 
   /* Update random seed file. */
   ssh_randseed_update(tuser, data->random_state, data->config);

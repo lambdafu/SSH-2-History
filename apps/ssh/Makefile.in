@@ -10,6 +10,9 @@
 # even the implied warranty of MERCHANTABILITY or FITNESS FOR A
 # PARTICULAR PURPOSE.
 
+# THIS FILE WAS AUTOMAGICALLY GENERATED FROM Makefile.am.raw 
+# You should edit Makefile.am.raw instead of this file. 
+
 #
 # ssh2 Makefile.am
 #
@@ -78,6 +81,8 @@ CONFPROGRAMS = @CONFPROGRAMS@
 COPY_INCLUDE = @COPY_INCLUDE@
 CRYPTO_CONF_OBJS = @CRYPTO_CONF_OBJS@
 ETCDIR = @ETCDIR@
+IPSEC_ARCH_INTC = @IPSEC_ARCH_INTC@
+IPSEC_ARCH_ROUTE = @IPSEC_ARCH_ROUTE@
 LN_S = @LN_S@
 M4 = @M4@
 MAKEINFO = @MAKEINFO@
@@ -94,73 +99,82 @@ AUTOMAKE_OPTIONS = 1.0 foreign dist-zip no-dependencies
 
 etcdir = @ETCDIR@
 
-bin_PROGRAMS = ssh2 scp2 sftp2 sftp-server2 \
-               ssh-agent2 ssh-keygen2 ssh-add2 @CONFPROGRAMS@
+bin_PROGRAMS = ssh2 \
+	       scp2 \
+	       sftp2 \
+	       sftp-server2 \
+               ssh-agent2 \
+	       ssh-keygen2 \
+	       ssh-add2 \
+	       @CONFPROGRAMS@
+
 sbin_PROGRAMS = sshd2
 EXTRA_PROGRAMS = ssh-askpass2
-man_MANS = ssh2.1 sshd2.8 ssh-keygen2.1 ssh-add2.1 ssh-agent2.1 scp2.1 sftp2.1
+man_MANS = ssh2.1 \
+	   sshd2.8 \
+	   ssh-keygen2.1 \
+	   ssh-add2.1 \
+	   ssh-agent2.1 \
+	   scp2.1 \
+	   sftp2.1
 
 EXTRA_DIST = test-in-host test-analyze-compilation test-analyze-check \
   test-analyze-self-test sshd2_config ssh2_config $(MANS)
 
-noinst_HEADERS = auths-passwd.h readpass.h signals.h ssh2includes.h \
+noinst_HEADERS = auths-passwd.h readpass.h ssh2includes.h \
 	sshauthmethods.h sshclient.h sshcommon.h \
 	sshconfig.h sshserver.h sshstdiofilter.h \
 	ssh2version.h sshuserfiles.h authc-pubkey.h authc-passwd.h \
 	sshagentint.h sshagent.h auths-pubkey.h sshchx11.h sshchagent.h \
 	sshchssh1agent.h sshchsession.h sshchtcpfwd.h \
-	sshgetopt.h
+	sshglob.h sshagentcache.h
+
+noinst_LIBRARIES = libssh2.a
 
 INCLUDES = -I. -I$(srcdir) -I../.. -I$(srcdir) -I../../include \
+	   -I$(top_builddir) -I$(top_srcdir) \
 	   -I$(srcdir)/../../include 
 
-LDADD = -L../../lib -lssh
-DEPENDENCIES = ../../lib/libssh.a
+LDADD = -L. -L../../lib -lssh2 -lssh
+DEPENDENCIES = ./libssh2.a ../../lib/libssh.a
 
-ssh2_SOURCES = ssh2.c sshauthmethodc.c readpass.c sshunixuserfiles.c \
-	       sshuserfiles.c \
-	       sshchx11.c sshchsession.c sshchagent.c sshchssh1agent.c \
-	       sshchtcpfwd.c sshstdiofilter.c \
-	       sshcommon.c sshconfig.c sshunixconfig.c sshclient.c \
-	       agentpath.c authc-pubkey.c authc-passwd.c agentclient.c \
-	       sshgetopt.c
+libssh2_a_SOURCES = agentclient.c sshchagent.c sshserver.c \
+		    agentpath.c sshchsession.c sshstdiofilter.c \
+		    authc-passwd.c sshchssh1agent.c sshunixconfig.c \
+		    authc-pubkey.c sshchtcpfwd.c sshunixuserfiles.c \
+		    auths-passwd.c sshchx11.c sshuserfiles.c \
+		    auths-pubkey.c sshclient.c \
+		    sshcommon.c readpass.c sshconfig.c \
+		    sshauthmethodc.c sshauthmethods.c \
+		    sshglob.c sshagentcache.c
 
+ssh2_SOURCES = ssh2.c
 ssh2_DEPENDENCIES = $(DEPENDENCIES)
 
-sshd2_SOURCES = sshd2.c signals.c sshauthmethods.c auths-passwd.c \
-		auths-pubkey.c sshunixuserfiles.c \
-	        sshuserfiles.c \
-	        sshchx11.c sshchsession.c sshchagent.c sshchssh1agent.c \
-	        sshchtcpfwd.c \
-		sshcommon.c sshconfig.c sshunixconfig.c sshserver.c \
-                agentpath.c \
-		sshgetopt.c
-
+sshd2_SOURCES = sshd2.c
 sshd2_DEPENDENCIES = $(DEPENDENCIES)
 
-ssh_agent2_SOURCES = ssh-agent2.c agentpath.c sshunixuserfiles.c \
-	             sshuserfiles.c \
-                     sshconfig.c sshunixconfig.c \
-		     sshgetopt.c
+ssh_agent2_SOURCES = ssh-agent2.c
 ssh_agent2_DEPENDENCIES = $(DEPENDENCIES)
 
-ssh_add2_SOURCES = ssh-add2.c agentclient.c agentpath.c \
-		   sshuserfiles.c \
-	           sshunixuserfiles.c readpass.c sshconfig.c sshunixconfig.c \
-		   sshgetopt.c
+#ifdef SSHDIST_SSH2_F_SECURE_COMMERCIAL
+#
+#
+#
+#
+#endif SSHDIST_SSH2_F_SECURE_COMMERCIAL
+
+ssh_add2_SOURCES = ssh-add2.c
 ssh_add2_DEPENDENCIES = $(DEPENDENCIES)
 
 ssh_askpass2_SOURCES = ssh-askpass2.c 
 ssh_askpass2_LDADD = $(LDADD) $(X_LIBS) $(X_PRE_LIBS) -lX11
 
-ssh_keygen2_SOURCES = readpass.c ssh-keygen2.c sshunixuserfiles.c \
-	              sshuserfiles.c \
-		      sshconfig.c sshunixconfig.c \
-		      sshgetopt.c
+ssh_keygen2_SOURCES = ssh-keygen2.c
 ssh_keygen2_DEPENDENCIES = $(DEPENDENCIES) ../../lib/sshreadline/libsshreadline.a
 ssh_keygen2_LDADD = $(LDADD) -L../../lib/sshreadline -lsshreadline
 
-scp2_SOURCES = scp2.c sshgetopt.c
+scp2_SOURCES = scp2.c
 scp2_DEPENDENCIES = $(DEPENDENCIES)
 
 sftp2_SOURCES = sftp2.c 
@@ -178,7 +192,7 @@ COMPILE = $(CC) $(KERBEROS_INCS) $(INCLUDES) $(SSH_DEFS) $(DEFS) $(CPPFLAGS) $(C
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = ../../sshconf.h
 CONFIG_CLEAN_FILES = 
-PROGRAMS =  $(bin_PROGRAMS) $(sbin_PROGRAMS)
+LIBRARIES =  $(noinst_LIBRARIES)
 
 
 DEFS = @DEFS@ -I. -I$(srcdir) -I../..
@@ -189,17 +203,22 @@ X_CFLAGS = @X_CFLAGS@
 X_LIBS = @X_LIBS@
 X_EXTRA_LIBS = @X_EXTRA_LIBS@
 X_PRE_LIBS = @X_PRE_LIBS@
+libssh2_a_LIBADD = 
+libssh2_a_OBJECTS =  agentclient.o sshchagent.o sshserver.o agentpath.o \
+sshchsession.o sshstdiofilter.o authc-passwd.o sshchssh1agent.o \
+sshunixconfig.o authc-pubkey.o sshchtcpfwd.o sshunixuserfiles.o \
+auths-passwd.o sshchx11.o sshuserfiles.o auths-pubkey.o sshclient.o \
+sshcommon.o readpass.o sshconfig.o sshauthmethodc.o sshauthmethods.o \
+sshglob.o sshagentcache.o
+PROGRAMS =  $(bin_PROGRAMS) $(sbin_PROGRAMS)
+
 ssh_askpass2_OBJECTS =  ssh-askpass2.o
 ssh_askpass2_DEPENDENCIES = 
 ssh_askpass2_LDFLAGS = 
-ssh2_OBJECTS =  ssh2.o sshauthmethodc.o readpass.o sshunixuserfiles.o \
-sshuserfiles.o sshchx11.o sshchsession.o sshchagent.o sshchssh1agent.o \
-sshchtcpfwd.o sshstdiofilter.o sshcommon.o sshconfig.o sshunixconfig.o \
-sshclient.o agentpath.o authc-pubkey.o authc-passwd.o agentclient.o \
-sshgetopt.o
+ssh2_OBJECTS =  ssh2.o
 ssh2_LDADD = $(LDADD)
 ssh2_LDFLAGS = 
-scp2_OBJECTS =  scp2.o sshgetopt.o
+scp2_OBJECTS =  scp2.o
 scp2_LDADD = $(LDADD)
 scp2_LDFLAGS = 
 sftp2_OBJECTS =  sftp2.o
@@ -207,21 +226,15 @@ sftp2_LDFLAGS =
 sftp_server2_OBJECTS =  sftp-server2.o
 sftp_server2_LDADD = $(LDADD)
 sftp_server2_LDFLAGS = 
-ssh_agent2_OBJECTS =  ssh-agent2.o agentpath.o sshunixuserfiles.o \
-sshuserfiles.o sshconfig.o sshunixconfig.o sshgetopt.o
+ssh_agent2_OBJECTS =  ssh-agent2.o
 ssh_agent2_LDADD = $(LDADD)
 ssh_agent2_LDFLAGS = 
-ssh_keygen2_OBJECTS =  readpass.o ssh-keygen2.o sshunixuserfiles.o \
-sshuserfiles.o sshconfig.o sshunixconfig.o sshgetopt.o
+ssh_keygen2_OBJECTS =  ssh-keygen2.o
 ssh_keygen2_LDFLAGS = 
-ssh_add2_OBJECTS =  ssh-add2.o agentclient.o agentpath.o sshuserfiles.o \
-sshunixuserfiles.o readpass.o sshconfig.o sshunixconfig.o sshgetopt.o
+ssh_add2_OBJECTS =  ssh-add2.o
 ssh_add2_LDADD = $(LDADD)
 ssh_add2_LDFLAGS = 
-sshd2_OBJECTS =  sshd2.o signals.o sshauthmethods.o auths-passwd.o \
-auths-pubkey.o sshunixuserfiles.o sshuserfiles.o sshchx11.o \
-sshchsession.o sshchagent.o sshchssh1agent.o sshchtcpfwd.o sshcommon.o \
-sshconfig.o sshunixconfig.o sshserver.o agentpath.o sshgetopt.o
+sshd2_OBJECTS =  sshd2.o
 sshd2_LDADD = $(LDADD)
 sshd2_LDFLAGS = 
 CFLAGS = @CFLAGS@
@@ -240,10 +253,10 @@ DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
 
 TAR = tar
 GZIP = --best
-SOURCES = $(ssh_askpass2_SOURCES) $(ssh2_SOURCES) $(scp2_SOURCES) $(sftp2_SOURCES) $(sftp_server2_SOURCES) $(ssh_agent2_SOURCES) $(ssh_keygen2_SOURCES) $(ssh_add2_SOURCES) $(sshd2_SOURCES)
-OBJECTS = $(ssh_askpass2_OBJECTS) $(ssh2_OBJECTS) $(scp2_OBJECTS) $(sftp2_OBJECTS) $(sftp_server2_OBJECTS) $(ssh_agent2_OBJECTS) $(ssh_keygen2_OBJECTS) $(ssh_add2_OBJECTS) $(sshd2_OBJECTS)
+SOURCES = $(libssh2_a_SOURCES) $(ssh_askpass2_SOURCES) $(ssh2_SOURCES) $(scp2_SOURCES) $(sftp2_SOURCES) $(sftp_server2_SOURCES) $(ssh_agent2_SOURCES) $(ssh_keygen2_SOURCES) $(ssh_add2_SOURCES) $(sshd2_SOURCES)
+OBJECTS = $(libssh2_a_OBJECTS) $(ssh_askpass2_OBJECTS) $(ssh2_OBJECTS) $(scp2_OBJECTS) $(sftp2_OBJECTS) $(sftp_server2_OBJECTS) $(ssh_agent2_OBJECTS) $(ssh_keygen2_OBJECTS) $(ssh_add2_OBJECTS) $(sshd2_OBJECTS)
 
-all: Makefile $(PROGRAMS) $(MANS) $(HEADERS)
+all: Makefile $(LIBRARIES) $(PROGRAMS) $(MANS) $(HEADERS)
 
 .SUFFIXES:
 .SUFFIXES: .S .c .o .s
@@ -254,6 +267,39 @@ Makefile: $(srcdir)/Makefile.in  $(top_builddir)/config.status
 	cd $(top_builddir) \
 	  && CONFIG_FILES=$(subdir)/$@ CONFIG_HEADERS= $(SHELL) ./config.status
 
+
+mostlyclean-noinstLIBRARIES:
+
+clean-noinstLIBRARIES:
+	-test -z "$(noinst_LIBRARIES)" || rm -f $(noinst_LIBRARIES)
+
+distclean-noinstLIBRARIES:
+
+maintainer-clean-noinstLIBRARIES:
+
+.c.o:
+	$(COMPILE) -c $<
+
+.s.o:
+	$(COMPILE) -c $<
+
+.S.o:
+	$(COMPILE) -c $<
+
+mostlyclean-compile:
+	-rm -f *.o core *.core
+
+clean-compile:
+
+distclean-compile:
+	-rm -f *.tab.c
+
+maintainer-clean-compile:
+
+libssh2.a: $(libssh2_a_OBJECTS) $(libssh2_a_DEPENDENCIES)
+	-rm -f libssh2.a
+	$(AR) cru libssh2.a $(libssh2_a_OBJECTS) $(libssh2_a_LIBADD)
+	$(RANLIB) libssh2.a
 
 mostlyclean-binPROGRAMS:
 
@@ -304,25 +350,6 @@ uninstall-sbinPROGRAMS:
 	list='$(sbin_PROGRAMS)'; for p in $$list; do \
 	  rm -f $(DESTDIR)$(sbindir)/`echo $$p|sed '$(transform)'`; \
 	done
-
-.c.o:
-	$(COMPILE) -c $<
-
-.s.o:
-	$(COMPILE) -c $<
-
-.S.o:
-	$(COMPILE) -c $<
-
-mostlyclean-compile:
-	-rm -f *.o core *.core
-
-clean-compile:
-
-distclean-compile:
-	-rm -f *.tab.c
-
-maintainer-clean-compile:
 
 ssh-askpass2: $(ssh_askpass2_OBJECTS) $(ssh_askpass2_DEPENDENCIES)
 	@rm -f ssh-askpass2
@@ -506,37 +533,38 @@ distclean-generic:
 maintainer-clean-generic:
 	-test -z "$(MAINTAINERCLEANFILES)" || rm -f $(MAINTAINERCLEANFILES)
 	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
-mostlyclean:  mostlyclean-binPROGRAMS mostlyclean-sbinPROGRAMS \
-		mostlyclean-compile mostlyclean-tags \
-		mostlyclean-generic
+mostlyclean:  mostlyclean-noinstLIBRARIES mostlyclean-compile \
+		mostlyclean-binPROGRAMS mostlyclean-sbinPROGRAMS \
+		mostlyclean-tags mostlyclean-generic
 
-clean:  clean-binPROGRAMS clean-sbinPROGRAMS clean-compile clean-tags \
-		clean-generic mostlyclean
+clean:  clean-noinstLIBRARIES clean-compile clean-binPROGRAMS \
+		clean-sbinPROGRAMS clean-tags clean-generic mostlyclean
 
-distclean:  distclean-binPROGRAMS distclean-sbinPROGRAMS \
-		distclean-compile distclean-tags distclean-generic \
-		clean
+distclean:  distclean-noinstLIBRARIES distclean-compile \
+		distclean-binPROGRAMS distclean-sbinPROGRAMS \
+		distclean-tags distclean-generic clean
 	-rm -f config.status
 
-maintainer-clean:  maintainer-clean-binPROGRAMS \
-		maintainer-clean-sbinPROGRAMS maintainer-clean-compile \
-		maintainer-clean-tags maintainer-clean-generic \
-		distclean
+maintainer-clean:  maintainer-clean-noinstLIBRARIES \
+		maintainer-clean-compile maintainer-clean-binPROGRAMS \
+		maintainer-clean-sbinPROGRAMS maintainer-clean-tags \
+		maintainer-clean-generic distclean
 	@echo "This command is intended for maintainers to use;"
 	@echo "it deletes files that may require special tools to rebuild."
 
-.PHONY: mostlyclean-binPROGRAMS distclean-binPROGRAMS clean-binPROGRAMS \
-maintainer-clean-binPROGRAMS uninstall-binPROGRAMS install-binPROGRAMS \
-mostlyclean-sbinPROGRAMS distclean-sbinPROGRAMS clean-sbinPROGRAMS \
-maintainer-clean-sbinPROGRAMS uninstall-sbinPROGRAMS \
-install-sbinPROGRAMS mostlyclean-compile distclean-compile \
-clean-compile maintainer-clean-compile install-man1 uninstall-man1 \
-install-man8 uninstall-man8 install-man uninstall-man tags \
-mostlyclean-tags distclean-tags clean-tags maintainer-clean-tags \
-distdir info dvi installcheck install-exec install-data install \
-uninstall all installdirs mostlyclean-generic distclean-generic \
-clean-generic maintainer-clean-generic clean mostlyclean distclean \
-maintainer-clean
+.PHONY: mostlyclean-noinstLIBRARIES distclean-noinstLIBRARIES \
+clean-noinstLIBRARIES maintainer-clean-noinstLIBRARIES \
+mostlyclean-compile distclean-compile clean-compile \
+maintainer-clean-compile mostlyclean-binPROGRAMS distclean-binPROGRAMS \
+clean-binPROGRAMS maintainer-clean-binPROGRAMS uninstall-binPROGRAMS \
+install-binPROGRAMS mostlyclean-sbinPROGRAMS distclean-sbinPROGRAMS \
+clean-sbinPROGRAMS maintainer-clean-sbinPROGRAMS uninstall-sbinPROGRAMS \
+install-sbinPROGRAMS install-man1 uninstall-man1 install-man8 \
+uninstall-man8 install-man uninstall-man tags mostlyclean-tags \
+distclean-tags clean-tags maintainer-clean-tags distdir info dvi \
+installcheck install-exec install-data install uninstall all \
+installdirs mostlyclean-generic distclean-generic clean-generic \
+maintainer-clean-generic clean mostlyclean distclean maintainer-clean
 
 
 includes:

@@ -26,6 +26,9 @@ ssh-agent2 \- authentication agent
 ]
 [\c
 .BR \-c \c
+]
+[\c
+.BR \-1 \c
 ]`
 
 .SH DESCRIPTION 
@@ -48,12 +51,12 @@ If the ssh-agent2 is started without any arguments (no command) it will
 fork and start agent as background process. The agent also prints
 command that can be evaluated in sh or csh like shells, that will set
 the
-.B \s-1SSH_AUTHENTICATION_SOCKET\s0
+.B \s-1SSH2_AUTH_SOCK\s0
 and
-.B \s-1SSH_AGENT_PID\s0
+.B \s-1SSH2_AGENT_PID\s0
 environment variables.
 The
-.B \s-1SSH_AGENT_PID\s0
+.B \s-1SSH2_AGENT_PID\s0
 environment variable can be used to kill agent away
 when it is no longer needed (you logout from X-session etc). If no
 options are given the ssh-agent2 uses SHELL environment variable the
@@ -90,7 +93,7 @@ unix-domain socket is created
 (\fI/tmp/ssh-$USER/agent-socket-<pid>\fR), where the <pid> is the process
 id of the listener (agent or sshd proxying the agent). The name of
 this socket is stored in the
-.B \s-1SSH_AUTHENTICATION_SOCKET\s0
+.B \s-1SSH2_AUTH_SOCK\s0
 environment variable.  The socket is made accessible only to the
 current user.  This method is easily abused by root or another
 instance of the same user. Older versions of ssh used inherited
@@ -101,6 +104,21 @@ If the command is given as argument to ssh-agent2 the agent exits
 automatically when the command given on the command line terminates.
 The command is executed even if agent fails to start it's key-storing
 and challenge-processing services.
+
+.SH COMPATIBILITY
+With option
+.BI \-1
+ssh-agent2 can also serve old ssh1 applications and can also be
+accessed with ssh-add program in ssh1 releases.  If option
+.BI \-1
+is given to the ssh-agent2, the program will also set environment
+variables 
+.B \s-1SSH_AUTH_SOCK\s0
+and
+.B \s-1SSH_AGENT_PID\s0
+and share keys with both protocols.  Note that uncommercial version of
+ssh-agent2 is not really useful as SSH1 compatible agent, since the
+uncommercial version does not support RSA algorithm.
 
 .SH FILES
 .TP

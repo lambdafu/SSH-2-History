@@ -22,6 +22,7 @@ Session channels are interactive terminal sessions.
 #include "sshconn.h"
 #include "sshmsgs.h"
 #include "sshcommon.h"
+#include "sshuserfiles.h"
 
 #ifdef SSH_CHANNEL_SESSION
 
@@ -30,7 +31,7 @@ Session channels are interactive terminal sessions.
 
 #include "sshunixptystream.h"
 #include "sshunixpipestream.h"
-#include "tty.h"
+#include "sshtty.h"
 #include "sshunixeloop.h"
 
 #ifdef HAVE_OSF1_C2_SECURITY
@@ -364,12 +365,15 @@ void ssh_session_init_env(SshChannelSession session, char ***envp,
   char buf[512];
   const char *cp;
   const char *user_dir, *user_shell, *user_name;
+  char *user_conf_dir = NULL;
   int i;
 
   user_name = session->common->user;
 
   user_dir = ssh_user_dir(session->common->user_data);
   user_shell = ssh_user_shell(session->common->user_data);
+  user_conf_dir = ssh_user_conf_dir(session->common->config,
+                                    session->common->user_data);
 
   /* Set basic environment. */
   ssh_child_set_env(envp, envsizep, "HOME", user_dir);
@@ -448,10 +452,10 @@ void ssh_session_init_env(SshChannelSession session, char ***envp,
 
   /* Read environment variable settings from /etc/environment.  (This
      exists at least on AIX, but could be useful also elsewhere.) */
-  ssh_read_environment_file(envp, envsizep, "/etc/environment");
+  ssh_read_environment_file(envp, envsizep, "/etc/" SSH_USER_ENV_FILE);
 
   /* Read $HOME/.ssh2/environment. */
-  snprintf(buf, sizeof(buf), "%.200s/.ssh2/environment", user_dir);
+  snprintf(buf, sizeof(buf), "%.200s/%s", user_conf_dir, SSH_USER_ENV_FILE);
   ssh_read_environment_file(envp, envsizep, buf);
 
   /* Add environment strings received from the client. */
@@ -474,6 +478,7 @@ void ssh_session_init_env(SshChannelSession session, char ***envp,
   ssh_debug("Environment:");
   for (i = 0; (*envp)[i]; i++)
     ssh_debug("  %.200s", (*envp)[i]);
+  ssh_xfree(user_conf_dir);
 }
 
 /* Performs initializations that involve running rc scripts, xauth, etc. */
@@ -481,9 +486,11 @@ void ssh_session_init_env(SshChannelSession session, char ***envp,
 void ssh_session_init_run(SshChannelSession session)
 {
   char buf[256];
+  char buf2[100];
   const char *shell;
   struct stat st;
   FILE *f;
+  char *user_conf_dir = NULL;
 
 #ifdef SSH_CHANNEL_X11
   const char *auth_protocol;
@@ -496,13 +503,16 @@ void ssh_session_init_run(SshChannelSession session)
 #endif /* SSH_CHANNEL_X11 */
   
   shell = ssh_user_shell(session->common->user_data);
+  user_conf_dir = ssh_user_conf_dir(session->common->config,
+                                    session->common->user_data);
 
   /* Run $HOME/.ssh2/rc, /etc/sshrc, or xauth (whichever is found first
      in this order).  Note that we are already running on the user's
      uid. */
-  if (stat(SSH_USER_RC, &st) >= 0)
+  snprintf(buf2, sizeof (buf2), "%s/%s", user_conf_dir, SSH_USER_RC);
+  if (stat(buf2, &st) >= 0)
     {
-      snprintf(buf, sizeof(buf), "%.100s %.100s", shell, SSH_USER_RC);
+      snprintf(buf, sizeof(buf), "%.100s %.100s", shell, buf2);
           
       ssh_debug("Running %s", buf);
             
@@ -516,7 +526,7 @@ void ssh_session_init_run(SshChannelSession session)
           pclose(f);
         }
       else
-        ssh_warning("Could not run %s", SSH_USER_RC);
+        ssh_warning("Could not run %s", buf2);
     }
   else
     if (stat(SSH_SYSTEM_RC, &st) >= 0)
@@ -557,8 +567,6 @@ void ssh_session_init_run(SshChannelSession session)
             ssh_debug("Running %.100s add %.100s %.100s %.100s",
                       XAUTH_PATH, display, auth_protocol, auth_cookie);
             
-            signal(SIGPIPE, SIG_IGN);
-            
             f = popen(XAUTH_PATH " -q -", "w");
             if (f)
               {
@@ -597,11 +605,10 @@ void ssh_session_init_run(SshChannelSession session)
                 ssh_warning("Could not run %s -q -", XAUTH_PATH);
               }
           }
-        
-        signal(SIGPIPE, SIG_DFL);
       }
 #endif /* XAUTH_PATH */
 #endif /* SSH_CHANNEL_X11 */
+  ssh_xfree(user_conf_dir);
 }
 
 /* Processing for the child process (to become the user's shell). */
@@ -799,6 +806,36 @@ Boolean ssh_channel_session_exec(SshChannelSession session, SshSessionType op,
           return FALSE;
           
         case SSH_PTY_PARENT_OK:
+#ifdef HAVE_OSF1_C2_SECURITY
+          /* 
+           * XXX with C2 security it is possibly to deny login from specified
+           * terminals. Problem is, that user is already authenticated at this
+           * point. So, if user is denied login from this terminal, we should
+           * probably disconnect. How could we find out elegantly which
+           * terminals the user is allowed to log on? 
+           */
+          {
+            const char *disconnect_reason;
+            const char *username;
+
+            username = ssh_user_name(session->common->user_data);
+            if (username)
+              {
+                disconnect_reason = tcbc2_check_account_and_terminal(username,
+                                                                     ptyname);
+              }
+            else
+              {
+                disconnect_reason = "Unable to check username";
+              }
+            if (disconnect_reason)
+              {
+                ssh_conn_send_disconnect(session->common->conn,
+                                    SSH_DISCONNECT_HOST_NOT_ALLOWED_TO_CONNECT,
+                                    disconnect_reason);
+              }
+          }
+#endif
           session->ttyname = ssh_xstrdup(ptyname);
           stderr_stream = NULL;
           ssh_pty_change_window_size(stdio_stream,
@@ -806,32 +843,16 @@ Boolean ssh_channel_session_exec(SshChannelSession session, SshSessionType op,
                                      session->height_chars,
                                      session->width_pixels,
                                      session->height_pixels);
-          /* XXX Remaining tty modes... */
-          ssh_user_record_login(session->common->user_data,
-                                ssh_pty_get_pid(stdio_stream),
-                                ptyname,
-                                session->common->remote_ip, /* host */
-                                session->common->remote_ip);
           break;
           
         case SSH_PTY_CHILD_OK:
-      /* XXX with C2 security it is possibly to deny login from specified
-         terminals. Problem is, that user is already authenticated at this
-         point. So, if user is denied login from this terminal, we should
-         probably disconnect. How could we find out elegantly which
-         terminals the user is allowed to log on? */
-#ifdef HAVE_OSF1_C2_SECURITY
-          {
-            const char *disconnect_reason;
-            disconnect_reason =
-              tcbc2_check_account_and_terminal(ssh_user_name(session->common->user_data),
-                                               ptyname);
-            if(disconnect_reason)
-              ssh_conn_send_disconnect(session->common->conn,
-                                       SSH_DISCONNECT_HOST_NOT_ALLOWED_TO_CONNECT,
-                                       disconnect_reason);
-          }
-#endif
+
+          /* XXX Remaining tty modes... */
+          ssh_user_record_login(session->common->user_data,
+                                getpid(),
+                                ptyname,
+                                session->common->remote_host,
+                                session->common->remote_ip);
 
           ssh_channel_session_child(session, op, cmd);
           ssh_debug("ssh_channel_session_child returned");
@@ -1631,7 +1652,9 @@ void ssh_channel_start_session_completion(int result,
 
 #ifdef SSH_CHANNEL_SSH1_AGENT
   /* Ssh1 agent forwarding request. */
-  if (session->start_forward_agent && getenv(SSH1_AGENT_VAR) != NULL)
+  if (session->start_forward_agent && 
+      (session->common->config->ssh_agent_compat != SSH_AGENT_COMPAT_NONE) &&
+      (getenv(SSH1_AGENT_VAR) != NULL))
     ssh_channel_ssh1_agent_send_request(session->common, session->channel_id);
 #endif /* SSH_CHANNEL_SSH1_AGENT */
 

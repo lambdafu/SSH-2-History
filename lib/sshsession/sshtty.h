@@ -9,21 +9,21 @@ Copyright (c) 1997 SSH Communications Security, Finland
 
 */
 
-#ifndef TTY_H
-#define TTY_H
+#ifndef SSHTTY_H
+#define SSHTTY_H
 
 
 /* Returns the user's terminal to normal mode if it had been put in raw 
    mode. */
-void ssh_leave_raw_mode();
+void ssh_leave_raw_mode(void);
 
 /* Puts the user\'s terminal in raw mode. */
-void ssh_enter_raw_mode();
+void ssh_enter_raw_mode(void);
 
 /* Puts stdin terminal in non-blocking mode. */
-void ssh_leave_non_blocking();
+void ssh_leave_non_blocking(void);
 
 /* Restores stdin to blocking mode. */
-void ssh_enter_non_blocking();
+void ssh_enter_non_blocking(void);
 
-#endif /* TTY_H */
+#endif /* !SSHTTY_H */

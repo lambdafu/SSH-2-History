@@ -23,10 +23,11 @@ SshFileHandle file_handle;
 off_t file_offset;
 
 int got_realpath;
+char *new_dir;
 
 
 void attrs_cb(SshFileClientError error,  SshFileAttributes attrs,
-	      void *context)
+              void *context)
 {
   if (error != SSH_FX_OK)
     {
@@ -35,16 +36,16 @@ void attrs_cb(SshFileClientError error,  SshFileAttributes attrs,
     }  
   
   printf("attrs_cb: flags=%x uid=%u gid=%u perm=%lo\n", 
-	 (unsigned) attrs->flags,
-	 (unsigned) attrs->uid,
-	 (unsigned) attrs->gid,
-	 attrs->permissions);  
+         (unsigned) attrs->flags,
+         (unsigned) attrs->uid,
+         (unsigned) attrs->gid,
+         attrs->permissions);  
 }
 
 void readdir_cb(SshFileClientError error, 
-		const char *name, 
-		const char *long_name, SshFileAttributes attrs,
-		void *context)
+                const char *name, 
+                const char *long_name, SshFileAttributes attrs,
+                void *context)
 {
   if (error != SSH_FX_OK)
     {
@@ -53,14 +54,14 @@ void readdir_cb(SshFileClientError error,
     }
 
   printf("short name: %s\nlong name:  %s\nflags:      %lo\n\n", 
-	 name, long_name, attrs->permissions);
+         name, long_name, attrs->permissions);
   ssh_file_client_readdir(dir_handle, readdir_cb, NULL);
 }
 
 void realpath_cb(SshFileClientError error, 
-		const char *name, 
-		const char *long_name, SshFileAttributes attrs,
-		void *context)
+                const char *name, 
+                const char *long_name, SshFileAttributes attrs,
+                void *context)
 {
   got_realpath = 1;
   
@@ -71,9 +72,32 @@ void realpath_cb(SshFileClientError error,
     }
 
   printf("realpath\nshort name: %s\nlong name:  %s\nflags:      %lo\n\n", 
-	  name, long_name, attrs->permissions);  
+          name, long_name, attrs->permissions);  
 }
 
+void rmdir_cb(SshFileClientError error, void *context)
+{
+  if (error != SSH_FX_OK)
+    {
+      printf("rmdir_cb: error %d\n", (int)error);
+      return;
+    }
+  printf("successfully removed directory \"%s\"\n", new_dir);
+  
+}
+
+void mkdir_cb(SshFileClientError error, void *context)
+{
+  if (error != SSH_FX_OK)
+    {
+      printf("mkdir_cb: error %d\n", (int)error);
+      return;
+    }
+
+  printf("successfully created directory \"%s\"\n", new_dir);
+  
+  ssh_file_client_rmdir(client, new_dir, rmdir_cb, NULL);
+}
 
 void opendir_cb(SshFileClientError error, SshFileHandle handle, void *context)
 {
@@ -94,12 +118,12 @@ void close_cb(SshFileClientError error, void *context)
 }
 
 void read_cb(SshFileClientError error, const unsigned char *data, size_t len,
-	     void *context)
+             void *context)
 {
   if (error != SSH_FX_OK)
     {
       if (error != SSH_FX_EOF)
-	printf("read_cb: error %d\n", (int)error);
+        printf("read_cb: error %d\n", (int)error);
       ssh_file_client_close(file_handle, close_cb, NULL);
       return;
     }
@@ -119,12 +143,17 @@ void open_cb(SshFileClientError error, SshFileHandle handle, void *context)
   file_handle = handle;
   file_offset = 0;
   ssh_file_client_read(handle, file_offset, 100, read_cb, NULL);
+
 }
 
 int main(int argc, char **argv)
 {
   SshStream s1, s2;
+  char temp_string[256];
+  
 
+  new_dir = NULL;
+  
   ssh_event_loop_initialize();
   
   ssh_stream_pair_create(&s1, &s2);
@@ -132,6 +161,12 @@ int main(int argc, char **argv)
   client = ssh_file_client_wrap(s2);
 
   got_realpath = 0;  
+
+  snprintf(temp_string, sizeof(temp_string), "temp%d", getpid());
+  new_dir = ssh_xstrdup(temp_string);
+  printf("Trying to create directory \"%s\"\n", new_dir);
+  
+  ssh_file_client_mkdir(client, new_dir, NULL, mkdir_cb, NULL);
   ssh_file_client_realpath(client, ".", realpath_cb, NULL); 
   ssh_event_loop_run();  
 
@@ -143,5 +178,6 @@ int main(int argc, char **argv)
   ssh_event_loop_run();
   
   ssh_event_loop_uninitialize();
+  fflush(stdout);
   return 0;
 }
