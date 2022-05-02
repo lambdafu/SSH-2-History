@@ -1,0 +1,54 @@
+# THIS FILE WAS AUTOMAGICALLY GENERATED FROM Makefile.am.raw 
+# You should edit Makefile.am.raw instead of this file. 
+
+## Process this file with automake to produce Makefile.in
+
+#
+# lib/sshcrypt/tests Makefile.am
+#
+# Author: Tatu Ylonen <ylo@ssh.fi>
+#
+# Copyright (c) 1996 SSH Communications Security, Finland
+#                    All rights reserved
+#
+
+AUTOMAKE_OPTIONS = 1.0 foreign dist-zip no-dependencies
+
+TESTS = t-gentest \
+	t-compress \
+	t-namelist
+
+#  t-arcfour t-blowfish t-des t-idea t-md5 t-safer t-seal t-sha \
+#  t-genhash t-genrand t-gencrypt \
+#  t-genmp 
+
+EXTRA_PROGRAMS = t-gentest \
+	t-compress \
+	t-namelist \
+	t-cryptest
+
+EXTRA_DIST = NBS-data-full cipher.tests hash.tests mac.tests
+
+noinst_HEADERS = readfile.h
+
+LDADD = ../libsshcrypt.a ../../sshutil/libsshutil.a \
+	../../sshmath/libsshmath.a ../../zlib/libz.a
+
+INCLUDES = -I../.. -I. -I.. -I$(srcdir) -I$(srcdir)/.. -I../../sshmath \
+  -I$(srcdir)/../../sshmath -I../../sshutil -I$(srcdir)/../../sshutil \
+  -I../../zlib -I$(srcdir)/../../zlib
+
+t_gentest_SOURCES = t-gentest.c readfile.c
+t_gentest_DEPENDCIES = $(LDADD)
+t_cryptest_SOURCES = t-cryptest.c
+t_cryptest_DEPENDCIES = $(LDADD)
+t_namelist_SOURCES = t-namelist.c
+t_namelist_DEPENDENCIES = $(LDADD)
+#ifdef SSHDIST_CRYPT_COMPRESS
+t_compress_SOURCES = t-compress.c
+t_compress_DEPENDENCIES = $(LDADD)
+#endif SSHDIST_CRYPT_COMPRESS
+#ifdef SSHDIST_CRYPT_COMPRESS_LZS
+#
+#
+#endif SSHDIST_CRYPT_COMPRESS_LZS

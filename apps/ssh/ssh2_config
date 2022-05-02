@@ -1,0 +1,24 @@
+# ssh2_config
+# SSH 2.0 Client Configuration File
+
+*:
+	Port				22
+	Ciphers				3des
+	IdentityFile			identification
+	AuthorizationFile		authorization
+	RandomSeedFile			random_seed
+	VerboseMode			no
+	#PasswordPrompt			"%U@%H's password: "
+	PasswordPrompt			"%U's password: "
+	#LocalForward			"110:pop3.ssh.fi:110"
+	#RemoteForward			"3000:foobar:22"
+	
+#alpha*:
+#	Host				alpha.hut.fi
+#	User				user
+#	PasswordPrompt			"%U:s password at %H: "
+#	Ciphers				idea
+#
+#foobar:
+#	Host				foo.bar
+#	User				foo_user

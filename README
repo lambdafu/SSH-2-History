@@ -1,0 +1,203 @@
+SSH 2.0.7
+==============
+
+        Timo J. Rinne <tri@ssh.fi>
+	Sami Lehtinen <sjl@ssh.fi>
+        24 August 1998
+	
+	See file LICENSING for licensing terms.
+
+
+   What has changed since ssh 1 ?
+   ------------------------------
+
+      - ssh has been 98% rewritten
+
+      - support other key-exchange methods besides double-encrypting
+        rsa key exchange. The current distribution comes with Diffie-Hellman
+        key exchange.
+
+      - support for DSA and other public key algorithms besides RSA.
+
+      - the protocol is more secure and allows future integration into
+        public key infrastructures
+
+      - the protocol complies with upcoming `secsh' internet standard.
+
+      - support for "subsystems", platform-independent modules that
+        implement particular functions such as file transfers
+
+      - built-in SOCKS support
+
+      - new feature: sftp, the secure file transfer protocol (name will
+        probably change)
+
+
+   Feedback
+   --------
+
+      bugs:   ssh2-bugs@ssh.fi
+      other:  ssh2@ssh.fi
+
+
+
+SSH2 Binaries
+=============
+
+      ssh2            ssh2 client.
+
+      sshd2           ssh2 daemon.
+
+      sftp2           sftp client (needs ssh2). Type "?" in the command line
+                      for help.
+
+      sftp-server2    sftp server (executed by sshd2).
+
+      scp2            scp client
+
+      ssh-keygen2     utility for generating keys. -h for help.
+
+      ssh-add2        add identities to the authentication agent.
+
+      ssh-agent2      the authentication agent
+
+      ssh-askpass2    X11 utility for querying passwords.
+
+
+
+Installation
+============
+
+   1. uncompress the distribution
+   ------------------------------
+
+      > zcat ssh-2.0.x.tar.gz | tar xf -
+
+      This should create a subdirectory ssh-2.0.x.
+
+      > cd ssh-2.0.x
+
+
+   2. compile ssh2
+   ---------------
+
+      > ./configure
+      > make
+
+      If this fails, find and fix the problem. Report it to ssh2-bugs@ssh.fi.
+      Try again :-)
+
+      Note for Linux-users: if you are using the commercial version, please
+      run configure with --without-crypt-asm. There is a problem in how gcc
+      mangles function names. This problem will be fixed in future releases.
+
+   3. run the install script
+   -------------------------
+
+      Get a root shell and change to the ssh-2.0.x directory.
+
+      # make install
+
+      This should set everything up and create the host key.
+
+      NOTE: This host key has relatively little entropy. We'll have
+            to actually stir in more randomness to create strong
+            keys. We'll fix this later..
+
+   4. configure sshd2
+   ------------------
+
+      Set up the following files:
+
+
+ssh 2 files
+===========
+
+      Public keys have a .pub suffix, private keys have none. Example:
+
+         id_dsa_1024_a        A 1024-bit DSA private key
+         id_dsa_1024_a.pub    Corresponding public key
+
+      There is no "known_hosts", as in ssh1. The host keys are stored
+      in separate files in ~/.ssh2/hostkeys .
+
+
+   ~/.ssh2/hostkeys/key_xxxx_yyyy.pub
+   -----------------------------
+
+      would be the public host key of the ssh2 daemon running in port xxxx
+      of the host yyyy.
+
+
+   /etc/ssh2/hostkey.pub  and  /etc/ssh2/hostkey
+   -----------------------------------------
+
+      Public and private hostkeys for sshd2. Created by "make install".
+
+
+   ~/.ssh2/identification
+   ----------------------
+
+      Lists the private keys that can be used for authentication.
+
+         # identification
+         IdKey  id_dsa_1024_a
+
+      This means that the private key in the file ~/.ssh2/id_dsa_1024_a
+      is used for public key authentication.
+
+
+   ~/.ssh2/authorization
+   ---------------------
+
+      Lists the public keys that are accepted for authentication on this
+      host.
+
+         # authorization
+         Key     id_dsa_1024_a.pub
+
+      This means that anyone, who holds the matching private key to the
+      public key in the file $USER/.ssh2/id_dsa_1024_a.pub can log in as
+      $USER.
+
+
+   /etc/ssh2/sshd2_config
+   --------------------
+
+      Server configuration file. Copied here by "make install". See man
+      page for details.
+
+      The line:
+
+         subsystem-sftp                  sftp-server
+
+      means that when when a subsystem "sftp" is requested, the
+      command "sftp-server" is started. For example, if our sshd2_config
+      read:
+
+         subsystem-quux                  echo "fiu poks pam"
+
+      the command "ssh2 host -s quux" would simply print the text
+      "fiu poks pam".
+
+
+   ~/.ssh2/ssh2_config
+   -------------------
+
+       Client configuration file. See the global client config file
+       ssh2_config in /etc/ssh2.
+
+
+Platforms
+=========
+
+	Ssh 2.0 has been reportedly succesfully compiled and
+	run on the following platforms.
+
+	Processor	OS		OS-Versions
+	-------------------------------------------------------------
+	ix86		NetBSD		1.2, 1.3
+	ix86		FreeBSD		2.2.x, 3.0-current
+	ix86		Linux		2.0.34
+	sparc		Solaris		2.6
+

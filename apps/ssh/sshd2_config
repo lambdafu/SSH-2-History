@@ -1,0 +1,28 @@
+# sshd2_config
+# SSH 2.0 Server Configuration File
+
+*:
+	Port				22
+	ListenAddress			0.0.0.0
+	Ciphers				AnyStd
+#	Ciphers				AnyCipher
+#	Ciphers				AnyStdCipher
+#	Ciphers				3des
+	IdentityFile			identification
+	AuthorizationFile		authorization
+	HostKeyFile			hostkey
+	PublicHostKeyFile		hostkey.pub
+	RandomSeedFile			random_seed
+	ForwardAgent			yes
+	ForwardX11			yes
+	PasswordAuthentication		yes
+	PasswordGuesses			3
+	PermitRootLogin			yes
+	PubkeyAuthentication		yes
+	ForcePTTYAllocation		no
+	VerboseMode			no
+	PrintMotd			yes
+	
+# subsystem definitions
+
+	subsystem-sftp                  sftp-server
