@@ -9,10 +9,10 @@ Author: Antti Huima <huima@ssh.fi>
 Copyright (C) 1996 SSH Security Communications Oy, Espoo, Finland
                    All rights reserved
 
-		   */
+                   */
 
 /*
- * $Id: sha.c,v 1.14 1998/07/19 13:22:43 mkojo Exp $
+ * $Id: sha.c,v 1.15 1998/10/10 06:54:15 mkojo Exp $
  * $Log: sha.c,v $
  * $EndLog$
  */
@@ -23,16 +23,13 @@ Copyright (C) 1996 SSH Security Communications Oy, Espoo, Finland
 #include "sha.h"
 #include "sshgetput.h"
 
-/* ASN.1 Object identifier for sha1 */
-unsigned long ssh_sha1_asn1_oid[6] = { 1, 3, 14, 3, 2, 26 };
-
 /* Define SHA-1 in transparent way. */
 const SshHashDef ssh_hash_sha_def =
 {
   /* Name of the hash function. */
   "sha1",
   /* ASN.1 Object identifier (not defined) */
-  6, ssh_sha1_asn1_oid,
+  "1.3.14.3.2.26",
   /* ISO/IEC dedicated hash identifier. */
   0x33,
   /* Digest size. */
@@ -55,7 +52,7 @@ const SshHashDef ssh_hash_sha_96_def =
   /* Name of the hash function. */
   "sha1-96",
   /* ASN.1 Object identifier (not defined) */
-  0, NULL,
+  NULL,
   /* ISO/IEC dedicated hash identifier. */
   0, /* None */
   /* Digest size. */
@@ -78,7 +75,7 @@ const SshHashDef ssh_hash_sha_80_def =
   /* Name of the hash function. */
   "sha1-80",
   /* ASN.1 Object identifier (not defined) */
-  0, NULL,
+  NULL,
   /* ISO/IEC dedicated hash identifier. */
   0, /* None */
   /* Digest size. */
@@ -167,7 +164,7 @@ static void sha_transform(SshSHAContext *context, const unsigned char *block)
 
 #define TABLE_MORE(i, t)                           \
   t = W[i - 3] ^ W[i - 8] ^ W[i - 14] ^ W[i - 16]; \
-  W[i] = ROLL_1(t);						     
+  W[i] = ROLL_1(t);                                                  
 
 #define NONLINEAR1(F, a, b, c, d, e, f, i) \
   TABLE_IN(i);         \
@@ -303,19 +300,19 @@ static void sha_transform(SshSHAContext *context, const unsigned char *block)
       f = ROLL_5(a);
 
       if (t < 40)
-	{
-	  if (t < 20)
-	    f += F1(b, c, d);
-	  else
-	    f += F2(b, c, d);
-	}
+        {
+          if (t < 20)
+            f += F1(b, c, d);
+          else
+            f += F2(b, c, d);
+        }
       else
-	{
-	  if (t < 60)
-	    f += F3(b, c, d);
-	  else
-	    f += F4(b, c, d);
-	}
+        {
+          if (t < 60)
+            f += F3(b, c, d);
+          else
+            f += F4(b, c, d);
+        }
 
       f += e + W[t];
       f &= 0xFFFFFFFFL;
@@ -361,30 +358,30 @@ void ssh_sha_update(void *c, const unsigned char *buf, size_t len)
   while (len > 0)
     {
       if (in_buffer == 0 && len >= 64)
-	{
-	  sha_transform(context, buf);
-	  buf += 64;
-	  len -= 64;
-	  continue;	  
-	}
+        {
+          sha_transform(context, buf);
+          buf += 64;
+          len -= 64;
+          continue;       
+        }
 
       /* do copy? */
       to_copy = 64 - in_buffer;
       if (to_copy > 0)
-	{
-	  if (to_copy > len)
-	    to_copy = len;
-	  memcpy(&context->in[in_buffer],
-		 buf, to_copy);
-	  buf += to_copy;
-	  len -= to_copy;
-	  in_buffer += to_copy;
-	  if (in_buffer == 64)
-	    {
-	      sha_transform(context, context->in);
-	      in_buffer = 0;
-	    }
-	}
+        {
+          if (to_copy > len)
+            to_copy = len;
+          memcpy(&context->in[in_buffer],
+                 buf, to_copy);
+          buf += to_copy;
+          len -= to_copy;
+          in_buffer += to_copy;
+          if (in_buffer == 64)
+            {
+              sha_transform(context, context->in);
+              in_buffer = 0;
+            }
+        }
     }
 }
 
@@ -423,7 +420,7 @@ void ssh_sha_final(void *c, unsigned char *digest)
   if ((64 - in_buffer - 8) > 0)
     {
       memset(&context->in[in_buffer],
-	     0, 64 - in_buffer - 8);
+             0, 64 - in_buffer - 8);
     }
 
   sha_transform(context, context->in);
@@ -438,7 +435,7 @@ void ssh_sha_final(void *c, unsigned char *digest)
 }
 
 void ssh_sha_of_buffer(unsigned char digest[20],
-		       const unsigned char *buf, size_t len)
+                       const unsigned char *buf, size_t len)
 {
   SshSHAContext context;
   ssh_sha_reset_context(&context);
@@ -455,7 +452,7 @@ void ssh_sha_96_final(void *c, unsigned char *digest)
 }
 
 void ssh_sha_96_of_buffer(unsigned char digest[12],
-			  const unsigned char *buf, size_t len)
+                          const unsigned char *buf, size_t len)
 {
   SshSHAContext context;
   ssh_sha_reset_context(&context);
@@ -471,7 +468,7 @@ void ssh_sha_80_final(void *c, unsigned char *digest)
 }
 
 void ssh_sha_80_of_buffer(unsigned char digest[10],
-			  const unsigned char *buf, size_t len)
+                          const unsigned char *buf, size_t len)
 {
   SshSHAContext context;
   ssh_sha_reset_context(&context);

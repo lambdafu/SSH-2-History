@@ -21,13 +21,13 @@ Sending messages to the system log.
 /* Internal prototypes. */
 char *ssh_debug_format(const char *fmt, ...);
 void ssh_debug_output(const char *file, unsigned int line,
-		      const char *module, const char *function, char *message);
+                      const char *module, const char *function, char *message);
 Boolean ssh_debug_enabled(const char *module, int level);
 void ssh_debug_hexdump(size_t offset, const unsigned char *buf, size_t len);
 void ssh_generic_assert(int value, const char *expression,
-			const char *file, unsigned int line,
-			const char *module,
-			const char *function, int type);
+                        const char *file, unsigned int line,
+                        const char *module,
+                        const char *function, int type);
 
 
 /***********************************************************************
@@ -41,6 +41,10 @@ void ssh_generic_assert(int value, const char *expression,
 
    #define SSH_DEBUG_MODULE "ModuleName"
 
+   ModuleName consist of company name, product, module and
+   submodule names. For example SshIpsecIpeDelete and
+   SshIkePacketEncode.
+
    The module numbers are assigned in sshdmod.h and the mapping
    from numbers to names is found in sshdmod.c.
    
@@ -50,11 +54,12 @@ void ssh_generic_assert(int value, const char *expression,
 
    The correct way to call the macros is (SSH_TRACE works as an example):
 
-   SSH_TRACE(<level>, (<format>, <args>, ...));
+   SSH_TRACE(<debug type define>, (<format>, <args>, ...));
 
-   <level> is an integer between 0 and 9 and is the debug level this
-   message belongs to (zero most commonly viewed). <format> and <args>
-   are passed to snprintf.
+   <debug type define> is one of the defines below (see DEBUG LEVELS).
+   It is mapped into the debug level this message belongs to
+   (zero most commonly viewed). <format> and <args>
+   are passed to snprintf. See DEBUG LEVELS below for details.
 
    ssh_debug_initialize [see sshdmod.h] must be called in
    the beginning of the application.
@@ -139,6 +144,8 @@ void ssh_generic_assert(int value, const char *expression,
        }
      ...
    }
+
+
    */
      
 #ifdef __GNUC__
@@ -152,8 +159,8 @@ void ssh_generic_assert(int value, const char *expression,
 do { \
   if (ssh_debug_enabled(SSH_DEBUG_MODULE, level)) { \
     ssh_debug_output(__FILE__, __LINE__, SSH_DEBUG_MODULE, \
-		     SSH_DEBUG_FUNCTION, \
-		     ssh_debug_format varcall); \
+                     SSH_DEBUG_FUNCTION, \
+                     ssh_debug_format varcall); \
   } \
 } while (0)
 
@@ -163,14 +170,14 @@ do { \
 
    SSH_TRACE_HEXDUMP(1, 
                      ("Buffer (%d bytes):", sizeof(buf)), 
-		     buf, sizeof(buf)); */
+                     buf, sizeof(buf)); */
 
 #define SSH_TRACE_HEXDUMP(level, varcall, buf, len) \
 do { \
   if (ssh_debug_enabled(SSH_DEBUG_MODULE, level)) { \
     ssh_debug_output(__FILE__, __LINE__, SSH_DEBUG_MODULE, \
-		     SSH_DEBUG_FUNCTION, \
-		     ssh_debug_format varcall); \
+                     SSH_DEBUG_FUNCTION, \
+                     ssh_debug_format varcall); \
     ssh_debug_hexdump(0, buf, len); \
   } \
 } while (0)
@@ -181,16 +188,16 @@ do { \
 
 #define _SSH_GEN_ASSERT(expr, type) \
         ssh_generic_assert((int)(expr), #expr, __FILE__, __LINE__, \
-			   SSH_DEBUG_MODULE, SSH_DEBUG_FUNCTION, type)
+                           SSH_DEBUG_MODULE, SSH_DEBUG_FUNCTION, type)
 
-#define SSH_VERIFY(expr)	_SSH_GEN_ASSERT(expr, 5)
+#define SSH_VERIFY(expr)        _SSH_GEN_ASSERT(expr, 5)
 
 #ifdef DEBUG_LIGHT
-#define SSH_PRECOND(expr) 	_SSH_GEN_ASSERT(expr, 0)
-#define SSH_POSTCOND(expr) 	_SSH_GEN_ASSERT(expr, 1)
-#define SSH_ASSERT(expr) 	_SSH_GEN_ASSERT(expr, 2)
-#define SSH_INVARIANT(expr)	_SSH_GEN_ASSERT(expr, 3)
-#define SSH_NOTREACHED		_SSH_GEN_ASSERT(0,    4)
+#define SSH_PRECOND(expr)       _SSH_GEN_ASSERT(expr, 0)
+#define SSH_POSTCOND(expr)      _SSH_GEN_ASSERT(expr, 1)
+#define SSH_ASSERT(expr)        _SSH_GEN_ASSERT(expr, 2)
+#define SSH_INVARIANT(expr)     _SSH_GEN_ASSERT(expr, 3)
+#define SSH_NOTREACHED          _SSH_GEN_ASSERT(0,    4)
 #else
 #define SSH_PRECOND(x)
 #define SSH_POSTCOND(x)
@@ -254,9 +261,9 @@ typedef void (*SshErrorCallback)(const char *message, void *context);
    messages.  Any of the callbacks can be NULL to specify default
    handling. */
 void ssh_debug_register_callbacks(SshErrorCallback fatal_callback,
-				  SshErrorCallback warning_callback,
-				  SshErrorCallback debug_callback,
-				  void *context);
+                                  SshErrorCallback warning_callback,
+                                  SshErrorCallback debug_callback,
+                                  void *context);
 
 /***********************************************************************
  * Functions for logging data to the system log
@@ -308,19 +315,120 @@ typedef enum {
    log callback if one is defined; otherwise, an implementation-specific
    mechanism is used. */
 void ssh_log_event(SshLogFacility facility, SshLogSeverity severity,
-		   const char *fmt, ...);
+                   const char *fmt, ...);
 
 /* This type defines the callback function that can be used to send
    messages to the system log. */
 typedef void (*SshLogCallback)(SshLogFacility facility,
-			       SshLogSeverity severity,
-			       const char *message,
-			       void *context);
+                               SshLogSeverity severity,
+                               const char *message,
+                               void *context);
 
 /* Sets the callback for processing log messages.  All log messages will
    be passed to this function instead of the default function.  NULL specifies
    to use the default function. */
 void ssh_log_register_callback(SshLogCallback log_callback,
-			       void *context);
+                               void *context);
+
+/***********************************************************************
+ *   DEBUG LEVELS
+ ***********************************************************************
+
+   Not to be used inside loops:
+
+   0) Software malfunctions
+   1) 
+   2) (0-2 should also be logged using log-event)
+
+   3) External non-fatal high level errors
+       - incorrect format received from an outside source
+       - failed negotiation
+   4) Positive high level info
+       - succeeded negotiation
+   5) Start of a high or middle level operation
+       - start of a negotiation
+       - opening of a device
+       - not to be used by functions which are called from inside loops
+
+   Can be used inside loops:
+
+   6) Uncommon situations which might be caused by a bug
+   7) Nice-to-know info
+       - Entering or exiting a function
+       - A result of a low level operation
+   8) Data block dumps
+       - hash
+       - keys
+       - certificates
+       - other non-massive data blocks
+   9) Protocol packet dumps
+       - TCP
+       - UDP
+       - ESP
+       - AH
+   10) Mid-results
+       - inside loops
+       - non-final results
+   11-15) For programmers own debug use
+       - own discression
+       - needed only by a person doing bughunt
+*/
+
+/***********************************************************************
+ * Debug type definitions for debug level mapping
+ ***********************************************************************/
+
+/* Use debug code definitions below, not the debug level numbers
+   (except 11-15). */
+
+/* Software malfunctions */
+#define SSH_D_ERROR  0
+
+/* Data formatted incorrectly coming from a network or other outside source */
+#define SSH_D_NETGARB 3
+
+/* Non-fatal failure in a high or middle level operation */
+#define SSH_D_FAIL 3
+
+/* Uncommon situations  */
+#define SSH_D_UNCOMMON 6
+
+/* Success in a high level operation */
+#define SSH_D_HIGHOK 4
+
+/* Success in a middle level operation */
+#define SSH_D_MIDOK 7
+
+/* Success in a low level operation */
+#define SSH_D_LOWOK 10
+
+/* Start of a high level operation */
+#define SSH_D_HIGHSTART 5
+
+/* Start of a middle level operation */
+#define SSH_D_MIDSTART 7
+
+/* Start of a low level operation */
+#define SSH_D_LOWSTART 10
+
+/* Nice to know info */
+#define SSH_D_NICETOKNOW 7
+
+/* Data block dump */
+#define SSH_D_DATADUMP 8
+
+/* Packet dumps */
+#define SSH_D_PCKDMP 9
+
+/* Middle result of an operation, loop internal info */
+#define SSH_D_MIDRESULT 10
+
+/* Programmers own info for first version testing */
+#define SSH_D_MY1 11
+#define SSH_D_MY2 12
+#define SSH_D_MY3 13
+#define SSH_D_MY4 14
+#define SSH_D_MY5 15
+#define SSH_D_MY 15
 
 #endif /* SSHDEBUG_H */

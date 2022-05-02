@@ -39,7 +39,6 @@ libsshmath_a_LIBADD = @MATH_CONF_OBJS@
 libsshmath_a_DEPENDENCIES = @MATH_CONF_OBJS@
 
 EXTRA_DIST = \
-  sshmp_i386.S \
   sshmp.h 
 
 SUFFIXES = .S .s

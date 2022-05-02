@@ -14,7 +14,7 @@ Common include files for various platforms.
 */
 
 /*
- * $Id: sshincludes.h,v 1.16 1998/08/10 14:23:54 tmo Exp $
+ * $Id: sshincludes.h,v 1.22 1998/10/02 01:32:33 ylo Exp $
  * $Log: sshincludes.h,v $
  * $EndLog$
  */
@@ -63,6 +63,9 @@ Common include files for various platforms.
 #define DLLEXPORT 
 #endif /* WINDOWS */
 
+typedef unsigned char SshUInt8;		/* At least 8 bits. */
+typedef signed char SshInt8;		/* At least 8 bits. */
+
 typedef unsigned short SshUInt16;	/* At least 16 bits. */
 typedef short SshInt16;			/* At least 16 bits. */
 
@@ -83,11 +86,23 @@ typedef short SshInt32;			/* At least 32 bits. */
 #endif
 #endif
 
+#if SIZEOF_LONG >= 8
+typedef unsigned long SshUInt64;
+typedef long SshInt64;
+#else
+#if SIZEOF_LONG_LONG >= 8
+typedef unsigned long long SshUInt64;
+typedef long long SshInt64;
+#else
+/* No 64 bit type; SshUInt64 and SshInt64 will be 32 bits. */
+typedef unsigned long SshUInt64;
+typedef long SshInt64;
+#endif
+#endif
+
 #ifndef macintosh
-#define ZERO_SIZE_ARRAY 0
 #include <sys/types.h>
 #else /* macintosh */
-#define ZERO_SIZE_ARRAY
 #ifdef __MWERKS__
 #include <types.h>
 #include <OpenTransport.h>
@@ -317,6 +332,13 @@ typedef unsigned int Boolean;
 # undef index
 #endif
 #define index ssh_fatal(INDEX_IS_BSDISM_USE_STRCHR_INSTEAD)
+
+#if 0
+#ifdef interface
+# undef interface
+#endif
+#define interface ssh_fatal(INTERFACE_IS_RESERVED_AT_MVC)
+#endif
 
 #ifdef rindex
 # undef rindex

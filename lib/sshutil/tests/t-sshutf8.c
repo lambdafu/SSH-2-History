@@ -19,7 +19,7 @@
 
 /* run basic tests; test that everything is approximately ok */
 
-int utf8_basic_tests()
+int utf8_basic_tests(void)
 {
   unsigned char test_8[1024];
   unsigned long test_16[512];
@@ -69,7 +69,7 @@ int utf8_basic_tests()
 
 /* run advanced tests. */
 
-int utf8_advanced_tests()
+int utf8_advanced_tests(void)
 {
   /* XXX write stuff here */
 

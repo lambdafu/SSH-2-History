@@ -15,7 +15,7 @@
   */
 
 /*
- * $Id: ripemd160.c,v 1.6 1998/07/19 13:22:42 mkojo Exp $
+ * $Id: ripemd160.c,v 1.7 1998/10/10 06:54:12 mkojo Exp $
  * $Log: ripemd160.c,v $
  * $EndLog$
  */
@@ -26,16 +26,13 @@
 #include "sshgetput.h"
 #include "ripemd160.h"
 
-/* The object identifier for RIPE MD-160 hash function. */
-unsigned long ssh_ripemd160_oid[] = { 1, 3, 36, 3, 2, 1 };
-
 /* Define RIPEMD-160 in a transparent way (for internal use currently). */
 const SshHashDef ssh_hash_ripemd160_def =
 {
   /* Name of the hash function. */
   "ripemd160",
   /* ASN.1 Object identifier (to be included). */
-  6, ssh_ripemd160_oid,
+  "1.3.36.3.2.1",
   /* ISO/IEC dedicated hash identifier. */
   0x31,
   /* Digest size. */
@@ -58,7 +55,7 @@ const SshHashDef ssh_hash_ripemd160_96_def =
   /* Name of the hash function. */
   "ripemd160-96",
   /* ASN.1 Object identifier (to be included). */
-  0, NULL,
+  NULL,
   /* ISO/IEC dedicated hash identifier. */
   0, /* None */
   /* Digest size. */
@@ -81,7 +78,7 @@ const SshHashDef ssh_hash_ripemd160_80_def =
   /* Name of the hash function. */
   "ripemd160-80",
   /* ASN.1 Object identifier (to be included). */
-  0, NULL,
+  NULL,
   /* ISO/IEC dedicated hash identifier. */
   0, /* None */
   /* Digest size. */
@@ -178,7 +175,7 @@ size_t ssh_ripemd160_ctxsize()
 }
 
 static void ripemd160_transform(SshRipeMDContext *context,
-				const unsigned char *block)
+                                const unsigned char *block)
 {
   SshUInt32 aa = context->aa, bb = context->bb, cc = context->cc,
     dd = context->dd, ee = context->ee;
@@ -400,30 +397,30 @@ void ssh_ripemd160_update(void *c, const unsigned char *buf, size_t len)
   while (len > 0)
     {
       if (in_buffer == 0 && len >= 64)
-	{
-	  ripemd160_transform(context, buf);
-	  buf += 64;
-	  len -= 64;
-	  continue;
-	}
+        {
+          ripemd160_transform(context, buf);
+          buf += 64;
+          len -= 64;
+          continue;
+        }
       /* do copy? */
       to_copy = 64 - in_buffer;
       if (to_copy > 0)
-	{
-	  if (to_copy > len)
-	    to_copy = len;
-	  memcpy(&context->in[in_buffer],
-		 buf, to_copy);
-	  buf += to_copy;
-	  len -= to_copy;
-	  
-	  in_buffer += to_copy;
-	  if (in_buffer == 64)
-	    {
-	      ripemd160_transform(context, context->in);
-	      in_buffer = 0;
-	    }
-	}
+        {
+          if (to_copy > len)
+            to_copy = len;
+          memcpy(&context->in[in_buffer],
+                 buf, to_copy);
+          buf += to_copy;
+          len -= to_copy;
+          
+          in_buffer += to_copy;
+          if (in_buffer == 64)
+            {
+              ripemd160_transform(context, context->in);
+              in_buffer = 0;
+            }
+        }
     }
 }
 
@@ -463,7 +460,7 @@ void ssh_ripemd160_final(void *c, unsigned char *digest)
   if ((64 - in_buffer - 8) > 0)
     {
       memset(&context->in[in_buffer],
-	     0, 64 - in_buffer - 8);
+             0, 64 - in_buffer - 8);
     }
 
   ripemd160_transform(context, context->in);
@@ -478,7 +475,7 @@ void ssh_ripemd160_final(void *c, unsigned char *digest)
 }
 
 void ssh_ripemd160_of_buffer(unsigned char digest[20],
-			     const unsigned char *buf, size_t len)
+                             const unsigned char *buf, size_t len)
 {
   SshRipeMDContext context;
   ssh_ripemd160_reset_context(&context);
@@ -495,7 +492,7 @@ void ssh_ripemd160_96_final(void *c, unsigned char *digest)
 }
 
 void ssh_ripemd160_96_of_buffer(unsigned char digest[12],
-				const unsigned char *buf, size_t len)
+                                const unsigned char *buf, size_t len)
 {
   SshRipeMDContext context;
   ssh_ripemd160_reset_context(&context);
@@ -512,7 +509,7 @@ void ssh_ripemd160_80_final(void *c, unsigned char *digest)
 }
 
 void ssh_ripemd160_80_of_buffer(unsigned char digest[10],
-				const unsigned char *buf, size_t len)
+                                const unsigned char *buf, size_t len)
 {
   SshRipeMDContext context;
   ssh_ripemd160_reset_context(&context);

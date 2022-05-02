@@ -12,7 +12,7 @@
 */
 
 /*
- * $Id: match.c,v 1.3 1998/08/23 06:22:35 ylo Exp $
+ * $Id: match.c,v 1.4 1998/09/23 11:14:27 tmo Exp $
  * $Log: match.c,v $
  * $EndLog$
  */
@@ -143,7 +143,7 @@ Boolean ssh_match_port(int port, const char *pattern)
     }
   if (*pattern)
     ssh_warning("Junk after port pattern: %.20s", pattern);
-  if (lower_port <= port && port <= upper_port)
+  if ((unsigned)lower_port <= (unsigned)port && (unsigned)port <= (unsigned)upper_port)
     return TRUE;
   return FALSE;
 

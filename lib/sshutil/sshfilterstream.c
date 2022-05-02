@@ -359,7 +359,7 @@ void ssh_stream_filter_destroy(void *context)
 int ssh_stream_filter_read(void *context, unsigned char *buf, size_t size)
 {
   SshStreamFilter sf = (SshStreamFilter)context;
-  int len;
+  size_t len;
 
   /* If disconnected, return EOF. */
   if (sf->disconnected)

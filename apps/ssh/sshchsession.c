@@ -81,10 +81,10 @@ Session channels are interactive terminal sessions.
 
 #define SSH_DEBUG_MODULE "Ssh2ChannelSession"
 
-#define SSH_SESSION_INTERACTIVE_WINDOW       	       10000
-#define SSH_SESSION_NONINTERACTIVE_WINDOW      	      100000
-#define SSH_SESSION_INTERACTIVE_PACKET_SIZE		 512
-#define SSH_SESSION_NONINTERACTIVE_PACKET_SIZE		8192
+#define SSH_SESSION_INTERACTIVE_WINDOW                 10000
+#define SSH_SESSION_NONINTERACTIVE_WINDOW             100000
+#define SSH_SESSION_INTERACTIVE_PACKET_SIZE              512
+#define SSH_SESSION_NONINTERACTIVE_PACKET_SIZE          8192
 
 typedef struct SshChannelSessionRec
 {
@@ -155,12 +155,12 @@ typedef enum {
 
 #ifndef DEFAULT_PATH
 #ifdef _PATH_USERPATH
-#define DEFAULT_PATH		_PATH_USERPATH
+#define DEFAULT_PATH            _PATH_USERPATH
 #else
 #ifdef _PATH_DEFPATH
-#define	DEFAULT_PATH		_PATH_DEFPATH
+#define DEFAULT_PATH            _PATH_DEFPATH
 #else
-#define DEFAULT_PATH	"/bin:/usr/bin:/usr/ucb:/usr/bin/X11:/usr/local/bin"
+#define DEFAULT_PATH    "/bin:/usr/bin:/usr/ucb:/usr/bin/X11:/usr/local/bin"
 #endif
 #endif
 #endif /* DEFAULT_PATH */
@@ -169,7 +169,7 @@ typedef enum {
    already exists, its value is overriden. */
 
 void ssh_child_set_env(char ***envp, unsigned int *envsizep, const char *name,
-		   const char *value)
+                   const char *value)
 {
   unsigned int i, namelen, maxlen;
   char **env;
@@ -191,13 +191,13 @@ void ssh_child_set_env(char ***envp, unsigned int *envsizep, const char *name,
     {
       /* New variable.  Expand the array if necessary. */
       if (i >= (*envsizep) - 1)
-	{
-	  (*envsizep) += 50;
-	  env = (*envp) = ssh_xrealloc(env, (*envsizep) * sizeof(char *));
-	}
+        {
+          (*envsizep) += 50;
+          env = (*envp) = ssh_xrealloc(env, (*envsizep) * sizeof(char *));
+        }
 
       /* Need to set the NULL pointer at end of array beyond the new 
-	 slot. */
+         slot. */
       env[i + 1] = NULL;
     }
 
@@ -213,7 +213,7 @@ void ssh_child_set_env(char ***envp, unsigned int *envsizep, const char *name,
    and assignments of the form name=value.  No other forms are allowed. */
 
 void ssh_read_environment_file(char ***env, unsigned int *envsize,
-			       const char *filename)
+                               const char *filename)
 {
   FILE *f;
   char buf[4096];
@@ -230,26 +230,26 @@ void ssh_read_environment_file(char ***env, unsigned int *envsize,
     {
       /* Skip leading whitespace. */
       for (cp = buf; *cp == ' ' || *cp == '\t'; cp++)
-	;
+        ;
 
       /* Ignore empty and comment lines. */
       if (!*cp || *cp == '#' || *cp == '\n')
-	continue;
+        continue;
 
       /* Remove newline. */
       if (strchr(cp, '\n'))
-	*strchr(cp, '\n') = '\0';
+        *strchr(cp, '\n') = '\0';
 
       /* Find the equals sign.  Its lack indicates badly formatted line. */
       value = strchr(cp, '=');
       if (value == NULL)
-	{
-	  ssh_warning("Bad line in %.100s: %.200s", filename, buf);
-	  continue;
-	}
+        {
+          ssh_warning("Bad line in %.100s: %.200s", filename, buf);
+          continue;
+        }
 
       /* Replace the equals sign by nul, and advance value to the value 
-	 string. */
+         string. */
       *value = '\0';
       value++;
 
@@ -285,7 +285,7 @@ char *ssh_child_get_env(char **env, const char *name)
    settings, ulimit, etc.  This file exists at least on Solaris 2.x. */
 
 void ssh_read_etc_default_login(char ***env, unsigned int *envsize,
-				const char *user_shell, uid_t user_uid)
+                                const char *user_shell, uid_t user_uid)
 {
   unsigned int defenvsize;
   char **defenv, *def;
@@ -334,9 +334,9 @@ void ssh_read_etc_default_login(char ***env, unsigned int *envsize,
       int i, value;
 
       for (value = i = 0; 
-	   def[i] && isdigit(def[i]) && def[i] != '8' && def[i] != '9'; 
-	   i++)
-	value = value * 8 + def[i] - '0';
+           def[i] && isdigit(def[i]) && def[i] != '8' && def[i] != '9'; 
+           i++)
+        value = value * 8 + def[i] - '0';
 
       umask(value);
     }
@@ -359,7 +359,7 @@ void ssh_read_etc_default_login(char ***env, unsigned int *envsize,
 /* Initializes the environment for the child process. */
 
 void ssh_session_init_env(SshChannelSession session, char ***envp,
-			  unsigned int *envsizep, const char **client_env)
+                          unsigned int *envsizep, const char **client_env)
 {
   char buf[512];
   const char *cp;
@@ -391,7 +391,7 @@ void ssh_session_init_env(SshChannelSession session, char ***envp,
   /* Read /etc/default/login; this exists at least on Solaris 2.x.  Note
      that we are already running on the user's uid. */
   ssh_read_etc_default_login(envp, envsizep, user_shell,
-			     ssh_user_uid(session->common->user_data));
+                             ssh_user_uid(session->common->user_data));
 #else /* HAVE_ETC_DEFAULT_LOGIN */
   /* Normal systems set SHELL by default. */
   ssh_child_set_env(envp, envsizep, "SHELL", user_shell);
@@ -403,8 +403,8 @@ void ssh_session_init_env(SshChannelSession session, char ***envp,
 
   /* Set SSH_CLIENT. */
   snprintf(buf, sizeof(buf), "%s %s %s %s",
-	   session->common->remote_ip, session->common->remote_port,
-	   session->common->local_ip, session->common->local_port);
+           session->common->remote_ip, session->common->remote_port,
+           session->common->local_ip, session->common->local_port);
   ssh_child_set_env(envp, envsizep, "SSH2_CLIENT", buf);
 
   /* Set SSH_TTY if we have a pty. */
@@ -419,21 +419,21 @@ void ssh_session_init_env(SshChannelSession session, char ***envp,
 #ifdef SSH_CHANNEL_X11
   if (ssh_channel_x11_get_display(session->x11_placeholder))
     ssh_child_set_env(envp, envsizep, "DISPLAY",
-		      ssh_channel_x11_get_display(session->x11_placeholder));
+                      ssh_channel_x11_get_display(session->x11_placeholder));
 #endif /* SSH_CHANNEL_X11 */
 
 #ifdef SSH_CHANNEL_AGENT
   /* Set `SSH_AGENT_VAR' if we have agent. */
   if (ssh_channel_agent_get_path(session->common))
     ssh_child_set_env(envp, envsizep, SSH_AGENT_VAR,
-		      ssh_channel_agent_get_path(session->common));
+                      ssh_channel_agent_get_path(session->common));
 #endif /* SSH_CHANNEL_AGENT */
 
 #ifdef SSH_CHANNEL_SSH1_AGENT
   /* Set `SSH1_AGENT_VAR' if we have ssh1 agent. */
   if (ssh_channel_ssh1_agent_get_path(session->common))
     ssh_child_set_env(envp, envsizep, SSH1_AGENT_VAR,
-		      ssh_channel_ssh1_agent_get_path(session->common));
+                      ssh_channel_ssh1_agent_get_path(session->common));
 #endif /* SSH_CHANNEL_SSH1_AGENT */
   
 #ifdef KERBEROS
@@ -458,17 +458,17 @@ void ssh_session_init_env(SshChannelSession session, char ***envp,
   if (client_env != NULL)
     {
       for (i = 0; client_env[i]; i++)
-	{
-	  /* Extract the variable name into buf. */
-	  cp = strchr(client_env[i], '=');
-	  if (!cp)
-	    ssh_fatal("ssh_session_init_env: client env: %s", client_env[i]);
-	  snprintf(buf, sizeof(buf), "%.*s",
-		   cp - client_env[i], client_env[i]);
+        {
+          /* Extract the variable name into buf. */
+          cp = strchr(client_env[i], '=');
+          if (!cp)
+            ssh_fatal("ssh_session_init_env: client env: %s", client_env[i]);
+          snprintf(buf, sizeof(buf), "%.*s",
+                   cp - client_env[i], client_env[i]);
 
-	  /* Set the value. */
-	  ssh_child_set_env(envp, envsizep, buf, cp + 1);
-	}
+          /* Set the value. */
+          ssh_child_set_env(envp, envsizep, buf, cp + 1);
+        }
     }
   
   ssh_debug("Environment:");
@@ -503,102 +503,102 @@ void ssh_session_init_run(SshChannelSession session)
   if (stat(SSH_USER_RC, &st) >= 0)
     {
       snprintf(buf, sizeof(buf), "%.100s %.100s", shell, SSH_USER_RC);
-	  
+          
       ssh_debug("Running %s", buf);
-	    
+            
       f = popen(buf, "w");
       if (f)
-	{
+        {
 #ifdef SSH_CHANNEL_X11
-	  if (auth_protocol != NULL && auth_cookie != NULL)
-	    fprintf(f, "%s %s\n", auth_protocol, auth_cookie);
+          if (auth_protocol != NULL && auth_cookie != NULL)
+            fprintf(f, "%s %s\n", auth_protocol, auth_cookie);
 #endif /* SSH_CHANNEL_X11 */
-	  pclose(f);
-	}
+          pclose(f);
+        }
       else
-	ssh_warning("Could not run %s", SSH_USER_RC);
+        ssh_warning("Could not run %s", SSH_USER_RC);
     }
   else
     if (stat(SSH_SYSTEM_RC, &st) >= 0)
       {
-	snprintf(buf, sizeof(buf), "%s %s", "/bin/sh", SSH_SYSTEM_RC);
-	
-	ssh_debug("Running %s", buf);
-	
-	f = popen(buf, "w");
-	if (f)
-	  {
+        snprintf(buf, sizeof(buf), "%s %s", "/bin/sh", SSH_SYSTEM_RC);
+        
+        ssh_debug("Running %s", buf);
+        
+        f = popen(buf, "w");
+        if (f)
+          {
 #ifdef SSH_CHANNEL_X11
-	    if (auth_protocol != NULL && auth_cookie != NULL)
-	      fprintf(f, "%s %s\n", auth_protocol, auth_cookie);
+            if (auth_protocol != NULL && auth_cookie != NULL)
+              fprintf(f, "%s %s\n", auth_protocol, auth_cookie);
 #endif /* SSH_CHANNEL_X11 */
-	    pclose(f);
-	  }
-	else
-	  ssh_warning("Could not run %s", SSH_SYSTEM_RC);
+            pclose(f);
+          }
+        else
+          ssh_warning("Could not run %s", SSH_SYSTEM_RC);
       }
 #ifdef SSH_CHANNEL_X11
 #ifdef XAUTH_PATH
     else
       {
-	/* Add authority data to .Xauthority if appropriate. */
-	if (auth_protocol != NULL && auth_cookie != NULL)
-	  {
-	    int i;
-	    char name[256], *p, *cp;
-	    struct hostent *hp;
-	    
-	    strncpy(name, display, sizeof(name));
-	    name[sizeof(name) - 1] = '\0';
-	    p = strchr(name, ':');
-	    if (p)
-	      *p = '\0';
-	    
-	    ssh_debug("Running %.100s add %.100s %.100s %.100s",
-		      XAUTH_PATH, display, auth_protocol, auth_cookie);
-	    
-	    signal(SIGPIPE, SIG_IGN);
-	    
-	    f = popen(XAUTH_PATH " -q -", "w");
-	    if (f)
-	      {
-		fprintf(f, "add %s %s %s\n", display,
-			auth_protocol, auth_cookie);
-		cp = strchr(display, ':');
-		if (cp)
-		  {
+        /* Add authority data to .Xauthority if appropriate. */
+        if (auth_protocol != NULL && auth_cookie != NULL)
+          {
+            int i;
+            char name[256], *p, *cp;
+            struct hostent *hp;
+            
+            strncpy(name, display, sizeof(name));
+            name[sizeof(name) - 1] = '\0';
+            p = strchr(name, ':');
+            if (p)
+              *p = '\0';
+            
+            ssh_debug("Running %.100s add %.100s %.100s %.100s",
+                      XAUTH_PATH, display, auth_protocol, auth_cookie);
+            
+            signal(SIGPIPE, SIG_IGN);
+            
+            f = popen(XAUTH_PATH " -q -", "w");
+            if (f)
+              {
+                fprintf(f, "add %s %s %s\n", display,
+                        auth_protocol, auth_cookie);
+                cp = strchr(display, ':');
+                if (cp)
+                  {
 #ifndef CRAY
-		    /* Cray xauth cannot take host/unix:0 as displayname */
-		    fprintf(f, "add %.*s/unix%s %s %s\n",
-			    (int)(cp - display), display, cp,
-			    auth_protocol, auth_cookie);
+                    /* Cray xauth cannot take host/unix:0 as displayname */
+                    fprintf(f, "add %.*s/unix%s %s %s\n",
+                            (int)(cp - display), display, cp,
+                            auth_protocol, auth_cookie);
 #endif
-		    hp = gethostbyname(name);
-		    if (hp)
-		      {
-			for (i = 0; hp->h_addr_list[i]; i++)
-			  {
-			    ssh_debug("Running %s add %s%s %s %s",
-				      XAUTH_PATH,
-				      inet_ntoa(*((struct in_addr *)
-						  hp->h_addr_list[i])),
-				      cp, auth_protocol, auth_cookie);
-			    fprintf(f, "add %s%s %s %s\n",
-				    inet_ntoa(*((struct in_addr *)
-						hp->h_addr_list[i])),
-				    cp, auth_protocol, auth_cookie);
-			  }
-		      }
-		  }
-		pclose(f);
-	      }
-	    else
-	      {
-		ssh_warning("Could not run %s -q -", XAUTH_PATH);
-	      }
-	  }
-	
-	signal(SIGPIPE, SIG_DFL);
+                    hp = gethostbyname(name);
+                    if (hp)
+                      {
+                        for (i = 0; hp->h_addr_list[i]; i++)
+                          {
+                            ssh_debug("Running %s add %s%s %s %s",
+                                      XAUTH_PATH,
+                                      inet_ntoa(*((struct in_addr *)
+                                                  hp->h_addr_list[i])),
+                                      cp, auth_protocol, auth_cookie);
+                            fprintf(f, "add %s%s %s %s\n",
+                                    inet_ntoa(*((struct in_addr *)
+                                                hp->h_addr_list[i])),
+                                    cp, auth_protocol, auth_cookie);
+                          }
+                      }
+                  }
+                pclose(f);
+              }
+            else
+              {
+                ssh_warning("Could not run %s -q -", XAUTH_PATH);
+              }
+          }
+        
+        signal(SIGPIPE, SIG_DFL);
       }
 #endif /* XAUTH_PATH */
 #endif /* SSH_CHANNEL_X11 */
@@ -607,8 +607,8 @@ void ssh_session_init_run(SshChannelSession session)
 /* Processing for the child process (to become the user's shell). */
 
 void ssh_channel_session_child(SshChannelSession session, 
-			      SshSessionType op,
-			      const char *command)
+                              SshSessionType op,
+                              const char *command)
 {
   char buf[256], linebuf[256];
   char *argv[10];
@@ -639,18 +639,18 @@ void ssh_channel_session_child(SshChannelSession session,
   if (!ssh_user_become(session->common->user_data))
     {
       ssh_debug("Switching to user '%s' failed!",
-		session->common->user);
+                session->common->user);
       exit(254);
     }
 
   SSH_DEBUG(1, ("ssh_channel_session_child: now running as user '%s'",
-		session->common->user));
+                session->common->user));
 
   /* Go to the user's home directory. */
   if (chdir(ssh_user_dir(session->common->user_data)) < 0)
     {
       ssh_warning("Could not chdir to home directory %s: %s",
-		  ssh_user_dir(session->common->user_data), strerror(errno));
+                  ssh_user_dir(session->common->user_data), strerror(errno));
       chdir("/");
     }
   
@@ -682,7 +682,7 @@ void ssh_channel_session_child(SshChannelSession session,
       ssh_debug("command is \"%s %s %s\"", argv[0], argv[1], argv[2]);
       ssh_debug("Environment:");
       for (i = 0; env[i]; i++)
-	ssh_debug("  %.200s", env[i]);
+        ssh_debug("  %.200s", env[i]);
 
       execve(shell, argv, env);
       perror(shell);
@@ -694,7 +694,7 @@ void ssh_channel_session_child(SshChannelSession session,
   
   /* Get the user's shell, and the last component of it. */
   shell = ssh_user_shell(session->common->user_data);
-  shell_no_path = strchr(shell, '/');
+  shell_no_path = strrchr(shell, '/');
   if (shell_no_path)
     shell_no_path++;
   else
@@ -714,15 +714,15 @@ void ssh_channel_session_child(SshChannelSession session,
 
       /* print motd, if "PrintMotd yes" and it exists */
       if(session->common->config->print_motd)
-	{
-	  f = fopen("/etc/motd", "r");
-	  if (f)
-	    {
-	      while (fgets(linebuf, sizeof(linebuf), f))
-		fputs(linebuf, stdout);
-	      fclose(f);
-	    }
-	}
+        {
+          f = fopen("/etc/motd", "r");
+          if (f)
+            {
+              while (fgets(linebuf, sizeof(linebuf), f))
+                fputs(linebuf, stdout);
+              fclose(f);
+            }
+        }
       
       execve(shell, argv, env);
       /* Executing the shell failed. */
@@ -742,19 +742,19 @@ void ssh_channel_session_child(SshChannelSession session,
       
       /* Search for the subsystem and execute it */      
       for (i = 0; i < session->common->config->no_subsystems; i++)
-	{	  
-	  if (strcmp(command, 
-		     session->common->config->subsystems[i]->name) == 0)
-	    {
-	      argv[0] = (char *)shell;
-	      argv[1] = "-c";
-	      argv[2] = session->common->config->subsystems[i]->path;
-	      argv[3] = NULL;
-	      execve(shell, argv, env);
-	      perror(shell);
-	      exit(254);
-	    }	    
-	}
+        {         
+          if (strcmp(command, 
+                     session->common->config->subsystems[i]->name) == 0)
+            {
+              argv[0] = (char *)shell;
+              argv[1] = "-c";
+              argv[2] = session->common->config->subsystems[i]->path;
+              argv[3] = NULL;
+              execve(shell, argv, env);
+              perror(shell);
+              exit(254);
+            }       
+        }
       ssh_warning("Subsystem %s not defined", command);
       exit(254);
 
@@ -769,7 +769,7 @@ void ssh_channel_session_child(SshChannelSession session,
    Returns TRUE if the channel was opened, FALSE otherwise. */
 
 Boolean ssh_channel_session_exec(SshChannelSession session, SshSessionType op,
-				char *cmd)
+                                char *cmd)
 {
   SshStream stdio_stream;
   SshStream stderr_stream;
@@ -784,63 +784,64 @@ Boolean ssh_channel_session_exec(SshChannelSession session, SshSessionType op,
       SSH_DEBUG(1, ("Allocating pty."));
       /* XXX pty modes */
       status =
-	ssh_pty_allocate_and_fork(ssh_user_uid(session->common->user_data),
-				  ssh_user_gid(session->common->user_data),
-				  ptyname, &stdio_stream);
+        ssh_pty_allocate_and_fork(ssh_user_uid(session->common->user_data),
+                                  ssh_user_gid(session->common->user_data),
+                                  ptyname, &stdio_stream);
       
       switch (status)
-	{
-	case SSH_PTY_ERROR:
-	  ssh_debug("Failed to allocate pty!");
-	  ssh_conn_send_debug(session->common->conn, TRUE,
-			      "Failed to allocate pty!");
-	  if (cmd)
-	    ssh_xfree(cmd);
-	  return FALSE;
-	  
-	case SSH_PTY_PARENT_OK:
-	  session->ttyname = ssh_xstrdup(ptyname);
-	  stderr_stream = NULL;
-	  ssh_pty_change_window_size(stdio_stream,
-				     session->width_chars,
-				     session->height_chars,
-				     session->width_pixels,
-				     session->height_pixels);
-	  /* XXX Remaining tty modes... */
-	  ssh_user_record_login(session->common->user_data,
-				ssh_pty_get_pid(stdio_stream),
-				ptyname,
-				session->common->remote_ip, /* host */
-				session->common->remote_ip);
-	  break;
-	  
-	case SSH_PTY_CHILD_OK:
+        {
+        case SSH_PTY_ERROR:
+          ssh_debug("Failed to allocate pty!");
+          ssh_conn_send_debug(session->common->conn, TRUE,
+                              "Failed to allocate pty!");
+          if (cmd)
+            ssh_xfree(cmd);
+          return FALSE;
+          
+        case SSH_PTY_PARENT_OK:
+          session->ttyname = ssh_xstrdup(ptyname);
+          stderr_stream = NULL;
+          ssh_pty_change_window_size(stdio_stream,
+                                     session->width_chars,
+                                     session->height_chars,
+                                     session->width_pixels,
+                                     session->height_pixels);
+          /* XXX Remaining tty modes... */
+          ssh_user_record_login(session->common->user_data,
+                                ssh_pty_get_pid(stdio_stream),
+                                ptyname,
+                                session->common->remote_ip, /* host */
+                                session->common->remote_ip);
+          break;
+          
+        case SSH_PTY_CHILD_OK:
       /* XXX with C2 security it is possibly to deny login from specified
-	 terminals. Problem is, that user is already authenticated at this
-	 point. So, if user is denied login from this terminal, we should
-	 probably disconnect. How could we find out elegantly which
-	 terminals the user is allowed to log on? */
+         terminals. Problem is, that user is already authenticated at this
+         point. So, if user is denied login from this terminal, we should
+         probably disconnect. How could we find out elegantly which
+         terminals the user is allowed to log on? */
 #ifdef HAVE_OSF1_C2_SECURITY
-	  {
-	    char *disconnect_reason;
-	    disconnect_reason =
-	      tcbc2_check_account_and_terminal(ssh_user_name(session->common->user_data),
-					       ptyname);
-	    if(disconnect_reason)
-	      ssh_conn_send_disconnect(session->common->conn,
-				       SSH_DISCONNECT_HOST_NOT_ALLOWED_TO_CONNECT,
-				       disconnect_reason);
-	  }
+          {
+            const char *disconnect_reason;
+            disconnect_reason =
+              tcbc2_check_account_and_terminal(ssh_user_name(session->common->user_data),
+                                               ptyname);
+            if(disconnect_reason)
+              ssh_conn_send_disconnect(session->common->conn,
+                                       SSH_DISCONNECT_HOST_NOT_ALLOWED_TO_CONNECT,
+                                       disconnect_reason);
+          }
 #endif
-	  ssh_channel_session_child(session, op, cmd);
-	  ssh_debug("ssh_channel_session_child returned");
-	  exit(255);
 
-	default:
-	  ssh_fatal("ssh_channel_session_exec: bad status %d", (int)status);
-	  /*NOTREACHED*/
-	  return FALSE;
-	}
+          ssh_channel_session_child(session, op, cmd);
+          ssh_debug("ssh_channel_session_child returned");
+          exit(255);
+
+        default:
+          ssh_fatal("ssh_channel_session_exec: bad status %d", (int)status);
+          /*NOTREACHED*/
+          return FALSE;
+        }
     }
   else
     {
@@ -849,40 +850,40 @@ Boolean ssh_channel_session_exec(SshChannelSession session, SshSessionType op,
 
       status = ssh_pipe_create_and_fork(&stdio_stream, &stderr_stream);
       switch (status)
-	{
-	case SSH_PIPE_ERROR:
-	  ssh_debug("Failed to fork using pipes.");
-	  ssh_conn_send_debug(session->common->conn, TRUE,
-			      "Failed to fork pipe!");
-	  if (cmd)
-	    ssh_xfree(cmd);
-	  return FALSE;
-	  
-	case SSH_PIPE_PARENT_OK:
-	  break;
+        {
+        case SSH_PIPE_ERROR:
+          ssh_debug("Failed to fork using pipes.");
+          ssh_conn_send_debug(session->common->conn, TRUE,
+                              "Failed to fork pipe!");
+          if (cmd)
+            ssh_xfree(cmd);
+          return FALSE;
+          
+        case SSH_PIPE_PARENT_OK:
+          break;
 
-	case SSH_PIPE_CHILD_OK:
-	  /* XXX this should probably be somewhere else. */
+        case SSH_PIPE_CHILD_OK:
+          /* XXX this should probably be somewhere else. */
 #ifdef HAVE_OSF1_C2_SECURITY
-	  {
-	    char *disconnect_reason;
-	    disconnect_reason =
-	      tcbc2_check_account_and_terminal(ssh_user_name(session->common->user_data),
-					       NULL);
-	    if(disconnect_reason)
-	      ssh_conn_send_disconnect(session->common->conn,
-				       SSH_DISCONNECT_HOST_NOT_ALLOWED_TO_CONNECT,
-				       disconnect_reason);
-	  }
+          {
+            const char *disconnect_reason;
+            disconnect_reason =
+              tcbc2_check_account_and_terminal(ssh_user_name(session->common->user_data),
+                                               NULL);
+            if(disconnect_reason)
+              ssh_conn_send_disconnect(session->common->conn,
+                                       SSH_DISCONNECT_HOST_NOT_ALLOWED_TO_CONNECT,
+                                       disconnect_reason);
+          }
 #endif
-	  ssh_channel_session_child(session, op, cmd);
-	  ssh_debug("ssh_channel_session_child returned");
-	  exit(255);
+          ssh_channel_session_child(session, op, cmd);
+          ssh_debug("ssh_channel_session_child returned");
+          exit(255);
 
-	default:
-	  ssh_fatal("ssh_channel_session_exec: bad pipe status %d",
-		    (int)status);
-	}
+        default:
+          ssh_fatal("ssh_channel_session_exec: bad pipe status %d",
+                    (int)status);
+        }
     }
 
   /* Free the command now if one was given. */
@@ -892,13 +893,13 @@ Boolean ssh_channel_session_exec(SshChannelSession session, SshSessionType op,
   /* We are the parent, and the child has been successfully started.
      Register the stream for the channel. */
   ssh_conn_channel_register_extended(session->common->conn,
-				     session->channel_id, 0, stdio_stream,
-				     FALSE, TRUE);
+                                     session->channel_id, 0, stdio_stream,
+                                     FALSE, TRUE);
   if (stderr_stream != NULL)
     ssh_conn_channel_register_extended(session->common->conn,
-				       session->channel_id,
-				       SSH_EXTENDED_DATA_STDERR,
-				       stderr_stream, FALSE, TRUE);
+                                       session->channel_id,
+                                       SSH_EXTENDED_DATA_STDERR,
+                                       stderr_stream, FALSE, TRUE);
 
   /* Mark the session active. */
   session->active = TRUE;
@@ -911,7 +912,7 @@ Boolean ssh_channel_session_exec(SshChannelSession session, SshSessionType op,
    pty.  Returns TRUE if the request was accepted, FALSE if rejected. */
 
 Boolean ssh_channel_session_request_pty(SshChannelSession session,
-				       const char *data, size_t len)
+                                       const char *data, size_t len)
 {
   SSH_DEBUG(5, ("pty request received"));
 
@@ -923,16 +924,16 @@ Boolean ssh_channel_session_request_pty(SshChannelSession session,
       ssh_xfree(session->terminal_modes);
       ssh_xfree(session->term);
     }
-  if (ssh_decode_array(data, len,
-		       SSH_FORMAT_UINT32_STR, &session->term, NULL,
-		       SSH_FORMAT_UINT32, &session->width_chars,
-		       SSH_FORMAT_UINT32, &session->height_chars,
-		       SSH_FORMAT_UINT32, &session->width_pixels,
-		       SSH_FORMAT_UINT32, &session->height_pixels,
-		       SSH_FORMAT_UINT32_STR,
-		       &session->terminal_modes,
-		       &session->terminal_modes_len,
-		       SSH_FORMAT_END) != len)
+  if (ssh_decode_array((unsigned char *)data, len,
+                       SSH_FORMAT_UINT32_STR, &session->term, NULL,
+                       SSH_FORMAT_UINT32, &session->width_chars,
+                       SSH_FORMAT_UINT32, &session->height_chars,
+                       SSH_FORMAT_UINT32, &session->width_pixels,
+                       SSH_FORMAT_UINT32, &session->height_pixels,
+                       SSH_FORMAT_UINT32_STR,
+                       &session->terminal_modes,
+                       &session->terminal_modes_len,
+                       SSH_FORMAT_END) != len)
     {
       SSH_DEBUG(0, ("bad data"));
       return FALSE;
@@ -946,7 +947,7 @@ Boolean ssh_channel_session_request_pty(SshChannelSession session,
    session. */
 
 Boolean ssh_channel_session_request_env(SshChannelSession session,
-				       const char *data, size_t len)
+                                       const char *data, size_t len)
 {
   ssh_debug("ssh_channel_session_request_env: not yet implemented");
   if (session->active)
@@ -958,7 +959,7 @@ Boolean ssh_channel_session_request_env(SshChannelSession session,
    session. */
 
 Boolean ssh_channel_session_request_shell(SshChannelSession session,
-					 const char *data, size_t len)
+                                         const char *data, size_t len)
 {
   SSH_DEBUG(5, ("requesting shell"));
   if (session->active)
@@ -976,7 +977,7 @@ Boolean ssh_channel_session_request_shell(SshChannelSession session,
 /* Processes a received request to exec a child processes for the session. */
 
 Boolean ssh_channel_session_request_exec(SshChannelSession session,
-					const char *data, size_t len)
+                                        const char *data, size_t len)
 {
   char *command;
 
@@ -984,9 +985,9 @@ Boolean ssh_channel_session_request_exec(SshChannelSession session,
   if (session->active)
     return FALSE;
 
-  if (ssh_decode_array(data, len,
-		       SSH_FORMAT_UINT32_STR, &command, NULL,
-		       SSH_FORMAT_END) != len)
+  if (ssh_decode_array((unsigned char *) data, len,
+                       SSH_FORMAT_UINT32_STR, &command, NULL,
+                       SSH_FORMAT_END) != len)
     {
       SSH_DEBUG(0, ("bad data"));
       return FALSE;
@@ -998,7 +999,7 @@ Boolean ssh_channel_session_request_exec(SshChannelSession session,
 /* Processes a request to start a subsystem for the session. */
 
 Boolean ssh_channel_session_request_subsystem(SshChannelSession session,
-					     const char *data, size_t len)
+                                             const char *data, size_t len)
 {
   char *subsystem;
 
@@ -1006,9 +1007,9 @@ Boolean ssh_channel_session_request_subsystem(SshChannelSession session,
   if (session->active)
     return FALSE;
 
-  if (ssh_decode_array(data, len,
-		       SSH_FORMAT_UINT32_STR, &subsystem, NULL,
-		       SSH_FORMAT_END) != len)
+  if (ssh_decode_array((unsigned char *)data, len,
+                       SSH_FORMAT_UINT32_STR, &subsystem, NULL,
+                       SSH_FORMAT_END) != len)
     {
       SSH_DEBUG(0, ("bad data"));
       return FALSE;
@@ -1020,15 +1021,15 @@ Boolean ssh_channel_session_request_subsystem(SshChannelSession session,
 /* Processes a received window change message for the session. */
 
 Boolean ssh_channel_session_request_window_change(SshChannelSession session,
-						 const char *data, size_t len)
+                                                 const char *data, size_t len)
 {  
   SSH_DEBUG(5, ("window change request received"));
-  if (ssh_decode_array(data, len,
-		       SSH_FORMAT_UINT32, &session->width_chars,
-		       SSH_FORMAT_UINT32, &session->height_chars,
-		       SSH_FORMAT_UINT32, &session->width_pixels,
-		       SSH_FORMAT_UINT32, &session->height_pixels,
-		       SSH_FORMAT_END) != len)
+  if (ssh_decode_array((unsigned char *)data, len,
+                       SSH_FORMAT_UINT32, &session->width_chars,
+                       SSH_FORMAT_UINT32, &session->height_chars,
+                       SSH_FORMAT_UINT32, &session->width_pixels,
+                       SSH_FORMAT_UINT32, &session->height_pixels,
+                       SSH_FORMAT_END) != len)
     {
       SSH_DEBUG(0, ("bad data"));
       return FALSE;
@@ -1036,10 +1037,10 @@ Boolean ssh_channel_session_request_window_change(SshChannelSession session,
 
   if (session->have_pty)
     ssh_pty_change_window_size(session->stream, 
-			       session->width_chars, 
-			       session->height_chars,
-			       session->width_pixels, 
-			       session->height_pixels);
+                               session->width_chars, 
+                               session->height_chars,
+                               session->width_pixels, 
+                               session->height_pixels);
   else
     {
       SSH_DEBUG(0, ("window change received even though we don't have pty"));
@@ -1052,7 +1053,7 @@ Boolean ssh_channel_session_request_window_change(SshChannelSession session,
 /* Processes a local XON/XOFF flow control message for the session. */
 
 Boolean ssh_channel_session_request_xon_xoff(SshChannelSession session,
-					    const char *data, size_t len)
+                                            const char *data, size_t len)
 {
   ssh_debug("ssh_channel_session_request_xon_xoff: not yet implemented");
   return FALSE;
@@ -1061,7 +1062,7 @@ Boolean ssh_channel_session_request_xon_xoff(SshChannelSession session,
 /* Processes a received request to send a signal to the child process. */
 
 Boolean ssh_channel_session_request_signal(SshChannelSession session,
-					  const char *data, size_t len)
+                                          const char *data, size_t len)
 {
   ssh_debug("ssh_channel_session_request_signal: not yet implemented");
   return FALSE;
@@ -1070,16 +1071,16 @@ Boolean ssh_channel_session_request_signal(SshChannelSession session,
 /* Processes a received exit status message. */
 
 Boolean ssh_channel_session_request_exit_status(SshChannelSession session,
-					       const char *data, size_t len)
+                                               const char *data, size_t len)
 {
   unsigned long exit_status = 0L;
 
   if (!session->common->client)
     return FALSE; /* server ignores these completely */
   
-  if (ssh_decode_array(data, len,
-		       SSH_FORMAT_UINT32, &exit_status,
-		       SSH_FORMAT_END) != len)
+  if (ssh_decode_array((unsigned char *)data, len,
+                       SSH_FORMAT_UINT32, &exit_status,
+                       SSH_FORMAT_END) != len)
     {
       SSH_DEBUG(0, ("bad data"));
       return FALSE;
@@ -1094,7 +1095,7 @@ Boolean ssh_channel_session_request_exit_status(SshChannelSession session,
 /* Processes a received exited due to signal message. */
 
 Boolean ssh_channel_session_request_exit_signal(SshChannelSession session,
-					       const char *data, size_t len)
+                                               const char *data, size_t len)
 {
   unsigned long exit_signal = 0L;
   Boolean core_dumped = FALSE;
@@ -1103,12 +1104,12 @@ Boolean ssh_channel_session_request_exit_signal(SshChannelSession session,
   if (!session->common->client)
     return FALSE; /* server ignores these completely */
 
-  if (ssh_decode_array(data, len,
-		       SSH_FORMAT_UINT32, &exit_signal,
-		       SSH_FORMAT_BOOLEAN, &core_dumped,
-		       SSH_FORMAT_UINT32_STR, &error_msg, NULL,
-		       SSH_FORMAT_UINT32_STR, &language_tag, NULL,
-		       SSH_FORMAT_END) != len)
+  if (ssh_decode_array((unsigned char *)data, len,
+                       SSH_FORMAT_UINT32, &exit_signal,
+                       SSH_FORMAT_BOOLEAN, &core_dumped,
+                       SSH_FORMAT_UINT32_STR, &error_msg, NULL,
+                       SSH_FORMAT_UINT32_STR, &language_tag, NULL,
+                       SSH_FORMAT_END) != len)
     {
       SSH_DEBUG(0, ("bad data"));
       return FALSE;
@@ -1116,8 +1117,8 @@ Boolean ssh_channel_session_request_exit_signal(SshChannelSession session,
 
   SSH_DEBUG(2, ("received exit signal. signal number: %d; core dumped: %s;"
                 " error msg: \"%s\", language tag: \"%s\"",
-		exit_signal, core_dumped ? "TRUE" : "FALSE",
-		error_msg, language_tag));
+                exit_signal, core_dumped ? "TRUE" : "FALSE",
+                error_msg, language_tag));
   
   /* XXX we know now some things, what do we do with them ? */
   return TRUE;
@@ -1126,83 +1127,86 @@ Boolean ssh_channel_session_request_exit_signal(SshChannelSession session,
 /* Processes a received request for a session channel. */
 
 Boolean ssh_channel_session_request(const char *type,
-				   const unsigned char *data, size_t len,
-				   void *context)
+                                   const unsigned char *data, size_t len,
+                                   void *context)
 {
   SshChannelSession session = (SshChannelSession)context;
 
   SSH_DEBUG(5, ("session request '%s' received", type));
 
   if (strcmp(type, "pty-req") == 0)
-    return ssh_channel_session_request_pty(session, data, len);
+    return ssh_channel_session_request_pty(session, (char *)data, len);
   else
     if (strcmp(type, "x11-req") == 0)
       {
 #ifdef SSH_CHANNEL_X11
-	/* If received after shell/command requested, fail. */
-	if (session->active)
-	  {
-	    SSH_DEBUG(0, ("X11 request received after exec"));
-	    return FALSE;
-	  }
-	return ssh_channel_x11_process_request(session->x11_placeholder,
-					       data, len);
+        /* If received after shell/command requested, fail. */
+        if (session->active)
+          {
+            SSH_DEBUG(0, ("X11 request received after exec"));
+            return FALSE;
+          }
+        return ssh_channel_x11_process_request(session->x11_placeholder,
+                                               data, len);
 #else /* SSH_CHANNEL_X11 */
-	SSH_DEBUG(0, ("This version was compiled without X11 support."));
-	return FALSE;
+        SSH_DEBUG(0, ("This version was compiled without X11 support."));
+        return FALSE;
 #endif /* SSH_CHANNEL_X11 */
       }
   else
     if (strcmp(type, "auth-agent-req") == 0)
       {
 #ifdef SSH_CHANNEL_AGENT
-	return ssh_channel_agent_process_request(session->agent_placeholder,
-						 data, len);
+        return ssh_channel_agent_process_request(session->agent_placeholder,
+                                                 data, len);
 #else /* SSH_CHANNEL_AGENT */
-	SSH_DEBUG(0, ("This version was compiled without agent support."));
-	return FALSE;
+        SSH_DEBUG(0, ("This version was compiled without agent support."));
+        return FALSE;
 #endif /* SSH_CHANNEL_AGENT */
       }
   else
     if (strcmp(type, "auth-ssh1-agent-req") == 0)
       {
 #ifdef SSH_CHANNEL_SSH1_AGENT
-	return ssh_channel_ssh1_agent_process_request(
-					       session->ssh1_agent_placeholder,
-					       data, len);
+        return ssh_channel_ssh1_agent_process_request(
+                                               session->ssh1_agent_placeholder,
+                                               data, len);
 #else /* SSH_CHANNEL_SSH1_AGENT */
-	SSH_DEBUG(0, ("This version was compiled without ssh1agent support."));
-	return FALSE;
+        SSH_DEBUG(0, ("This version was compiled without ssh1agent support."));
+        return FALSE;
 #endif /* SSH_CHANNEL_SSH1_AGENT */
       }
   else
     if (strcmp(type, "env") == 0)
-      return ssh_channel_session_request_env(session, data, len);
+      return ssh_channel_session_request_env(session, (char *)data, len);
   else
     if (strcmp(type, "shell") == 0)
-      return ssh_channel_session_request_shell(session, data, len);
+      return ssh_channel_session_request_shell(session, (char *)data, len);
   else
     if (strcmp(type, "exec") == 0)
-      return ssh_channel_session_request_exec(session, data, len);
+      return ssh_channel_session_request_exec(session, (char *)data, len);
   else
     if (strcmp(type, "subsystem") == 0)
-      return ssh_channel_session_request_subsystem(session, data, len);
+      return ssh_channel_session_request_subsystem(session, (char *)data, len);
   else
     if (strcmp(type, "window-change") == 0)
-      return ssh_channel_session_request_window_change(session, data, len);
+      return ssh_channel_session_request_window_change(session, (char *)data,
+                                                       len);
   else
     if (strcmp(type, "xon-xoff") == 0)
-      return ssh_channel_session_request_xon_xoff(session, data, len);
+      return ssh_channel_session_request_xon_xoff(session, (char *)data, len);
   else
     if (strcmp(type, "signal") == 0)
-      return ssh_channel_session_request_signal(session, data, len);
+      return ssh_channel_session_request_signal(session, (char *)data, len);
   else
     if (strcmp(type, "exit-status") == 0)
-      return ssh_channel_session_request_exit_status(session, data, len);
+      return ssh_channel_session_request_exit_status(session, (char *)data,
+                                                     len);
   else
     if (strcmp(type, "exit-signal") == 0)
-      return ssh_channel_session_request_exit_signal(session, data, len);
-    
+      return ssh_channel_session_request_exit_signal(session, (char *)data,
+                                                     len);
+  
   return FALSE;
 }
 
@@ -1254,32 +1258,32 @@ void ssh_channel_session_destroy(void *context)
     
     if (forwarded_tcp_ctx != NULL)
       {
-	remote_forwards = forwarded_tcp_ctx->remote_forwards;
-	
-	for (; remote_forwards;
-	     remote_forwards = remote_forwards->next)
-	  {
-	    if (remote_forwards->listener)
-	      {
-		ssh_tcp_destroy_listener(remote_forwards->listener);
-		remote_forwards->listener = NULL;
-	      }
-	  }
+        remote_forwards = forwarded_tcp_ctx->remote_forwards;
+        
+        for (; remote_forwards;
+             remote_forwards = remote_forwards->next)
+          {
+            if (remote_forwards->listener)
+              {
+                ssh_tcp_destroy_listener(remote_forwards->listener);
+                remote_forwards->listener = NULL;
+              }
+          }
       }
     
     if (direct_tcp_ctx != NULL)
       {
-	local_forwards = direct_tcp_ctx->local_forwards;
+        local_forwards = direct_tcp_ctx->local_forwards;
 
-	for (; local_forwards;
-	     local_forwards = local_forwards->next)
-	  {
-	    if (local_forwards->listener)
-	      {
-		ssh_tcp_destroy_listener(local_forwards->listener);
-		local_forwards->listener = NULL;
-	      }
-	  }
+        for (; local_forwards;
+             local_forwards = local_forwards->next)
+          {
+            if (local_forwards->listener)
+              {
+                ssh_tcp_destroy_listener(local_forwards->listener);
+                local_forwards->listener = NULL;
+              }
+          }
       }
   }
 #endif /* SSH_CHANNEL_TCPFWD */
@@ -1321,23 +1325,23 @@ void ssh_channel_session_eof_callback(void *context)
   if (exit_status >= 0)
     {
       ssh_encode_buffer(&buffer,
-			SSH_FORMAT_UINT32, exit_status,
-			SSH_FORMAT_END);
+                        SSH_FORMAT_UINT32, exit_status,
+                        SSH_FORMAT_END);
       ssh_conn_send_channel_request(session->common->conn, session->channel_id,
-				    "exit-status", ssh_buffer_ptr(&buffer),
-				    ssh_buffer_len(&buffer), NULL, NULL);
+                                    "exit-status", ssh_buffer_ptr(&buffer),
+                                    ssh_buffer_len(&buffer), NULL, NULL);
     }
   else
     {
       ssh_encode_buffer(&buffer,
-			SSH_FORMAT_UINT32, -exit_status,
-			SSH_FORMAT_BOOLEAN, FALSE,
-			SSH_FORMAT_UINT32_STR, NULL, 0,
-			SSH_FORMAT_UINT32_STR, NULL, 0,
-			SSH_FORMAT_END);
+                        SSH_FORMAT_UINT32, -exit_status,
+                        SSH_FORMAT_BOOLEAN, FALSE,
+                        SSH_FORMAT_UINT32_STR, NULL, 0,
+                        SSH_FORMAT_UINT32_STR, NULL, 0,
+                        SSH_FORMAT_END);
       ssh_conn_send_channel_request(session->common->conn, session->channel_id,
-				    "exit-signal", ssh_buffer_ptr(&buffer),
-				    ssh_buffer_len(&buffer), NULL, NULL);
+                                    "exit-signal", ssh_buffer_ptr(&buffer),
+                                    ssh_buffer_len(&buffer), NULL, NULL);
     }
   ssh_buffer_uninit(&buffer);
 }
@@ -1345,9 +1349,9 @@ void ssh_channel_session_eof_callback(void *context)
 /* Processes an open request for a session channel. */
 
 void ssh_channel_session_open(const char *type, int channel_id,
-			      const unsigned char *data, size_t len,
-			      SshConnOpenCompletionProc completion,
-			      void *completion_context, void *context)
+                              const unsigned char *data, size_t len,
+                              SshConnOpenCompletionProc completion,
+                              void *completion_context, void *context)
 {
   SshCommon common = (SshCommon)context;
   SshChannelSession session;
@@ -1360,8 +1364,8 @@ void ssh_channel_session_open(const char *type, int channel_id,
     {
       ssh_warning("Opening a session to client denied.");
       (*completion)(SSH_OPEN_ADMINISTRATIVELY_PROHIBITED,
-		    NULL, FALSE, FALSE, 0, NULL, 0, NULL, NULL, NULL,
-		    completion_context);
+                    NULL, FALSE, FALSE, 0, NULL, 0, NULL, NULL, NULL,
+                    completion_context);
       return;
     }
   
@@ -1384,31 +1388,31 @@ void ssh_channel_session_open(const char *type, int channel_id,
 
 #ifdef SSH_CHANNEL_SSH1_AGENT
   ssh_channel_ssh1_agent_session_create(common,
-				       &session->ssh1_agent_placeholder);
+                                       &session->ssh1_agent_placeholder);
 #endif /* SSH_CHANNEL_SSH1_AGENT */
   
   /* Register an EOF callback for the session. */
   ssh_conn_channel_register_eof_callback(common->conn, channel_id,
-					 ssh_channel_session_eof_callback,
-					 (void *)session);
+                                         ssh_channel_session_eof_callback,
+                                         (void *)session);
   
   /* Complete opening the session.  However, creating the stream is postponed
      until we receive a request to start shell/command. */
   (*completion)(SSH_OPEN_OK,
-		SSH_CONN_POSTPONE_STREAM, TRUE, TRUE,
-		SSH_SESSION_INTERACTIVE_WINDOW,
-		NULL, 0,
-		ssh_channel_session_request, ssh_channel_session_destroy,
-		(void *)session, completion_context);
+                SSH_CONN_POSTPONE_STREAM, TRUE, TRUE,
+                SSH_SESSION_INTERACTIVE_WINDOW,
+                NULL, 0,
+                ssh_channel_session_request, ssh_channel_session_destroy,
+                (void *)session, completion_context);
 }
 
 /* Completion function for sending the request to start the shell/command
    for the session channel.  This calls the user callback to return status. */
 
 void ssh_channel_start_session_completion2(Boolean success,
-					  const unsigned char *data,
-					  size_t len,
-					  void *context)
+                                          const unsigned char *data,
+                                          size_t len,
+                                          void *context)
 {
   SshChannelSession session = (SshChannelSession)context;
   SshCommon common;
@@ -1426,7 +1430,7 @@ void ssh_channel_start_session_completion2(Boolean success,
   if (session->start_env != NULL)
     {
       for (i = 0; session->start_env[i]; i++)
-	ssh_xfree(session->start_env[i]);
+        ssh_xfree(session->start_env[i]);
       ssh_xfree(session->start_env);
     }
 
@@ -1442,10 +1446,10 @@ void ssh_channel_start_session_completion2(Boolean success,
     {
       SSH_DEBUG(0, ("starting session failed: result %d", (int)success));
       if (session->start_completion != NULL)
-	(*session->start_completion)(FALSE, session->start_context);
+        (*session->start_completion)(FALSE, session->start_context);
       ssh_conn_channel_close(common->conn, session->channel_id);
       /* The session object will be destroyed and the channel count
-	 decremented in the destroy function. */
+         decremented in the destroy function. */
       return;
     }
 
@@ -1487,12 +1491,12 @@ void ssh_client_win_dim_change(int sig, void *ctx)
   else
     {
       ssh_warning("ssh_client_win_dim_change(): "
-		  "unable to get window size parameters.");
+                  "unable to get window size parameters.");
       return;
     }
 
   SSH_DEBUG(5, ("sending a window size change request %lu x %lu",
-		session->width_chars, session->height_chars));
+                session->width_chars, session->height_chars));
   
   ssh_buffer_init(&buf);
   ssh_encode_buffer(&buf,
@@ -1513,10 +1517,10 @@ void ssh_client_win_dim_change(int sig, void *ctx)
 /* Completion function for opening the session channel. */
 
 void ssh_channel_start_session_completion(int result,
-					 int channel_id,
-					 const unsigned char *data,
-					 size_t len,
-					 void *context)
+                                         int channel_id,
+                                         const unsigned char *data,
+                                         size_t len,
+                                         void *context)
 {
   SshChannelSession session = (SshChannelSession)context;
   SshCommon common;
@@ -1535,21 +1539,21 @@ void ssh_channel_start_session_completion(int result,
   if (result != SSH_OPEN_OK)
     {
       if (session->start_completion)
-	(*session->start_completion)(FALSE, session->start_context);
+        (*session->start_completion)(FALSE, session->start_context);
       if (session->start_auto_close && session->start_stderr_stream != NULL)
-	ssh_stream_destroy(session->start_stderr_stream);
+        ssh_stream_destroy(session->start_stderr_stream);
       if (session->term != NULL)
-	ssh_xfree(session->term);
+        ssh_xfree(session->term);
       if (session->start_command != NULL)
-	ssh_xfree(session->start_command);
+        ssh_xfree(session->start_command);
       if (session->start_env != NULL)
-	{
-	  for (i = 0; session->start_env[i]; i++)
-	    ssh_xfree(session->start_env[i]);
-	  ssh_xfree(session->start_env);
-	}
+        {
+          for (i = 0; session->start_env[i]; i++)
+            ssh_xfree(session->start_env[i]);
+          ssh_xfree(session->start_env);
+        }
       /* The destroy function will get called after this call.  It will free the session object
-	 and decrement the number of open channels. */
+         and decrement the number of open channels. */
       return;
     }
 
@@ -1559,10 +1563,10 @@ void ssh_channel_start_session_completion(int result,
   /* Register the stderr stream is given. */
   if (session->start_stderr_stream)
     ssh_conn_channel_register_extended(session->common->conn,
-				       session->channel_id,
-				       SSH_EXTENDED_DATA_STDERR,
-				       session->start_stderr_stream,
-				       TRUE, session->start_auto_close);
+                                       session->channel_id,
+                                       SSH_EXTENDED_DATA_STDERR,
+                                       session->start_stderr_stream,
+                                       TRUE, session->start_auto_close);
   
   modes = NULL;
   modes_len = 0;
@@ -1576,37 +1580,37 @@ void ssh_channel_start_session_completion(int result,
     {
 
       if (ioctl(fileno(stdin), TIOCGWINSZ, &ws) >= 0)
-	{
-	  session->width_chars = ws.ws_col;
-	  session->height_chars = ws.ws_row;
-	  session->width_pixels = ws.ws_xpixel;
-	  session->height_pixels = ws.ws_ypixel;
-	}    
+        {
+          session->width_chars = ws.ws_col;
+          session->height_chars = ws.ws_row;
+          session->width_pixels = ws.ws_xpixel;
+          session->height_pixels = ws.ws_ypixel;
+        }    
       else
-	{
-	  session->width_chars = 80;
-	  session->height_chars = 25;
-	  session->width_pixels = 0;
-	  session->height_pixels = 0;
-	}
+        {
+          session->width_chars = 80;
+          session->height_chars = 25;
+          session->width_pixels = 0;
+          session->height_pixels = 0;
+        }
       
       ssh_buffer_clear(&buffer);
       ssh_encode_buffer(&buffer,
-			SSH_FORMAT_UINT32_STR,
-		          session->start_term, strlen(session->start_term),
-			SSH_FORMAT_UINT32, session->width_chars,
-			SSH_FORMAT_UINT32, session->height_chars,
-			SSH_FORMAT_UINT32, session->width_pixels,
-			SSH_FORMAT_UINT32, session->height_pixels,
-			SSH_FORMAT_UINT32_STR, modes, modes_len,
-			SSH_FORMAT_END);
+                        SSH_FORMAT_UINT32_STR,
+                          session->start_term, strlen(session->start_term),
+                        SSH_FORMAT_UINT32, session->width_chars,
+                        SSH_FORMAT_UINT32, session->height_chars,
+                        SSH_FORMAT_UINT32, session->width_pixels,
+                        SSH_FORMAT_UINT32, session->height_pixels,
+                        SSH_FORMAT_UINT32_STR, modes, modes_len,
+                        SSH_FORMAT_END);
       ssh_conn_send_channel_request(session->common->conn, session->channel_id,
-				    "pty-req", ssh_buffer_ptr(&buffer),
-				    ssh_buffer_len(&buffer), NULL, NULL);
+                                    "pty-req", ssh_buffer_ptr(&buffer),
+                                    ssh_buffer_len(&buffer), NULL, NULL);
 
 #ifdef SIGWINCH
       /* Register a signal handler for SIGWINCH to send window change
-	 notifications to the server. */
+         notifications to the server. */
       ssh_register_signal(SIGWINCH, ssh_client_win_dim_change, session); 
       session->has_winch_handler = TRUE;
 #endif
@@ -1642,27 +1646,27 @@ void ssh_channel_start_session_completion(int result,
   ssh_buffer_clear(&buffer);
   if (session->start_command)
     ssh_encode_buffer(&buffer,
-		      SSH_FORMAT_UINT32_STR,
-		        session->start_command, strlen(session->start_command),
-		      SSH_FORMAT_END);
+                      SSH_FORMAT_UINT32_STR,
+                        session->start_command, strlen(session->start_command),
+                      SSH_FORMAT_END);
   if (session->start_is_subsystem)
     ssh_conn_send_channel_request(session->common->conn, session->channel_id,
-				  "subsystem", ssh_buffer_ptr(&buffer),
-				  ssh_buffer_len(&buffer),
-				  ssh_channel_start_session_completion2,
-				  (void *)session);
+                                  "subsystem", ssh_buffer_ptr(&buffer),
+                                  ssh_buffer_len(&buffer),
+                                  ssh_channel_start_session_completion2,
+                                  (void *)session);
   else
     if (session->start_command != NULL)
       ssh_conn_send_channel_request(session->common->conn, session->channel_id,
-				    "exec", ssh_buffer_ptr(&buffer),
-				    ssh_buffer_len(&buffer),
-				    ssh_channel_start_session_completion2,
-				    (void *)session);
+                                    "exec", ssh_buffer_ptr(&buffer),
+                                    ssh_buffer_len(&buffer),
+                                    ssh_channel_start_session_completion2,
+                                    (void *)session);
     else
       ssh_conn_send_channel_request(session->common->conn, session->channel_id,
-				    "shell", NULL, 0,
-				    ssh_channel_start_session_completion2,
-				    (void *)session);
+                                    "shell", NULL, 0,
+                                    ssh_channel_start_session_completion2,
+                                    (void *)session);
   ssh_buffer_uninit(&buffer);
 }
 
@@ -1689,15 +1693,15 @@ void ssh_channel_start_session_completion(int result,
    ``close_notify'', unless it has already been called. */
 
 void ssh_channel_start_session(SshCommon common, SshStream stdio_stream,
-			      SshStream stderr_stream, Boolean auto_close,
-			      Boolean is_subsystem, const char *command,
-			      Boolean allocate_pty, const char *term,
-			      const char **env,
-			      Boolean forward_x11, Boolean forward_agent,
-			      void (*completion)(Boolean success,
-						 void *context),
-			      void (*close_notify)(void *context),
-			      void *context)
+                              SshStream stderr_stream, Boolean auto_close,
+                              Boolean is_subsystem, const char *command,
+                              Boolean allocate_pty, const char *term,
+                              const char **env,
+                              Boolean forward_x11, Boolean forward_agent,
+                              void (*completion)(Boolean success,
+                                                 void *context),
+                              void (*close_notify)(void *context),
+                              void *context)
 {
   SshChannelSession session;
   int i, env_size;
@@ -1728,7 +1732,7 @@ void ssh_channel_start_session(SshCommon common, SshStream stdio_stream,
 
 #ifdef SSH_CHANNEL_SSH1_AGENT
   ssh_channel_ssh1_agent_session_create(common, 
-					&session->ssh1_agent_placeholder);
+                                        &session->ssh1_agent_placeholder);
 #endif /* SSH_CHANNEL_SSH1_AGENT */
   
   /* Copy environment. */
@@ -1737,11 +1741,11 @@ void ssh_channel_start_session(SshCommon common, SshStream stdio_stream,
   else
     {
       for (i = 0; env && env[i]; i++)
-	;
+        ;
       env_size = i;
       session->start_env = ssh_xmalloc((env_size + 1) * sizeof(env[0]));
       for (i = 0; i < env_size; i++)
-	session->start_env[i] = ssh_xstrdup(env[i]);
+        session->start_env[i] = ssh_xstrdup(env[i]);
     }
 
   /* Copy remaining data. */
@@ -1757,19 +1761,19 @@ void ssh_channel_start_session(SshCommon common, SshStream stdio_stream,
       
       /* Send the channel open request for the session. */
       ssh_conn_send_channel_open(common->conn, "session",
-				 stdio_stream, auto_close, FALSE,
-				 allocate_pty ?
-				 SSH_SESSION_INTERACTIVE_WINDOW :
-				 SSH_SESSION_NONINTERACTIVE_WINDOW,
-				 allocate_pty ?
-				 SSH_SESSION_INTERACTIVE_PACKET_SIZE :
-				 SSH_SESSION_NONINTERACTIVE_PACKET_SIZE,
-				 NULL, 0,
-				 ssh_channel_session_request,
-				 ssh_channel_session_destroy,
-				 (void *)session,
-				 ssh_channel_start_session_completion,
-				 (void *)session);
+                                 stdio_stream, auto_close, FALSE,
+                                 allocate_pty ?
+                                 SSH_SESSION_INTERACTIVE_WINDOW :
+                                 SSH_SESSION_NONINTERACTIVE_WINDOW,
+                                 allocate_pty ?
+                                 SSH_SESSION_INTERACTIVE_PACKET_SIZE :
+                                 SSH_SESSION_NONINTERACTIVE_PACKET_SIZE,
+                                 NULL, 0,
+                                 ssh_channel_session_request,
+                                 ssh_channel_session_destroy,
+                                 (void *)session,
+                                 ssh_channel_start_session_completion,
+                                 (void *)session);
     }
 }
 

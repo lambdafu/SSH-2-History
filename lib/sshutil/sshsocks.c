@@ -8,19 +8,19 @@
 /*
  *        Program: libsocks
  *        $Source: /ssh/CVS/src/lib/sshutil/sshsocks.c,v $
- *        $Author: kivinen $
+ *        $Author: tmo $
  *
  *        Creation          : 18:09 Nov 10 1996 kivinen
  *        Last Modification : 13:35 Jul 10 1998 kivinen
- *        Last check in     : $Date: 1998/07/10 13:24:15 $
- *        Revision number   : $Revision: 1.7 $
+ *        Last check in     : $Date: 1998/09/23 11:15:00 $
+ *        Revision number   : $Revision: 1.8 $
  *        State             : $State: Exp $
  *        Version           : 1.66
  *
  *        Description       : Socks library
  */
 /*
- * $Id: sshsocks.c,v 1.7 1998/07/10 13:24:15 kivinen Exp $
+ * $Id: sshsocks.c,v 1.8 1998/09/23 11:15:00 tmo Exp $
  * $Log: sshsocks.c,v $
  * $EndLog$
  */
@@ -175,8 +175,8 @@ SocksError ssh_socks_server_generate_reply(SshBuffer *buffer,
   ssh_buffer_append_space(buffer, &data, SOCKS_REPLY_SIZE);
   *data++ = socksinfo->socks_version_number;
   *data++ = socksinfo->command_code;
-  *data++ = (port & 0xff00U) >> 8;
-  *data++ = (port & 0xffU);
+  *data++ = (unsigned char)((port & 0xff00U) >> 8);
+  *data++ = (unsigned char)(port & 0xffU);
 
   p = (unsigned char *) socksinfo->ip;
   
@@ -187,7 +187,7 @@ SocksError ssh_socks_server_generate_reply(SshBuffer *buffer,
       ssh_buffer_consume_end(buffer, SOCKS_REPLY_SIZE);
       return SSH_SOCKS_ERROR_INVALID_ARGUMENT;
     }
-  *data++ = ip;
+  *data++ = (unsigned char)ip;
   p = endp + 1;
 
   /* 2 */
@@ -197,7 +197,7 @@ SocksError ssh_socks_server_generate_reply(SshBuffer *buffer,
       ssh_buffer_consume_end(buffer, SOCKS_REPLY_SIZE);
       return SSH_SOCKS_ERROR_INVALID_ARGUMENT;
     }
-  *data++ = ip;
+  *data++ = (unsigned char)ip;
   p = endp + 1;
 
   /* 3 */
@@ -207,7 +207,7 @@ SocksError ssh_socks_server_generate_reply(SshBuffer *buffer,
       ssh_buffer_consume_end(buffer, SOCKS_REPLY_SIZE);
       return SSH_SOCKS_ERROR_INVALID_ARGUMENT;
     }
-  *data++ = ip;
+  *data++ = (unsigned char)ip;
   p = endp + 1;
 
   /* 4 */
@@ -217,7 +217,7 @@ SocksError ssh_socks_server_generate_reply(SshBuffer *buffer,
       ssh_buffer_consume_end(buffer, SOCKS_REPLY_SIZE);
       return SSH_SOCKS_ERROR_INVALID_ARGUMENT;
     }
-  *data++ = ip;
+  *data++ = (unsigned char)ip;
   return SSH_SOCKS_SUCCESS;
 }
 
@@ -269,8 +269,8 @@ SocksError ssh_socks_client_generate_open(SshBuffer *buffer,
 		      strlen(username) + 1);
   *data++ = socksinfo->socks_version_number;
   *data++ = socksinfo->command_code;
-  *data++ = (port & 0xff00U) >> 8;
-  *data++ = (port & 0xffU);
+  *data++ = (unsigned char)((port & 0xff00U) >> 8);
+  *data++ = (unsigned char)(port & 0xffU);
   
   p = (unsigned char *) socksinfo->ip;
   
@@ -282,7 +282,7 @@ SocksError ssh_socks_client_generate_open(SshBuffer *buffer,
 			     strlen(username) + 1);
       return SSH_SOCKS_ERROR_INVALID_ARGUMENT;
     }
-  *data++ = ip;
+  *data++ = (unsigned char)ip;
   p = endp + 1;
 
   /* 2 */
@@ -293,7 +293,7 @@ SocksError ssh_socks_client_generate_open(SshBuffer *buffer,
 			     strlen(username) + 1);
       return SSH_SOCKS_ERROR_INVALID_ARGUMENT;
     }
-  *data++ = ip;
+  *data++ = (unsigned char)ip;
   p = endp + 1;
 
   /* 3 */
@@ -304,7 +304,7 @@ SocksError ssh_socks_client_generate_open(SshBuffer *buffer,
 			     strlen(username) + 1);
       return SSH_SOCKS_ERROR_INVALID_ARGUMENT;
     }
-  *data++ = ip;
+  *data++ = (unsigned char)ip;
   p = endp + 1;
 
   /* 4 */
@@ -315,7 +315,7 @@ SocksError ssh_socks_client_generate_open(SshBuffer *buffer,
 			     strlen(username) + 1);
       return SSH_SOCKS_ERROR_INVALID_ARGUMENT;
     }
-  *data++ = ip;
+  *data++ = (unsigned char)ip;
 
   strcpy((char *) data, username);
   return SSH_SOCKS_SUCCESS;

@@ -30,17 +30,14 @@
 #include "md5.h"
 #include "sshgetput.h"
 
-/* ASN.1 Object Identifier for md5
-   iso(1) member-body(2) US(840) rsadsi(113549) digestAlgorithm(2) 5 */
-unsigned long ssh_md5_asn1_oid[6] = { 1, 2, 840, 113549, 2, 5 };
-
 /* Definition of hash function called "md5". */
 const SshHashDef ssh_hash_md5_def =
 {
   /* Name of the hash function. */
   "md5",
-  /* ASN.1 Object Identifier */
-  6, ssh_md5_asn1_oid,
+  /* ASN.1 Object Identifier
+     iso(1) member-body(2) US(840) rsadsi(113549) digestAlgorithm(2) 5 */
+  "1.2.840.113549.2.5", 
   /* ISO/IEC dedicated hash identifier (doesn't have one). */
   0,
   /* Digest size */
@@ -94,10 +91,10 @@ void ssh_md5_update(void *context, const unsigned char *buf, size_t len)
 
   t = ctx->bits[0];
   if ((ctx->bits[0] = (t + ((SshUInt32)len << 3)) & 0xffffffffL) < t)
-    ctx->bits[1]++;		/* Carry from low to high */
+    ctx->bits[1]++;             /* Carry from low to high */
   ctx->bits[1] += (SshUInt32)len >> 29;
 
-  t = (t >> 3) & 0x3f;	/* Bytes already in shsInfo->data */
+  t = (t >> 3) & 0x3f;  /* Bytes already in shsInfo->data */
 
   /* Handle any leading odd-sized chunks */
   if (t)
@@ -106,10 +103,10 @@ void ssh_md5_update(void *context, const unsigned char *buf, size_t len)
 
       t = 64 - t;
       if (len < t)
-	{
-	  memcpy(p, buf, len);
-	  return;
-	}
+        {
+          memcpy(p, buf, len);
+          return;
+        }
       memcpy(p, buf, t);
       ssh_md5_transform(ctx->buf, ctx->in);
       buf += t;
@@ -176,11 +173,11 @@ void ssh_md5_final(void *context, unsigned char *digest)
   SSH_PUT_32BIT_LSB_FIRST(digest + 4, ctx->buf[1]);
   SSH_PUT_32BIT_LSB_FIRST(digest + 8, ctx->buf[2]);
   SSH_PUT_32BIT_LSB_FIRST(digest + 12, ctx->buf[3]);
-  memset(ctx, 0, sizeof(ctx));	/* In case it's sensitive */
+  memset(ctx, 0, sizeof(ctx));  /* In case it's sensitive */
 }
 
 void ssh_md5_of_buffer(unsigned char digest[16], const unsigned char *buf,
-		       size_t len)
+                       size_t len)
 {
   SshMD5Context context;
   ssh_md5_reset_context(&context);
@@ -200,8 +197,8 @@ void ssh_md5_of_buffer(unsigned char digest[16], const unsigned char *buf,
 
 /* This is the central step in the MD5 algorithm. */
 #define MD5STEP(f, w, x, y, z, data, s) \
-	( w += f(x, y, z) + data,  w = (w<<s | w>>(32-s)) & 0xffffffff,  \
-	  w += x )
+        ( w += f(x, y, z) + data,  w = (w<<s | w>>(32-s)) & 0xffffffff,  \
+          w += x )
 
 /*
  * The core of the MD5 algorithm, this alters an existing MD5 hash to

@@ -27,6 +27,7 @@
 #include "sshuser.h"
 #include "ssh2version.h"
 #include "sshcipherlist.h"
+#include "sshgetopt.h"
 #include <sys/types.h>
 #include <pwd.h>
 
@@ -675,8 +676,6 @@ int main(int argc, char **argv)
   struct passwd *pw;
   char *t;
   time_t now;
-  extern char *optarg;
-  extern int optind;
   int r = 0, rr = 0;
   
   /* Initialize the context */
@@ -684,8 +683,14 @@ int main(int argc, char **argv)
 
   /* try to find the user's home directory */
 
-  while ((ch = getopt(argc, argv, "vhqr?P1:t:b:p:o:i:e:c:")) != EOF)
+  while ((ch = ssh_getopt(argc, argv, "vhqr?P1:t:b:p:o:i:e:c:", NULL)) != EOF)
     {
+      if (!ssh_optval)
+	{
+	  printf("%s", keygen_helptext);
+	  keygen_free_ctx(kgc);
+	  exit(1);
+	}
       switch (ch) 
 	{
 	  /* -b: specify the strength of the key */
@@ -693,7 +698,7 @@ int main(int argc, char **argv)
 	case 'b':
 	  if (kgc->keybits != 0)
 	    keygen_error(kgc, "Multiple -b parameters");
-	  kgc->keybits = atoi(optarg);
+	  kgc->keybits = atoi(ssh_optarg);
 	  if (kgc->keybits < 128 || kgc->keybits > 0x10000)
 	    keygen_error(kgc, "Illegal key size.");
 	  break;
@@ -707,7 +712,7 @@ int main(int argc, char **argv)
 
 	  for (i = 0; keygen_common_names[i][0] != NULL; i++)
 	    {
-	      if (strcasecmp(keygen_common_names[i][0], optarg) == 0)
+	      if (strcasecmp(keygen_common_names[i][0], ssh_optarg) == 0)
 		{
 		  kgc->keytypecommon = ssh_xstrdup(keygen_common_names[i][0]);
 		  kgc->keytype = ssh_xstrdup(keygen_common_names[i][1]);
@@ -720,17 +725,17 @@ int main(int argc, char **argv)
 
 	  /* -c: Comment string. */
 	case 'c':
-	  kgc->comment = ssh_xstrdup(optarg);
+	  kgc->comment = ssh_xstrdup(ssh_optarg);
 	  break;
 
 	  /* -e: Edit key file. */
 	case 'e':
 	  kgc->edit_key = TRUE;
-	  kgc->in_filename = ssh_xstrdup(optarg);
+	  kgc->in_filename = ssh_xstrdup(ssh_optarg);
 
 	  /* -p: Provide passphrase. */
 	case 'p':
-	  kgc->passphrase = ssh_xstrdup(optarg);
+	  kgc->passphrase = ssh_xstrdup(ssh_optarg);
 	  break;
 
 	  /* -P: Don't provide passphrase. */
@@ -743,12 +748,12 @@ int main(int argc, char **argv)
 	  /* -1: Convert a key from SSH1 format to SSH2 format. */
 	case '1':
 	  kgc->convert = TRUE;
-	  kgc->in_filename = ssh_xstrdup(optarg);
+	  kgc->in_filename = ssh_xstrdup(ssh_optarg);
 	  break;
 
 	  /* -o: Provide the output filename. */
 	case 'o':
-	  kgc->out_filename = ssh_xstrdup(optarg);
+	  kgc->out_filename = ssh_xstrdup(ssh_optarg);
 	  break;
 
 	  /* -v: print the version number */
@@ -831,7 +836,7 @@ int main(int argc, char **argv)
 	  ssh_xfree(t);
 	}
 
-      if (optind >= argc)
+      if (ssh_optind >= argc)
 	{
 	  /* generate single key. if no file names given, make up one. */
 	  if (kgc->out_filename == NULL)
@@ -845,7 +850,7 @@ int main(int argc, char **argv)
 
 	  /* iterate over additional filenames */
 
-	  for (i = optind; i < argc; i++)
+	  for (i = ssh_optind; i < argc; i++)
 	    {
 	      if (kgc->out_filename != NULL)
 		ssh_xfree(kgc->out_filename);

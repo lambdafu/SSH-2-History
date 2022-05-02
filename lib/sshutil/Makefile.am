@@ -22,6 +22,7 @@ noinst_LIBRARIES = libsshutil.a
 libsshutil_a_SOURCES = \
 	bufaux.c		\
 	sshbuffer.c		\
+	sshfilebuffer.c		\
 	sshunixeloop.c		\
 	sshunixfdstream.c	\
 	match.c			\
@@ -40,6 +41,7 @@ libsshutil_a_SOURCES = \
 	sshfilterstream.c	\
 	base64.c		\
 	sshutf8.c		\
+	sshfilexfer.c		\
 	sshfilexferc.c		\
 	sshfilexfers.c		\
 	sshfilexferi.c		\
@@ -50,6 +52,7 @@ libsshutil_a_SOURCES = \
 	vlint32.c		\
 	crc32.c			\
 	filelock.c		\
+	sshfileio.c		\
 	sshpacketwrapper.c	\
 	sshpacketstream.c	\
 	sshpacketimpl.c		\
@@ -71,6 +74,7 @@ include_HEADERS = \
 	sshdebug.h		\
 	bufaux.h		\
 	sshbuffer.h		\
+	sshfilebuffer.h		\
 	sshenum.h		\
 	sshencode.h		\
 	sshunixfdstream.h	\
@@ -90,6 +94,7 @@ include_HEADERS = \
 	vlint32.h		\
 	crc32.h			\
 	filelock.h		\
+	sshfileio.h		\
 	sshpacketstream.h	\
 	sshmalloc.h
 

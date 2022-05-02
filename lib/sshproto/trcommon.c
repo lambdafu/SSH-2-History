@@ -14,7 +14,7 @@ trcommon.c
 */
 
 /*
- * $Id: trcommon.c,v 1.42 1998/07/31 07:14:11 sjl Exp $
+ * $Id: trcommon.c,v 1.44 1998/10/19 13:19:31 sjl Exp $
  * $Log: trcommon.c,v $
  * $EndLog$
  */
@@ -74,20 +74,20 @@ void ssh_tr_kex_cleanup(SshTransportCommon tr)
   else
     {
       if (tr->public_host_key_blob)
-	{
-	  ssh_buffer_free(tr->public_host_key_blob);
-	  tr->public_host_key_blob = NULL;
-	}
+        {
+          ssh_buffer_free(tr->public_host_key_blob);
+          tr->public_host_key_blob = NULL;
+        }
       if (tr->public_host_key)
-	{
-	  ssh_public_key_free(tr->public_host_key);
-	  tr->public_host_key = NULL;
-	}
+        {
+          ssh_public_key_free(tr->public_host_key);
+          tr->public_host_key = NULL;
+        }
       if (tr->public_server_key)
-	{
-	  ssh_public_key_free(tr->public_server_key);
-	  tr->public_server_key = NULL;
-	}
+        {
+          ssh_public_key_free(tr->public_server_key);
+          tr->public_server_key = NULL;
+        }
     }
 }
 
@@ -243,7 +243,7 @@ void ssh_tr_up_signal_output(SshTransportCommon tr)
    for the stream if appropriate. */
 
 void ssh_tr_up_send(SshTransportCommon tr, SshCrossPacketType type,
-		    const unsigned char *payload, size_t len)
+                    const unsigned char *payload, size_t len)
 {
   SSH_DEBUG(7, ("ssh_tr_up_send %d", type));
   /* Wake up reads from up if they have blocked. */
@@ -270,20 +270,20 @@ Boolean ssh_tr_output_outgoing(SshTransportCommon tr)
       len = ssh_buffer_len(&tr->outgoing);
       len = ssh_stream_write(tr->connection, ssh_buffer_ptr(&tr->outgoing), len);
       if (len < 0)
-	{
-	  SSH_DEBUG(6, ("ssh_tr_output_outgoing: cannot write more now"));
-	  return FALSE;    /* We cannot write more at this time. */
-	}
+        {
+          SSH_DEBUG(6, ("ssh_tr_output_outgoing: cannot write more now"));
+          return FALSE;    /* We cannot write more at this time. */
+        }
       if (len == 0)
-	{
-	  /* We cannot write any more; presumably the connection has been
-	     lost. */
-	  ssh_tr_up_disconnect(tr, TRUE, FALSE,
-			       SSH_DISCONNECT_CONNECTION_LOST,
-			       "Connection lost on output.");
-	  ssh_buffer_clear(&tr->outgoing);
-	  return FALSE;
-	}
+        {
+          /* We cannot write any more; presumably the connection has been
+             lost. */
+          ssh_tr_up_disconnect(tr, TRUE, FALSE,
+                               SSH_DISCONNECT_CONNECTION_LOST,
+                               "Connection lost on output.");
+          ssh_buffer_clear(&tr->outgoing);
+          return FALSE;
+        }
       ssh_buffer_consume(&tr->outgoing, len);
     }
 
@@ -317,8 +317,8 @@ Boolean ssh_tr_output_outgoing(SshTransportCommon tr)
    and sends it out. */
 
 void ssh_tr_send_packet(SshTransportCommon tr,
-			const unsigned char *payload,
-			size_t payload_length)
+                        const unsigned char *payload,
+                        size_t payload_length)
 {
   size_t block_size, length, padding_length, mac_length;
   int i;
@@ -340,7 +340,7 @@ void ssh_tr_send_packet(SshTransportCommon tr,
     {
       ssh_buffer_clear(tr->compression_buffer);
       ssh_compress_buffer(tr->compression_outgoing, payload, payload_length,
-			  tr->compression_buffer);
+                          tr->compression_buffer);
       payload = ssh_buffer_ptr(tr->compression_buffer);
       payload_length = ssh_buffer_len(tr->compression_buffer);
     }
@@ -363,7 +363,7 @@ void ssh_tr_send_packet(SshTransportCommon tr,
   length += padding_length;  /* now everything but the mac */
 
   SSH_DEBUG(6, ("ssh_tr_send_packet: length %d pad %d payload %d mac %d",
-	    length, padding_length, payload_length, mac_length));
+            length, padding_length, payload_length, mac_length));
 
   /* Store the plaintext packet in the buffer. */
 
@@ -383,12 +383,27 @@ void ssh_tr_send_packet(SshTransportCommon tr,
 
   /* Compute and store MAC. */
 
-  ssh_mac_start(tr->outgoing_mac);
-  ssh_mac_update(tr->outgoing_mac, start, length);
-  SSH_PUT_32BIT(seq_buf, tr->outgoing_sequence_number);
-  ssh_mac_update(tr->outgoing_mac, seq_buf, 4);
-  ssh_mac_final(tr->outgoing_mac, start + length);
-
+  switch (tr->ssh_old_mac_bug_compat)
+    {
+    case FALSE: /* Everything is a-ok */
+      ssh_mac_start(tr->outgoing_mac);
+      SSH_PUT_32BIT(seq_buf, tr->outgoing_sequence_number);
+      ssh_mac_update(tr->outgoing_mac, seq_buf, 4);
+      ssh_mac_update(tr->outgoing_mac, start, length);
+      ssh_mac_final(tr->outgoing_mac, start + length);
+      break;
+    case TRUE: /* other side counts the MAC in the old (==wrong) way. */
+      ssh_mac_start(tr->outgoing_mac);
+      ssh_mac_update(tr->outgoing_mac, start, length);
+      SSH_PUT_32BIT(seq_buf, tr->outgoing_sequence_number);
+      ssh_mac_update(tr->outgoing_mac, seq_buf, 4);
+      ssh_mac_final(tr->outgoing_mac, start + length);
+      break;
+    default:
+      ssh_fatal("ssh_tr_send_packet: Whoah! How can a Boolean value be"
+                " something else than TRUE or FALSE?");
+    }
+  
   /* Encrypt the packet (but not the MAC). */
   ssh_cipher_transform(tr->outgoing_cipher, start, start, length);
 
@@ -407,10 +422,10 @@ void ssh_tr_send_packet(SshTransportCommon tr,
 /* Terminates the protocol, and sends a disconnect message up. */
 
 void ssh_tr_up_disconnect(SshTransportCommon tr,
-			  Boolean locally_generated,
-			  Boolean send_to_other_side,
-			  unsigned int reason,
-			  const char *fmt, ...)
+                          Boolean locally_generated,
+                          Boolean send_to_other_side,
+                          unsigned int reason,
+                          const char *fmt, ...)
 {
   SshBuffer buffer;
   char message[512];
@@ -453,7 +468,7 @@ void ssh_tr_up_disconnect(SshTransportCommon tr,
 
   /* Send and free the packet. */
   ssh_tr_up_send(tr, SSH_CROSS_DISCONNECT,
-		 ssh_buffer_ptr(&buffer), ssh_buffer_len(&buffer));
+                 ssh_buffer_ptr(&buffer), ssh_buffer_len(&buffer));
   ssh_buffer_uninit(&buffer);
 
   /* Prepare for shutdown. */
@@ -470,7 +485,8 @@ void ssh_tr_up_disconnect(SshTransportCommon tr,
 Boolean ssh_tr_input_version(SshTransportCommon tr)
 {
   int len;
-
+  char *verstring_p, *temp_verstring;
+  
   SSH_DEBUG(5, ("ssh_tr_input_version"));
   
   /* Keep reading until the version identifier has been received. */
@@ -478,34 +494,34 @@ Boolean ssh_tr_input_version(SshTransportCommon tr)
     {
       /* Is it too long? */
       if (tr->remote_version_index == sizeof(tr->remote_version) - 1)
-	{
-	  ssh_tr_up_disconnect(tr, TRUE, FALSE,
-			       SSH_DISCONNECT_PROTOCOL_ERROR,
-			       "Remote protocol version too long.");
-	  return FALSE;
-	}
+        {
+          ssh_tr_up_disconnect(tr, TRUE, FALSE,
+                               SSH_DISCONNECT_PROTOCOL_ERROR,
+                               "Remote protocol version too long.");
+          return FALSE;
+        }
       
       /* Read a single character.  We cannot read more as we are waiting
-	 for a newline. */
+         for a newline. */
       len = ssh_stream_read(tr->connection, (unsigned char *) 
-			    tr->remote_version + tr->remote_version_index, 1);
+                            tr->remote_version + tr->remote_version_index, 1);
       if (len == 0)
-	{
-	  ssh_tr_up_disconnect(tr, TRUE, FALSE,
-			       SSH_DISCONNECT_CONNECTION_LOST,
-			       "Connection closed by remote host.");
-	  return FALSE;
-	}
+        {
+          ssh_tr_up_disconnect(tr, TRUE, FALSE,
+                               SSH_DISCONNECT_CONNECTION_LOST,
+                               "Connection closed by remote host.");
+          return FALSE;
+        }
       if (len < 0)
-	return FALSE; /* No more data available yet. */
+        return FALSE; /* No more data available yet. */
       
       /* Check if we are at end of version id.  Note that we don't include the
          newline in the version number string. */
       if (tr->remote_version[tr->remote_version_index] == '\n')
-	break;
+        break;
 
       if (tr->remote_version[tr->remote_version_index] == '\r')
-	continue;  /* Ignore carriage return. */
+        continue;  /* Ignore carriage return. */
       
       /* Count these character. */
       tr->remote_version_index++;
@@ -525,11 +541,39 @@ Boolean ssh_tr_input_version(SshTransportCommon tr)
       strncmp(tr->remote_version, "SSH-1.99", 8) != 0)
     {
       ssh_tr_up_disconnect(tr, TRUE, FALSE,
-			   SSH_DISCONNECT_PROTOCOL_VERSION_NOT_SUPPORTED,
-			   "Illegal protocol version.");
+                           SSH_DISCONNECT_PROTOCOL_VERSION_NOT_SUPPORTED,
+                           "Illegal protocol version.");
       
       return FALSE;
     }
+
+  /* Compatibility with older ssh-2.0.x versions */
+  
+  if ((verstring_p = strchr(tr->remote_version, '-')) != NULL)
+    {
+      verstring_p++;
+      if ((verstring_p = strchr(verstring_p, '-')) != NULL)
+        {
+          verstring_p++;
+          temp_verstring = ssh_xstrdup(verstring_p);
+          if ((verstring_p = strchr(temp_verstring, ' ')) != NULL)
+            {
+              verstring_p = '\0';
+            }
+          
+          if (strlen(temp_verstring) >= 5)
+            {
+              if (!strncmp(temp_verstring, "2.0.7", 5) ||
+                  !strncmp(temp_verstring, "2.0.8", 5) ||
+                  !strncmp(temp_verstring, "2.0.9", 5))
+                {
+                  tr->ssh_old_mac_bug_compat = TRUE;
+                }
+            }
+          ssh_xfree(temp_verstring);
+        }
+    }
+  
   
   /* We have now received the entire remote version number. */
   tr->received_state = RECEIVED_VERSION;
@@ -557,14 +601,14 @@ SshBuffer *ssh_tr_make_kex1(SshTransportCommon tr)
     {
       packet = (*tr->kex->server_make_kex1)(tr);
       if (tr->server_kex1_packet)
-	ssh_buffer_free(tr->server_kex1_packet);
+        ssh_buffer_free(tr->server_kex1_packet);
       tr->server_kex1_packet = packet;
     }
   else
     {
       packet = (*tr->kex->client_make_kex1)(tr);
       if (tr->client_kex1_packet)
-	ssh_buffer_free(tr->client_kex1_packet);
+        ssh_buffer_free(tr->client_kex1_packet);
       tr->client_kex1_packet = packet;
     }
 
@@ -598,19 +642,19 @@ SshBuffer *ssh_tr_make_kex2(SshTransportCommon tr)
    no common algorithm can be found. */
 
 char *ssh_tr_negotiate_one_alg(SshTransportCommon tr,
-			       const char *description,
-			       SshBuffer *client_kexinit,
-			       SshBuffer *server_kexinit)
+                               const char *description,
+                               SshBuffer *client_kexinit,
+                               SshBuffer *server_kexinit)
 {
   char *client_list, *server_list, *common_list, *result;
 
   if (ssh_decode_buffer(client_kexinit,
-			SSH_FORMAT_UINT32_STR, &client_list, NULL,
-			SSH_FORMAT_END) == 0)
+                        SSH_FORMAT_UINT32_STR, &client_list, NULL,
+                        SSH_FORMAT_END) == 0)
     return NULL;
   if (ssh_decode_buffer(server_kexinit,
-			SSH_FORMAT_UINT32_STR, &server_list, NULL,
-			SSH_FORMAT_END) == 0)
+                        SSH_FORMAT_UINT32_STR, &server_list, NULL,
+                        SSH_FORMAT_END) == 0)
     {
       ssh_xfree(client_list);
       return NULL;
@@ -625,7 +669,7 @@ char *ssh_tr_negotiate_one_alg(SshTransportCommon tr,
     result = ssh_xstrdup(result);
   else
     ssh_debug("ssh_tr_negotiate_one_alg: failed for %s: %.100s vs %.100s",
-	  description, client_list, server_list);
+          description, client_list, server_list);
   ssh_xfree(client_list);
   ssh_xfree(server_list);
   ssh_xfree(common_list);
@@ -650,7 +694,7 @@ void ssh_tr_set_string(char **cpp, char *new_value)
    correct. */
 
 Boolean ssh_tr_negotiate(SshTransportCommon tr,
-			 Boolean *guess_was_wrong)
+                         Boolean *guess_was_wrong)
 {
   char *client_kex, *server_kex, *common_kex, *kex;
   char *client_server_host_key, *server_server_host_key, *common_host_key;
@@ -669,27 +713,27 @@ Boolean ssh_tr_negotiate(SshTransportCommon tr,
   /* Copy the kexinit packets into local buffers. */
   client_kexinit = ssh_buffer_allocate();
   ssh_buffer_append(client_kexinit, ssh_buffer_ptr(tr->client_kexinit_packet),
-		ssh_buffer_len(tr->client_kexinit_packet));
+                ssh_buffer_len(tr->client_kexinit_packet));
   server_kexinit = ssh_buffer_allocate();
   ssh_buffer_append(server_kexinit, ssh_buffer_ptr(tr->server_kexinit_packet),
-		ssh_buffer_len(tr->server_kexinit_packet));
+                ssh_buffer_len(tr->server_kexinit_packet));
 
   /* Parse relevant information from the client packet. */
   if (ssh_decode_buffer(client_kexinit,
-			SSH_FORMAT_CHAR, NULL,
-			SSH_FORMAT_DATA, NULL, 16,
-			SSH_FORMAT_UINT32_STR, &client_kex, NULL,
-			SSH_FORMAT_UINT32_STR, &client_server_host_key, NULL,
-			SSH_FORMAT_END) == 0)
+                        SSH_FORMAT_CHAR, NULL,
+                        SSH_FORMAT_DATA, NULL, 16,
+                        SSH_FORMAT_UINT32_STR, &client_kex, NULL,
+                        SSH_FORMAT_UINT32_STR, &client_server_host_key, NULL,
+                        SSH_FORMAT_END) == 0)
     return FALSE;
 
   /* Parse the same information from the server packet. */
   if (ssh_decode_buffer(server_kexinit,
-			SSH_FORMAT_CHAR, NULL,
-			SSH_FORMAT_DATA, NULL, 16,
-			SSH_FORMAT_UINT32_STR, &server_kex, NULL,
-			SSH_FORMAT_UINT32_STR, &server_server_host_key, NULL,
-			SSH_FORMAT_END) == 0)
+                        SSH_FORMAT_CHAR, NULL,
+                        SSH_FORMAT_DATA, NULL, 16,
+                        SSH_FORMAT_UINT32_STR, &server_kex, NULL,
+                        SSH_FORMAT_UINT32_STR, &server_server_host_key, NULL,
+                        SSH_FORMAT_END) == 0)
     {
       ssh_xfree(client_kex);
       ssh_xfree(client_server_host_key);
@@ -703,7 +747,7 @@ Boolean ssh_tr_negotiate(SshTransportCommon tr,
 
   /* Compute which host key types are supported by both. */
   common_host_key = ssh_name_list_intersection(client_server_host_key,
-					       server_server_host_key);
+                                               server_server_host_key);
 
   tr->host_key_names = ssh_xstrdup(common_host_key);
 
@@ -718,17 +762,17 @@ Boolean ssh_tr_negotiate(SshTransportCommon tr,
       char *hk;
 
       for (hk = strtok(host_key_copy, ","); hk; hk = strtok(NULL, ","))
-	{
-	  /* XXX if hk does not support signature/encryption as needed by kex,
-	     then continue. */
-	  
-	  chosen_kex = ssh_xstrdup(kex);
-	  chosen_host_key = ssh_xstrdup(hk);
-	  break;
-	}
+        {
+          /* XXX if hk does not support signature/encryption as needed by kex,
+             then continue. */
+          
+          chosen_kex = ssh_xstrdup(kex);
+          chosen_host_key = ssh_xstrdup(hk);
+          break;
+        }
       ssh_xfree(host_key_copy);
       if (chosen_host_key != NULL)
-	break;
+        break;
     }
   ssh_xfree(common_kex);
   ssh_xfree(common_host_key);
@@ -742,23 +786,23 @@ Boolean ssh_tr_negotiate(SshTransportCommon tr,
 
   /* Choose the remaining algorithms. */
   chosen_c_to_s_cipher = ssh_tr_negotiate_one_alg(tr, "c_to_s_cipher",
-						  client_kexinit,
-						  server_kexinit);
+                                                  client_kexinit,
+                                                  server_kexinit);
   chosen_s_to_c_cipher = ssh_tr_negotiate_one_alg(tr, "s_to_c_cipher",
-						  client_kexinit,
-						  server_kexinit);
+                                                  client_kexinit,
+                                                  server_kexinit);
   chosen_c_to_s_mac = ssh_tr_negotiate_one_alg(tr, "c_to_s_mac",
-					       client_kexinit,
-					       server_kexinit);
+                                               client_kexinit,
+                                               server_kexinit);
   chosen_s_to_c_mac = ssh_tr_negotiate_one_alg(tr, "s_to_c_mac",
-					       client_kexinit,
-					       server_kexinit);
+                                               client_kexinit,
+                                               server_kexinit);
   chosen_c_to_s_compression = ssh_tr_negotiate_one_alg(tr, "c_to_s_compr",
-						       client_kexinit,
-						       server_kexinit);
+                                                       client_kexinit,
+                                                       server_kexinit);
   chosen_s_to_c_compression = ssh_tr_negotiate_one_alg(tr, "s_to_c_compr",
-						       client_kexinit,
-						       server_kexinit);
+                                                       client_kexinit,
+                                                       server_kexinit);
   
   ssh_buffer_free(client_kexinit);
   ssh_buffer_free(server_kexinit);
@@ -781,7 +825,7 @@ Boolean ssh_tr_negotiate(SshTransportCommon tr,
 
   /* Determine whether the guessed algorithm was wrong. */
   *guess_was_wrong = (strcmp(chosen_kex, tr->guessed_kex) != 0 ||
-		      strcmp(chosen_host_key, tr->guessed_host_key) != 0);
+                      strcmp(chosen_host_key, tr->guessed_host_key) != 0);
 
   /* Set the selected algorithms. */
   ssh_tr_set_string(&tr->kex_name, chosen_kex);
@@ -791,15 +835,15 @@ Boolean ssh_tr_negotiate(SshTransportCommon tr,
   ssh_tr_set_string(&tr->c_to_s.mac_name, chosen_c_to_s_mac);
   ssh_tr_set_string(&tr->s_to_c.mac_name, chosen_s_to_c_mac);
   ssh_tr_set_string(&tr->c_to_s.compression_name,
-		    chosen_c_to_s_compression);
+                    chosen_c_to_s_compression);
   ssh_tr_set_string(&tr->s_to_c.compression_name,
-		    chosen_s_to_c_compression);
+                    chosen_s_to_c_compression);
 
 #if 0
   ssh_debug("c_to_s: cipher %s, mac %s, compression %s",
-	chosen_c_to_s_cipher, chosen_c_to_s_mac, chosen_c_to_s_compression);
+        chosen_c_to_s_cipher, chosen_c_to_s_mac, chosen_c_to_s_compression);
   ssh_debug("s_to_c: cipher %s, mac %s, compression %s",
-	chosen_s_to_c_cipher, chosen_s_to_c_mac, chosen_s_to_c_compression);
+        chosen_s_to_c_cipher, chosen_s_to_c_mac, chosen_s_to_c_compression);
 #endif
   
   /* Set the current kex method and hash handles (cipher, mac, and compression
@@ -808,14 +852,14 @@ Boolean ssh_tr_negotiate(SshTransportCommon tr,
   if (tr->kex == NULL)
     {
       ssh_fatal("ssh_tr_negotiate: chosen kex '%.100s' not found.",
-		chosen_kex);  
+                chosen_kex);  
     }
       
   tr->hash = ssh_kex_allocate_hash(chosen_kex);
   if (tr->hash == NULL)
     {
       ssh_fatal("unable to allocate the hash function needed by the "
-		"key exchange method %s.", chosen_kex);
+                "key exchange method %s.", chosen_kex);
     }
   
   /* Update guesses so that the next key exchange will use the current
@@ -847,18 +891,18 @@ void ssh_tr_input_disconnect(SshTransportCommon tr, SshBuffer *packet)
   SSH_DEBUG(5, ("ssh_tr_input_disconnect"));
 
   if (ssh_decode_buffer(packet,
-			SSH_FORMAT_CHAR, &packet_type,
-			SSH_FORMAT_UINT32, &reason,
-			SSH_FORMAT_UINT32_STR, &message, NULL,
-			SSH_FORMAT_UINT32_STR, NULL, NULL, /* language tag */
-			SSH_FORMAT_END) == 0)
+                        SSH_FORMAT_CHAR, &packet_type,
+                        SSH_FORMAT_UINT32, &reason,
+                        SSH_FORMAT_UINT32_STR, &message, NULL,
+                        SSH_FORMAT_UINT32_STR, NULL, NULL, /* language tag */
+                        SSH_FORMAT_END) == 0)
     {
       ssh_debug("ssh_tr_input_disconnect: bad DISCONNECT");
       return;
     }
   if (packet_type != SSH_MSG_DISCONNECT)
     ssh_fatal("ssh_tr_input_disconnect: non-DISCONNECT packet %d",
-	      packet_type);
+              packet_type);
   ssh_tr_up_disconnect(tr, FALSE, FALSE, reason, "%.300s", message);
   ssh_xfree(message);
 }
@@ -876,27 +920,27 @@ void ssh_tr_input_debug(SshTransportCommon tr, SshBuffer *packet)
   SSH_DEBUG(5, ("ssh_tr_input_debug"));
 
   if (ssh_decode_buffer(packet,
-			SSH_FORMAT_CHAR, &packet_type,
-			SSH_FORMAT_BOOLEAN, &always_display,
-			SSH_FORMAT_UINT32_STR, &message, NULL,
-			SSH_FORMAT_UINT32_STR, &language, NULL,
-			SSH_FORMAT_END) == 0)
+                        SSH_FORMAT_CHAR, &packet_type,
+                        SSH_FORMAT_BOOLEAN, &always_display,
+                        SSH_FORMAT_UINT32_STR, &message, NULL,
+                        SSH_FORMAT_UINT32_STR, &language, NULL,
+                        SSH_FORMAT_END) == 0)
     {
       ssh_debug("ssh_tr_input_debug: bad DEBUG message");
       return;
     }
   if (packet_type != SSH_MSG_DEBUG)
     ssh_fatal("ssh_tr_input_disconnect: non-DEBUG packet %d",
-	      packet_type);
+              packet_type);
 
   ssh_buffer_init(&buffer);
   ssh_encode_buffer(&buffer,
-		    SSH_FORMAT_BOOLEAN, always_display,
-		    SSH_FORMAT_UINT32_STR, message, strlen(message),
-		    SSH_FORMAT_UINT32_STR, language, strlen(language),
-		    SSH_FORMAT_END);
+                    SSH_FORMAT_BOOLEAN, always_display,
+                    SSH_FORMAT_UINT32_STR, message, strlen(message),
+                    SSH_FORMAT_UINT32_STR, language, strlen(language),
+                    SSH_FORMAT_END);
   ssh_tr_up_send(tr, SSH_CROSS_DEBUG, ssh_buffer_ptr(&buffer),
-		 ssh_buffer_len(&buffer));
+                 ssh_buffer_len(&buffer));
   ssh_buffer_uninit(&buffer);
   ssh_xfree(message);
   ssh_xfree(language);
@@ -940,28 +984,28 @@ restart:
   while (tr->incoming_packet_index < tr->incoming_granularity)
     {
       len = ssh_stream_read(tr->connection,
-			    ssh_buffer_ptr(packet) + tr->incoming_packet_index,
-			    tr->incoming_granularity -
-			    tr->incoming_packet_index);
+                            ssh_buffer_ptr(packet) + tr->incoming_packet_index,
+                            tr->incoming_granularity -
+                            tr->incoming_packet_index);
       SSH_DEBUG(5, ("ssh_tr_input_packet: read %d bytes", len));
       if (len < 0)
-	return NULL;  /* No more data available at this time. */
+        return NULL;  /* No more data available at this time. */
       if (len == 0)
-	{
-	  /* Received EOF. */
-	  SSH_DEBUG(5, ("received eof"));
-	  if (tr->incoming_packet_index == 0)
-	    { /* Clean EOF at beginning of packet. */
-	      tr->up_outgoing_eof = TRUE;
-	      tr->received_state = RECEIVED_DEAD;
-	      ssh_tr_up_signal_input(tr);
-	    }
-	  else
-	    ssh_tr_up_disconnect(tr, TRUE, FALSE,
-				 SSH_DISCONNECT_CONNECTION_LOST,
-				 "Connection lost.");
-	  return NULL;
-	}
+        {
+          /* Received EOF. */
+          SSH_DEBUG(5, ("received eof"));
+          if (tr->incoming_packet_index == 0)
+            { /* Clean EOF at beginning of packet. */
+              tr->up_outgoing_eof = TRUE;
+              tr->received_state = RECEIVED_DEAD;
+              ssh_tr_up_signal_input(tr);
+            }
+          else
+            ssh_tr_up_disconnect(tr, TRUE, FALSE,
+                                 SSH_DISCONNECT_CONNECTION_LOST,
+                                 "Connection lost.");
+          return NULL;
+        }
       tr->incoming_packet_index += len;
     }
 
@@ -974,10 +1018,10 @@ restart:
     {
       /* Decrypt the first few bytes of the incoming packet. */
       if (ssh_cipher_transform(tr->incoming_cipher, ssh_buffer_ptr(packet),
-			       ssh_buffer_ptr(packet),
-			       tr->incoming_granularity) != SSH_CRYPTO_OK)
-	ssh_fatal("ssh_tr_input_packet: decrypting length failed (gran %d)",
-		  tr->incoming_granularity);
+                               ssh_buffer_ptr(packet),
+                               tr->incoming_granularity) != SSH_CRYPTO_OK)
+        ssh_fatal("ssh_tr_input_packet: decrypting length failed (gran %d)",
+                  tr->incoming_granularity);
   
       /* Compute the total length of the packet. */
 
@@ -985,39 +1029,39 @@ restart:
 
       /* Sanity check the length. */
       if (tr->incoming_packet_len > SSH_MAX_TOTAL_PACKET_LENGTH)
-	{
-	  /* Send a disconnect packet to the other side. */
-	  ssh_tr_up_disconnect(tr, TRUE, TRUE,
-			       SSH_DISCONNECT_PROTOCOL_ERROR,
-			       "Protocol error: packet too long: %d.",
-			       tr->incoming_packet_len);
-	  tr->incoming_packet_len = 0; /* Just in case... */
-	  return NULL;
-	}
+        {
+          /* Send a disconnect packet to the other side. */
+          ssh_tr_up_disconnect(tr, TRUE, TRUE,
+                               SSH_DISCONNECT_PROTOCOL_ERROR,
+                               "Protocol error: packet too long: %d.",
+                               tr->incoming_packet_len);
+          tr->incoming_packet_len = 0; /* Just in case... */
+          return NULL;
+        }
 
       /* Reserve space for the entire packet. */
       ssh_buffer_append_space(packet, &cp,
-			  tr->incoming_packet_len - ssh_buffer_len(packet));
+                          tr->incoming_packet_len - ssh_buffer_len(packet));
     }
 
   /* Keep reading until the entire packet has been received. */
   while (tr->incoming_packet_index < tr->incoming_packet_len)
     {
       len = ssh_stream_read(tr->connection,
-			    ssh_buffer_ptr(packet) + tr->incoming_packet_index,
-			    tr->incoming_packet_len -
-			    tr->incoming_packet_index);
+                            ssh_buffer_ptr(packet) + tr->incoming_packet_index,
+                            tr->incoming_packet_len -
+                            tr->incoming_packet_index);
       SSH_DEBUG(5, ("ssh_tr_input_packet: read %d bytes", len));
       if (len < 0)
-	return NULL;  /* No more data available at this time. */
+        return NULL;  /* No more data available at this time. */
       if (len == 0)
-	{
-	  /* Received EOF. */
-	  ssh_tr_up_disconnect(tr, TRUE, FALSE,
-			       SSH_DISCONNECT_CONNECTION_LOST,
-			       "Connection lost.");
-	  return NULL;
-	}
+        {
+          /* Received EOF. */
+          ssh_tr_up_disconnect(tr, TRUE, FALSE,
+                               SSH_DISCONNECT_CONNECTION_LOST,
+                               "Connection lost.");
+          return NULL;
+        }
       tr->incoming_packet_index += len;
     }
 
@@ -1030,7 +1074,7 @@ restart:
   if ((tr->incoming_packet_len - mac_len) % tr->incoming_granularity != 0)
     {
       ssh_tr_up_disconnect(tr, TRUE, FALSE, SSH_DISCONNECT_PROTOCOL_ERROR,
-			   "Received packet with wrong granularity.");
+                           "Received packet with wrong granularity.");
       return NULL;
     }
   
@@ -1038,31 +1082,48 @@ restart:
      decrypted). */
 
   if (ssh_cipher_transform(tr->incoming_cipher,
-			   ssh_buffer_ptr(packet) + tr->incoming_granularity,
-			   ssh_buffer_ptr(packet) + tr->incoming_granularity,
-			   tr->incoming_packet_len -
-			   tr->incoming_granularity - mac_len)
+                           ssh_buffer_ptr(packet) + tr->incoming_granularity,
+                           ssh_buffer_ptr(packet) + tr->incoming_granularity,
+                           tr->incoming_packet_len -
+                           tr->incoming_granularity - mac_len)
       != SSH_CRYPTO_OK)
     ssh_fatal("ssh_tr_input_packet: decrypting rest failed (len %d gran %d mac %d)",
-	  tr->incoming_packet_len, tr->incoming_granularity, mac_len);
+          tr->incoming_packet_len, tr->incoming_granularity, mac_len);
 
   /* Verify MAC. */
-  ssh_mac_start(tr->incoming_mac);
-  ssh_mac_update(tr->incoming_mac, ssh_buffer_ptr(packet),
-		 tr->incoming_packet_len - mac_len);
-  SSH_PUT_32BIT(seq_buf, tr->incoming_sequence_number);
-  ssh_mac_update(tr->incoming_mac, seq_buf, 4);
-  ssh_mac_final(tr->incoming_mac, mac);
+
+  switch (tr->ssh_old_mac_bug_compat)
+    {
+    case FALSE: /* Everything is a-ok */
+      ssh_mac_start(tr->incoming_mac);
+      SSH_PUT_32BIT(seq_buf, tr->incoming_sequence_number);
+      ssh_mac_update(tr->incoming_mac, seq_buf, 4);
+      ssh_mac_update(tr->incoming_mac, ssh_buffer_ptr(packet),
+                       tr->incoming_packet_len - mac_len);
+      ssh_mac_final(tr->incoming_mac, mac);
+      break;
+    case TRUE: /* other side counts the MAC in the old (==wrong) way. */
+      ssh_mac_start(tr->incoming_mac);
+      ssh_mac_update(tr->incoming_mac, ssh_buffer_ptr(packet),
+                     tr->incoming_packet_len - mac_len);
+      SSH_PUT_32BIT(seq_buf, tr->incoming_sequence_number);
+      ssh_mac_update(tr->incoming_mac, seq_buf, 4);
+      ssh_mac_final(tr->incoming_mac, mac);
+      break;
+    default:
+      ssh_fatal("ssh_tr_input_packet: Whoah! How can a Boolean value be"
+                " something else than TRUE or FALSE?");
+    }
 
   if (memcmp(mac, ssh_buffer_ptr(packet) + tr->incoming_packet_len - mac_len,
-	     mac_len) != 0)
+             mac_len) != 0)
     {
 
       /* MAC fails. */
 
       ssh_tr_up_disconnect(tr, TRUE, TRUE,
-			   SSH_DISCONNECT_MAC_ERROR,
-			   "Message authentication check fails.");
+                           SSH_DISCONNECT_MAC_ERROR,
+                           "Message authentication check fails.");
       return NULL;
     }
 
@@ -1070,19 +1131,19 @@ restart:
   ssh_buffer_consume_end(packet, mac_len);
 
   if (ssh_decode_buffer(packet,
-			SSH_FORMAT_UINT32, NULL,
-			SSH_FORMAT_CHAR, &pad_len,
-			SSH_FORMAT_END) == 0)
+                        SSH_FORMAT_UINT32, NULL,
+                        SSH_FORMAT_CHAR, &pad_len,
+                        SSH_FORMAT_END) == 0)
     {
       ssh_tr_up_disconnect(tr, TRUE, TRUE, SSH_DISCONNECT_PROTOCOL_ERROR,
-			   "Badly formatted packet");
+                           "Badly formatted packet");
       return NULL;
     }
   if (pad_len > ssh_buffer_len(packet))
     {
       ssh_tr_up_disconnect(tr, TRUE, TRUE,
-			   SSH_DISCONNECT_PROTOCOL_ERROR,
-			   "Bad padding length %d", pad_len);
+                           SSH_DISCONNECT_PROTOCOL_ERROR,
+                           "Bad padding length %d", pad_len);
       return NULL;
     }
   ssh_buffer_consume_end(packet, pad_len);
@@ -1097,7 +1158,7 @@ restart:
       /* Uncompress the data. */
       ssh_buffer_clear(tr->compression_buffer);
       ssh_compress_buffer(tr->compression_incoming, ssh_buffer_ptr(packet),
-			    ssh_buffer_len(packet), tr->compression_buffer);
+                            ssh_buffer_len(packet), tr->compression_buffer);
 
       /* Swap the buffers so that uncompressed data is returned.  We'll reuse
          the other buffer for compression later. */
@@ -1152,7 +1213,7 @@ restart:
 }
 
 Boolean ssh_tr_process_received_kexinit(SshTransportCommon tr,
-					SshBuffer *packet)
+                                        SshBuffer *packet)
 {
   Boolean guess_was_wrong;
 
@@ -1175,8 +1236,8 @@ Boolean ssh_tr_process_received_kexinit(SshTransportCommon tr,
   if (!ssh_tr_negotiate(tr, &guess_was_wrong))
     {
       ssh_tr_up_disconnect(tr, TRUE, TRUE,
-			   SSH_DISCONNECT_KEY_EXCHANGE_FAILED,
-			   "Algorithm negotiation failed.");
+                           SSH_DISCONNECT_KEY_EXCHANGE_FAILED,
+                           "Algorithm negotiation failed.");
       return FALSE;
     }
 
@@ -1185,13 +1246,13 @@ Boolean ssh_tr_process_received_kexinit(SshTransportCommon tr,
   else
     {
       /* If we aren't expecting to receive kex1, go directly to expecting
-	 kex2. */
+         kex2. */
       if ((tr->server ? tr->kex->server_input_kex1 :
-	   tr->kex->client_input_kex1)
-	  == NULL)
-	tr->received_state = RECEIVED_KEX1_FINAL;
+           tr->kex->client_input_kex1)
+          == NULL)
+        tr->received_state = RECEIVED_KEX1_FINAL;
       else
-	tr->received_state = RECEIVED_KEX1_IGNORED;
+        tr->received_state = RECEIVED_KEX1_IGNORED;
     }
   
   assert(tr->sent_state == SENT_KEXINIT);
@@ -1200,12 +1261,12 @@ Boolean ssh_tr_process_received_kexinit(SshTransportCommon tr,
       /* Resend our KEX1 packet, if we are to send one. */
       packet = ssh_tr_make_kex1(tr);
       if (packet)
-	{
-	  ssh_tr_send_packet(tr, ssh_buffer_ptr(packet),
-			     ssh_buffer_len(packet));
-	  /* Note that the packet has been saved for key negotiation, and
-	     cannot be freed here. */
-	}
+        {
+          ssh_tr_send_packet(tr, ssh_buffer_ptr(packet),
+                             ssh_buffer_len(packet));
+          /* Note that the packet has been saved for key negotiation, and
+             cannot be freed here. */
+        }
     }
 
   tr->sent_state = SENT_KEX1_FINAL;
@@ -1245,9 +1306,9 @@ Boolean ssh_tr_input_kexinit(SshTransportCommon tr)
     {
       ssh_buffer_free(packet);
       ssh_tr_up_disconnect(tr, TRUE, TRUE,
-			   SSH_DISCONNECT_PROTOCOL_ERROR,
-			   "Received packet type %d expecting KEXINIT",
-			   (int)packet_type);
+                           SSH_DISCONNECT_PROTOCOL_ERROR,
+                           "Received packet type %d expecting KEXINIT",
+                           (int)packet_type);
       return FALSE;
     }
 
@@ -1259,7 +1320,7 @@ Boolean ssh_tr_input_kexinit(SshTransportCommon tr)
    state. */
 
 void ssh_tr_send_simple_packet(SshTransportCommon tr,
-			       unsigned int packet_type)
+                               unsigned int packet_type)
 {
   SshBuffer buffer;
 
@@ -1268,7 +1329,7 @@ void ssh_tr_send_simple_packet(SshTransportCommon tr,
   ssh_buffer_init(&buffer);
   buffer_put_char(&buffer, packet_type);
   ssh_tr_send_packet(tr, ssh_buffer_ptr(&buffer),
-		     ssh_buffer_len(&buffer));
+                     ssh_buffer_len(&buffer));
   ssh_buffer_uninit(&buffer);
 }
 
@@ -1276,9 +1337,9 @@ void ssh_tr_send_simple_packet(SshTransportCommon tr,
    the keys from memory after they have been set. */
     
 void ssh_tr_set_keys(SshTransportCommon tr, struct SideKexInfo *info,
-		     size_t *granularityp, Boolean is_outgoing,
-		     SshCipher *cipherp, SshMac *macp,
-		     SshCompression *compressionp)
+                     size_t *granularityp, Boolean is_outgoing,
+                     SshCipher *cipherp, SshMac *macp,
+                     SshCompression *compressionp)
 {
   size_t key_len;
 
@@ -1295,9 +1356,9 @@ void ssh_tr_set_keys(SshTransportCommon tr, struct SideKexInfo *info,
   assert(key_len < sizeof(info->encryption_key));
 
   if (ssh_cipher_allocate(info->cipher_name, info->encryption_key, key_len,
-			  is_outgoing, cipherp) != SSH_CRYPTO_OK)
+                          is_outgoing, cipherp) != SSH_CRYPTO_OK)
     ssh_fatal("ssh_tr_set_keys: cipher init failed: %.100s",
-	  info->cipher_name);
+          info->cipher_name);
   *granularityp = ssh_cipher_get_block_length(*cipherp);
   if (*granularityp < 8)
     *granularityp = 8;
@@ -1313,7 +1374,7 @@ void ssh_tr_set_keys(SshTransportCommon tr, struct SideKexInfo *info,
   /* XXX macs with key length != 16 */
 
   if (ssh_mac_allocate(info->mac_name, info->integrity_key, 16,
-		       macp) != SSH_CRYPTO_OK)
+                       macp) != SSH_CRYPTO_OK)
     ssh_fatal("ssh_tr_set_keys: mac init failed: %.100s", info->mac_name);
 
   /* Set compression algorithm.  First we free any old compression state. */
@@ -1322,7 +1383,7 @@ void ssh_tr_set_keys(SshTransportCommon tr, struct SideKexInfo *info,
   *compressionp = ssh_compress_allocate(info->compression_name, is_outgoing);
   if (!*compressionp)
     ssh_fatal("ssh_tr_set_keys: compression init failed: %.100s",
-	      info->compression_name);
+              info->compression_name);
 
   /* Clear the keys from memory. */
   memset(info->encryption_key, 0, sizeof(info->encryption_key));
@@ -1346,8 +1407,8 @@ void ssh_tr_key_check_done(Boolean result, void *context)
   if (!result)
     {
       ssh_tr_up_disconnect(tr, TRUE, TRUE,
-			   SSH_DISCONNECT_HOST_KEY_NOT_VERIFIABLE,
-			   "Could not ascertain validity of host key.");
+                           SSH_DISCONNECT_HOST_KEY_NOT_VERIFIABLE,
+                           "Could not ascertain validity of host key.");
       return;
     }
   
@@ -1359,9 +1420,9 @@ void ssh_tr_key_check_done(Boolean result, void *context)
   if (packet)
     {
       ssh_tr_send_packet(tr, ssh_buffer_ptr(packet),
-			 ssh_buffer_len(packet));
+                         ssh_buffer_len(packet));
       /* Note that KEX2 packets are not saved anywhere and need to be freed
-	 here. */
+         here. */
       ssh_buffer_free(packet);
     } 
 
@@ -1372,12 +1433,12 @@ void ssh_tr_key_check_done(Boolean result, void *context)
   /* Take the new keys and algorithms into use. */
   if (tr->server)
     ssh_tr_set_keys(tr, &tr->s_to_c, &tr->outgoing_granularity, TRUE,
-		    &tr->outgoing_cipher, &tr->outgoing_mac,
-		    &tr->compression_outgoing);
+                    &tr->outgoing_cipher, &tr->outgoing_mac,
+                    &tr->compression_outgoing);
   else
     ssh_tr_set_keys(tr, &tr->c_to_s, &tr->outgoing_granularity, TRUE,
-		    &tr->outgoing_cipher, &tr->outgoing_mac,
-		    &tr->compression_outgoing);
+                    &tr->outgoing_cipher, &tr->outgoing_mac,
+                    &tr->compression_outgoing);
 
   /* Go directly to expecting newkeys if not expecting to receive KEX2. */
   if ((tr->server ? tr->kex->server_input_kex2 : tr->kex->client_input_kex2)
@@ -1417,13 +1478,13 @@ Boolean ssh_tr_input_kex1(SshTransportCommon tr)
       /* We are receiving a kex1 packet that needs to be ignored. */
       ssh_buffer_free(packet);
       /* If we aren't expecting to receive kex1, go directly to expecting
-	 kex2. */
+         kex2. */
       if ((tr->server ? tr->kex->server_input_kex1 :
-	   tr->kex->client_input_kex1)
-	  == NULL)
-	tr->received_state = RECEIVED_KEX1_FINAL;
+           tr->kex->client_input_kex1)
+          == NULL)
+        tr->received_state = RECEIVED_KEX1_FINAL;
       else
-	tr->received_state = RECEIVED_KEX1_IGNORED;
+        tr->received_state = RECEIVED_KEX1_IGNORED;
       return TRUE;
     }
 
@@ -1432,22 +1493,27 @@ Boolean ssh_tr_input_kex1(SshTransportCommon tr)
     result = (*tr->kex->server_input_kex1)(tr, packet);
   else
     result = (*tr->kex->client_input_kex1)(tr, packet);
-  if (!result)
-    return FALSE;  /* Parsing failed. */
 
+  if (!result)
+    {
+      ssh_buffer_free(packet);
+      return FALSE;  /* Parsing failed. */
+    }
+  
   /* Mark that we are processing key check. */
   tr->received_state = RECEIVED_KEY_CHECK;
 
   if (tr->key_check)
     (*tr->key_check)(tr->server_host_name,
-		     ssh_buffer_ptr(tr->public_host_key_blob),
-		     ssh_buffer_len(tr->public_host_key_blob),
-		     ssh_tr_key_check_done,
-		     (void *)tr,
-		     tr->key_check_context);
+                     ssh_buffer_ptr(tr->public_host_key_blob),
+                     ssh_buffer_len(tr->public_host_key_blob),
+                     ssh_tr_key_check_done,
+                     (void *)tr,
+                     tr->key_check_context);
   else
     ssh_tr_key_check_done(TRUE, (void *)tr);
 
+  ssh_buffer_free(packet);
   return TRUE;
 }
 
@@ -1482,12 +1548,12 @@ Boolean ssh_tr_input_kex2(SshTransportCommon tr)
   /* Take the new keys and algorithms into use. */
   if (tr->server)
     ssh_tr_set_keys(tr, &tr->s_to_c, &tr->outgoing_granularity, TRUE,
-		    &tr->outgoing_cipher, &tr->outgoing_mac,
-		    &tr->compression_outgoing);
+                    &tr->outgoing_cipher, &tr->outgoing_mac,
+                    &tr->compression_outgoing);
   else
     ssh_tr_set_keys(tr, &tr->c_to_s, &tr->outgoing_granularity, TRUE,
-		    &tr->outgoing_cipher, &tr->outgoing_mac,
-		    &tr->compression_outgoing);
+                    &tr->outgoing_cipher, &tr->outgoing_mac,
+                    &tr->compression_outgoing);
 
   /* Update state. */
   tr->sent_state = SENT_NEWKEYS;
@@ -1515,20 +1581,20 @@ Boolean ssh_tr_input_newkeys(SshTransportCommon tr)
   if (packet_type != SSH_MSG_NEWKEYS)
     {
       ssh_tr_up_disconnect(tr, TRUE, TRUE, SSH_DISCONNECT_PROTOCOL_ERROR,
-			   "Protocol error: Received %d as newkeys",
-			   packet_type);
+                           "Protocol error: Received %d as newkeys",
+                           packet_type);
       return FALSE;
     }
   ssh_buffer_free(packet);
   
   if (tr->server)
     ssh_tr_set_keys(tr, &tr->c_to_s, &tr->incoming_granularity, FALSE,
-		    &tr->incoming_cipher, &tr->incoming_mac,
-		    &tr->compression_incoming);
+                    &tr->incoming_cipher, &tr->incoming_mac,
+                    &tr->compression_incoming);
   else
     ssh_tr_set_keys(tr, &tr->s_to_c, &tr->incoming_granularity, FALSE,
-		    &tr->incoming_cipher, &tr->incoming_mac,
-		    &tr->compression_incoming);
+                    &tr->incoming_cipher, &tr->incoming_mac,
+                    &tr->compression_incoming);
 
   /* Mark that we have received NEWKEYS. */
   tr->received_state = RECEIVED_NEWKEYS;
@@ -1547,11 +1613,11 @@ void ssh_tr_up_send_startup(SshTransportCommon tr)
   
   ssh_buffer_init(&buffer);
   buffer_put_uint32_string(&buffer, SSH_CROSS_LAYER_VERSION,
-			   strlen(SSH_CROSS_LAYER_VERSION));
+                           strlen(SSH_CROSS_LAYER_VERSION));
   buffer_put_uint32_string(&buffer, tr->session_identifier,
-			   tr->session_identifier_len);
+                           tr->session_identifier_len);
   buffer_put_uint32_string(&buffer, tr->remote_version,
-			   strlen(tr->remote_version));
+                           strlen(tr->remote_version));
   if (ssh_tcp_get_remote_address(tr->connection, buf, sizeof(buf)))
     buffer_put_uint32_string(&buffer, buf, strlen(buf));
   else
@@ -1561,7 +1627,7 @@ void ssh_tr_up_send_startup(SshTransportCommon tr)
   else
     buffer_put_uint32_string(&buffer, NULL, 0);
   ssh_tr_up_send(tr, SSH_CROSS_STARTUP,
-		 ssh_buffer_ptr(&buffer), ssh_buffer_len(&buffer));
+                 ssh_buffer_ptr(&buffer), ssh_buffer_len(&buffer));
   ssh_buffer_uninit(&buffer);
 
   /* Mix the session identifier into our random number generator.  The
@@ -1571,7 +1637,7 @@ void ssh_tr_up_send_startup(SshTransportCommon tr)
      (e.g., the secret session key).  The random state can be used to
      update the random seed file later. */
   ssh_random_add_noise(tr->random_state, tr->session_identifier,
-		       tr->session_identifier_len);
+                       tr->session_identifier_len);
   ssh_random_stir(tr->random_state);
 }
 
@@ -1588,23 +1654,23 @@ void ssh_tr_up_send_algorithms(SshTransportCommon tr)
   ssh_buffer_init(&buffer);
   buffer_put_uint32_string(&buffer, tr->kex_name, strlen(tr->kex_name));
   buffer_put_uint32_string(&buffer, tr->host_key_name,
-			   strlen(tr->host_key_name));
+                           strlen(tr->host_key_name));
   buffer_put_uint32_string(&buffer, ssh_buffer_ptr(tr->public_host_key_blob),
-			   ssh_buffer_len(tr->public_host_key_blob));
+                           ssh_buffer_len(tr->public_host_key_blob));
   buffer_put_uint32_string(&buffer, tr->c_to_s.cipher_name,
-			   strlen(tr->c_to_s.cipher_name));
+                           strlen(tr->c_to_s.cipher_name));
   buffer_put_uint32_string(&buffer, tr->s_to_c.cipher_name,
-			   strlen(tr->s_to_c.cipher_name));
+                           strlen(tr->s_to_c.cipher_name));
   buffer_put_uint32_string(&buffer, tr->c_to_s.mac_name,
-			   strlen(tr->c_to_s.mac_name));
+                           strlen(tr->c_to_s.mac_name));
   buffer_put_uint32_string(&buffer, tr->s_to_c.mac_name,
-			   strlen(tr->s_to_c.mac_name));
+                           strlen(tr->s_to_c.mac_name));
   buffer_put_uint32_string(&buffer, tr->c_to_s.compression_name,
-			   strlen(tr->c_to_s.compression_name));
+                           strlen(tr->c_to_s.compression_name));
   buffer_put_uint32_string(&buffer, tr->s_to_c.compression_name,
-			   strlen(tr->s_to_c.compression_name));
+                           strlen(tr->s_to_c.compression_name));
   ssh_tr_up_send(tr, SSH_CROSS_ALGORITHMS,
-		 ssh_buffer_ptr(&buffer), ssh_buffer_len(&buffer));
+                 ssh_buffer_ptr(&buffer), ssh_buffer_len(&buffer));
   ssh_buffer_uninit(&buffer);
 }
 
@@ -1627,16 +1693,16 @@ Boolean ssh_tr_input_service_request(SshTransportCommon tr)
     return FALSE;
 
   if (ssh_decode_buffer(packet,
-			SSH_FORMAT_CHAR, &packet_type,
-			SSH_FORMAT_UINT32_STR, &tr->service_name, NULL,
-			SSH_FORMAT_END) == 0 ||
+                        SSH_FORMAT_CHAR, &packet_type,
+                        SSH_FORMAT_UINT32_STR, &tr->service_name, NULL,
+                        SSH_FORMAT_END) == 0 ||
       packet_type != SSH_MSG_SERVICE_REQUEST)
     {
       /* We shouldn't have received this here.  This is a protocol error. */
       ssh_tr_up_disconnect(tr, TRUE, TRUE,
-			   SSH_DISCONNECT_PROTOCOL_ERROR,
-			   "Protocol error: bad service request %d",
-			   packet_type);
+                           SSH_DISCONNECT_PROTOCOL_ERROR,
+                           "Protocol error: bad service request %d",
+                           packet_type);
       return FALSE;
     }
   
@@ -1646,9 +1712,9 @@ Boolean ssh_tr_input_service_request(SshTransportCommon tr)
   /* Send the service request upstream. */
   ssh_buffer_init(&buffer);
   buffer_put_uint32_string(&buffer, tr->service_name,
-			   strlen(tr->service_name));
+                           strlen(tr->service_name));
   ssh_tr_up_send(tr, SSH_CROSS_SERVICE_REQUEST,
-		 ssh_buffer_ptr(&buffer), ssh_buffer_len(&buffer));
+                 ssh_buffer_ptr(&buffer), ssh_buffer_len(&buffer));
   ssh_buffer_uninit(&buffer);
 
   tr->received_state = RECEIVED_SERVICE_REQUEST;
@@ -1673,15 +1739,15 @@ Boolean ssh_tr_input_service_accept(SshTransportCommon tr)
 
   /* Check that it is a service accept packet. */
   if (ssh_decode_buffer(packet,
-			SSH_FORMAT_CHAR, &packet_type,
-			SSH_FORMAT_END) == 0 ||
+                        SSH_FORMAT_CHAR, &packet_type,
+                        SSH_FORMAT_END) == 0 ||
       packet_type != SSH_MSG_SERVICE_ACCEPT)
     {
       /* We shouldn't have received this here.  This is a protocol error. */
       ssh_tr_up_disconnect(tr, TRUE, TRUE,
-			   SSH_DISCONNECT_PROTOCOL_ERROR,
-			   "Protocol error: bad service accept %d",
-			   packet_type);
+                           SSH_DISCONNECT_PROTOCOL_ERROR,
+                           "Protocol error: bad service accept %d",
+                           packet_type);
       return FALSE;
     }
 
@@ -1708,13 +1774,13 @@ Boolean ssh_tr_input_service_accept(SshTransportCommon tr)
    given algorithms.  This does not update state. */
 
 void ssh_tr_output_kexinit_explicit(SshTransportCommon tr,
-				    const char *ciphers_c_to_s,
-				    const char *ciphers_s_to_c,
-				    const char *macs_c_to_s,
-				    const char *macs_s_to_c,
-				    const char *compressions_c_to_s,
-				    const char *compressions_s_to_c,
-				    const char *host_key_algorithms)
+                                    const char *ciphers_c_to_s,
+                                    const char *ciphers_s_to_c,
+                                    const char *macs_c_to_s,
+                                    const char *macs_s_to_c,
+                                    const char *compressions_c_to_s,
+                                    const char *compressions_s_to_c,
+                                    const char *host_key_algorithms)
 {
   int i;
   SshBuffer *packet, *kex1_packet;
@@ -1800,7 +1866,7 @@ void ssh_tr_output_kexinit_explicit(SshTransportCommon tr,
      packet has already been saved for key negotiation. */
   if (kex1_packet != NULL)
     ssh_tr_send_packet(tr, ssh_buffer_ptr(kex1_packet),
-		       ssh_buffer_len(kex1_packet));
+                       ssh_buffer_len(kex1_packet));
 }
 
 /* Constructs and sends an outgoing KEXINIT packet with the algorithms in
@@ -1809,13 +1875,13 @@ void ssh_tr_output_kexinit_explicit(SshTransportCommon tr,
 void ssh_tr_output_kexinit(SshTransportCommon tr)
 {
   ssh_tr_output_kexinit_explicit(tr,
-				 tr->params->ciphers_c_to_s,
-				 tr->params->ciphers_s_to_c,
-				 tr->params->macs_c_to_s,
-				 tr->params->macs_s_to_c,
-				 tr->params->compressions_c_to_s,
-				 tr->params->compressions_s_to_c,
-				 tr->params->host_key_algorithms);
+                                 tr->params->ciphers_c_to_s,
+                                 tr->params->ciphers_s_to_c,
+                                 tr->params->macs_c_to_s,
+                                 tr->params->macs_s_to_c,
+                                 tr->params->compressions_c_to_s,
+                                 tr->params->compressions_s_to_c,
+                                 tr->params->host_key_algorithms);
 }
 
 /* Initiate rekey after KEXINIT was received in interactive mode.  This will
@@ -1829,7 +1895,7 @@ void ssh_tr_input_start_rekey(SshTransportCommon tr, SshBuffer *packet)
   /* We can get here in either of two states:
        1. We have requested to start rekey, and the other side is now
           replying.  (Note: it is possible that the requests cross; that case
-	  is indistinguishable from this case.)
+          is indistinguishable from this case.)
        2. The other side is initiating rekey.
      The first case is identified by rekey already being true.
      Initialize for rekey unless we have already started it on our part. */
@@ -1848,7 +1914,7 @@ void ssh_tr_input_start_rekey(SshTransportCommon tr, SshBuffer *packet)
       tr->sent_state = SENT_VERSION;
   
       /* Send our own kexinit packet (possibly with guessed kex1).  This does
-	 not update state. */
+         not update state. */
       ssh_tr_output_kexinit(tr);
 
       /* Update send state. */
@@ -1899,7 +1965,7 @@ Boolean ssh_tr_input_interactive(SshTransportCommon tr)
     {
       /* Pass the packet upwards. */
       ssh_tr_up_send(tr, SSH_CROSS_PACKET,
-		     ssh_buffer_ptr(packet), ssh_buffer_len(packet));
+                     ssh_buffer_ptr(packet), ssh_buffer_len(packet));
       ssh_buffer_free(packet);
       return TRUE;
     }
@@ -1912,9 +1978,9 @@ Boolean ssh_tr_input_interactive(SshTransportCommon tr)
     {
       /* We should never receive kex packets in this state. */
       ssh_tr_up_disconnect(tr, TRUE, TRUE,
-			   SSH_DISCONNECT_PROTOCOL_ERROR,
-			   "Protocol error: packet %d in interactive",
-			   packet_type);
+                           SSH_DISCONNECT_PROTOCOL_ERROR,
+                           "Protocol error: packet %d in interactive",
+                           packet_type);
       ssh_buffer_free(packet);
       return FALSE;
     }
@@ -1935,7 +2001,7 @@ Boolean ssh_tr_input_interactive(SshTransportCommon tr)
   SSH_PUT_32BIT(seq_buf, tr->incoming_sequence_number - 1);
   ssh_buffer_append(&buffer, seq_buf, 4);
   ssh_tr_send_packet(tr, ssh_buffer_ptr(&buffer),
-		     ssh_buffer_len(&buffer));
+                     ssh_buffer_len(&buffer));
   ssh_buffer_uninit(&buffer);
   return TRUE;
 }
@@ -1952,85 +2018,85 @@ void ssh_tr_process_input(SshTransportCommon tr)
     {
       ok = FALSE; 
       switch (tr->received_state)
-	{
-	case RECEIVED_NOTHING:
-	  ok = ssh_tr_input_version(tr);
-	  break;
-	  
-	case RECEIVED_VERSION:
-	  ok = ssh_tr_input_kexinit(tr);
-	  break;
+        {
+        case RECEIVED_NOTHING:
+          ok = ssh_tr_input_version(tr);
+          break;
+          
+        case RECEIVED_VERSION:
+          ok = ssh_tr_input_kexinit(tr);
+          break;
 
-	case RECEIVED_KEXINIT:
-	  if ((tr->server ? tr->kex->server_input_kex1 
-	       : tr->kex->client_input_kex1) != NULL)
-	    ok = ssh_tr_input_kex1(tr);
-	  else
-	    ok = ssh_tr_input_kex2(tr);
-	  break;
-	  
-	case RECEIVED_KEX1_IGNORED:
-	  ok = ssh_tr_input_kex1(tr);
-	  break;
-	  
-	case RECEIVED_KEX1_FINAL:
-	  ok = ssh_tr_input_kex2(tr);
-	  break;
-	  
-	case RECEIVED_KEX2:
-	  ok = ssh_tr_input_newkeys(tr);
-	  break;
+        case RECEIVED_KEXINIT:
+          if ((tr->server ? tr->kex->server_input_kex1 
+               : tr->kex->client_input_kex1) != NULL)
+            ok = ssh_tr_input_kex1(tr);
+          else
+            ok = ssh_tr_input_kex2(tr);
+          break;
+          
+        case RECEIVED_KEX1_IGNORED:
+          ok = ssh_tr_input_kex1(tr);
+          break;
+          
+        case RECEIVED_KEX1_FINAL:
+          ok = ssh_tr_input_kex2(tr);
+          break;
+          
+        case RECEIVED_KEX2:
+          ok = ssh_tr_input_newkeys(tr);
+          break;
 
-	case RECEIVED_KEY_CHECK:
-	  /* We get moved to the next state after we receive the key check
-	     response. */
-	  SSH_DEBUG(5, ("ssh_tr_process_input: BLOCKED: wait key check"));
-	  ok = FALSE;
-	  break;
-	  
-	case RECEIVED_NEWKEYS:
-	  /* If doing rekey, we can now proceed with receiving normal data. */
-	  if (tr->doing_rekey)
-	    {
-	      /* Send a SSH_CROSS_ALGORITHMS packet upwards. */
-	      ssh_tr_up_send_algorithms(tr);
+        case RECEIVED_KEY_CHECK:
+          /* We get moved to the next state after we receive the key check
+             response. */
+          SSH_DEBUG(5, ("ssh_tr_process_input: BLOCKED: wait key check"));
+          ok = FALSE;
+          break;
+          
+        case RECEIVED_NEWKEYS:
+          /* If doing rekey, we can now proceed with receiving normal data. */
+          if (tr->doing_rekey)
+            {
+              /* Send a SSH_CROSS_ALGORITHMS packet upwards. */
+              ssh_tr_up_send_algorithms(tr);
 
-	      /* Update state. */
-	      tr->received_state = RECEIVED_INTERACTIVE;
-	      tr->rekey_request_sent = FALSE;
-	      ok = TRUE;
-	      break;
-	    }
+              /* Update state. */
+              tr->received_state = RECEIVED_INTERACTIVE;
+              tr->rekey_request_sent = FALSE;
+              ok = TRUE;
+              break;
+            }
 
-	  /* If server, wait for service request; if client, wait for service
-	     accept.  These will update state when appropriate. */
-	  if (tr->server)
-	    ok = ssh_tr_input_service_request(tr);
-	  else
-	    ok = ssh_tr_input_service_accept(tr);
-	  break;
+          /* If server, wait for service request; if client, wait for service
+             accept.  These will update state when appropriate. */
+          if (tr->server)
+            ok = ssh_tr_input_service_request(tr);
+          else
+            ok = ssh_tr_input_service_accept(tr);
+          break;
 
-	case RECEIVED_SERVICE_REQUEST:
-	  /* We are waiting for service accept or disconnect from up.
-	     We will be automatically advanced when we receive it. */
-	  SSH_DEBUG(5, ("ssh_tr_process_input: BLOCKING: up service accept wait"));
-	  tr->read_has_blocked = TRUE;
-	  ok = FALSE;
-	  break;
-	  
-	case RECEIVED_INTERACTIVE:
-	  /* We are passing packets to the service. */
-	  ok = ssh_tr_input_interactive(tr);
-	  break;
+        case RECEIVED_SERVICE_REQUEST:
+          /* We are waiting for service accept or disconnect from up.
+             We will be automatically advanced when we receive it. */
+          SSH_DEBUG(5, ("ssh_tr_process_input: BLOCKING: up service accept wait"));
+          tr->read_has_blocked = TRUE;
+          ok = FALSE;
+          break;
+          
+        case RECEIVED_INTERACTIVE:
+          /* We are passing packets to the service. */
+          ok = ssh_tr_input_interactive(tr);
+          break;
 
-	case RECEIVED_DEAD:
-	  /* We will not do anything more. */
-	  break;
+        case RECEIVED_DEAD:
+          /* We will not do anything more. */
+          break;
 
-	default:
-	  ssh_fatal("ssh_tr_process_input: unknown received state %d",
-		(int)tr->received_state);
-	}
+        default:
+          ssh_fatal("ssh_tr_process_input: unknown received state %d",
+                (int)tr->received_state);
+        }
     }
 }
 
@@ -2045,9 +2111,9 @@ void ssh_tr_send_service_request(SshTransportCommon tr)
   ssh_buffer_init(&buffer);
   buffer_put_char(&buffer, SSH_MSG_SERVICE_REQUEST);
   buffer_put_uint32_string(&buffer, tr->service_name,
-			    strlen(tr->service_name));
+                            strlen(tr->service_name));
   ssh_tr_send_packet(tr, ssh_buffer_ptr(&buffer),
-		     ssh_buffer_len(&buffer));
+                     ssh_buffer_len(&buffer));
   ssh_buffer_uninit(&buffer);
 }
 
@@ -2064,113 +2130,113 @@ void ssh_tr_process_output(SshTransportCommon tr)
       /* If we have pending data to output, process it first.  Note that
          this is processed also in SENT_DEAD state. */
       if (ssh_buffer_len(&tr->outgoing) > 0)
-	{
-	  ok = ssh_tr_output_outgoing(tr);
-	  continue;
-	}
+        {
+          ok = ssh_tr_output_outgoing(tr);
+          continue;
+        }
       
       switch (tr->sent_state)
-	{
-	case SENT_NOTHING:
-	  /* Append version number to outgoing data. */
-	  ssh_buffer_append(&tr->outgoing, (unsigned char *) tr->own_version,
-			strlen(tr->own_version));
-	  /* No CR on compat mode */
-	  if (strncmp("SSH-1.", tr->own_version, 6) != 0)
-	    ssh_buffer_append(&tr->outgoing, (unsigned char *) "\r", 1);
-	  ssh_buffer_append(&tr->outgoing, (unsigned char *) "\n", 1);
-	  tr->sent_state = SENT_VERSION;
-	  /* We loop again... */
-	  break;
+        {
+        case SENT_NOTHING:
+          /* Append version number to outgoing data. */
+          ssh_buffer_append(&tr->outgoing, (unsigned char *) tr->own_version,
+                        strlen(tr->own_version));
+          /* No CR on compat mode */
+          if (strncmp("SSH-1.", tr->own_version, 6) != 0)
+            ssh_buffer_append(&tr->outgoing, (unsigned char *) "\r", 1);
+          ssh_buffer_append(&tr->outgoing, (unsigned char *) "\n", 1);
+          tr->sent_state = SENT_VERSION;
+          /* We loop again... */
+          break;
 
-	case SENT_VERSION:
-	  /* Do not send further data after version until we have received
-	     client version. */
-	  if (tr->server && tr->version_compatibility &&
-	      tr->received_state < RECEIVED_VERSION)
-	    {
-	      ok = FALSE;
-	      break;
-	    }
+        case SENT_VERSION:
+          /* Do not send further data after version until we have received
+             client version. */
+          if (tr->server && tr->version_compatibility &&
+              tr->received_state < RECEIVED_VERSION)
+            {
+              ok = FALSE;
+              break;
+            }
 
-	  tr->sent_state = SENT_KEXINIT;
+          tr->sent_state = SENT_KEXINIT;
 
-	  /* Construct and save a kexinit packet. */
-	  ssh_tr_output_kexinit(tr);
-	  /* We loop again... */
-	  break;
-	  
-	case SENT_KEXINIT:
-	case SENT_KEX1_FINAL:
-	  /* We must wait for received KEXINIT packet before we can
-	     continue.  Receiving KEXINIT will automatically trigger sending
-	     a new KEX1 packet if appropriate.  Thus, that need not be
-	     handled here.  Basically we just linger on here until it is time
-	     to send KEX2.  However, sending KEX2 is automatically triggered
-	     by receiving KEX1.  Thus, we need to wait until we have received
-	     KEX2.  But, NEWKEYS is automatically sent in response to receiving
-	     it, and thus we must wait here until NEWKEYS have been received.
-	     Simple, eh? */
-	  ok = FALSE;  /* We are automatically advanced when we have sent
-			  NEWKEYS. */
-	  break;
-	  
-	case SENT_NEWKEYS:
-	  /* If rekey, continue normal processing for output now that we have
-	     sent NEWKEYS. */
-	  if (tr->doing_rekey)
-	    {
-	      tr->sent_state = SENT_INTERACTIVE;
-	      tr->rekey_request_sent = FALSE;
-	      break; /* We loop again... */
-	    }
+          /* Construct and save a kexinit packet. */
+          ssh_tr_output_kexinit(tr);
+          /* We loop again... */
+          break;
+          
+        case SENT_KEXINIT:
+        case SENT_KEX1_FINAL:
+          /* We must wait for received KEXINIT packet before we can
+             continue.  Receiving KEXINIT will automatically trigger sending
+             a new KEX1 packet if appropriate.  Thus, that need not be
+             handled here.  Basically we just linger on here until it is time
+             to send KEX2.  However, sending KEX2 is automatically triggered
+             by receiving KEX1.  Thus, we need to wait until we have received
+             KEX2.  But, NEWKEYS is automatically sent in response to receiving
+             it, and thus we must wait here until NEWKEYS have been received.
+             Simple, eh? */
+          ok = FALSE;  /* We are automatically advanced when we have sent
+                          NEWKEYS. */
+          break;
+          
+        case SENT_NEWKEYS:
+          /* If rekey, continue normal processing for output now that we have
+             sent NEWKEYS. */
+          if (tr->doing_rekey)
+            {
+              tr->sent_state = SENT_INTERACTIVE;
+              tr->rekey_request_sent = FALSE;
+              break; /* We loop again... */
+            }
 
-	  /* If server, we are automatically advanced when we receive service
-	     request.  We just sleep here until then. */
-	  if (tr->server)
-	    {
-	      ok = FALSE;
-	      break;
-	    }
+          /* If server, we are automatically advanced when we receive service
+             request.  We just sleep here until then. */
+          if (tr->server)
+            {
+              ok = FALSE;
+              break;
+            }
 
-	  /* We are the server, and this is the initial key exchange.
-	     Send service request. */
-	  ssh_tr_send_service_request(tr);
-	  tr->sent_state = SENT_SERVICE_REQUEST;
-	  break;  /* We loop again... */
+          /* We are the server, and this is the initial key exchange.
+             Send service request. */
+          ssh_tr_send_service_request(tr);
+          tr->sent_state = SENT_SERVICE_REQUEST;
+          break;  /* We loop again... */
 
-	case SENT_SERVICE_REQUEST:
-	  /* (We only get here as client.)  If not using encryption, do
-	     not proceed until we have received service accept. */
-	  assert(!tr->server);
-	  if (strcmp(tr->c_to_s.cipher_name, "none") == 0 &&
-	      tr->received_state < RECEIVED_INTERACTIVE)
-	    {
-	      ok = FALSE;
-	      break;
-	    }
-	  /* We can proceed. */
-	  tr->sent_state = SENT_INTERACTIVE;
-	  /* Note: SSH_CROSS_STARTUP isn't sent until we receive service
-	     accept. */
-	  break; /* We loop again... */
-	  
-	case SENT_INTERACTIVE:
-	  /* In this state, we don't really send anything automatically.
-	     Sending user data is handled in ssh_tr_up_write, and by
-	     ssh_tr_output_outgoing above. */
-	  ok = FALSE;
-	  break;
-	  
-	case SENT_DEAD:
-	  /* We will not do anything more. */
-	  ok = FALSE;
-	  break;
+        case SENT_SERVICE_REQUEST:
+          /* (We only get here as client.)  If not using encryption, do
+             not proceed until we have received service accept. */
+          assert(!tr->server);
+          if (strcmp(tr->c_to_s.cipher_name, "none") == 0 &&
+              tr->received_state < RECEIVED_INTERACTIVE)
+            {
+              ok = FALSE;
+              break;
+            }
+          /* We can proceed. */
+          tr->sent_state = SENT_INTERACTIVE;
+          /* Note: SSH_CROSS_STARTUP isn't sent until we receive service
+             accept. */
+          break; /* We loop again... */
+          
+        case SENT_INTERACTIVE:
+          /* In this state, we don't really send anything automatically.
+             Sending user data is handled in ssh_tr_up_write, and by
+             ssh_tr_output_outgoing above. */
+          ok = FALSE;
+          break;
+          
+        case SENT_DEAD:
+          /* We will not do anything more. */
+          ok = FALSE;
+          break;
 
-	default:
-	  ssh_fatal("ssh_tr_process_output: unknown state %d",
-		(int)tr->sent_state);
-	}
+        default:
+          ssh_fatal("ssh_tr_process_output: unknown state %d",
+                (int)tr->sent_state);
+        }
     }
 }
 
@@ -2178,7 +2244,7 @@ void ssh_tr_process_output(SshTransportCommon tr)
    condition occurs. */
 
 void ssh_tr_callback(SshStreamNotification notification,
-		     void *context)
+                     void *context)
 {
   SshTransportCommon tr = context;
 
@@ -2201,22 +2267,22 @@ void ssh_tr_callback(SshStreamNotification notification,
 
     case SSH_STREAM_DISCONNECTED:
       ssh_tr_up_disconnect(tr, TRUE, FALSE,
-			   SSH_DISCONNECT_CONNECTION_LOST,
-			   "The connection has been lost.");
+                           SSH_DISCONNECT_CONNECTION_LOST,
+                           "The connection has been lost.");
       break;
 
     default:
       ssh_fatal("ssh_tr_callback: unknown notification %d",
-	    (int)notification);
+            (int)notification);
     }
 }
 
 /* Process a cross-layer packet received from up_stream. */
 
 void ssh_tr_process_up_incoming_packet(SshTransportCommon tr,
-				       unsigned int packet_type,
-				       const unsigned char *payload,
-				       size_t payload_len)
+                                       unsigned int packet_type,
+                                       const unsigned char *payload,
+                                       size_t payload_len)
 {
   SshBuffer buffer;
   Boolean always_display;
@@ -2232,32 +2298,32 @@ void ssh_tr_process_up_incoming_packet(SshTransportCommon tr,
     {
     case SSH_CROSS_PACKET:
       /* We have already done flow control; no need to do it here.  Just
-	 pass the packet down.  However, SSH_MSG_DISCONNECT packets get
-	 special handling; they cause SSH_CROSS_DISCONNECT to be
-	 relayed up. */
+         pass the packet down.  However, SSH_MSG_DISCONNECT packets get
+         special handling; they cause SSH_CROSS_DISCONNECT to be
+         relayed up. */
       tr_packet_type = payload[0];
 
       /* If waiting for service accept, don't accept anything else. */
       if (tr->received_state == RECEIVED_SERVICE_REQUEST &&
-	  tr_packet_type != SSH_MSG_DISCONNECT)
-	ssh_fatal("ssh_tr_process_up_incoming_packet: expected "
-		  "SERVICE_ACCEPT or DISCONNECT");
+          tr_packet_type != SSH_MSG_DISCONNECT)
+        ssh_fatal("ssh_tr_process_up_incoming_packet: expected "
+                  "SERVICE_ACCEPT or DISCONNECT");
 
       if (tr_packet_type == SSH_MSG_DISCONNECT)
-	ssh_fatal("ssh_tr_process_up_incoming_packet: "
-		  "received SSH_MSG_DISCONNECT.  The interface has changed; "
-		  "these now need to be sent as SSH_CROSS_DISCONNECT "
-		  "cross-layer packets.");
+        ssh_fatal("ssh_tr_process_up_incoming_packet: "
+                  "received SSH_MSG_DISCONNECT.  The interface has changed; "
+                  "these now need to be sent as SSH_CROSS_DISCONNECT "
+                  "cross-layer packets.");
 
       if (tr_packet_type < SSH_FIRST_SERVICE_PACKET &&
-	  tr_packet_type != SSH_MSG_DISCONNECT)
-	{
-	  ssh_tr_up_disconnect(tr, TRUE, TRUE,
-			       SSH_DISCONNECT_PROTOCOL_ERROR,
-			       "Protocol error: service sending tr packet %d",
-			       tr_packet_type);
-	  return;
-	}
+          tr_packet_type != SSH_MSG_DISCONNECT)
+        {
+          ssh_tr_up_disconnect(tr, TRUE, TRUE,
+                               SSH_DISCONNECT_PROTOCOL_ERROR,
+                               "Protocol error: service sending tr packet %d",
+                               tr_packet_type);
+          return;
+        }
       
       /* Send the packet to the connection. */
       ssh_tr_send_packet(tr, payload, payload_len);
@@ -2265,31 +2331,31 @@ void ssh_tr_process_up_incoming_packet(SshTransportCommon tr,
 
     case SSH_CROSS_DISCONNECT:
       /* Received a disconnect packet from up.  We should send it to the
-	 other side, relay it back up, and disconnect. */
+         other side, relay it back up, and disconnect. */
       if (ssh_decode_array(payload, payload_len,
-			   SSH_FORMAT_BOOLEAN, NULL,
-			   SSH_FORMAT_UINT32, &reason_code,
-			   SSH_FORMAT_UINT32_STR, &msg, NULL,
-			   SSH_FORMAT_UINT32_STR, &msg_lang, NULL,
-			   SSH_FORMAT_END) == 0)
-	ssh_fatal("ssh_tr_process_up_incoming_packet: bad DISCONNECT");
+                           SSH_FORMAT_BOOLEAN, NULL,
+                           SSH_FORMAT_UINT32, &reason_code,
+                           SSH_FORMAT_UINT32_STR, &msg, NULL,
+                           SSH_FORMAT_UINT32_STR, &msg_lang, NULL,
+                           SSH_FORMAT_END) == 0)
+        ssh_fatal("ssh_tr_process_up_incoming_packet: bad DISCONNECT");
 
       SSH_DEBUG(5, ("received cross disconnect"));
       
       /* Send the DISCONNECT packet back up. */
       ssh_tr_up_send(tr, SSH_CROSS_DISCONNECT,
-		     payload, payload_len);
+                     payload, payload_len);
 
       /* Send the disconnect packet to the connection. */
       ssh_buffer_init(&buffer);
       ssh_encode_buffer(&buffer,
-			SSH_FORMAT_CHAR, SSH_MSG_DISCONNECT,
-			SSH_FORMAT_UINT32, reason_code,
-			SSH_FORMAT_UINT32_STR, msg,
-			strlen((char *) msg),
-			SSH_FORMAT_UINT32_STR, msg_lang,
-			strlen((char *) msg_lang),
-			SSH_FORMAT_END);
+                        SSH_FORMAT_CHAR, SSH_MSG_DISCONNECT,
+                        SSH_FORMAT_UINT32, reason_code,
+                        SSH_FORMAT_UINT32_STR, msg,
+                        strlen((char *) msg),
+                        SSH_FORMAT_UINT32_STR, msg_lang,
+                        strlen((char *) msg_lang),
+                        SSH_FORMAT_END);
       ssh_tr_send_packet(tr, ssh_buffer_ptr(&buffer), ssh_buffer_len(&buffer));
       ssh_buffer_uninit(&buffer);
 
@@ -2304,43 +2370,43 @@ void ssh_tr_process_up_incoming_packet(SshTransportCommon tr,
 
     case SSH_CROSS_DEBUG:
       /* Received a debug packet from up.  We should send a debug
-	 packet to the other side. */
+         packet to the other side. */
       if (ssh_decode_array(payload, payload_len,
-			   SSH_FORMAT_BOOLEAN, &always_display,
-			   SSH_FORMAT_UINT32_STR, &msg, NULL,
-			   SSH_FORMAT_UINT32_STR, &msg_lang, NULL,
-			   SSH_FORMAT_END) == 0)
-	ssh_fatal("ssh_tr_process_up_incoming_packet: bad DEBUG");
+                           SSH_FORMAT_BOOLEAN, &always_display,
+                           SSH_FORMAT_UINT32_STR, &msg, NULL,
+                           SSH_FORMAT_UINT32_STR, &msg_lang, NULL,
+                           SSH_FORMAT_END) == 0)
+        ssh_fatal("ssh_tr_process_up_incoming_packet: bad DEBUG");
 
       /* Send the debug packet to the connection. */
       ssh_buffer_init(&buffer);
       ssh_encode_buffer(&buffer,
-			SSH_FORMAT_CHAR, SSH_MSG_DEBUG,
-			SSH_FORMAT_BOOLEAN, always_display,
-			SSH_FORMAT_UINT32_STR, msg,
-			strlen((char *) msg),
-			SSH_FORMAT_UINT32_STR, msg_lang,
-			strlen((char *) msg_lang),
-			SSH_FORMAT_END);
+                        SSH_FORMAT_CHAR, SSH_MSG_DEBUG,
+                        SSH_FORMAT_BOOLEAN, always_display,
+                        SSH_FORMAT_UINT32_STR, msg,
+                        strlen((char *) msg),
+                        SSH_FORMAT_UINT32_STR, msg_lang,
+                        strlen((char *) msg_lang),
+                        SSH_FORMAT_END);
       ssh_tr_send_packet(tr, ssh_buffer_ptr(&buffer), ssh_buffer_len(&buffer));
       ssh_buffer_uninit(&buffer);
       break;
       
     case SSH_CROSS_REKEY_REQUEST:
       if (tr->received_state == RECEIVED_SERVICE_REQUEST)
-	ssh_fatal("ssh_tr_process_up_incoming_packet: expected SERVICE_ACCEPT or DISCONNECT");
+        ssh_fatal("ssh_tr_process_up_incoming_packet: expected SERVICE_ACCEPT or DISCONNECT");
       
       /* Get new algorithms from the payload. */
       if (ssh_decode_array(payload, payload_len,
-			   SSH_FORMAT_UINT32_STR, &ciphers_c_to_s, NULL,
-			   SSH_FORMAT_UINT32_STR, &ciphers_s_to_c, NULL,
-			   SSH_FORMAT_UINT32_STR, &macs_c_to_s, NULL,
-			   SSH_FORMAT_UINT32_STR, &macs_s_to_c, NULL,
-			   SSH_FORMAT_UINT32_STR, &compressions_c_to_s, NULL,
-			   SSH_FORMAT_UINT32_STR, &compressions_s_to_c, NULL,
-			   SSH_FORMAT_UINT32_STR, &host_key_algorithms, NULL,
-			   SSH_FORMAT_END) == 0)
-	ssh_fatal("ssh_tr_process_up_incoming_packet: bad REKEY_REQUEST");
+                           SSH_FORMAT_UINT32_STR, &ciphers_c_to_s, NULL,
+                           SSH_FORMAT_UINT32_STR, &ciphers_s_to_c, NULL,
+                           SSH_FORMAT_UINT32_STR, &macs_c_to_s, NULL,
+                           SSH_FORMAT_UINT32_STR, &macs_s_to_c, NULL,
+                           SSH_FORMAT_UINT32_STR, &compressions_c_to_s, NULL,
+                           SSH_FORMAT_UINT32_STR, &compressions_s_to_c, NULL,
+                           SSH_FORMAT_UINT32_STR, &host_key_algorithms, NULL,
+                           SSH_FORMAT_END) == 0)
+        ssh_fatal("ssh_tr_process_up_incoming_packet: bad REKEY_REQUEST");
 
       /* Start rekey. */
       assert(tr->sent_state == SENT_INTERACTIVE);
@@ -2350,13 +2416,13 @@ void ssh_tr_process_up_incoming_packet(SshTransportCommon tr,
       tr->rekey_request_sent = TRUE;
       tr->sent_state = SENT_VERSION;
       ssh_tr_output_kexinit_explicit(tr, 
-				     ciphers_c_to_s,
-				     ciphers_s_to_c,
-				     macs_c_to_s, 
-				     macs_s_to_c,
-				     compressions_c_to_s, 
-				     compressions_s_to_c,
-				     host_key_algorithms);
+                                     ciphers_c_to_s,
+                                     ciphers_s_to_c,
+                                     macs_c_to_s, 
+                                     macs_s_to_c,
+                                     compressions_c_to_s, 
+                                     compressions_s_to_c,
+                                     host_key_algorithms);
       ssh_xfree(ciphers_c_to_s);
       ssh_xfree(ciphers_s_to_c);
       ssh_xfree(macs_c_to_s);
@@ -2387,7 +2453,7 @@ void ssh_tr_process_up_incoming_packet(SshTransportCommon tr,
 
     default:
       ssh_fatal("ssh_tr_process_up_incoming_packet: unexpected packet %d",
-		packet_type);
+                packet_type);
     }
 }
 
@@ -2407,12 +2473,12 @@ int ssh_tr_up_read(void *context, unsigned char *buf, size_t size)
   if (size == 0)
     {
       if (tr->up_outgoing_eof)
-	return 0;
+        return 0;
       else
-	{
-	  tr->up_read_blocked = TRUE;
-	  return -1;
-	}
+        {
+          tr->up_read_blocked = TRUE;
+          return -1;
+        }
     }
 
   /* Copy data to user buffer. */
@@ -2454,32 +2520,32 @@ int ssh_tr_up_write(void *context, const unsigned char *buf, size_t size)
 normal:
 
   while (ssh_buffer_len(&tr->outgoing) <
-	 XMALLOC_MAX_SIZE - SSH_MAX_TOTAL_PACKET_LENGTH - SSH_CONTROL_RESERVE
-	 && ssh_buffer_len(&tr->outgoing) < SSH_BUFFERING_LIMIT)
+         XMALLOC_MAX_SIZE - SSH_MAX_TOTAL_PACKET_LENGTH - SSH_CONTROL_RESERVE
+         && ssh_buffer_len(&tr->outgoing) < SSH_BUFFERING_LIMIT)
     {
       /* We only accept data from up in interactive state, and not after having
-	 already scheduled eof to connection. */
+         already scheduled eof to connection. */
       if (tr->sent_state != SENT_INTERACTIVE &&
-	  tr->received_state != RECEIVED_SERVICE_REQUEST)
-	break;
+          tr->received_state != RECEIVED_SERVICE_REQUEST)
+        break;
 
       if (tr->outgoing_eof)
-	break;
+        break;
 
       /* If we have processed all data, return now. */
       if (offset == size)
-	return offset;
+        return offset;
 
       /* If only partial packet available, do special processing. */
       if (size - offset < 4)
-	goto partial; /* Need partial packet processing. */
+        goto partial; /* Need partial packet processing. */
       payload_len = SSH_GET_32BIT(buf + offset);
       if (size - offset < 4 + payload_len)
-	goto partial; /* Need partial packet processing. */
+        goto partial; /* Need partial packet processing. */
       
       /* The entire packet is available; process it now. */
       ssh_tr_process_up_incoming_packet(tr, buf[offset + 4],
-					buf + offset + 5, payload_len - 1);
+                                        buf + offset + 5, payload_len - 1);
       offset += 4 + payload_len;
     }
   /* We cannot process more data now. */
@@ -2495,7 +2561,7 @@ partial:
     {
       len = 4 - len;
       if (size - offset < len)
-	len = size - offset;
+        len = size - offset;
       ssh_buffer_append(&tr->up_incoming, buf + offset, len);
       offset += len;
     }
@@ -2540,8 +2606,8 @@ void ssh_tr_up_output_eof(void *context)
    NULL. */
 
 void ssh_tr_up_set_callback(void *context,
-			    SshStreamCallback up_callback,
-			    void *up_context)
+                            SshStreamCallback up_callback,
+                            void *up_context)
 {
   SshTransportCommon tr = context;
 
@@ -2591,12 +2657,12 @@ const SshStreamMethodsTable ssh_tr_methods =
    should be performed after this call. */
 
 SshTransportCommon ssh_tr_create(SshStream connection,
-				 Boolean server,
-				 Boolean compatibility,
-				 Boolean fake_old_version,
-				 const char *application_version,
-				 SshRandomState random_state,
-				 SshTransportParams params)
+                                 Boolean server,
+                                 Boolean compatibility,
+                                 Boolean fake_old_version,
+                                 const char *application_version,
+                                 SshRandomState random_state,
+                                 SshTransportParams params)
 {
   SshTransportCommon tr;
   char buf[256];
@@ -2637,7 +2703,7 @@ SshTransportCommon ssh_tr_create(SshStream connection,
   tr->kex = ssh_kex_lookup(tr->guessed_kex);
   if (!tr->kex)
     ssh_fatal("ssh_tr_create: guessed kex '%.100s' not found",
-	  tr->guessed_kex);
+          tr->guessed_kex);
 
   /* Initialize current algorithms. */
   tr->kex_name = ssh_xstrdup(tr->guessed_kex);
@@ -2652,20 +2718,20 @@ SshTransportCommon ssh_tr_create(SshStream connection,
   if (tr->server)
     {
       ssh_tr_set_keys(tr, &tr->c_to_s, &tr->incoming_granularity, FALSE,
-		      &tr->incoming_cipher, &tr->incoming_mac,
-		      &tr->compression_incoming);
+                      &tr->incoming_cipher, &tr->incoming_mac,
+                      &tr->compression_incoming);
       ssh_tr_set_keys(tr, &tr->s_to_c, &tr->outgoing_granularity, TRUE,
-		      &tr->outgoing_cipher, &tr->outgoing_mac,
-		      &tr->compression_outgoing);
+                      &tr->outgoing_cipher, &tr->outgoing_mac,
+                      &tr->compression_outgoing);
     }
   else
     {
       ssh_tr_set_keys(tr, &tr->s_to_c, &tr->incoming_granularity, FALSE,
-		      &tr->incoming_cipher, &tr->incoming_mac,
-		      &tr->compression_incoming);
+                      &tr->incoming_cipher, &tr->incoming_mac,
+                      &tr->compression_incoming);
       ssh_tr_set_keys(tr, &tr->c_to_s, &tr->outgoing_granularity, TRUE,
-		      &tr->outgoing_cipher, &tr->outgoing_mac,
-		      &tr->compression_outgoing);
+                      &tr->outgoing_cipher, &tr->outgoing_mac,
+                      &tr->compression_outgoing);
     }
 
   tr->compression_buffer = ssh_buffer_allocate();
@@ -2676,8 +2742,8 @@ SshTransportCommon ssh_tr_create(SshStream connection,
   
   assert(sizeof(buf) >= 256);
   snprintf(buf, 256 - 3,
-	   fake_old_version ? SSH_VERSION_STRING_COMPAT : SSH_VERSION_STRING,
-	   application_version);
+           fake_old_version ? SSH_VERSION_STRING_COMPAT : SSH_VERSION_STRING,
+           application_version);
   tr->own_version = ssh_xstrdup(buf);
 
   tr->public_host_key = NULL;
@@ -2690,6 +2756,8 @@ SshTransportCommon ssh_tr_create(SshStream connection,
   tr->session_identifier_len = 0;
   tr->exchange_hash_len = 0;
 
+  tr->ssh_old_mac_bug_compat = FALSE;
+  
   /* initialize the key excange parameters */
 
   mpz_init(tr->dh_p);

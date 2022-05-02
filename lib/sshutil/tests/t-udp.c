@@ -12,7 +12,7 @@
   */
 
 /*
- * $Id: t-udp.c,v 1.5 1998/05/24 01:46:34 kivinen Exp $
+ * $Id: t-udp.c,v 1.6 1998/10/08 15:43:41 kivinen Exp $
  * $Log: t-udp.c,v $
  * $EndLog$
  */
@@ -30,7 +30,7 @@ unsigned char p2_data[256];
 void p_timeout_callback(void *context)
 {
   ssh_udp_send(p_listener, "127.0.0.1", "54678",
-	       p_data, strlen((char *) p_data));
+               p_data, strlen((char *) p_data));
 }
 
 void p_callback(SshUdpListener listener, void *context)
@@ -41,8 +41,8 @@ void p_callback(SshUdpListener listener, void *context)
   SshUdpError error;
 
   error = ssh_udp_read(listener, remote_address, 256,
-		       remote_port, 16,
-		       p2_data, 256, &received);
+                       remote_port, 16,
+                       p2_data, 256, &received);
   ssh_udp_destroy_listener(listener);
 
   if (memcmp(p_data, p2_data, strlen((char *) p_data)))
@@ -60,18 +60,18 @@ void c_callback(SshUdpListener listener, void *context)
   SshUdpError error;
   
   error = ssh_udp_read(listener, remote_address, 256,
-		       remote_port, 16,
-		       c_data, 256, &received);
+                       remote_port, 16,
+                       c_data, 256, &received);
   ssh_udp_send(listener, "127.0.0.1", "54321",
-	       c_data, strlen((char *) c_data));
+               c_data, strlen((char *) c_data));
   ssh_udp_destroy_listener(listener);
 }
 
-void c()
+void c(void)
 {
   ssh_event_loop_initialize();
   c_listener = ssh_udp_make_listener("127.0.0.1", "54678", NULL, NULL,
-				     c_callback, NULL);
+                                     c_callback, NULL);
   if (c_listener == NULL)
     {
       printf("Listener creation failed.\n");
@@ -82,12 +82,12 @@ void c()
   ssh_debug("child exiting...");
 }
 
-void p()
+void p(void)
 {
   ssh_event_loop_initialize();
   
   p_listener = ssh_udp_make_listener(NULL, "54321", NULL, NULL,
-				     p_callback, NULL);
+                                     p_callback, NULL);
   
   if (p_listener == NULL)
     {
@@ -99,7 +99,7 @@ void p()
   ssh_debug("parent exiting...");
 }
 
-void usage()
+void usage(void)
 {
   fprintf(stderr, "Usage: t-udp [-c|-p]\n");
 }
@@ -118,20 +118,20 @@ int main(int argc, char **argv)
   if (argc == 2)
     {
       if (argv[1][0] == '-' && argv[1][1] == 'c')
-	{
-	  c();
-	  exit(0);
-	}
+        {
+          c();
+          exit(0);
+        }
       else if (argv[1][0] == '-' && argv[1][1] == 'p')
-	{
-	  p();
-	  exit(0);
-	}
+        {
+          p();
+          exit(0);
+        }
       else
-	{
-	  usage();
-	  exit(1);
-	}
+        {
+          usage();
+          exit(1);
+        }
     }
   if (argc != 1)
     {
@@ -151,17 +151,17 @@ int main(int argc, char **argv)
       
       p();
       if (wait(&status) != pid)
-	{
-	  ssh_fatal("Wrong pid returned by wait");
-	}
+        {
+          ssh_fatal("Wrong pid returned by wait");
+        }
       if (WIFSIGNALED(status))
-	{
-	  ssh_fatal("Child exited with signal %d", WTERMSIG(status));
-	}
+        {
+          ssh_fatal("Child exited with signal %d", WTERMSIG(status));
+        }
       if (WEXITSTATUS(status) != 0)
-	{
-	  ssh_fatal("Child exited with status %d", WEXITSTATUS(status));
-	}
+        {
+          ssh_fatal("Child exited with status %d", WEXITSTATUS(status));
+        }
     }
 
   exit(0);

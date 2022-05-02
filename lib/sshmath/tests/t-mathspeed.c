@@ -10,11 +10,11 @@
  *        $Author: kivinen $
  *
  *        Creation          : 18:00 Jul 21 1998 kivinen
- *        Last Modification : 19:59 Jul 21 1998 kivinen
- *        Last check in     : $Date: 1998/07/21 17:04:14 $
- *        Revision number   : $Revision: 1.1 $
+ *        Last Modification : 18:40 Oct  8 1998 kivinen
+ *        Last check in     : $Date: 1998/10/08 15:40:30 $
+ *        Revision number   : $Revision: 1.2 $
  *        State             : $State: Exp $
- *        Version           : 1.68
+ *        Version           : 1.69
  *
  *        Description       : Test math library speed.
  *
@@ -82,7 +82,7 @@ label_name: \
       goto label_name; \
     } \
   printf("done, %s speed = %f us\n", (test_name), \
-	 tmit.process_secs / cnt * 1000 * 1000);
+         tmit.process_secs / cnt * 1000 * 1000);
 
   TEST_IT("Addition", add_label, ssh_mp_add(&r, &a, &b), 100000);
   TEST_IT("Subraction", sub_label, ssh_mp_sub(&r, &a, &b), 100000);
@@ -93,12 +93,12 @@ label_name: \
   TEST_IT("Modulo", mod_label, ssh_mp_mod(&r, &c, &b), 100000);
   TEST_IT("Gcd", gcd_label, ssh_mp_gcd(&r, &a, &b), 100);
   TEST_IT("Powm naive", powm_naive_label,
-	  ssh_mp_powm_naive(&r, &g, &a, &b), 100);
+          ssh_mp_powm_naive(&r, &g, &a, &b), 100);
   TEST_IT("Powm bsw", powm_bsw_label, ssh_mp_powm_bsw(&r, &g, &a, &b), 100);
   TEST_IT("Powm naive mont", powm_naive_mont_label,
-	  ssh_mp_powm_naive_mont(&r, &g, &a, &b), 100);
+          ssh_mp_powm_naive_mont(&r, &g, &a, &b), 100);
   TEST_IT("Powm bsw mont", powm_bsw_mont_label,
-	  ssh_mp_powm_bsw_mont(&r, &g, &a, &b), 100);
+          ssh_mp_powm_bsw_mont(&r, &g, &a, &b), 100);
   /* TEST_IT("Pow", pow_label, ssh_mp_pow(&r, &a, &b), 1); */
 
   TEST_IT("Mod add", madd_label, ssh_mpm_add(&rm, &am, &bm), 100000);
@@ -120,7 +120,7 @@ label_name: \
   ssh_mp_clear(&q);
 }
 
-void usage()
+void usage(void)
 {
   printf("usage: t-mathspeed [bits]\n");
   exit(1);

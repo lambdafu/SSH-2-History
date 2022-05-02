@@ -16,12 +16,12 @@
       - implement generic code for:
 
         One-way authenticated key exchange
-	Two-way authenticated key exchange
-	Menezes-Qu-Vanstone protocol
-	Unified Diffie-Hellman key exchange
+        Two-way authenticated key exchange
+        Menezes-Qu-Vanstone protocol
+        Unified Diffie-Hellman key exchange
 
       - more exact errors (and debug information) of vararg list errors ;)
-	
+        
       - add pk_group_randomizer_count
 
       - add pk_public_key_type_encrypt_capability
@@ -41,7 +41,7 @@
       */
 
 /*
- * $Id: genpkcs.c,v 1.34 1998/08/18 08:07:34 vsuontam Exp $
+ * $Id: genpkcs.c,v 1.38 1998/10/08 06:59:44 kivinen Exp $
  * $Log: genpkcs.c,v $
  * $EndLog$
  */
@@ -68,11 +68,6 @@
 #include "dlglue.h"
 #include "sshencode.h"
 #include "namelist.h"
-#ifdef SSHDIST_SMART_CARD
-
-
-#endif /* SSHDIST_SMART_CARD */
-
 
 /* Magic numbers used for validy checks in SSH public key
    exported octet formats. */
@@ -281,11 +276,11 @@ typedef struct
      even "secret" information.
      */
   unsigned int (*action_put)(void *context, va_list *ap,
-			     void *input_context, 
-			     SshPkFormat format);
+                             void *input_context, 
+                             SshPkFormat format);
   unsigned int (*action_get)(void *context, va_list *ap,
-			     void **output_context,
-			     SshPkFormat format);
+                             void **output_context,
+                             SshPkFormat format);
 } SshPkAction;
 
 /* Header for all scheme structures. Casts to this will be performed while
@@ -362,22 +357,22 @@ typedef struct
   (*private_key_max_signature_output_len)(const void *private_key);
   
   Boolean (*public_key_verify)(const void *public_key,
-			       const unsigned char *signature,
-			       size_t signature_len,
-			       Boolean need_hashing,
-			       const unsigned char *data,
-			       size_t data_len,
-			       const SshHashDef *hash_def);
+                               const unsigned char *signature,
+                               size_t signature_len,
+                               Boolean need_hashing,
+                               const unsigned char *data,
+                               size_t data_len,
+                               const SshHashDef *hash_def);
 
   Boolean (*private_key_sign)(const void *private_key,
-			      Boolean need_hashing,
-			      const unsigned char *data,
-			      size_t data_len,
-			      unsigned char *signature_buffer,
-			      size_t ssh_buffer_len,
-			      size_t *signature_length_return,
-			      SshRandomState state,
-			      const SshHashDef *hash_def);
+                              Boolean need_hashing,
+                              const unsigned char *data,
+                              size_t data_len,
+                              unsigned char *signature_buffer,
+                              size_t ssh_buffer_len,
+                              size_t *signature_length_return,
+                              SshRandomState state,
+                              const SshHashDef *hash_def);
 } SshPkSignature;
 
 /* Encryption schemes */
@@ -403,12 +398,12 @@ typedef struct
 
   /* Private key decryption. */
   Boolean (*private_key_decrypt)(const void *private_key,
-				 const unsigned char *ciphertext,
-				 size_t ciphertext_len,
-				 unsigned char *plaintext_buffer,
-				 size_t ssh_buffer_len,
-				 size_t *plaintext_length_return,
-				 const SshHashDef *hash_def);
+                                 const unsigned char *ciphertext,
+                                 size_t ciphertext_len,
+                                 unsigned char *plaintext_buffer,
+                                 size_t ssh_buffer_len,
+                                 size_t *plaintext_length_return,
+                                 const SshHashDef *hash_def);
 
   /* Maximum encryption output/input buffer lengths. */
   size_t (*public_key_max_encrypt_input_len)(const void *public_key);
@@ -416,13 +411,13 @@ typedef struct
 
   /* Encryption with the public key. */
   Boolean (*public_key_encrypt)(const void *public_key,
-				const unsigned char *plaintext,
-				size_t plaintext_len,
-				unsigned char *ciphertext_buffer,
-				size_t ssh_buffer_len,
-				size_t *ciphertext_len_return,
-				SshRandomState random_state,
-				const SshHashDef *hash_def);
+                                const unsigned char *plaintext,
+                                size_t plaintext_len,
+                                unsigned char *ciphertext_buffer,
+                                size_t ssh_buffer_len,
+                                size_t *ciphertext_len_return,
+                                SshRandomState random_state,
+                                const SshHashDef *hash_def);
 } SshPkEncryption;
 
 /* Diffie-Hellman */
@@ -440,19 +435,19 @@ typedef struct
   size_t (*diffie_hellman_secret_value_max_length)(const void *pk_group);
   
   Boolean (*diffie_hellman_setup)(void *pk_group,
-				  void **dh_extra,
-				  unsigned char *exchange_buffer,
-				  size_t exchange_buffer_length,
-				  size_t *return_length,
-				  SshRandomState state);
+                                  void **dh_extra,
+                                  unsigned char *exchange_buffer,
+                                  size_t exchange_buffer_length,
+                                  size_t *return_length,
+                                  SshRandomState state);
 
   Boolean (*diffie_hellman_agree)(void *pk_group,
-				  void *dh_extra,
-				  unsigned char *exchange_buffer,
-				  size_t exchange_buffer_length,
-				  unsigned char *secret_value_buffer,
-				  size_t secret_value_buffer_length,
-				  size_t *return_length);
+                                  void *dh_extra,
+                                  unsigned char *exchange_buffer,
+                                  size_t exchange_buffer_length,
+                                  unsigned char *secret_value_buffer,
+                                  size_t secret_value_buffer_length,
+                                  size_t *return_length);
 
   /* Unified Diffie-Hellman protocol as suggested by
      Don Johnson at P1363 meeting May 15-16 1997. */
@@ -460,13 +455,13 @@ typedef struct
   /* Diffie-Hellman hides within Unified approach! */
   size_t (*udh_secret_value_max_length)(const void *pk_group);
   Boolean (*udh_agree)(const void *public_key,
-		       const void *private_key,
-		       void *dh_extra,
-		       unsigned char *exchange_buffer,
-		       size_t exchange_length,
-		       unsigned char *secret_value_buffer,
-		       size_t secret_value_length,
-		       size_t *return_length);
+                       const void *private_key,
+                       void *dh_extra,
+                       unsigned char *exchange_buffer,
+                       size_t exchange_length,
+                       unsigned char *secret_value_buffer,
+                       size_t secret_value_length,
+                       size_t *return_length);
   
 } SshPkDiffieHellman;
 
@@ -482,11 +477,11 @@ typedef struct
   size_t (*udh_exchange_max_length)(const void *pk_group);
   
   Boolean (*udh_setup)(void *pk_group,
-		       void **dh_extra,
-		       unsigned char *exchange_buffer,
-		       size_t exchange_buffer_length,
-		       size_t *return_length,
-		       SshRandomState state);
+                       void **dh_extra,
+                       unsigned char *exchange_buffer,
+                       size_t exchange_buffer_length,
+                       size_t *return_length,
+                       SshRandomState state);
   
   
 } SshPkUnifiedDiffieHellman;
@@ -537,13 +532,13 @@ typedef struct
   
   unsigned int hash_digest_length;
   void (*hash_of_buffer)(unsigned char *digest, unsigned char *date,
-			 size_t len);
+                         size_t len);
 } SshPkTwoWayAuth;
 
 /* More schemes? */
 
 #endif
-			
+                        
 /* General main key type structure. This structure defines the most important
    part, the handling of internal key/group contexts. */
 
@@ -570,11 +565,11 @@ typedef struct
   void (*pk_group_action_free)(void *context);
   
   Boolean (*pk_group_import)(const unsigned char *buf,
-			     size_t length,
-			     void **pk_group);
+                             size_t length,
+                             void **pk_group);
   Boolean (*pk_group_export)(const void *pk_group,
-			     unsigned char **buf,
-			     size_t *length_return);
+                             unsigned char **buf,
+                             size_t *length_return);
   void (*pk_group_free)(void *pk_group);
   void (*pk_group_copy)(void *op_src, void **op_dest);
   char *(*pk_group_get_predefined_groups)(void);
@@ -582,13 +577,13 @@ typedef struct
   /* Randomizer handling. */
   unsigned int (*pk_group_count_randomizers)(void *pk_group);
   Boolean (*pk_group_generate_randomizer)(void *pk_group,
-					  SshRandomState state);
+                                          SshRandomState state);
   Boolean (*pk_group_export_randomizer)(void *pk_group,
-					unsigned char **buf,
-					size_t *length_return);
+                                        unsigned char **buf,
+                                        size_t *length_return);
   Boolean (*pk_group_import_randomizer)(void *pk_group,
-					unsigned char *buf,
-					size_t length);
+                                        unsigned char *buf,
+                                        size_t length);
 
   /* Key functions */
 
@@ -601,18 +596,18 @@ typedef struct
 
   /* Public key blob import and export function interfaces. */
   Boolean (*public_key_import)(const unsigned char *buf,
-			       size_t len,
-			       void **public_key);
+                               size_t len,
+                               void **public_key);
   Boolean (*public_key_export)(const void *public_key,
-			       unsigned char **buf,
-			       size_t *length_return);
+                               unsigned char **buf,
+                               size_t *length_return);
   /* Removal of public key from memory. */
   void (*public_key_free)(void *public_key);
 
   void (*public_key_copy)(void *op_src, void **op_dest);
 
   void (*public_key_derive_pk_group)(void *public_key,
-				     void **pk_group);
+                                     void **pk_group);
 
 
   /* Private key action initialization and key generation routines. */
@@ -622,21 +617,21 @@ typedef struct
     
   /* Import and export of private key blobs. */
   Boolean (*private_key_import)(const unsigned char *buf,
-				size_t len,
-				void **private_key);
+                                size_t len,
+                                void **private_key);
   Boolean (*private_key_export)(const void *private_key,
-				unsigned char **buf,
-				size_t *length_return);
+                                unsigned char **buf,
+                                size_t *length_return);
   /* Removal of the private key from memory. */
   void (*private_key_free)(void *private_key);
   /* Deriving public key from private key. */
   void (*private_key_derive_public_key)(const void *private_key,
-					void **public_key);
+                                        void **public_key);
 
   void (*private_key_copy)(void *op_src, void **op_dest);
 
   void (*private_key_derive_pk_group)(void *private_key,
-				      void **pk_group);
+                                      void **pk_group);
   
   /* More to come... */
 } SshPkType;
@@ -692,6 +687,7 @@ struct SshPrivateKeyRec
   void *context;
 
 #ifdef SSHDIST_SMART_CARD
+
 
 
 
@@ -1441,9 +1437,142 @@ const SshPkAction ssh_pk_dl_modp_actions[] =
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 #endif /* SSHDIST_CRYPT_ECP */
 
 #ifdef SSHDIST_CRYPT_EC2N
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -1831,8 +1960,8 @@ const SshPkType ssh_key_types[] =
    is used when parsing names. */
 
 const SshPkAction *ssh_pk_find_scheme_action(const SshPkAction *list,
-					     const char *identifier,
-					     const SshPkFlag given_flags)
+                                             const char *identifier,
+                                             const SshPkFlag given_flags)
 {
   unsigned int i;
   SshPkFlag flags = given_flags | SSH_PK_FLAG_SCHEME;
@@ -1840,11 +1969,11 @@ const SshPkAction *ssh_pk_find_scheme_action(const SshPkAction *list,
   for (i = 0; list[i].format != SSH_PKF_END; i++)
     {
       if ((list[i].flags & flags) == flags)
-	{
-	  /* Check for optimization. */
-	  if (strcmp(list[i].scheme_class, identifier) == 0)
-	    return &list[i];
-	}
+        {
+          /* Check for optimization. */
+          if (strcmp(list[i].scheme_class, identifier) == 0)
+            return &list[i];
+        }
     }
   /* Failed to find a match. */
   return NULL;
@@ -1853,8 +1982,8 @@ const SshPkAction *ssh_pk_find_scheme_action(const SshPkAction *list,
 /* Search from action list an entry that has atleast 'flags' on. */
 
 const SshPkAction *ssh_pk_find_action(SshPkFormat format,
-				      const SshPkAction *list,
-				      const SshPkFlag flags)
+                                      const SshPkAction *list,
+                                      const SshPkFlag flags)
 {
   unsigned int i;
   Boolean prev = FALSE;
@@ -1863,21 +1992,21 @@ const SshPkAction *ssh_pk_find_action(SshPkFormat format,
     {
       /* Check for optimization. */
       if (!((list[i].flags & SSH_PK_FLAG_LIST) && prev))
-	{
-	  if (list[i].format == format)
-	    prev = TRUE;
-	  else
-	    continue;
-	}
+        {
+          if (list[i].format == format)
+            prev = TRUE;
+          else
+            continue;
+        }
 
       /* Check whether flags match. */
       if ((list[i].flags & flags) == flags)
-	{
-	  /* Found a correct match (because they are assumed to be unique
-	     this must be correct). */
+        {
+          /* Found a correct match (because they are assumed to be unique
+             this must be correct). */
 
-	  return &list[i];
-	}
+          return &list[i];
+        }
     }
   /* Failed to find a match. */
   return NULL;
@@ -1897,9 +2026,9 @@ void *ssh_pk_find_generic(const char *name, const void *list, size_t msize)
   for (i = 0; (buf_name = *((const char **)(buf + i))) ; i += msize)
     {
       if (strcmp(buf_name, name) == 0)
-	{
-	  return (void *)(buf + i);
-	}
+        {
+          return (void *)(buf + i);
+        }
     }
   return NULL;
 }
@@ -1919,8 +2048,8 @@ const char *ssh_pk_next_generic(const void **list, size_t msize)
    */
 
 SshCryptoStatus ssh_private_key_get_scheme_name(SshPrivateKey key,
-						const char **name,
-						SshPkSchemeFlag flag)
+                                                const char **name,
+                                                SshPkSchemeFlag flag)
 {
   switch (flag)
     {
@@ -1954,8 +2083,8 @@ SshCryptoStatus ssh_private_key_get_scheme_name(SshPrivateKey key,
 }
 
 SshCryptoStatus ssh_public_key_get_scheme_name(SshPublicKey key,
-					       const char **name,
-					       SshPkSchemeFlag flag)
+                                               const char **name,
+                                               SshPkSchemeFlag flag)
 {
   switch (flag)
     {
@@ -1991,25 +2120,25 @@ SshCryptoStatus ssh_public_key_get_scheme_name(SshPublicKey key,
 
 /* Helpful function. */
 SshNameNode ssh_pk_add_nnode(SshNameTree tree, SshNameNode node,
-			     const char *scheme_type,
-			     const char *scheme_identifier,
-			     Boolean *flag)
+                             const char *scheme_type,
+                             const char *scheme_identifier,
+                             Boolean *flag)
 {
   SshNameNode temp;
   
   if (*flag)
     {
       temp = ssh_ntree_add_next(tree, node,
-				scheme_type);
+                                scheme_type);
     }
   else
     {
       temp = ssh_ntree_add_child(tree, node,
-				 scheme_type);
+                                 scheme_type);
       *flag = TRUE;
     }
   ssh_ntree_add_child(tree, temp,
-		      scheme_identifier);
+                      scheme_identifier);
   return temp;
 }
 
@@ -2025,15 +2154,15 @@ ssh_private_key_name(SshPrivateKey key)
   ssh_ntree_allocate(&tree);
 
   node = ssh_ntree_add_child(tree, NULL,
-			     key->type->name);
+                             key->type->name);
   if (key->signature)
     node = ssh_pk_add_nnode(tree, node, "sign", key->signature->name, &flag);
   if (key->encryption)
     node = ssh_pk_add_nnode(tree, node, "encrypt", key->encryption->name,
-			    &flag);
+                            &flag);
   if (key->diffie_hellman)
     node = ssh_pk_add_nnode(tree, node, "dh", key->diffie_hellman->name,
-			    &flag);
+                            &flag);
   ssh_ntree_generate_string(tree, &tmp);
   ssh_ntree_free(tree);
 
@@ -2052,15 +2181,15 @@ ssh_public_key_name(SshPublicKey key)
   ssh_ntree_allocate(&tree);
 
   node = ssh_ntree_add_child(tree, NULL,
-			     key->type->name);
+                             key->type->name);
   if (key->signature)
     node = ssh_pk_add_nnode(tree, node, "sign", key->signature->name, &flag);
   if (key->encryption)
     node = ssh_pk_add_nnode(tree, node, "encrypt", key->encryption->name,
-			    &flag);
+                            &flag);
   if (key->diffie_hellman)
     node = ssh_pk_add_nnode(tree, node, "dh", key->diffie_hellman->name,
-			    &flag);
+                            &flag);
   ssh_ntree_generate_string(tree, &tmp);
   ssh_ntree_free(tree);
 
@@ -2068,8 +2197,8 @@ ssh_public_key_name(SshPublicKey key)
 }
 
 SshCryptoStatus ssh_private_key_set_scheme(SshPrivateKey key,
-					   void *scheme,
-					   SshPkSchemeFlag flag)
+                                           void *scheme,
+                                           SshPkSchemeFlag flag)
 {
   /* Set the corresponding scheme. */
   switch (flag)
@@ -2107,8 +2236,8 @@ SshCryptoStatus ssh_private_key_set_scheme(SshPrivateKey key,
    valid. */
 
 SshCryptoStatus ssh_public_key_set_scheme(SshPublicKey key,
-					  void *scheme,
-					  SshPkSchemeFlag flag)
+                                          void *scheme,
+                                          SshPkSchemeFlag flag)
 {
   /* Set the corresponding scheme. */
   switch (flag)
@@ -2142,8 +2271,8 @@ SshCryptoStatus ssh_public_key_set_scheme(SshPublicKey key,
 }
 
 SshCryptoStatus ssh_pk_group_set_scheme(SshPkGroup group,
-					void *scheme,
-					SshPkSchemeFlag flag)
+                                        void *scheme,
+                                        SshPkSchemeFlag flag)
 {
   switch (flag)
     {
@@ -2154,9 +2283,9 @@ SshCryptoStatus ssh_pk_group_set_scheme(SshPkGroup group,
     case SSH_PK_SCHEME_TWA:
     case SSH_PK_SCHEME_MQV:
       /* Lets just ignore these, not considered errorneous. Main reason for
-	 this is the fact that some of these might want to add some
-	 information to the action_make context and we don't want to
-	 restrict that. */
+         this is the fact that some of these might want to add some
+         information to the action_make context and we don't want to
+         restrict that. */
       break;
     case SSH_PK_SCHEME_DH:
       group->diffie_hellman = scheme;
@@ -2179,13 +2308,13 @@ ssh_pk_group_name(SshPkGroup group)
   ssh_ntree_allocate(&tree);
 
   node = ssh_ntree_add_child(tree, NULL,
-			     group->type->name);
+                             group->type->name);
   if (group->diffie_hellman)
     {
       node = ssh_ntree_add_next(tree, node,
-				"dh");
+                                "dh");
       ssh_ntree_add_child(tree, node,
-			  group->diffie_hellman->name);
+                          group->diffie_hellman->name);
     }
   ssh_ntree_generate_string(tree, &tmp);
   ssh_ntree_free(tree);
@@ -2194,8 +2323,8 @@ ssh_pk_group_name(SshPkGroup group)
 }
 
 SshCryptoStatus ssh_pk_group_get_scheme_name(SshPkGroup group,
-					     const char **name,
-					     SshPkSchemeFlag flag)
+                                             const char **name,
+                                             SshPkSchemeFlag flag)
 {
   switch (flag)
     {
@@ -2243,9 +2372,9 @@ ssh_public_key_get_predefined_groups(const char *key_type)
   for (i = 0; ssh_key_types[i].name; i++)
     {
       if (strcmp(ssh_key_types[i].name, tmp) == 0)
-	{
-	  return (*ssh_key_types[i].pk_group_get_predefined_groups)();
-	}
+        {
+          return (*ssh_key_types[i].pk_group_get_predefined_groups)();
+        }
     }
   return NULL;
 }
@@ -2255,8 +2384,8 @@ ssh_public_key_get_predefined_groups(const char *key_type)
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_pk_group_generate(SshRandomState state,
-		      SshPkGroup *group,
-		      const char *group_type, ...)
+                      SshPkGroup *group,
+                      const char *group_type, ...)
 {
   SshCryptoStatus status;
   unsigned int i;
@@ -2293,183 +2422,183 @@ ssh_pk_group_generate(SshRandomState state,
   for (i = 0; ssh_key_types[i].name; i++)
     {
       if (strcmp(ssh_key_types[i].name, tmp) == 0)
-	{
-	  /* Free allocated name. */
-	  ssh_xfree(tmp);
-	  node = ssh_nnode_get_child(node);
-	  
-	  /* Type matches i.e. we've found our key type, so continue with
-	     finding schemes and parameters. */
+        {
+          /* Free allocated name. */
+          ssh_xfree(tmp);
+          node = ssh_nnode_get_child(node);
+          
+          /* Type matches i.e. we've found our key type, so continue with
+             finding schemes and parameters. */
 
-	  /* Allocate private key context. */
-	  pk_group = ssh_xmalloc(sizeof(*pk_group));
-	  pk_group->type = &ssh_key_types[i];
+          /* Allocate private key context. */
+          pk_group = ssh_xmalloc(sizeof(*pk_group));
+          pk_group->type = &ssh_key_types[i];
 
-	  /* Clear pointers. */
-	  pk_group->diffie_hellman = NULL;
+          /* Clear pointers. */
+          pk_group->diffie_hellman = NULL;
 
-	  /* Initialize actions, and verify that context was allocated. */
-	  context = (*pk_group->type->pk_group_action_init)(state);
-	  if (context == NULL)
-	    {
-	      ssh_xfree(pk_group);
-	      va_end(ap);
-	      return SSH_CRYPTO_OPERATION_FAILED;
-	    }
+          /* Initialize actions, and verify that context was allocated. */
+          context = (*pk_group->type->pk_group_action_init)(state);
+          if (context == NULL)
+            {
+              ssh_xfree(pk_group);
+              va_end(ap);
+              return SSH_CRYPTO_OPERATION_FAILED;
+            }
 
-	  status = SSH_CRYPTO_OK;
-	  /* Run through all preselected schemes in the group_type. */
-	  while (node)
-	    {
-	      tmp = ssh_nnode_get_identifier(node);
-	      action = ssh_pk_find_scheme_action(pk_group->type->action_list,
-						 tmp,
-						 SSH_PK_FLAG_PK_GROUP);
-	      ssh_xfree(tmp);
-	      if (!action)
-		{
-		  status = SSH_CRYPTO_SCHEME_UNKNOWN;
-		  break;
-		}
-	      child = ssh_nnode_get_child(node);
-	      if (child == NULL)
-		/* We are not yet confident that there does not exists
-		   a method of this name. Thus because for some schemes
-		   it is easier to just write the scheme class, we
-		   try to match for a fixed name. */
-		tmp = SSH_PK_USUAL_NAME;
-	      else
-		tmp = ssh_nnode_get_identifier(child);
-	      /* Find the scheme of that name. */
-	      scheme = ssh_pk_find_generic(tmp, action->type,
-					   action->type_size);
-	      if (child)
-		/* Free if there is a need for that. */
-		ssh_xfree(tmp);
-	      if (scheme == NULL)
-		{
-		  status = SSH_CRYPTO_SCHEME_UNKNOWN;
-		  break;
-		}
+          status = SSH_CRYPTO_OK;
+          /* Run through all preselected schemes in the group_type. */
+          while (node)
+            {
+              tmp = ssh_nnode_get_identifier(node);
+              action = ssh_pk_find_scheme_action(pk_group->type->action_list,
+                                                 tmp,
+                                                 SSH_PK_FLAG_PK_GROUP);
+              ssh_xfree(tmp);
+              if (!action)
+                {
+                  status = SSH_CRYPTO_SCHEME_UNKNOWN;
+                  break;
+                }
+              child = ssh_nnode_get_child(node);
+              if (child == NULL)
+                /* We are not yet confident that there does not exists
+                   a method of this name. Thus because for some schemes
+                   it is easier to just write the scheme class, we
+                   try to match for a fixed name. */
+                tmp = SSH_PK_USUAL_NAME;
+              else
+                tmp = ssh_nnode_get_identifier(child);
+              /* Find the scheme of that name. */
+              scheme = ssh_pk_find_generic(tmp, action->type,
+                                           action->type_size);
+              if (child)
+                /* Free if there is a need for that. */
+                ssh_xfree(tmp);
+              if (scheme == NULL)
+                {
+                  status = SSH_CRYPTO_SCHEME_UNKNOWN;
+                  break;
+                }
 
-	      /* Call action_scheme if not set to NULL. */
-	      if (((SshPkGen *)scheme)->action_scheme != NULL)
-		(*((SshPkGen *)scheme)->action_scheme)(context);
-	      
-	      /* Set the corresponding scheme to the group. */
-	      status = ssh_pk_group_set_scheme(pk_group, scheme,
-					       action->scheme_flag);
+              /* Call action_scheme if not set to NULL. */
+              if (((SshPkGen *)scheme)->action_scheme != NULL)
+                (*((SshPkGen *)scheme)->action_scheme)(context);
+              
+              /* Set the corresponding scheme to the group. */
+              status = ssh_pk_group_set_scheme(pk_group, scheme,
+                                               action->scheme_flag);
 
-	      if (status != SSH_CRYPTO_OK)
-		break;
+              if (status != SSH_CRYPTO_OK)
+                break;
 
-	      /* Move to the next scheme. */
-	      node = ssh_nnode_get_next(node);
-	    }
-	  ssh_ntree_free(tree);
-	  if (status != SSH_CRYPTO_OK)
-	    {
-	      (*pk_group->type->pk_group_action_free)(context);
-	      ssh_xfree(pk_group);
-	      va_end(ap);
-	      return status;
-	    }
+              /* Move to the next scheme. */
+              node = ssh_nnode_get_next(node);
+            }
+          ssh_ntree_free(tree);
+          if (status != SSH_CRYPTO_OK)
+            {
+              (*pk_group->type->pk_group_action_free)(context);
+              ssh_xfree(pk_group);
+              va_end(ap);
+              return status;
+            }
 
-	  /* Start reading the vararg list. */
-	  while ((format = va_arg(ap, SshPkFormat)) != SSH_PKF_END)
-	    {
-	      /* Search name from command lists. */
-	      
-	      action = ssh_pk_find_action(format,
-					  pk_group->type->action_list,
-					  SSH_PK_FLAG_PK_GROUP);
-	      if (!action)
-		{
-		  /* Free the action context. */
-		  (*pk_group->type->pk_group_action_free)(context);
-		  ssh_xfree(pk_group);
-		  va_end(ap);
-		  return SSH_CRYPTO_UNSUPPORTED_IDENTIFIER;
-		}
+          /* Start reading the vararg list. */
+          while ((format = va_arg(ap, SshPkFormat)) != SSH_PKF_END)
+            {
+              /* Search name from command lists. */
+              
+              action = ssh_pk_find_action(format,
+                                          pk_group->type->action_list,
+                                          SSH_PK_FLAG_PK_GROUP);
+              if (!action)
+                {
+                  /* Free the action context. */
+                  (*pk_group->type->pk_group_action_free)(context);
+                  ssh_xfree(pk_group);
+                  va_end(ap);
+                  return SSH_CRYPTO_UNSUPPORTED_IDENTIFIER;
+                }
 
-	      /* Supported only scheme selection and special operations. */
-	      switch (action->flags &
-		      (SSH_PK_FLAG_SCHEME | SSH_PK_FLAG_SPECIAL))
-		{
-		case SSH_PK_FLAG_SCHEME:
-		  name = va_arg(ap, const char *);
-		  scheme = ssh_pk_find_generic(name, action->type,
-					       action->type_size);
-		  if (scheme == NULL)
-		    {
-		      (*pk_group->type->pk_group_action_free)(context);
-		      ssh_xfree(pk_group);
-		      va_end(ap);
-		      return SSH_CRYPTO_SCHEME_UNKNOWN;
-		    }
+              /* Supported only scheme selection and special operations. */
+              switch (action->flags &
+                      (SSH_PK_FLAG_SCHEME | SSH_PK_FLAG_SPECIAL))
+                {
+                case SSH_PK_FLAG_SCHEME:
+                  name = va_arg(ap, const char *);
+                  scheme = ssh_pk_find_generic(name, action->type,
+                                               action->type_size);
+                  if (scheme == NULL)
+                    {
+                      (*pk_group->type->pk_group_action_free)(context);
+                      ssh_xfree(pk_group);
+                      va_end(ap);
+                      return SSH_CRYPTO_SCHEME_UNKNOWN;
+                    }
 
-		  /* Call action_scheme if not set to NULL. */
-		  if (((SshPkGen *)scheme)->action_scheme != NULL)
-		    (*((SshPkGen *)scheme)->action_scheme)(context);
-		  
-		  /* Set the corresponding scheme to the group. */
-		  status = ssh_pk_group_set_scheme(pk_group, scheme,
-						   action->scheme_flag);
+                  /* Call action_scheme if not set to NULL. */
+                  if (((SshPkGen *)scheme)->action_scheme != NULL)
+                    (*((SshPkGen *)scheme)->action_scheme)(context);
+                  
+                  /* Set the corresponding scheme to the group. */
+                  status = ssh_pk_group_set_scheme(pk_group, scheme,
+                                                   action->scheme_flag);
 
-		  if (status != SSH_CRYPTO_OK)
-		    {
-		      (*pk_group->type->pk_group_action_free)(context);
-		      ssh_xfree(pk_group);
-		      va_end(ap);
-		      return status;
-		    }
-		  break;
-		case SSH_PK_FLAG_SPECIAL:
-		  /* Assume no wrappings. */
-		  if (action->flags & SSH_PK_FLAG_WRAPPED)
-		    {
-		      if (action->action_put)
-			ssh_fatal("ssh_pk_group_generate: cannot wrap.");
-		      va_end(ap);
-		      (*pk_group->type->pk_group_action_free)(context);
-		      ssh_xfree(pk_group);
-		      return SSH_CRYPTO_UNSUPPORTED_IDENTIFIER;
-		    }
-		  
-		  if ((*action->action_put)(context, &ap, NULL, format) != 1)
-		    {
-		      (*pk_group->type->pk_group_action_free)(context);
-		      ssh_xfree(pk_group);
-		      va_end(ap);
-		      return SSH_CRYPTO_LIBRARY_CORRUPTED;
-		    }
-		  break;
-		default:
-		  ssh_fatal("ssh_pk_group_generate: internal error.");
-		  break;
-		}      
-	    }
+                  if (status != SSH_CRYPTO_OK)
+                    {
+                      (*pk_group->type->pk_group_action_free)(context);
+                      ssh_xfree(pk_group);
+                      va_end(ap);
+                      return status;
+                    }
+                  break;
+                case SSH_PK_FLAG_SPECIAL:
+                  /* Assume no wrappings. */
+                  if (action->flags & SSH_PK_FLAG_WRAPPED)
+                    {
+                      if (action->action_put)
+                        ssh_fatal("ssh_pk_group_generate: cannot wrap.");
+                      va_end(ap);
+                      (*pk_group->type->pk_group_action_free)(context);
+                      ssh_xfree(pk_group);
+                      return SSH_CRYPTO_UNSUPPORTED_IDENTIFIER;
+                    }
+                  
+                  if ((*action->action_put)(context, &ap, NULL, format) != 1)
+                    {
+                      (*pk_group->type->pk_group_action_free)(context);
+                      ssh_xfree(pk_group);
+                      va_end(ap);
+                      return SSH_CRYPTO_LIBRARY_CORRUPTED;
+                    }
+                  break;
+                default:
+                  ssh_fatal("ssh_pk_group_generate: internal error.");
+                  break;
+                }      
+            }
 
-	  /* Make the key and remove context. (One could incorporate making
-	     and freeing, however this way things seem to work also). */
-	  pk_group->context =
-	    (*pk_group->type->pk_group_action_make)(context);
-	  (*pk_group->type->pk_group_action_free)(context);
+          /* Make the key and remove context. (One could incorporate making
+             and freeing, however this way things seem to work also). */
+          pk_group->context =
+            (*pk_group->type->pk_group_action_make)(context);
+          (*pk_group->type->pk_group_action_free)(context);
 
-	  /* Quit unhappily. */
-	  if (pk_group->context == NULL)
-	    {
-	      ssh_xfree(pk_group);
-	      va_end(ap);
-	      return SSH_CRYPTO_OPERATION_FAILED;
-	    }
-	  
-	  /* Quit happily. */
-	  *group = pk_group;
-	  va_end(ap);
-	  
-	  return SSH_CRYPTO_OK;
-	}
+          /* Quit unhappily. */
+          if (pk_group->context == NULL)
+            {
+              ssh_xfree(pk_group);
+              va_end(ap);
+              return SSH_CRYPTO_OPERATION_FAILED;
+            }
+          
+          /* Quit happily. */
+          *group = pk_group;
+          va_end(ap);
+          
+          return SSH_CRYPTO_OK;
+        }
     }
 
   ssh_ntree_free(tree);
@@ -2506,31 +2635,31 @@ ssh_pk_group_select_scheme(SshPkGroup group, ...)
   while ((format = va_arg(ap, SshPkFormat)) != SSH_PKF_END)
     {
       action = ssh_pk_find_action(format, group->type->action_list,
-				  SSH_PK_FLAG_SCHEME |
-				  SSH_PK_FLAG_PK_GROUP);
+                                  SSH_PK_FLAG_SCHEME |
+                                  SSH_PK_FLAG_PK_GROUP);
       if (!action)
-	{
-	  va_end(ap);
-	  return SSH_CRYPTO_UNSUPPORTED_IDENTIFIER;
-	}
+        {
+          va_end(ap);
+          return SSH_CRYPTO_UNSUPPORTED_IDENTIFIER;
+        }
 
       /* Find the new scheme. */
       name = va_arg(ap, const char *);
       scheme = ssh_pk_find_generic(name, action->type,
-				   action->type_size);
+                                   action->type_size);
       /* Check that scheme exists. */
       if (scheme == NULL)
-	{
-	  va_end(ap);
-	  return SSH_CRYPTO_SCHEME_UNKNOWN;
-	}
-	
+        {
+          va_end(ap);
+          return SSH_CRYPTO_SCHEME_UNKNOWN;
+        }
+        
       status = ssh_pk_group_set_scheme(group, scheme, action->scheme_flag);
       if (status != SSH_CRYPTO_OK)
-	{
-	  va_end(ap);
-	  return status;
-	}
+        {
+          va_end(ap);
+          return status;
+        }
     }
   va_end(ap);
   return SSH_CRYPTO_OK;
@@ -2551,51 +2680,51 @@ ssh_pk_group_get_info(SshPkGroup group, ...)
     {
       /* Seek for the action. */
       action = ssh_pk_find_action(format, group->type->action_list,
-				  SSH_PK_FLAG_PK_GROUP);
+                                  SSH_PK_FLAG_PK_GROUP);
 
       if (!action)
-	{
-	  va_end(ap);
-	  return SSH_CRYPTO_UNSUPPORTED_IDENTIFIER;
-	}
+        {
+          va_end(ap);
+          return SSH_CRYPTO_UNSUPPORTED_IDENTIFIER;
+        }
 
       switch (action->flags & (SSH_PK_FLAG_SCHEME | SSH_PK_FLAG_SPECIAL |
-			       SSH_PK_FLAG_KEY_TYPE))
-	{
-	case SSH_PK_FLAG_KEY_TYPE:
-	  name_ptr = va_arg(ap, const char **);
-	  *name_ptr = group->type->name; /* XXX ssh_pk_group_name(group); */
-	  break;
-	case SSH_PK_FLAG_SCHEME:
-	  name_ptr = va_arg(ap, const char **);
-	  
-	  status = ssh_pk_group_get_scheme_name(group,
-						name_ptr,
-						action->scheme_flag);
-	  if (status != SSH_CRYPTO_OK)
-	    {
-	      va_end(ap);
-	      return status;
-	    }
-	  break;
-	case SSH_PK_FLAG_SPECIAL:
-	  if (action->flags & SSH_PK_FLAG_WRAPPED)
-	    {
-	      if (action->action_get)
-		ssh_fatal("ssh_pk_group_get_info: cannot wrap.");
-	      va_end(ap);
-	      return SSH_CRYPTO_UNSUPPORTED_IDENTIFIER;
-	    }
-	  if ((*action->action_get)(group->context, &ap, NULL, format) != 1)
-	    {
-	      va_end(ap);
-	      return SSH_CRYPTO_LIBRARY_CORRUPTED;
-	    }
-	  break;
-	default:
-	  ssh_fatal("ssh_private_key_get_info: internal error.");
-	  break;
-	}
+                               SSH_PK_FLAG_KEY_TYPE))
+        {
+        case SSH_PK_FLAG_KEY_TYPE:
+          name_ptr = va_arg(ap, const char **);
+          *name_ptr = group->type->name; /* XXX ssh_pk_group_name(group); */
+          break;
+        case SSH_PK_FLAG_SCHEME:
+          name_ptr = va_arg(ap, const char **);
+          
+          status = ssh_pk_group_get_scheme_name(group,
+                                                name_ptr,
+                                                action->scheme_flag);
+          if (status != SSH_CRYPTO_OK)
+            {
+              va_end(ap);
+              return status;
+            }
+          break;
+        case SSH_PK_FLAG_SPECIAL:
+          if (action->flags & SSH_PK_FLAG_WRAPPED)
+            {
+              if (action->action_get)
+                ssh_fatal("ssh_pk_group_get_info: cannot wrap.");
+              va_end(ap);
+              return SSH_CRYPTO_UNSUPPORTED_IDENTIFIER;
+            }
+          if ((*action->action_get)(group->context, &ap, NULL, format) != 1)
+            {
+              va_end(ap);
+              return SSH_CRYPTO_LIBRARY_CORRUPTED;
+            }
+          break;
+        default:
+          ssh_fatal("ssh_private_key_get_info: internal error.");
+          break;
+        }
     }
 
   va_end(ap);
@@ -2625,8 +2754,8 @@ ssh_pk_group_count_randomizers(SshPkGroup group)
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_pk_group_export_randomizers(SshPkGroup group,
-				unsigned char **buf,
-				size_t *buf_length)
+                                unsigned char **buf,
+                                size_t *buf_length)
 {
   SshBuffer buffer;
   unsigned char *tmp_buffer;
@@ -2635,21 +2764,21 @@ ssh_pk_group_export_randomizers(SshPkGroup group,
   ssh_buffer_init(&buffer);
 
   ssh_encode_buffer(&buffer,
-		    SSH_FORMAT_UINT32, SSH_PK_GROUP_RANDOMIZER_MAGIC,
-		    SSH_FORMAT_UINT32, 0,
-		    SSH_FORMAT_END);
+                    SSH_FORMAT_UINT32, SSH_PK_GROUP_RANDOMIZER_MAGIC,
+                    SSH_FORMAT_UINT32, 0,
+                    SSH_FORMAT_END);
 
   while (1)
     {
       (*group->type->pk_group_export_randomizer)(group,
-						 &tmp_buffer,
-						 &tmp_buf_len);
+                                                 &tmp_buffer,
+                                                 &tmp_buf_len);
       if (tmp_buffer == NULL)
-	break;
+        break;
 
       ssh_encode_buffer(&buffer,
-			SSH_FORMAT_UINT32_STR, tmp_buffer, tmp_buf_len, 
-			SSH_FORMAT_END);
+                        SSH_FORMAT_UINT32_STR, tmp_buffer, tmp_buf_len, 
+                        SSH_FORMAT_END);
     }
 
   *buf_length = ssh_buffer_len(&buffer);
@@ -2667,8 +2796,8 @@ ssh_pk_group_export_randomizers(SshPkGroup group,
 /* Add randomizers to randomizer list. */
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_pk_group_import_randomizers(SshPkGroup group,
-				unsigned char *buf,
-				size_t buf_length)
+                                unsigned char *buf,
+                                size_t buf_length)
 {
   SshBuffer buffer;
   size_t total_length, length;
@@ -2678,9 +2807,9 @@ ssh_pk_group_import_randomizers(SshPkGroup group,
   ssh_buffer_append(&buffer, buf, buf_length);
 
   ssh_decode_buffer(&buffer,
-		    SSH_FORMAT_UINT32, &magic,
-		    SSH_FORMAT_UINT32, &total_length,
-		    SSH_FORMAT_END);
+                    SSH_FORMAT_UINT32, &magic,
+                    SSH_FORMAT_UINT32, &total_length,
+                    SSH_FORMAT_END);
 
   if (magic != SSH_PK_GROUP_RANDOMIZER_MAGIC)
     {
@@ -2693,20 +2822,20 @@ ssh_pk_group_import_randomizers(SshPkGroup group,
   while (total_length > 0)
     {
       if (ssh_decode_buffer(&buffer,
-			    SSH_FORMAT_UINT32, &length,
-			    SSH_FORMAT_END) == 0)
-	{
-	  ssh_buffer_uninit(&buffer);
-	  return SSH_CRYPTO_OPERATION_FAILED;
-	}
+                            SSH_FORMAT_UINT32, &length,
+                            SSH_FORMAT_END) == 0)
+        {
+          ssh_buffer_uninit(&buffer);
+          return SSH_CRYPTO_OPERATION_FAILED;
+        }
 
       if ((*group->type->pk_group_import_randomizer)(group->context,
-						     ssh_buffer_ptr(&buffer),
-						     length) == FALSE)
-	{
-	  ssh_buffer_uninit(&buffer);
-	  return SSH_CRYPTO_OPERATION_FAILED;
-	}
+                                                     ssh_buffer_ptr(&buffer),
+                                                     length) == FALSE)
+        {
+          ssh_buffer_uninit(&buffer);
+          return SSH_CRYPTO_OPERATION_FAILED;
+        }
 
       ssh_buffer_consume(&buffer, length);
       total_length -= (length + 4);
@@ -2730,7 +2859,7 @@ ssh_pk_group_import_randomizers(SshPkGroup group,
    
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_pk_group_export(SshPkGroup group, unsigned char **buf,
-		    size_t *buf_length)
+                    size_t *buf_length)
 {
   SshBuffer buffer;
   unsigned char *tmp_buf;
@@ -2742,23 +2871,23 @@ ssh_pk_group_export(SshPkGroup group, unsigned char **buf,
   name = ssh_pk_group_name(group);
   
   ssh_encode_buffer(&buffer,
-		    SSH_FORMAT_UINT32, SSH_PK_GROUP_MAGIC,
-		    SSH_FORMAT_UINT32, 0,
-		    SSH_FORMAT_UINT32_STR, name, strlen(name),
-		    SSH_FORMAT_END);
+                    SSH_FORMAT_UINT32, SSH_PK_GROUP_MAGIC,
+                    SSH_FORMAT_UINT32, 0,
+                    SSH_FORMAT_UINT32_STR, name, strlen(name),
+                    SSH_FORMAT_END);
 
   ssh_xfree(name);
   
   if ((*group->type->pk_group_export)(group->context,
-				      &tmp_buf, &tmp_buf_len) == FALSE)
+                                      &tmp_buf, &tmp_buf_len) == FALSE)
     {
       ssh_buffer_uninit(&buffer);
       return SSH_CRYPTO_OPERATION_FAILED;
     }
 
   ssh_encode_buffer(&buffer,
-		    SSH_FORMAT_UINT32_STR, tmp_buf, tmp_buf_len,
-		    SSH_FORMAT_END);
+                    SSH_FORMAT_UINT32_STR, tmp_buf, tmp_buf_len,
+                    SSH_FORMAT_END);
 
   ssh_xfree(tmp_buf);
   
@@ -2776,7 +2905,7 @@ ssh_pk_group_export(SshPkGroup group, unsigned char **buf,
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_pk_group_import(unsigned char *buf, size_t buf_length,
-		    SshPkGroup *group)
+                    SshPkGroup *group)
 {
   SshBuffer buffer;
   unsigned int magic;
@@ -2794,11 +2923,11 @@ ssh_pk_group_import(unsigned char *buf, size_t buf_length,
   ssh_buffer_append(&buffer, buf, buf_length);
 
   if (ssh_decode_buffer(&buffer,
-			SSH_FORMAT_UINT32, &magic,
-			SSH_FORMAT_UINT32, &total_length,
-			SSH_FORMAT_UINT32_STR,
-			&key_type, &key_type_len,
-			SSH_FORMAT_END) == 0)
+                        SSH_FORMAT_UINT32, &magic,
+                        SSH_FORMAT_UINT32, &total_length,
+                        SSH_FORMAT_UINT32_STR,
+                        &key_type, &key_type_len,
+                        SSH_FORMAT_END) == 0)
     {
       ssh_buffer_uninit(&buffer);
       return SSH_CRYPTO_OPERATION_FAILED;
@@ -2822,16 +2951,16 @@ ssh_pk_group_import(unsigned char *buf, size_t buf_length,
   for (i = 0, pk_group = NULL; ssh_key_types[i].name; i++)
     {
       if (strcmp(ssh_key_types[i].name, name) == 0)
-	{
-	  /* Allocate */
-	  pk_group = ssh_xmalloc(sizeof(*pk_group));
-	  pk_group->type = &ssh_key_types[i];
+        {
+          /* Allocate */
+          pk_group = ssh_xmalloc(sizeof(*pk_group));
+          pk_group->type = &ssh_key_types[i];
 
-	  /* Initialize. */
-	  pk_group->diffie_hellman = NULL;
+          /* Initialize. */
+          pk_group->diffie_hellman = NULL;
 
-	  break;
-	}
+          break;
+        }
     }
   ssh_xfree(name);
   node = ssh_nnode_get_child(node);
@@ -2849,29 +2978,29 @@ ssh_pk_group_import(unsigned char *buf, size_t buf_length,
     {
       name = ssh_nnode_get_identifier(node);
       action = ssh_pk_find_scheme_action(pk_group->type->action_list,
-					 name,
-					 SSH_PK_FLAG_PK_GROUP);
+                                         name,
+                                         SSH_PK_FLAG_PK_GROUP);
       ssh_xfree(name);
       if (!action)
-	{
-	  status = SSH_CRYPTO_SCHEME_UNKNOWN;
-	  break;
-	}
+        {
+          status = SSH_CRYPTO_SCHEME_UNKNOWN;
+          break;
+        }
       name = ssh_nnode_get_identifier(node);
       scheme = ssh_pk_find_generic(name, action->type,
-				   action->type_size);
+                                   action->type_size);
       ssh_xfree(name);
       if (scheme == NULL)
-	{
-	  status = SSH_CRYPTO_SCHEME_UNKNOWN;
-	  break;
-	}
+        {
+          status = SSH_CRYPTO_SCHEME_UNKNOWN;
+          break;
+        }
       status = ssh_pk_group_set_scheme(pk_group, scheme,
-				       action->scheme_flag);
+                                       action->scheme_flag);
       if (status != SSH_CRYPTO_OK)
-	{
-	  break;
-	}
+        {
+          break;
+        }
       node = ssh_nnode_get_parent(node);
       if (node)
         node = ssh_nnode_get_next(node);
@@ -2887,8 +3016,8 @@ ssh_pk_group_import(unsigned char *buf, size_t buf_length,
 
   /* Read the final part and generate internal context. */
   if (ssh_decode_buffer(&buffer,
-			SSH_FORMAT_UINT32, &length,
-			SSH_FORMAT_END) == 0 ||
+                        SSH_FORMAT_UINT32, &length,
+                        SSH_FORMAT_END) == 0 ||
       length > ssh_buffer_len(&buffer))
     {
       ssh_buffer_uninit(&buffer);
@@ -2897,8 +3026,8 @@ ssh_pk_group_import(unsigned char *buf, size_t buf_length,
     }
   
   if ((*pk_group->type->pk_group_import)(ssh_buffer_ptr(&buffer),
-					 length,
-					 &pk_group->context) == FALSE)
+                                         length,
+                                         &pk_group->context) == FALSE)
     {
       ssh_buffer_uninit(&buffer);
       ssh_xfree(pk_group);
@@ -2936,8 +3065,8 @@ ssh_pk_group_import(unsigned char *buf, size_t buf_length,
        
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_private_key_generate(SshRandomState state,
-			 SshPrivateKey *key,
-			 const char *key_type, ...)
+                         SshPrivateKey *key,
+                         const char *key_type, ...)
 {
   SshCryptoStatus status = SSH_CRYPTO_UNKNOWN_KEY_TYPE;
   SshPrivateKey private_key;
@@ -2977,157 +3106,157 @@ ssh_private_key_generate(SshRandomState state,
   for (i = 0; ssh_key_types[i].name; i++)
     {
       if (strcmp(ssh_key_types[i].name, tmp) == 0)
-	{
- 	  ssh_xfree(tmp);
-	  node = ssh_nnode_get_child(node);
-	  
-	  /* Type matches i.e. we've found our key type, so continue with
-	     finding schemes and parameters. */
+        {
+          ssh_xfree(tmp);
+          node = ssh_nnode_get_child(node);
+          
+          /* Type matches i.e. we've found our key type, so continue with
+             finding schemes and parameters. */
 
-	  /* Allocate private key context. */
-	  private_key = ssh_xmalloc(sizeof(*private_key));
-	  private_key->type = &ssh_key_types[i];
+          /* Allocate private key context. */
+          private_key = ssh_xmalloc(sizeof(*private_key));
+          private_key->type = &ssh_key_types[i];
 
-	  /* Clear pointers. */
-	  private_key->signature = NULL;
-	  private_key->encryption = NULL;
-	  private_key->diffie_hellman = NULL;
-	  /* XXX private_key->unified_diffie_hellman = NULL; */
-	  private_key->one_way_auth = NULL;
-	  private_key->two_way_auth = NULL;
-	  private_key->mqv = NULL;
+          /* Clear pointers. */
+          private_key->signature = NULL;
+          private_key->encryption = NULL;
+          private_key->diffie_hellman = NULL;
+          /* XXX private_key->unified_diffie_hellman = NULL; */
+          private_key->one_way_auth = NULL;
+          private_key->two_way_auth = NULL;
+          private_key->mqv = NULL;
 
 #ifdef SSHDIST_SMART_CARD
 
 
 #endif /* SSHDIST_SMART_CARD */
-	  
-	  /* Initialize actions, and verify that context was allocated. */
-	  context = (*private_key->type->private_key_action_init)(state);
-	  if (context == NULL)
-	    {
-	      ssh_xfree(private_key);
-	      va_end(ap);
-	      return SSH_CRYPTO_OPERATION_FAILED;
-	    }
+          
+          /* Initialize actions, and verify that context was allocated. */
+          context = (*private_key->type->private_key_action_init)(state);
+          if (context == NULL)
+            {
+              ssh_xfree(private_key);
+              va_end(ap);
+              return SSH_CRYPTO_OPERATION_FAILED;
+            }
 
-	  status = SSH_CRYPTO_OK;
-	  /* Run through all preselected schemes in the group_type. */
-	  while (node)
-	    {
-	      tmp = ssh_nnode_get_identifier(node);
-	      action =
-		ssh_pk_find_scheme_action(private_key->type->action_list,
-					  tmp,
-					  SSH_PK_FLAG_PRIVATE_KEY);
-	      ssh_xfree(tmp);
-	      if (!action)
-		{
-		  status = SSH_CRYPTO_SCHEME_UNKNOWN;
-		  break;
-		}
-	      child = ssh_nnode_get_child(node);
-	      if (child == NULL)
-		tmp = SSH_PK_USUAL_NAME;
-	      else
-		tmp = ssh_nnode_get_identifier(child);
-	      scheme = ssh_pk_find_generic(tmp, action->type,
-					   action->type_size);
-	      if (child)
-		ssh_xfree(tmp);
-	      if (scheme == NULL)
-		{
-		  status = SSH_CRYPTO_SCHEME_UNKNOWN;
-		  break;
-		}
+          status = SSH_CRYPTO_OK;
+          /* Run through all preselected schemes in the group_type. */
+          while (node)
+            {
+              tmp = ssh_nnode_get_identifier(node);
+              action =
+                ssh_pk_find_scheme_action(private_key->type->action_list,
+                                          tmp,
+                                          SSH_PK_FLAG_PRIVATE_KEY);
+              ssh_xfree(tmp);
+              if (!action)
+                {
+                  status = SSH_CRYPTO_SCHEME_UNKNOWN;
+                  break;
+                }
+              child = ssh_nnode_get_child(node);
+              if (child == NULL)
+                tmp = SSH_PK_USUAL_NAME;
+              else
+                tmp = ssh_nnode_get_identifier(child);
+              scheme = ssh_pk_find_generic(tmp, action->type,
+                                           action->type_size);
+              if (child)
+                ssh_xfree(tmp);
+              if (scheme == NULL)
+                {
+                  status = SSH_CRYPTO_SCHEME_UNKNOWN;
+                  break;
+                }
 
-	      /* Call action_scheme if not set to NULL. */
-	      if (((SshPkGen *)scheme)->action_scheme != NULL)
-		(*((SshPkGen *)scheme)->action_scheme)(context);
-	      
-	      /* Set the corresponding scheme to the group. */
-	      status = ssh_private_key_set_scheme(private_key, scheme,
-						  action->scheme_flag);
+              /* Call action_scheme if not set to NULL. */
+              if (((SshPkGen *)scheme)->action_scheme != NULL)
+                (*((SshPkGen *)scheme)->action_scheme)(context);
+              
+              /* Set the corresponding scheme to the group. */
+              status = ssh_private_key_set_scheme(private_key, scheme,
+                                                  action->scheme_flag);
 
-	      if (status != SSH_CRYPTO_OK)
-		{
-		  break;
-		}
-	      /* Move to the next scheme. */
-	      node = ssh_nnode_get_next(node);
-	    }
-	  ssh_ntree_free(tree);
-	  if (status != SSH_CRYPTO_OK)
-	    {
-	      (*private_key->type->private_key_action_free)(context);
-	      ssh_xfree(private_key);
-	      va_end(ap);
-	      return status;
-	    }
+              if (status != SSH_CRYPTO_OK)
+                {
+                  break;
+                }
+              /* Move to the next scheme. */
+              node = ssh_nnode_get_next(node);
+            }
+          ssh_ntree_free(tree);
+          if (status != SSH_CRYPTO_OK)
+            {
+              (*private_key->type->private_key_action_free)(context);
+              ssh_xfree(private_key);
+              va_end(ap);
+              return status;
+            }
 
-	  /* Parse vararg list. */
-	  while ((format = va_arg(ap, SshPkFormat)) != SSH_PKF_END)
-	    {
-	      /* Search name from command lists. */
-	      
-	      action = ssh_pk_find_action(format,
-					  private_key->type->action_list,
-					  SSH_PK_FLAG_PRIVATE_KEY);
-	      if (!action)
-		{
-		  (*private_key->type->private_key_action_free)(context);
-		  ssh_xfree(private_key);
-		  va_end(ap);
-		  return SSH_CRYPTO_UNSUPPORTED_IDENTIFIER;
-		}
+          /* Parse vararg list. */
+          while ((format = va_arg(ap, SshPkFormat)) != SSH_PKF_END)
+            {
+              /* Search name from command lists. */
+              
+              action = ssh_pk_find_action(format,
+                                          private_key->type->action_list,
+                                          SSH_PK_FLAG_PRIVATE_KEY);
+              if (!action)
+                {
+                  (*private_key->type->private_key_action_free)(context);
+                  ssh_xfree(private_key);
+                  va_end(ap);
+                  return SSH_CRYPTO_UNSUPPORTED_IDENTIFIER;
+                }
 
-	      /* Supported only scheme selection and special operations. */
-	      switch (action->flags &
-		      (SSH_PK_FLAG_SCHEME | SSH_PK_FLAG_SPECIAL))
-		{
-		case SSH_PK_FLAG_SCHEME:
-		  name = va_arg(ap, const char *);
-		  scheme = ssh_pk_find_generic(name, action->type,
-					       action->type_size);
-		  if (scheme == NULL)
-		    {
-		      (*private_key->type->private_key_action_free)(context);
-		      ssh_xfree(private_key);
-		      va_end(ap);
-		      return SSH_CRYPTO_SCHEME_UNKNOWN;
-		    }
+              /* Supported only scheme selection and special operations. */
+              switch (action->flags &
+                      (SSH_PK_FLAG_SCHEME | SSH_PK_FLAG_SPECIAL))
+                {
+                case SSH_PK_FLAG_SCHEME:
+                  name = va_arg(ap, const char *);
+                  scheme = ssh_pk_find_generic(name, action->type,
+                                               action->type_size);
+                  if (scheme == NULL)
+                    {
+                      (*private_key->type->private_key_action_free)(context);
+                      ssh_xfree(private_key);
+                      va_end(ap);
+                      return SSH_CRYPTO_SCHEME_UNKNOWN;
+                    }
 
-		  /* Call the action_scheme function here if not
-		     NULL. */
-		  if (((SshPkGen *)scheme)->action_scheme != NULL)
-		    (*((SshPkGen *)scheme)->action_scheme)(context);
-		  
-		  /* Set the corresponding scheme. */
-		  status = ssh_private_key_set_scheme(private_key, scheme,
-						      action->scheme_flag);
-		  if (status != SSH_CRYPTO_OK)
-		    {
-		      (*private_key->type->private_key_action_free)(context);
-		      ssh_xfree(private_key);
-		      va_end(ap);
-		      return status;
-		    }
-		  break;
-		case SSH_PK_FLAG_SPECIAL:
+                  /* Call the action_scheme function here if not
+                     NULL. */
+                  if (((SshPkGen *)scheme)->action_scheme != NULL)
+                    (*((SshPkGen *)scheme)->action_scheme)(context);
+                  
+                  /* Set the corresponding scheme. */
+                  status = ssh_private_key_set_scheme(private_key, scheme,
+                                                      action->scheme_flag);
+                  if (status != SSH_CRYPTO_OK)
+                    {
+                      (*private_key->type->private_key_action_free)(context);
+                      ssh_xfree(private_key);
+                      va_end(ap);
+                      return status;
+                    }
+                  break;
+                case SSH_PK_FLAG_SPECIAL:
 
-		  /* Assume we don't use wrappings. */
-		  wrapper = NULL;
-		  if (action->flags & SSH_PK_FLAG_WRAPPED)
-		    {
-		      /* We assume that parameters are wrapped over
-			 group structure. */
-		      group = va_arg(ap, SshPkGroup);
-		      wrapper = group->context;
-		      /* For compatibility set also the Diffie-Hellman field.
-		       */
-		      private_key->diffie_hellman = group->diffie_hellman;
-		    }
-		  
+                  /* Assume we don't use wrappings. */
+                  wrapper = NULL;
+                  if (action->flags & SSH_PK_FLAG_WRAPPED)
+                    {
+                      /* We assume that parameters are wrapped over
+                         group structure. */
+                      group = va_arg(ap, SshPkGroup);
+                      wrapper = group->context;
+                      /* For compatibility set also the Diffie-Hellman field.
+                       */
+                      private_key->diffie_hellman = group->diffie_hellman;
+                    }
+                  
 #ifdef SSHDIST_SMART_CARD
 
 
@@ -3137,41 +3266,41 @@ ssh_private_key_generate(SshRandomState state,
 
 #endif /* SSHDIST_SMART_CARD */
 
-		  if ((*action->action_put)(context, &ap, wrapper,
-					    format) != 1)
-		    {
-		      (*private_key->type->private_key_action_free)(context);
-		      ssh_xfree(private_key);
-		      va_end(ap);
-		      return SSH_CRYPTO_LIBRARY_CORRUPTED;
-		    }
-		  break;
-		default:
-		  ssh_fatal("ssh_private_key_generate: internal error.");
-		  break;
-		}      
-	    }
+                  if ((*action->action_put)(context, &ap, wrapper,
+                                            format) != 1)
+                    {
+                      (*private_key->type->private_key_action_free)(context);
+                      ssh_xfree(private_key);
+                      va_end(ap);
+                      return SSH_CRYPTO_LIBRARY_CORRUPTED;
+                    }
+                  break;
+                default:
+                  ssh_fatal("ssh_private_key_generate: internal error.");
+                  break;
+                }      
+            }
 
-	  /* Make the key and remove context. (One could incorporate making
-	     and freeing, however this way things seem to work also). */
-	  private_key->context =
-	    (*private_key->type->private_key_action_make)(context);
-	  (*private_key->type->private_key_action_free)(context);
+          /* Make the key and remove context. (One could incorporate making
+             and freeing, however this way things seem to work also). */
+          private_key->context =
+            (*private_key->type->private_key_action_make)(context);
+          (*private_key->type->private_key_action_free)(context);
 
-	  /* Quit unhappily. */
-	  if (private_key->context == NULL)
-	    {
-	      ssh_xfree(private_key);
-	      va_end(ap);
-	      return SSH_CRYPTO_OPERATION_FAILED;
-	    }
-	  
-	  /* Quit happily. */
-	  *key = private_key;
-	  va_end(ap);
+          /* Quit unhappily. */
+          if (private_key->context == NULL)
+            {
+              ssh_xfree(private_key);
+              va_end(ap);
+              return SSH_CRYPTO_OPERATION_FAILED;
+            }
+          
+          /* Quit happily. */
+          *key = private_key;
+          va_end(ap);
 
-	  return SSH_CRYPTO_OK;
-	}
+          return SSH_CRYPTO_OK;
+        }
     }
 
   ssh_ntree_free(tree);
@@ -3208,33 +3337,33 @@ ssh_private_key_select_scheme(SshPrivateKey key, ...)
   while ((format = va_arg(ap, SshPkFormat)) != SSH_PKF_END)
     {
       action = ssh_pk_find_action(format, key->type->action_list,
-				  SSH_PK_FLAG_SCHEME |
-				  SSH_PK_FLAG_PRIVATE_KEY);
+                                  SSH_PK_FLAG_SCHEME |
+                                  SSH_PK_FLAG_PRIVATE_KEY);
       if (!action)
-	{
-	  va_end(ap);
-	  return SSH_CRYPTO_UNSUPPORTED_IDENTIFIER;
-	}
+        {
+          va_end(ap);
+          return SSH_CRYPTO_UNSUPPORTED_IDENTIFIER;
+        }
 
       /* Find the new scheme. */
       name = va_arg(ap, const char *);
       scheme = ssh_pk_find_generic(name, action->type,
-				   action->type_size);
+                                   action->type_size);
 
       /* Quit an awful error! Means that our scheme tables are either
-	 corrupted or application failed. */
+         corrupted or application failed. */
       if (scheme == NULL)
-	{
-	  va_end(ap);
-	  return SSH_CRYPTO_SCHEME_UNKNOWN;
-	}
-	
+        {
+          va_end(ap);
+          return SSH_CRYPTO_SCHEME_UNKNOWN;
+        }
+        
       status = ssh_private_key_set_scheme(key, scheme, action->scheme_flag);
       if (status != SSH_CRYPTO_OK)
-	{
-	  va_end(ap);
-	  return status;
-	}
+        {
+          va_end(ap);
+          return status;
+        }
     }
   va_end(ap);
   return SSH_CRYPTO_OK;
@@ -3291,187 +3420,187 @@ ssh_public_key_define(SshPublicKey *public_key, const char *key_type, ...)
   for (i = 0; ssh_key_types[i].name; i++)
     {
       if (strcmp(ssh_key_types[i].name, tmp) == 0)
-	{
- 	  ssh_xfree(tmp);
-	  node = ssh_nnode_get_child(node);
-	  
-	  /* Type matches i.e. we've found our key type, so continue with
-	     finding schemes and parameters. */
+        {
+          ssh_xfree(tmp);
+          node = ssh_nnode_get_child(node);
+          
+          /* Type matches i.e. we've found our key type, so continue with
+             finding schemes and parameters. */
 
-	  /* Allocate private key context. */
-	  pub_key = ssh_xmalloc(sizeof(*pub_key));
-	  pub_key->type = &ssh_key_types[i];
+          /* Allocate private key context. */
+          pub_key = ssh_xmalloc(sizeof(*pub_key));
+          pub_key->type = &ssh_key_types[i];
 
-	  /* Clear pointers. */
-	  pub_key->signature = NULL;
-	  pub_key->encryption = NULL;
-	  pub_key->diffie_hellman = NULL;
-	  /* XXX pub_key->unified_diffie_hellman = NULL; */
-	  pub_key->one_way_auth = NULL;
-	  pub_key->two_way_auth = NULL;
-	  pub_key->mqv = NULL;
+          /* Clear pointers. */
+          pub_key->signature = NULL;
+          pub_key->encryption = NULL;
+          pub_key->diffie_hellman = NULL;
+          /* XXX pub_key->unified_diffie_hellman = NULL; */
+          pub_key->one_way_auth = NULL;
+          pub_key->two_way_auth = NULL;
+          pub_key->mqv = NULL;
 
-	  /* Initialize actions, and verify that context was allocated. */
-	  context = (*pub_key->type->public_key_action_init)();
-	  if (context == NULL)
-	    {
-	      ssh_xfree(pub_key);
-	      va_end(ap);
-	      return SSH_CRYPTO_OPERATION_FAILED;
-	    }
+          /* Initialize actions, and verify that context was allocated. */
+          context = (*pub_key->type->public_key_action_init)();
+          if (context == NULL)
+            {
+              ssh_xfree(pub_key);
+              va_end(ap);
+              return SSH_CRYPTO_OPERATION_FAILED;
+            }
 
-	  status = SSH_CRYPTO_OK;
-	  /* Run through all preselected schemes in the group_type. */
-	  while (node)
-	    {
-	      tmp = ssh_nnode_get_identifier(node);
-	      action =
-		ssh_pk_find_scheme_action(pub_key->type->action_list,
-					  tmp,
-					  SSH_PK_FLAG_PUBLIC_KEY);
-	      ssh_xfree(tmp);
-	      if (!action)
-		{
-		  status = SSH_CRYPTO_SCHEME_UNKNOWN;
-		  break;
-		}
-	      child = ssh_nnode_get_child(node);
-	      if (child == NULL)
-		tmp = SSH_PK_USUAL_NAME;
-	      else
-		tmp = ssh_nnode_get_identifier(child);
-	      scheme = ssh_pk_find_generic(tmp, action->type,
-					   action->type_size);
-	      if (child)
-		ssh_xfree(tmp);
-	      if (scheme == NULL)
-		{
-		  status = SSH_CRYPTO_SCHEME_UNKNOWN;
-		  break;
-		}
+          status = SSH_CRYPTO_OK;
+          /* Run through all preselected schemes in the group_type. */
+          while (node)
+            {
+              tmp = ssh_nnode_get_identifier(node);
+              action =
+                ssh_pk_find_scheme_action(pub_key->type->action_list,
+                                          tmp,
+                                          SSH_PK_FLAG_PUBLIC_KEY);
+              ssh_xfree(tmp);
+              if (!action)
+                {
+                  status = SSH_CRYPTO_SCHEME_UNKNOWN;
+                  break;
+                }
+              child = ssh_nnode_get_child(node);
+              if (child == NULL)
+                tmp = SSH_PK_USUAL_NAME;
+              else
+                tmp = ssh_nnode_get_identifier(child);
+              scheme = ssh_pk_find_generic(tmp, action->type,
+                                           action->type_size);
+              if (child)
+                ssh_xfree(tmp);
+              if (scheme == NULL)
+                {
+                  status = SSH_CRYPTO_SCHEME_UNKNOWN;
+                  break;
+                }
 
-	      /* Call action_scheme if not set to NULL. */
-	      if (((SshPkGen *)scheme)->action_scheme != NULL)
-		(*((SshPkGen *)scheme)->action_scheme)(context);
-	      
-	      /* Set the corresponding scheme to the group. */
-	      status = ssh_public_key_set_scheme(pub_key, scheme,
-						 action->scheme_flag);
+              /* Call action_scheme if not set to NULL. */
+              if (((SshPkGen *)scheme)->action_scheme != NULL)
+                (*((SshPkGen *)scheme)->action_scheme)(context);
+              
+              /* Set the corresponding scheme to the group. */
+              status = ssh_public_key_set_scheme(pub_key, scheme,
+                                                 action->scheme_flag);
 
-	      if (status != SSH_CRYPTO_OK)
-		{
-		  break;
-		}
-	      /* Move to the next scheme. */
-	      node = ssh_nnode_get_next(node);
-	    }
-	  ssh_ntree_free(tree);
-	  if (status != SSH_CRYPTO_OK)
-	    {
-	      (*pub_key->type->public_key_action_free)(context);
-	      ssh_xfree(pub_key);
-	      va_end(ap);
-	      return status;
-	    }
+              if (status != SSH_CRYPTO_OK)
+                {
+                  break;
+                }
+              /* Move to the next scheme. */
+              node = ssh_nnode_get_next(node);
+            }
+          ssh_ntree_free(tree);
+          if (status != SSH_CRYPTO_OK)
+            {
+              (*pub_key->type->public_key_action_free)(context);
+              ssh_xfree(pub_key);
+              va_end(ap);
+              return status;
+            }
 
-	  /* Parse vararg list. */
-	  while ((format = va_arg(ap, SshPkFormat)) != SSH_PKF_END)
-	    {
-	      /* Search name from command lists. */
-	      
-	      action = ssh_pk_find_action(format,
-					  pub_key->type->action_list,
-					  SSH_PK_FLAG_PUBLIC_KEY);
-	      if (!action)
-		{
-		  (*pub_key->type->public_key_action_free)(context);
-		  ssh_xfree(pub_key);
-		  va_end(ap);
-		  return SSH_CRYPTO_UNSUPPORTED_IDENTIFIER;
-		}
+          /* Parse vararg list. */
+          while ((format = va_arg(ap, SshPkFormat)) != SSH_PKF_END)
+            {
+              /* Search name from command lists. */
+              
+              action = ssh_pk_find_action(format,
+                                          pub_key->type->action_list,
+                                          SSH_PK_FLAG_PUBLIC_KEY);
+              if (!action)
+                {
+                  (*pub_key->type->public_key_action_free)(context);
+                  ssh_xfree(pub_key);
+                  va_end(ap);
+                  return SSH_CRYPTO_UNSUPPORTED_IDENTIFIER;
+                }
 
-	      /* Supported only scheme selection and special operations. */
-	      switch (action->flags &
-		      (SSH_PK_FLAG_SCHEME | SSH_PK_FLAG_SPECIAL))
-		{
-		case SSH_PK_FLAG_SCHEME:
-		  name = va_arg(ap, const char *);
-		  scheme = ssh_pk_find_generic(name, action->type,
-					       action->type_size);
-		  if (scheme == NULL)
-		    {
-		      (*pub_key->type->public_key_action_free)(context);
-		      ssh_xfree(pub_key);
-		      va_end(ap);
-		      return SSH_CRYPTO_SCHEME_UNKNOWN;
-		    }
+              /* Supported only scheme selection and special operations. */
+              switch (action->flags &
+                      (SSH_PK_FLAG_SCHEME | SSH_PK_FLAG_SPECIAL))
+                {
+                case SSH_PK_FLAG_SCHEME:
+                  name = va_arg(ap, const char *);
+                  scheme = ssh_pk_find_generic(name, action->type,
+                                               action->type_size);
+                  if (scheme == NULL)
+                    {
+                      (*pub_key->type->public_key_action_free)(context);
+                      ssh_xfree(pub_key);
+                      va_end(ap);
+                      return SSH_CRYPTO_SCHEME_UNKNOWN;
+                    }
 
-		  /* Call the action_scheme function here if not
-		     NULL. */
-		  if (((SshPkGen *)scheme)->action_scheme != NULL)
-		    (*((SshPkGen *)scheme)->action_scheme)(context);
-		  
-		  /* Set the corresponding scheme. */
-		  status = ssh_public_key_set_scheme(pub_key, scheme,
-						     action->scheme_flag);
-		  if (status != SSH_CRYPTO_OK)
-		    {
-		      (*pub_key->type->public_key_action_free)(context);
-		      ssh_xfree(pub_key);
-		      va_end(ap);
-		      return status;
-		    }
-		  break;
-		case SSH_PK_FLAG_SPECIAL:
+                  /* Call the action_scheme function here if not
+                     NULL. */
+                  if (((SshPkGen *)scheme)->action_scheme != NULL)
+                    (*((SshPkGen *)scheme)->action_scheme)(context);
+                  
+                  /* Set the corresponding scheme. */
+                  status = ssh_public_key_set_scheme(pub_key, scheme,
+                                                     action->scheme_flag);
+                  if (status != SSH_CRYPTO_OK)
+                    {
+                      (*pub_key->type->public_key_action_free)(context);
+                      ssh_xfree(pub_key);
+                      va_end(ap);
+                      return status;
+                    }
+                  break;
+                case SSH_PK_FLAG_SPECIAL:
 
-		  /* Assume we don't use wrappings. */
-		  wrapper = NULL;
-		  if (action->flags & SSH_PK_FLAG_WRAPPED)
-		    {
-		      /* We assume that parameters are wrapped over
-			 group structure. */
-		      group = va_arg(ap, SshPkGroup);
-		      wrapper = group->context;
-		      /* For compatibility set also the Diffie-Hellman field.
-		       */
-		      pub_key->diffie_hellman = group->diffie_hellman;
-		    }
+                  /* Assume we don't use wrappings. */
+                  wrapper = NULL;
+                  if (action->flags & SSH_PK_FLAG_WRAPPED)
+                    {
+                      /* We assume that parameters are wrapped over
+                         group structure. */
+                      group = va_arg(ap, SshPkGroup);
+                      wrapper = group->context;
+                      /* For compatibility set also the Diffie-Hellman field.
+                       */
+                      pub_key->diffie_hellman = group->diffie_hellman;
+                    }
 
-		  if ((*action->action_put)(context, &ap, wrapper,
-					    format) != 1)
-		    {
-		      (*pub_key->type->public_key_action_free)(context);
-		      ssh_xfree(pub_key);
-		      va_end(ap);
-		      return SSH_CRYPTO_LIBRARY_CORRUPTED;
-		    }
-		  break;
-		default:
-		  ssh_fatal("ssh_public_key_define: internal error.");
-		  break;
-		}      
-	    }
+                  if ((*action->action_put)(context, &ap, wrapper,
+                                            format) != 1)
+                    {
+                      (*pub_key->type->public_key_action_free)(context);
+                      ssh_xfree(pub_key);
+                      va_end(ap);
+                      return SSH_CRYPTO_LIBRARY_CORRUPTED;
+                    }
+                  break;
+                default:
+                  ssh_fatal("ssh_public_key_define: internal error.");
+                  break;
+                }      
+            }
 
-	  /* Make the key and remove context. (One could incorporate making
-	     and freeing, however this way things seem to work also). */
-	  pub_key->context =
-	    (*pub_key->type->public_key_action_make)(context);
-	  (*pub_key->type->public_key_action_free)(context);
+          /* Make the key and remove context. (One could incorporate making
+             and freeing, however this way things seem to work also). */
+          pub_key->context =
+            (*pub_key->type->public_key_action_make)(context);
+          (*pub_key->type->public_key_action_free)(context);
 
-	  /* Quit unhappily. */
-	  if (pub_key->context == NULL)
-	    {
-	      ssh_xfree(pub_key);
-	      va_end(ap);
-	      return SSH_CRYPTO_OPERATION_FAILED;
-	    }
-	  
-	  /* Quit happily. */
-	  *public_key = pub_key;
-	  va_end(ap);
+          /* Quit unhappily. */
+          if (pub_key->context == NULL)
+            {
+              ssh_xfree(pub_key);
+              va_end(ap);
+              return SSH_CRYPTO_OPERATION_FAILED;
+            }
+          
+          /* Quit happily. */
+          *public_key = pub_key;
+          va_end(ap);
 
-	  return SSH_CRYPTO_OK;
-	}
+          return SSH_CRYPTO_OK;
+        }
     }
 
   ssh_ntree_free(tree);
@@ -3501,34 +3630,34 @@ ssh_public_key_select_scheme(SshPublicKey key, ...)
   while ((format = va_arg(ap, SshPkFormat)) != SSH_PKF_END)
     {
       action = ssh_pk_find_action(format, key->type->action_list,
-				  SSH_PK_FLAG_SCHEME |
-				  SSH_PK_FLAG_PUBLIC_KEY);
+                                  SSH_PK_FLAG_SCHEME |
+                                  SSH_PK_FLAG_PUBLIC_KEY);
 
       if (!action)
-	{
-	  va_end(ap);
-	  return SSH_CRYPTO_UNSUPPORTED_IDENTIFIER;
-	}
+        {
+          va_end(ap);
+          return SSH_CRYPTO_UNSUPPORTED_IDENTIFIER;
+        }
 
       /* Find the new scheme. */
       name = va_arg(ap, const char *);
       scheme = ssh_pk_find_generic(name, action->type,
-				   action->type_size);
+                                   action->type_size);
 
       /* Quit an awful error! Means that our scheme tables are either
-	 corrupted or application failed. */
+         corrupted or application failed. */
       if (scheme == NULL)
-	{
-	  va_end(ap);
-	  return SSH_CRYPTO_SCHEME_UNKNOWN;
-	}
-	
+        {
+          va_end(ap);
+          return SSH_CRYPTO_SCHEME_UNKNOWN;
+        }
+        
       status = ssh_public_key_set_scheme(key, scheme, action->scheme_flag);
       if (status != SSH_CRYPTO_OK)
-	{
-	  va_end(ap);
-	  return status;
-	}
+        {
+          va_end(ap);
+          return status;
+        }
     }
   va_end(ap);
   return SSH_CRYPTO_OK;
@@ -3549,49 +3678,49 @@ ssh_private_key_get_info(SshPrivateKey key, ...)
     {
       /* Seek for the action. */
       action = ssh_pk_find_action(format, key->type->action_list,
-				  SSH_PK_FLAG_PRIVATE_KEY);
+                                  SSH_PK_FLAG_PRIVATE_KEY);
 
       if (!action)
-	{
-	  va_end(ap);
-	  return SSH_CRYPTO_UNSUPPORTED_IDENTIFIER;
-	}
+        {
+          va_end(ap);
+          return SSH_CRYPTO_UNSUPPORTED_IDENTIFIER;
+        }
 
       switch (action->flags & (SSH_PK_FLAG_SCHEME | SSH_PK_FLAG_SPECIAL |
-			       SSH_PK_FLAG_KEY_TYPE))
-	{
-	case SSH_PK_FLAG_KEY_TYPE:
-	  name_ptr = va_arg(ap, const char **);
-	  *name_ptr = key->type->name; /* ssh_private_key_name(key); */
-	  break;
-	case SSH_PK_FLAG_SCHEME:
-	  name_ptr = va_arg(ap, const char **);
-	  
-	  status = ssh_private_key_get_scheme_name(key,
-						   name_ptr,
-						   action->scheme_flag);
-	  if (status != SSH_CRYPTO_OK)
-	    {
-	      va_end(ap);
-	      return status;
-	    }
+                               SSH_PK_FLAG_KEY_TYPE))
+        {
+        case SSH_PK_FLAG_KEY_TYPE:
+          name_ptr = va_arg(ap, const char **);
+          *name_ptr = key->type->name; /* ssh_private_key_name(key); */
+          break;
+        case SSH_PK_FLAG_SCHEME:
+          name_ptr = va_arg(ap, const char **);
+          
+          status = ssh_private_key_get_scheme_name(key,
+                                                   name_ptr,
+                                                   action->scheme_flag);
+          if (status != SSH_CRYPTO_OK)
+            {
+              va_end(ap);
+              return status;
+            }
 
-	  break;
-	case SSH_PK_FLAG_SPECIAL:
-	  if (action->flags & SSH_PK_FLAG_WRAPPED)
-	    {
-	      if (action->action_get)
-		ssh_fatal("ssh_private_key_get_info: cannot wrap.");
-	      return SSH_CRYPTO_UNSUPPORTED_IDENTIFIER;
-	    }
+          break;
+        case SSH_PK_FLAG_SPECIAL:
+          if (action->flags & SSH_PK_FLAG_WRAPPED)
+            {
+              if (action->action_get)
+                ssh_fatal("ssh_private_key_get_info: cannot wrap.");
+              return SSH_CRYPTO_UNSUPPORTED_IDENTIFIER;
+            }
 
-	  if ((*action->action_get)(key->context, &ap, NULL, format) != 1)
-	    return SSH_CRYPTO_LIBRARY_CORRUPTED;
-	  break;
-	default:
-	  ssh_fatal("ssh_private_key_get_info: internal error.");
-	  break;
-	}
+          if ((*action->action_get)(key->context, &ap, NULL, format) != 1)
+            return SSH_CRYPTO_LIBRARY_CORRUPTED;
+          break;
+        default:
+          ssh_fatal("ssh_private_key_get_info: internal error.");
+          break;
+        }
     }
 
   va_end(ap);
@@ -3613,49 +3742,49 @@ ssh_public_key_get_info(SshPublicKey key, ...)
     {
       /* Seek for the action. */
       action = ssh_pk_find_action(format, key->type->action_list,
-				  SSH_PK_FLAG_PUBLIC_KEY);
+                                  SSH_PK_FLAG_PUBLIC_KEY);
 
       if (!action)
-	{
-	  va_end(ap);
-	  return SSH_CRYPTO_UNSUPPORTED_IDENTIFIER;
-	}
+        {
+          va_end(ap);
+          return SSH_CRYPTO_UNSUPPORTED_IDENTIFIER;
+        }
 
       switch (action->flags & (SSH_PK_FLAG_SCHEME | SSH_PK_FLAG_SPECIAL |
-			       SSH_PK_FLAG_KEY_TYPE))
-	{
-	case SSH_PK_FLAG_KEY_TYPE:
-	  name_ptr = va_arg(ap, const char **);
-	  *name_ptr = key->type->name; /* ssh_public_key_name(key); */
-	  break;
-	case SSH_PK_FLAG_SCHEME:
-	  name_ptr = va_arg(ap, const char **);
-	  
-	  status = ssh_public_key_get_scheme_name(key,
-						  name_ptr,
-						  action->scheme_flag);
-	  if (status != SSH_CRYPTO_OK)
-	    {
-	      va_end(ap);
-	      return status;
-	    }
+                               SSH_PK_FLAG_KEY_TYPE))
+        {
+        case SSH_PK_FLAG_KEY_TYPE:
+          name_ptr = va_arg(ap, const char **);
+          *name_ptr = key->type->name; /* ssh_public_key_name(key); */
+          break;
+        case SSH_PK_FLAG_SCHEME:
+          name_ptr = va_arg(ap, const char **);
+          
+          status = ssh_public_key_get_scheme_name(key,
+                                                  name_ptr,
+                                                  action->scheme_flag);
+          if (status != SSH_CRYPTO_OK)
+            {
+              va_end(ap);
+              return status;
+            }
 
-	  break;
-	case SSH_PK_FLAG_SPECIAL:
-	  if (action->flags & SSH_PK_FLAG_WRAPPED)
-	    {
-	      if (action->action_get)
-		ssh_fatal("ssh_public_key_get_info: cannot wrap.");
-	      return SSH_CRYPTO_UNSUPPORTED_IDENTIFIER;
-	    }
-	  
-	  if ((*action->action_get)(key->context, &ap, NULL, format) != 1)
-	    return SSH_CRYPTO_LIBRARY_CORRUPTED;
-	  break;
-	default:
-	  ssh_fatal("ssh_public_key_get_info: internal error.");
-	  break;
-	}
+          break;
+        case SSH_PK_FLAG_SPECIAL:
+          if (action->flags & SSH_PK_FLAG_WRAPPED)
+            {
+              if (action->action_get)
+                ssh_fatal("ssh_public_key_get_info: cannot wrap.");
+              return SSH_CRYPTO_UNSUPPORTED_IDENTIFIER;
+            }
+          
+          if ((*action->action_get)(key->context, &ap, NULL, format) != 1)
+            return SSH_CRYPTO_LIBRARY_CORRUPTED;
+          break;
+        default:
+          ssh_fatal("ssh_public_key_get_info: internal error.");
+          break;
+        }
     }
 
   va_end(ap);
@@ -3665,7 +3794,7 @@ ssh_public_key_get_info(SshPublicKey key, ...)
 #if 0
 DLLEXPORT Boolean DLLCALLCONV
 ssh_public_key_type_supported_capability(const char *key_type,
-					 SshPkFormat test)
+                                         SshPkFormat test)
 {
   return FALSE;
 }
@@ -3694,47 +3823,47 @@ ssh_public_key_get_supported(void)
     {
       /* Add key type node. */
       node = ssh_ntree_add_next(tree, node,
-				ssh_key_types[i].name);
+                                ssh_key_types[i].name);
 
       for (action = ssh_key_types[i].action_list, j = 0, l = 0;
-	   action[j].format != SSH_PKF_END; j++)
-	{
-	  if ((action[j].flags & SSH_PK_FLAG_SCHEME) == SSH_PK_FLAG_SCHEME)
-	    {
-	      /* Add scheme identifier nodes. */
-	      if (l == 0)
-		node = ssh_ntree_add_child(tree, node,
-					   action[j].scheme_class);
-	      else
-		  node = ssh_ntree_add_next(tree, node,
-					    action[j].scheme_class);
-	      l++;
-	      for (scheme_list = action[j].type, k = 0;
-		   (scheme_list_name =
-		    ssh_pk_next_generic(&scheme_list,
-					action[j].type_size)) != NULL; k++)
-		{
-		  /* Add actual algorithm identifiers.
+           action[j].format != SSH_PKF_END; j++)
+        {
+          if ((action[j].flags & SSH_PK_FLAG_SCHEME) == SSH_PK_FLAG_SCHEME)
+            {
+              /* Add scheme identifier nodes. */
+              if (l == 0)
+                node = ssh_ntree_add_child(tree, node,
+                                           action[j].scheme_class);
+              else
+                  node = ssh_ntree_add_next(tree, node,
+                                            action[j].scheme_class);
+              l++;
+              for (scheme_list = action[j].type, k = 0;
+                   (scheme_list_name =
+                    ssh_pk_next_generic(&scheme_list,
+                                        action[j].type_size)) != NULL; k++)
+                {
+                  /* Add actual algorithm identifiers.
 
-		     XXX Note, here we don't wonder about the *_USUAL_NAME
-		     thing. It is more straight forward to just forget
-		     it here. Although, it would make things easier to
-		     read. */
-		  if (k == 0)
-		    node = ssh_ntree_add_child(tree, node,
-					       scheme_list_name);
-		  else
-		    node = ssh_ntree_add_next(tree, node,
-					      scheme_list_name);
-		}
-	      /* Go up if one went down. */
-	      if (k)
-		node = ssh_nnode_get_parent(node);
-	    }
-	}
+                     XXX Note, here we don't wonder about the *_USUAL_NAME
+                     thing. It is more straight forward to just forget
+                     it here. Although, it would make things easier to
+                     read. */
+                  if (k == 0)
+                    node = ssh_ntree_add_child(tree, node,
+                                               scheme_list_name);
+                  else
+                    node = ssh_ntree_add_next(tree, node,
+                                              scheme_list_name);
+                }
+              /* Go up if one went down. */
+              if (k)
+                node = ssh_nnode_get_parent(node);
+            }
+        }
       /* Go up if one went down. */
       if (l)
-	node = ssh_nnode_get_parent(node);
+        node = ssh_nnode_get_parent(node);
     }
 
   ssh_ntree_generate_string(tree, &list);
@@ -3761,8 +3890,8 @@ ssh_public_key_get_supported(void)
    
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_public_key_import(const unsigned char *buf,
-		      size_t len,
-		      SshPublicKey *key)
+                      size_t len,
+                      SshPublicKey *key)
 {
   SshBuffer buffer;
   unsigned int pk_magic, pk_length, length;
@@ -3781,10 +3910,10 @@ ssh_public_key_import(const unsigned char *buf,
   ssh_buffer_append(&buffer, buf, len);
 
   if (ssh_decode_buffer(&buffer,
-			SSH_FORMAT_UINT32, &pk_magic,
-			SSH_FORMAT_UINT32, &pk_length,
-			SSH_FORMAT_UINT32_STR, &key_type, NULL,
-			SSH_FORMAT_END) == 0)
+                        SSH_FORMAT_UINT32, &pk_magic,
+                        SSH_FORMAT_UINT32, &pk_length,
+                        SSH_FORMAT_UINT32_STR, &key_type, NULL,
+                        SSH_FORMAT_END) == 0)
     {
       ssh_buffer_uninit(&buffer);
       return SSH_CRYPTO_UNKNOWN_KEY_TYPE;
@@ -3822,21 +3951,21 @@ ssh_public_key_import(const unsigned char *buf,
   for (i = 0, public_key = NULL; ssh_key_types[i].name; i++)
     {
       if (strcmp(ssh_key_types[i].name, name) == 0)
-	{
-	  /* Initialize public key. */
-	  public_key = ssh_xmalloc(sizeof(*public_key));
-	  public_key->type = &ssh_key_types[i];
+        {
+          /* Initialize public key. */
+          public_key = ssh_xmalloc(sizeof(*public_key));
+          public_key->type = &ssh_key_types[i];
 
-	  public_key->signature = NULL;
-	  public_key->encryption = NULL;
-	  public_key->diffie_hellman = NULL;
-	  /* XXX public_key->unified_diffie_hellman = NULL; */
-	  public_key->one_way_auth = NULL;
-	  public_key->two_way_auth = NULL;
-	  public_key->mqv = NULL;
-	  
-	  break;
-	}
+          public_key->signature = NULL;
+          public_key->encryption = NULL;
+          public_key->diffie_hellman = NULL;
+          /* XXX public_key->unified_diffie_hellman = NULL; */
+          public_key->one_way_auth = NULL;
+          public_key->two_way_auth = NULL;
+          public_key->mqv = NULL;
+          
+          break;
+        }
     }
   ssh_xfree(name);
   node = ssh_nnode_get_child(node);
@@ -3853,37 +3982,37 @@ ssh_public_key_import(const unsigned char *buf,
     {
       name = ssh_nnode_get_identifier(node);
       action =
-	ssh_pk_find_scheme_action(public_key->type->action_list,
-				  name,
-				  SSH_PK_FLAG_PUBLIC_KEY);
+        ssh_pk_find_scheme_action(public_key->type->action_list,
+                                  name,
+                                  SSH_PK_FLAG_PUBLIC_KEY);
       ssh_xfree(name);
       if (!action)
-	{
-	  status = SSH_CRYPTO_SCHEME_UNKNOWN;
-	  break;
-	}
+        {
+          status = SSH_CRYPTO_SCHEME_UNKNOWN;
+          break;
+        }
       child = ssh_nnode_get_child(node);
       if (child == NULL)
-	name = SSH_PK_USUAL_NAME;
+        name = SSH_PK_USUAL_NAME;
       else
-	name = ssh_nnode_get_identifier(child);
+        name = ssh_nnode_get_identifier(child);
       scheme = ssh_pk_find_generic(name, action->type,
-				   action->type_size);
+                                   action->type_size);
       if (child)
-	ssh_xfree(name);
+        ssh_xfree(name);
       if (scheme == NULL)
-	{
-	  status = SSH_CRYPTO_SCHEME_UNKNOWN;
-	  break;
-	}
+        {
+          status = SSH_CRYPTO_SCHEME_UNKNOWN;
+          break;
+        }
       /* Set the corresponding scheme to the group. */
       status = ssh_public_key_set_scheme(public_key, scheme,
-					 action->scheme_flag);
+                                         action->scheme_flag);
       
       if (status != SSH_CRYPTO_OK)
-	{
-	  break;
-	}
+        {
+          break;
+        }
       /* Move to the next scheme. */
       node = ssh_nnode_get_next(node);
     }
@@ -3897,8 +4026,8 @@ ssh_public_key_import(const unsigned char *buf,
     }
 
   if (ssh_decode_buffer(&buffer,
-			SSH_FORMAT_UINT32, &length,
-			SSH_FORMAT_END) == 0 ||
+                        SSH_FORMAT_UINT32, &length,
+                        SSH_FORMAT_END) == 0 ||
       length > ssh_buffer_len(&buffer))
     {
       ssh_xfree(public_key);
@@ -3908,8 +4037,8 @@ ssh_public_key_import(const unsigned char *buf,
   
   /* Algorithm specific part. */
   if ((*public_key->type->public_key_import)(ssh_buffer_ptr(&buffer),
-					     length,
-					     &(public_key->context)) == FALSE)
+                                             length,
+                                             &(public_key->context)) == FALSE)
     {
       ssh_buffer_uninit(&buffer);
       *key = NULL;
@@ -3929,8 +4058,8 @@ ssh_public_key_import(const unsigned char *buf,
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_public_key_export(SshPublicKey key,
-		      unsigned char **buf,
-		      size_t *length_return)
+                      unsigned char **buf,
+                      size_t *length_return)
 {
   SshBuffer buffer;
   unsigned char *temp_buf;
@@ -3944,22 +4073,22 @@ ssh_public_key_export(SshPublicKey key,
   name = ssh_public_key_name(key);
   
   ssh_encode_buffer(&buffer,
-		    SSH_FORMAT_UINT32, SSH_PUBLIC_KEY_MAGIC,
-		    SSH_FORMAT_UINT32, 0,
-		    SSH_FORMAT_UINT32_STR, name, strlen(name),
-		    SSH_FORMAT_END);
+                    SSH_FORMAT_UINT32, SSH_PUBLIC_KEY_MAGIC,
+                    SSH_FORMAT_UINT32, 0,
+                    SSH_FORMAT_UINT32_STR, name, strlen(name),
+                    SSH_FORMAT_END);
   ssh_xfree(name);
   
   if ((*key->type->public_key_export)(key->context,
-				      &temp_buf, &temp_buf_len) == FALSE)
+                                      &temp_buf, &temp_buf_len) == FALSE)
     {
       ssh_buffer_uninit(&buffer);
       return SSH_CRYPTO_OPERATION_FAILED;
     }
   
   ssh_encode_buffer(&buffer,
-		    SSH_FORMAT_UINT32_STR, temp_buf, temp_buf_len,
-		    SSH_FORMAT_END);
+                    SSH_FORMAT_UINT32_STR, temp_buf, temp_buf_len,
+                    SSH_FORMAT_END);
 
   ssh_xfree(temp_buf);
 
@@ -3982,7 +4111,7 @@ ssh_public_key_export(SshPublicKey key,
    separate some features might be implemeted with reference counting. */
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_public_key_copy(SshPublicKey key_src,
-		    SshPublicKey *key_dest)
+                    SshPublicKey *key_dest)
 {
   SshPublicKey created = ssh_xmalloc(sizeof(*created));
 
@@ -4016,7 +4145,7 @@ ssh_public_key_derive_pk_group(SshPublicKey key)
   group = ssh_xmalloc(sizeof(*group));
   group->type = key->type;
   (*key->type->public_key_derive_pk_group)(key->context,
-					   &group->context);
+                                           &group->context);
   /* Set up schemes for compatibility. */
   group->diffie_hellman = key->diffie_hellman;
   return group;
@@ -4050,11 +4179,11 @@ ssh_public_key_max_encrypt_output_len(SshPublicKey key)
 
 SshCryptoStatus
 ssh_private_key_import_internal(const unsigned char *buf,
-				size_t len,
-				const unsigned char *cipher_key,
-				size_t cipher_keylen,
-				SshPrivateKey *key,
-				Boolean expand_key)
+                                size_t len,
+                                const unsigned char *cipher_key,
+                                size_t cipher_keylen,
+                                SshPrivateKey *key,
+                                Boolean expand_key)
 {
   SshBuffer buffer;
   unsigned int pk_magic, pk_length, length, tmp_length;
@@ -4075,10 +4204,10 @@ ssh_private_key_import_internal(const unsigned char *buf,
   ssh_buffer_append(&buffer, buf, len);
   
   ssh_decode_buffer(&buffer,
-		    SSH_FORMAT_UINT32, &pk_magic,
-		    SSH_FORMAT_UINT32, &pk_length,
-		    SSH_FORMAT_UINT32_STR, &key_type, NULL, 
-		    SSH_FORMAT_END);
+                    SSH_FORMAT_UINT32, &pk_magic,
+                    SSH_FORMAT_UINT32, &pk_length,
+                    SSH_FORMAT_UINT32_STR, &key_type, NULL, 
+                    SSH_FORMAT_END);
 
   if (pk_magic != SSH_PRIVATE_KEY_MAGIC || pk_length < 8)
     return SSH_CRYPTO_CORRUPTED_KEY_FORMAT;
@@ -4107,25 +4236,25 @@ ssh_private_key_import_internal(const unsigned char *buf,
   for (i = 0, private_key = NULL; ssh_key_types[i].name; i++)
     {
       if (strcmp(ssh_key_types[i].name, name) == 0)
-	{
-	  /* Initialize public key. */
-	  private_key = ssh_xmalloc(sizeof(*private_key));
-	  private_key->type = &ssh_key_types[i];
+        {
+          /* Initialize public key. */
+          private_key = ssh_xmalloc(sizeof(*private_key));
+          private_key->type = &ssh_key_types[i];
 
-	  private_key->signature = NULL;
-	  private_key->encryption = NULL;
-	  private_key->diffie_hellman = NULL;
-	  /* XXX private_key->unified_diffie_hellman = NULL; */
-	  private_key->one_way_auth = NULL;
-	  private_key->two_way_auth = NULL;
-	  private_key->mqv = NULL;
+          private_key->signature = NULL;
+          private_key->encryption = NULL;
+          private_key->diffie_hellman = NULL;
+          /* XXX private_key->unified_diffie_hellman = NULL; */
+          private_key->one_way_auth = NULL;
+          private_key->two_way_auth = NULL;
+          private_key->mqv = NULL;
 
 #ifdef SSHDIST_SMART_CARD
 
 #endif /* SSHDIST_SMART_CARD */
-	  
-	  break;
-	}
+          
+          break;
+        }
     }
 
   ssh_xfree(name);
@@ -4143,35 +4272,35 @@ ssh_private_key_import_internal(const unsigned char *buf,
     {
       name = ssh_nnode_get_identifier(node);
       action =
-	ssh_pk_find_scheme_action(private_key->type->action_list,
-				  name,
-				  SSH_PK_FLAG_PRIVATE_KEY);
+        ssh_pk_find_scheme_action(private_key->type->action_list,
+                                  name,
+                                  SSH_PK_FLAG_PRIVATE_KEY);
       ssh_xfree(name);
       if (!action)
-	{
-	  status = SSH_CRYPTO_SCHEME_UNKNOWN;
-	  break;
-	}
+        {
+          status = SSH_CRYPTO_SCHEME_UNKNOWN;
+          break;
+        }
       child = ssh_nnode_get_child(node);
       if (child == NULL)
-	name = SSH_PK_USUAL_NAME;
+        name = SSH_PK_USUAL_NAME;
       else
-	name = ssh_nnode_get_identifier(child);
+        name = ssh_nnode_get_identifier(child);
       scheme = ssh_pk_find_generic(name, action->type,
-				   action->type_size);
+                                   action->type_size);
       if (child)
-	ssh_xfree(name);
+        ssh_xfree(name);
       if (scheme == NULL)
-	{
-	  status = SSH_CRYPTO_SCHEME_UNKNOWN;
-	  break;
-	}
+        {
+          status = SSH_CRYPTO_SCHEME_UNKNOWN;
+          break;
+        }
       /* Set the corresponding scheme to the group. */
       status = ssh_private_key_set_scheme(private_key, scheme,
-					  action->scheme_flag);
+                                          action->scheme_flag);
       
       if (status != SSH_CRYPTO_OK)
-	break;
+        break;
       /* Move to the next scheme. */
       node = ssh_nnode_get_next(node);
     }
@@ -4185,9 +4314,9 @@ ssh_private_key_import_internal(const unsigned char *buf,
     }
   
   ssh_decode_buffer(&buffer,
-		    SSH_FORMAT_UINT32_STR, &cipher_name, NULL, 
-		    SSH_FORMAT_UINT32, &length,
-		    SSH_FORMAT_END);
+                    SSH_FORMAT_UINT32_STR, &cipher_name, NULL, 
+                    SSH_FORMAT_UINT32, &length,
+                    SSH_FORMAT_END);
 
   tmp_buf_length = ssh_cipher_get_key_length(cipher_name);
   tmp_buf        = NULL;
@@ -4200,9 +4329,9 @@ ssh_private_key_import_internal(const unsigned char *buf,
       /* Expand encryption key. */
       tmp_buf = ssh_xmalloc(tmp_buf_length);
       ssh_hash_expand_key_internal(tmp_buf, tmp_buf_length,
-				   cipher_key, cipher_keylen,
-				   NULL, 0,
-				   &ssh_hash_md5_def);
+                                   cipher_key, cipher_keylen,
+                                   NULL, 0,
+                                   &ssh_hash_md5_def);
       
       cipher_key = tmp_buf;
       cipher_keylen = tmp_buf_length;
@@ -4210,8 +4339,8 @@ ssh_private_key_import_internal(const unsigned char *buf,
 
   /* Allocate cipher. */
   if ((status = ssh_cipher_allocate(cipher_name, cipher_key,
-				    cipher_keylen,
-				    FALSE, &cipher)) != SSH_CRYPTO_OK)
+                                    cipher_keylen,
+                                    FALSE, &cipher)) != SSH_CRYPTO_OK)
     {
       ssh_xfree(cipher_name);
       ssh_buffer_uninit(&buffer);
@@ -4223,8 +4352,8 @@ ssh_private_key_import_internal(const unsigned char *buf,
   ssh_xfree(cipher_name);
   
   if (ssh_cipher_transform(cipher,
-			   ssh_buffer_ptr(&buffer), ssh_buffer_ptr(&buffer),
-			   length) != SSH_CRYPTO_OK)
+                           ssh_buffer_ptr(&buffer), ssh_buffer_ptr(&buffer),
+                           length) != SSH_CRYPTO_OK)
     {
       ssh_buffer_uninit(&buffer);
       ssh_xfree(private_key);
@@ -4237,8 +4366,8 @@ ssh_private_key_import_internal(const unsigned char *buf,
 
   /* Algorithm specific part. */
   if (ssh_decode_buffer(&buffer,
-			SSH_FORMAT_UINT32, &tmp_length,
-			SSH_FORMAT_END) == 0 ||
+                        SSH_FORMAT_UINT32, &tmp_length,
+                        SSH_FORMAT_END) == 0 ||
       tmp_length > ssh_buffer_len(&buffer))
     {
       ssh_buffer_uninit(&buffer);
@@ -4269,13 +4398,13 @@ ssh_private_key_import_internal(const unsigned char *buf,
 
 SshCryptoStatus
 ssh_private_key_export_internal(SshPrivateKey key,
-				const char *cipher_name,
-				const unsigned char *cipher_key,
-				size_t cipher_keylen,		       
-				SshRandomState state,
-				unsigned char **bufptr,
-				size_t *length_return,
-				Boolean expand_key)
+                                const char *cipher_name,
+                                const unsigned char *cipher_key,
+                                size_t cipher_keylen,                  
+                                SshRandomState state,
+                                unsigned char **bufptr,
+                                size_t *length_return,
+                                Boolean expand_key)
 {
   SshCryptoStatus status;
   SshBuffer buffer, encrypted;
@@ -4296,9 +4425,9 @@ ssh_private_key_export_internal(SshPrivateKey key,
       /* Expand encryption key. */
       buf = ssh_xmalloc(buf_length);
       ssh_hash_expand_key_internal(buf, buf_length,
-				   cipher_key, cipher_keylen,
-				   NULL, 0,
-				   &ssh_hash_md5_def);
+                                   cipher_key, cipher_keylen,
+                                   NULL, 0,
+                                   &ssh_hash_md5_def);
 
       cipher_key    = buf;
       cipher_keylen = buf_length;
@@ -4306,9 +4435,9 @@ ssh_private_key_export_internal(SshPrivateKey key,
 
   /* Allocate cipher. */
   if ((status = ssh_cipher_allocate(cipher_name,
-				    cipher_key, cipher_keylen,
-				    TRUE, 
-				    &cipher)) != SSH_CRYPTO_OK)
+                                    cipher_key, cipher_keylen,
+                                    TRUE, 
+                                    &cipher)) != SSH_CRYPTO_OK)
     {
       ssh_xfree(buf);
       return status;
@@ -4319,7 +4448,7 @@ ssh_private_key_export_internal(SshPrivateKey key,
   /* Generate private key blob. */
 
   if ((*key->type->private_key_export)(key->context,
-				       &buf, &buf_length) == FALSE)
+                                       &buf, &buf_length) == FALSE)
     {
       ssh_cipher_free(cipher);
       return SSH_CRYPTO_OPERATION_FAILED;
@@ -4329,8 +4458,8 @@ ssh_private_key_export_internal(SshPrivateKey key,
   ssh_buffer_init(&encrypted);
 
   ssh_encode_buffer(&encrypted,
-		    SSH_FORMAT_UINT32_STR, buf, buf_length,
-		    SSH_FORMAT_END);
+                    SSH_FORMAT_UINT32_STR, buf, buf_length,
+                    SSH_FORMAT_END);
   
   /* Free exact private key information. */
   memset(buf, 0, buf_length);
@@ -4345,8 +4474,8 @@ ssh_private_key_export_internal(SshPrivateKey key,
   
   /* Encrypt buffer. */
   if (ssh_cipher_transform(cipher, ssh_buffer_ptr(&encrypted),
-			   ssh_buffer_ptr(&encrypted),
-			   ssh_buffer_len(&encrypted)) != SSH_CRYPTO_OK)
+                           ssh_buffer_ptr(&encrypted),
+                           ssh_buffer_len(&encrypted)) != SSH_CRYPTO_OK)
     {
       ssh_buffer_uninit(&encrypted);
       ssh_cipher_free(cipher);
@@ -4362,15 +4491,15 @@ ssh_private_key_export_internal(SshPrivateKey key,
   name = ssh_private_key_name(key);
   
   ssh_encode_buffer(&buffer,
-		    SSH_FORMAT_UINT32, SSH_PRIVATE_KEY_MAGIC,
-		    SSH_FORMAT_UINT32, 0,
-		    SSH_FORMAT_UINT32_STR,
-		    name, strlen(name),
-		    SSH_FORMAT_UINT32_STR,
-		    cipher_name, strlen(cipher_name),
-		    SSH_FORMAT_UINT32_STR, ssh_buffer_ptr(&encrypted),
-		    ssh_buffer_len(&encrypted),
-		    SSH_FORMAT_END);
+                    SSH_FORMAT_UINT32, SSH_PRIVATE_KEY_MAGIC,
+                    SSH_FORMAT_UINT32, 0,
+                    SSH_FORMAT_UINT32_STR,
+                    name, strlen(name),
+                    SSH_FORMAT_UINT32_STR,
+                    cipher_name, strlen(cipher_name),
+                    SSH_FORMAT_UINT32_STR, ssh_buffer_ptr(&encrypted),
+                    ssh_buffer_len(&encrypted),
+                    SSH_FORMAT_END);
 
   ssh_xfree(name);
   /* Free encrypted buffer. */
@@ -4392,69 +4521,69 @@ ssh_private_key_export_internal(SshPrivateKey key,
 
 /* Functions that are used from outside. These tell whether one wants to
    expand the key here or not. */
-			   
+                           
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_private_key_import(const unsigned char *buf,
-		       size_t len,
-		       const unsigned char *cipher_key,
-		       size_t cipher_keylen,
-		       SshPrivateKey *key)
+                       size_t len,
+                       const unsigned char *cipher_key,
+                       size_t cipher_keylen,
+                       SshPrivateKey *key)
 {
   return ssh_private_key_import_internal(buf, len,
-					 cipher_key, cipher_keylen,
-					 key, FALSE);
+                                         cipher_key, cipher_keylen,
+                                         key, FALSE);
 }
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_private_key_export(SshPrivateKey key,
-		       const char *cipher_name,
-		       const unsigned char *cipher_key,
-		       size_t cipher_keylen,		       
-		       SshRandomState state,
-		       unsigned char **bufptr,
-		       size_t *length_return)
+                       const char *cipher_name,
+                       const unsigned char *cipher_key,
+                       size_t cipher_keylen,                   
+                       SshRandomState state,
+                       unsigned char **bufptr,
+                       size_t *length_return)
 {
   return ssh_private_key_export_internal(key, cipher_name,
-					 cipher_key, cipher_keylen,
-					 state,
-					 bufptr, length_return, FALSE);
+                                         cipher_key, cipher_keylen,
+                                         state,
+                                         bufptr, length_return, FALSE);
 }
 
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_private_key_import_with_passphrase(const unsigned char *buf,
-				       size_t len,
-				       const char *passphrase,
-				       SshPrivateKey *key)
+                                       size_t len,
+                                       const char *passphrase,
+                                       SshPrivateKey *key)
 {
   return ssh_private_key_import_internal(buf, len,
-					 (unsigned char *) passphrase,
-					 strlen(passphrase),
-					 key, TRUE);
+                                         (unsigned char *) passphrase,
+                                         strlen(passphrase),
+                                         key, TRUE);
 }
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_private_key_export_with_passphrase(SshPrivateKey key,
-				       const char *cipher_name,
-				       const char *passphrase,
-				       SshRandomState state,
-				       unsigned char **bufptr,
-				       size_t *length_return)
+                                       const char *cipher_name,
+                                       const char *passphrase,
+                                       SshRandomState state,
+                                       unsigned char **bufptr,
+                                       size_t *length_return)
 {
   if (strcmp(passphrase, "") == 0)
     cipher_name = "none";
   return ssh_private_key_export_internal(key, cipher_name,
-					 (unsigned char *) passphrase,
-					 strlen(passphrase),
-					 state,
-					 bufptr, length_return, TRUE);
+                                         (unsigned char *) passphrase,
+                                         strlen(passphrase),
+                                         state,
+                                         bufptr, length_return, TRUE);
 }
 
 /* Copy private keys */
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_private_key_copy(SshPrivateKey key_src,
-		     SshPrivateKey *key_dest)
+                     SshPrivateKey *key_dest)
 {
   SshPrivateKey created = ssh_xmalloc(sizeof(*created));
 
@@ -4476,7 +4605,7 @@ ssh_private_key_copy(SshPrivateKey key_src,
   *key_dest = created;
   return SSH_CRYPTO_OK;
 }
-	
+        
 /* Release a private key structure. */
 
 DLLEXPORT void DLLCALLCONV
@@ -4524,13 +4653,14 @@ ssh_private_key_derive_public_key(SshPrivateKey key)
 
 
 
+
 #endif /* SSHDIST_SMART_CARD */
 
 
 
   pub->type = key->type;
   (*key->type->private_key_derive_public_key)(key->context,
-					      &pub->context);
+                                              &pub->context);
 
   /* Set up all schemes for compatibility. */
   pub->signature = key->signature;
@@ -4556,7 +4686,7 @@ ssh_private_key_derive_pk_group(SshPrivateKey key)
 
   group->type = key->type;
   (*key->type->private_key_derive_pk_group)(key->context,
-					    &group->context);
+                                            &group->context);
   /* Set up schemes for compatibility. */
   group->diffie_hellman = key->diffie_hellman;
   return group;
@@ -4584,25 +4714,25 @@ ssh_private_key_derive_signature_hash(SshPrivateKey key)
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_public_key_encrypt(SshPublicKey key, 
-		       const unsigned char *plaintext,
-		       size_t plaintext_len,
-		       unsigned char *ciphertext_buffer,
-		       size_t ssh_buffer_len,
-		       size_t *ciphertext_len_return,
-		       SshRandomState random_state)
+                       const unsigned char *plaintext,
+                       size_t plaintext_len,
+                       unsigned char *ciphertext_buffer,
+                       size_t ssh_buffer_len,
+                       size_t *ciphertext_len_return,
+                       SshRandomState random_state)
 {
   if (key->encryption == NULL)
     return SSH_CRYPTO_UNSUPPORTED;
   
   /* If true then encryption succeeded. */
   if ((*key->encryption->public_key_encrypt)(key->context,
-					     plaintext,
-					     plaintext_len,
-					     ciphertext_buffer,
-					     ssh_buffer_len,
-					     ciphertext_len_return,
-					     random_state,
-					     key->encryption->hash_def))
+                                             plaintext,
+                                             plaintext_len,
+                                             ciphertext_buffer,
+                                             ssh_buffer_len,
+                                             ciphertext_len_return,
+                                             random_state,
+                                             key->encryption->hash_def))
     return SSH_CRYPTO_OK;
 
   return SSH_CRYPTO_OPERATION_FAILED;
@@ -4617,35 +4747,35 @@ ssh_public_key_encrypt(SshPublicKey key,
 
 DLLEXPORT Boolean DLLCALLCONV
 ssh_public_key_verify_signature(SshPublicKey key,
-				const unsigned char *signature,
-				size_t signature_len,
-				const unsigned char *data,
-				size_t data_len)
+                                const unsigned char *signature,
+                                size_t signature_len,
+                                const unsigned char *data,
+                                size_t data_len)
 {
   if (key->signature == NULL)
-    return SSH_CRYPTO_UNSUPPORTED;
+    return FALSE;
   
   return (*key->signature->public_key_verify)(key->context,
-					      signature,
-					      signature_len,
-					      TRUE, data, data_len,
-					      key->signature->hash_def);
+                                              signature,
+                                              signature_len,
+                                              TRUE, data, data_len,
+                                              key->signature->hash_def);
 }
 
 DLLEXPORT Boolean DLLCALLCONV
 ssh_public_key_verify_signature_with_digest(SshPublicKey key,
-					    const unsigned char *signature,
-					    size_t signature_len,
-					    const unsigned char *digest,
-					    size_t digest_len)
+                                            const unsigned char *signature,
+                                            size_t signature_len,
+                                            const unsigned char *digest,
+                                            size_t digest_len)
 {
   if (key->signature == NULL)
-    return SSH_CRYPTO_UNSUPPORTED;
+    return FALSE;
 
   return (*key->signature->public_key_verify)(key->context,
-					      signature, signature_len,
-					      FALSE, digest, digest_len,
-					      key->signature->hash_def);
+                                              signature, signature_len,
+                                              FALSE, digest, digest_len,
+                                              key->signature->hash_def);
 }
 
 DLLEXPORT size_t DLLCALLCONV
@@ -4693,22 +4823,22 @@ ssh_private_key_max_decrypt_output_len(SshPrivateKey key)
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_private_key_decrypt(SshPrivateKey key,
-			const unsigned char *ciphertext,
-			size_t ciphertext_len,
-			unsigned char *plaintext_buffer,
-			size_t ssh_buffer_len,
-			size_t *plaintext_length_return)
+                        const unsigned char *ciphertext,
+                        size_t ciphertext_len,
+                        unsigned char *plaintext_buffer,
+                        size_t ssh_buffer_len,
+                        size_t *plaintext_length_return)
 {
   if (key->encryption == NULL)
     return SSH_CRYPTO_UNSUPPORTED;
 
   if ((*key->encryption->private_key_decrypt)(key->context,
-					      ciphertext,
-					      ciphertext_len,
-					      plaintext_buffer,
-					      ssh_buffer_len,
-					      plaintext_length_return,
-					      key->encryption->hash_def))
+                                              ciphertext,
+                                              ciphertext_len,
+                                              plaintext_buffer,
+                                              ssh_buffer_len,
+                                              plaintext_length_return,
+                                              key->encryption->hash_def))
 
     return SSH_CRYPTO_OK;
 
@@ -4717,22 +4847,22 @@ ssh_private_key_decrypt(SshPrivateKey key,
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_private_key_sign(SshPrivateKey key,
-		     const unsigned char *data,
-		     size_t data_len,
-		     unsigned char *signature_buffer,
-		     size_t ssh_buffer_len,
-		     size_t *signature_length_return,
-		     SshRandomState state)
+                     const unsigned char *data,
+                     size_t data_len,
+                     unsigned char *signature_buffer,
+                     size_t ssh_buffer_len,
+                     size_t *signature_length_return,
+                     SshRandomState state)
 {
   if (key->signature == NULL)
     return SSH_CRYPTO_UNSUPPORTED;
 
   if ((*key->signature->private_key_sign)(key->context,
-					  TRUE, data, data_len,
-					  signature_buffer, ssh_buffer_len,
-					  signature_length_return,
-					  state,
-					  key->signature->hash_def))
+                                          TRUE, data, data_len,
+                                          signature_buffer, ssh_buffer_len,
+                                          signature_length_return,
+                                          state,
+                                          key->signature->hash_def))
     return SSH_CRYPTO_OK;
 
   return SSH_CRYPTO_OPERATION_FAILED;
@@ -4740,22 +4870,22 @@ ssh_private_key_sign(SshPrivateKey key,
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_private_key_sign_digest(SshPrivateKey key,
-			    const unsigned char *digest,
-			    size_t digest_len,
-			    unsigned char *signature_buffer,
-			    size_t ssh_buffer_len,
-			    size_t *signature_length_return,
-			    SshRandomState state)
+                            const unsigned char *digest,
+                            size_t digest_len,
+                            unsigned char *signature_buffer,
+                            size_t ssh_buffer_len,
+                            size_t *signature_length_return,
+                            SshRandomState state)
 {
   if (key->signature == NULL)
     return SSH_CRYPTO_UNSUPPORTED;
 
   if ((*key->signature->private_key_sign)(key->context,
-					  FALSE, digest, digest_len,
-					  signature_buffer, ssh_buffer_len,
-					  signature_length_return,
-					  state,
-					  key->signature->hash_def))
+                                          FALSE, digest, digest_len,
+                                          signature_buffer, ssh_buffer_len,
+                                          signature_length_return,
+                                          state,
+                                          key->signature->hash_def))
     return SSH_CRYPTO_OK;
 
   return SSH_CRYPTO_OPERATION_FAILED;
@@ -4769,7 +4899,7 @@ ssh_pk_group_diffie_hellman_setup_max_output_length(SshPkGroup group)
   if (group->diffie_hellman == NULL)
     return 0;
   return (*group->diffie_hellman->
-	  diffie_hellman_exchange_max_length)(group->context);
+          diffie_hellman_exchange_max_length)(group->context);
 }
 
 DLLEXPORT size_t DLLCALLCONV
@@ -4778,26 +4908,26 @@ ssh_pk_group_diffie_hellman_agree_max_output_length(SshPkGroup group)
   if (group->diffie_hellman == NULL)
     return 0;
   return (*group->diffie_hellman->
-	  diffie_hellman_secret_value_max_length)(group->context);
+          diffie_hellman_secret_value_max_length)(group->context);
 }
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_pk_group_diffie_hellman_setup(SshPkGroup group,
-				  void **secret,
-				  unsigned char *exchange_buffer,
-				  size_t exchange_buffer_length,
-				  size_t *return_length,
-				  SshRandomState state)
+                                  void **secret,
+                                  unsigned char *exchange_buffer,
+                                  size_t exchange_buffer_length,
+                                  size_t *return_length,
+                                  SshRandomState state)
 {
   if (group->diffie_hellman == NULL)
     return SSH_CRYPTO_UNSUPPORTED;
 
   if ((*group->diffie_hellman->diffie_hellman_setup)(group->context,
-						     secret,
-						     exchange_buffer,
-						     exchange_buffer_length,
-						     return_length,
-						     state))
+                                                     secret,
+                                                     exchange_buffer,
+                                                     exchange_buffer_length,
+                                                     return_length,
+                                                     state))
     return SSH_CRYPTO_OK;
 
   return SSH_CRYPTO_OPERATION_FAILED;
@@ -4805,24 +4935,24 @@ ssh_pk_group_diffie_hellman_setup(SshPkGroup group,
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_pk_group_diffie_hellman_agree(SshPkGroup group,
-				  void *secret,
-				  unsigned char *exchange_buffer,
-				  size_t exchange_buffer_length,
-				  unsigned char *secret_value_buffer,
-				  size_t secret_value_buffer_length,
-				  size_t *return_length)
+                                  void *secret,
+                                  unsigned char *exchange_buffer,
+                                  size_t exchange_buffer_length,
+                                  unsigned char *secret_value_buffer,
+                                  size_t secret_value_buffer_length,
+                                  size_t *return_length)
 {
   if (group->diffie_hellman == NULL)
     return SSH_CRYPTO_UNSUPPORTED;
 
   if ((*group->diffie_hellman->
        diffie_hellman_agree)(group->context,
-			     secret,
-			     exchange_buffer,
-			     exchange_buffer_length,
-			     secret_value_buffer,
-			     secret_value_buffer_length,
-			     return_length))
+                             secret,
+                             exchange_buffer,
+                             exchange_buffer_length,
+                             secret_value_buffer,
+                             secret_value_buffer_length,
+                             return_length))
     return SSH_CRYPTO_OK;
   return SSH_CRYPTO_OPERATION_FAILED;
 }
@@ -4835,18 +4965,18 @@ ssh_pk_group_unified_diffie_hellman_agree_max_output_length(SshPkGroup group)
   if (group->diffie_hellman == NULL)
     return 0;
   return (*group->diffie_hellman->
-	  udh_secret_value_max_length)(group->context);
+          udh_secret_value_max_length)(group->context);
 }
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_pk_group_unified_diffie_hellman_agree(SshPublicKey public_key,
-					  SshPrivateKey private_key, 
-					  void *secret,
-					  unsigned char *exchange_buffer,
-					  size_t exchange_buffer_length,
-					  unsigned char *secret_value_buffer,
-					  size_t secret_value_buffer_length,
-					  size_t *return_length)
+                                          SshPrivateKey private_key, 
+                                          void *secret,
+                                          unsigned char *exchange_buffer,
+                                          size_t exchange_buffer_length,
+                                          unsigned char *secret_value_buffer,
+                                          size_t secret_value_buffer_length,
+                                          size_t *return_length)
 {
   if (private_key->diffie_hellman == NULL ||
       public_key->diffie_hellman == NULL)
@@ -4854,13 +4984,13 @@ ssh_pk_group_unified_diffie_hellman_agree(SshPublicKey public_key,
 
   if ((*private_key->diffie_hellman->
        udh_agree)(public_key->context,
-		  private_key->context,
-		  secret,
-		  exchange_buffer,
-		  exchange_buffer_length,
-		  secret_value_buffer,
-		  secret_value_buffer_length,
-		  return_length))
+                  private_key->context,
+                  secret,
+                  exchange_buffer,
+                  exchange_buffer_length,
+                  secret_value_buffer,
+                  secret_value_buffer_length,
+                  return_length))
     return SSH_CRYPTO_OK;
   return SSH_CRYPTO_OPERATION_FAILED;
 }

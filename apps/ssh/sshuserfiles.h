@@ -91,14 +91,18 @@
 #endif /* SSHDIST_WINDOWS */
 /* server directory */
 
+#ifndef ETCDIR
+#define ETCDIR "/etc"
+#endif /* ETCDIR */
+
 #ifndef SSH_SERVER_DIR
-#define SSH_SERVER_DIR "/etc/ssh2"
+#define SSH_SERVER_DIR ETCDIR "/ssh2"
 #endif /* SSH_SERVER_DIR */
 
 /* global configuration file for the client */
 
 #ifndef SSH_CLIENT_GLOBAL_CONFIG_FILE
-#define SSH_CLIENT_GLOBAL_CONFIG_FILE "/etc/ssh2/ssh2_config"
+#define SSH_CLIENT_GLOBAL_CONFIG_FILE SSH_SERVER_DIR "/ssh2_config"
 #endif /* SSH_CLIENT_GLOBAL_CONFIG_FILE */
 
 /* configuration file for the client */
@@ -150,33 +154,33 @@ char *ssh_randseed_file(SshUser user, SshConfig config);
    in the seed file into the generator. */
 
 void ssh_randseed_load(SshUser user, SshRandomState random_state,
-		       SshConfig config);
+                       SshConfig config);
 
 #endif /* SSHDIST_WINDOWS */
 
 /* Reads a blob into a buffer. Return TRUE on failure.  The caller must free
    `*blob' with ssh_xfree when no longer needed. */
 Boolean ssh_blob_read(SshUser user, const char *fname, unsigned char **blob, 
-		      size_t *bloblen, void *context);
+                      size_t *bloblen, void *context);
 
 /* Write a blob. Return TRUE on failure. */
 Boolean ssh_blob_write(SshUser user, const char *fname, mode_t mode,
-		       const unsigned char *blob, size_t bloblen, 
-		       void *context);
+                       const unsigned char *blob, size_t bloblen, 
+                       void *context);
 
 /* Read a public/private key blob from a file. Return the magic code
    or SSH_KEY_MAGIC_FAIL on failure.  The caller should free comment
    with ssh_xfree when no longer needed. */
 unsigned long ssh_key_blob_read(SshUser user, const char *fname, 
-				char **comment,
-				unsigned char **blob,
-				size_t *bloblen, void *context);
+                                char **comment,
+                                unsigned char **blob,
+                                size_t *bloblen, void *context);
 
 /* Write a key blob. Return TRUE on failure. */
 Boolean ssh_key_blob_write(SshUser user, const char *fname, mode_t mode,
-			   unsigned long magic,
-			   const char *comment, const unsigned char *key,
-			   size_t keylen, void * context);
+                           unsigned long magic,
+                           const char *comment, const unsigned char *key,
+                           size_t keylen, void * context);
 
 /* Get the random state from the file.  The caller is responsible for
    freeing the random number generator with ssh_random_free, or closing and
@@ -195,24 +199,24 @@ void ssh_randseed_update(SshUser user, SshRandomState rs, SshConfig config);
    responsible for freeing `comment' with ssh_xfree when no longer needed.
    `comment' can be NULL. */
 SshPublicKey ssh_pubkey_read(SshUser user, const char *fname, char **comment, 
-			     void * context);
+                             void * context);
 
 /* Write a public key to a file. Returns TRUE on error. */
 Boolean ssh_pubkey_write(SshUser user, const char *fname, const char *comment,
-			 SshPublicKey key, void *context);
+                         SshPublicKey key, void *context);
 
 /* Read a private key from a file. Return NULL on failure.  The caller should
    free `comment' with ssh_xfree when no longer needed.  `comment' can be NULL. */
 SshPrivateKey ssh_privkey_read(SshUser user, const char *fname,
-			       const char *passphrase, 
-			       char **comment, void *context);
+                               const char *passphrase, 
+                               char **comment, void *context);
 
 /* Write a private key to a file with a passphrase. Return TRUE on error. */
 Boolean ssh_privkey_write(SshUser user,
-			  const char *fname, const char *passphrase,
-			  const char *comment,
-			  SshPrivateKey key, SshRandomState rand,
-			  void *context);
+                          const char *fname, const char *passphrase,
+                          const char *comment,
+                          SshPrivateKey key, SshRandomState rand,
+                          void *context);
 
 /* build a list of private key files that should be tried when
    logging into `host'.  The list's last entry is NULL.

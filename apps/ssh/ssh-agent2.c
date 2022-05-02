@@ -25,6 +25,7 @@ The ssh authentication agent.
 #include "sshuser.h"
 #include "sshuserfiles.h"
 #include "sshunixeloop.h"
+#include "sshgetopt.h"
 
 typedef struct SshAgentImplRec *SshAgentImpl;
 
@@ -527,13 +528,17 @@ void ssh_agenti_check_parent(void *context)
 		       (void *)agent);
 }
 
+void usage()
+{
+  fprintf(stderr, "Usage: ssh-agent [-c] [-s] [command [args...]]\n");
+  exit(1);
+}
+
 /* Main program for the unix version of the agent. */
 
 int main(int ac, char **av)
 {
   int binsh = 1, opt;
-  extern int optind;
-  extern char *optarg;
   char *socket_name;
   char buf[100];
   SshAgentImpl agent;
@@ -543,20 +548,26 @@ int main(int ac, char **av)
   /* Get user database information for the current user. */
   user = ssh_user_initialize(NULL, FALSE);
   
-  while ((opt = getopt(ac, av, "cs")) != EOF)
-    switch (opt)
-      {
-      case 'c':
-	binsh = 0;
-	break;
-      case 's':
-	binsh = 1;
-	break;
-      default:
-	fprintf(stderr, "%s: unknown option '%c'.\n", av[0], opt);
-	fprintf(stderr, "Usage: ssh-agent [-c] [-s] [command [args...]]\n");
-	exit(1);
-      }
+  while ((opt = ssh_getopt(ac, av, "cs", NULL)) != -1)
+    {
+      if (!ssh_optval)
+	{
+	  usage();
+	}
+      switch (opt)
+	{
+	case 'c':
+	  binsh = 0;
+	  break;
+	case 's':
+	  binsh = 1;
+	  break;
+	default:
+	  fprintf(stderr, "%s: unknown option '%c'.\n", av[0], ssh_optopt);
+	  usage();
+	  exit(1);
+	}
+    }
 
   /* Ignore broken pipe signals. */
   signal(SIGPIPE, SIG_IGN);

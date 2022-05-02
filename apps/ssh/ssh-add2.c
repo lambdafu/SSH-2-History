@@ -16,7 +16,7 @@ Adds an identity to the authentication server, or removes an identity.
 */
 
 /*
- * $Id: ssh-add2.c,v 1.5 1998/09/14 01:11:02 sjl Exp $
+ * $Id: ssh-add2.c,v 1.7 1998/10/01 13:21:49 tri Exp $
  * $Log: ssh-add2.c,v $
  * $EndLog$
  */
@@ -29,6 +29,7 @@ Adds an identity to the authentication server, or removes an identity.
 #include "readpass.h"
 #include "sshuserfiles.h"
 #include "sshunixeloop.h"
+#include "sshgetopt.h"
 
 #define EXIT_STATUS_OK		0
 #define EXIT_STATUS_NOAGENT	1
@@ -298,8 +299,6 @@ void agent_open_callback(SshAgent agent, void *context)
 
 int main(int ac, char **av)
 {
-  extern int optind;
-  extern char *optarg;
   int opt, i, len;
   DIR *ssh2dir;
   char *ssh2dirname;
@@ -309,8 +308,13 @@ int main(int ac, char **av)
   user = ssh_user_initialize(NULL, FALSE);
   
   action = ADD;
-  while ((opt = getopt(ac, av, "ldDp")) != EOF)
+  while ((opt = ssh_getopt(ac, av, "ldDp", NULL)) != EOF)
     {
+      if (!ssh_optval)
+	{
+	  fprintf(stderr, "Usage: ssh-add [-l] [-d] [-p] [files...]\n");
+	  exit(EXIT_STATUS_ERROR);
+	}
       switch (opt)
 	{
 	case 'l':
@@ -330,8 +334,8 @@ int main(int ac, char **av)
 	}
     }
 
-  files = &av[optind];
-  num_files = ac - optind;
+  files = &av[ssh_optind];
+  num_files = ac - ssh_optind;
 
   /* Fetch default from ~/.ssh2/id_* (the first that we happen to get) */
 

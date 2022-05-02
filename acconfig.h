@@ -7,9 +7,6 @@
 /* Package version. */
 #undef VERSION
 
-/* IPSec harness */
-#undef HARNESS
-
 /* EFENCE memory debugger */
 #undef EFENCE
 
@@ -33,9 +30,6 @@
    (SunOS style). */
 #undef HAVE_ETC_SECURITY_PASSWD_ADJUNCT
   
-/* Define if you have OSF1 C2 security installed on the system */
-#undef HAVE_OSF1_C2_SECURITY
-
 /* Define if you have shadow passwords in /etc/shadow (Solaris style). */
 #undef HAVE_ETC_SHADOW
 
@@ -207,6 +201,9 @@
 
 /* Assembler code for MD5 included. */
 #undef ASM_MD5
+
+/* Defined if compiled symbols are _not_ prepended with underscore `_' */
+#undef HAVE_NO_SYMBOL_UNDERSCORE
 /* Define this to use assembler routines in sshmath library. */
 #undef SSHMATH_ASSEMBLER_SUBROUTINES
 
@@ -226,6 +223,10 @@
 
 /* If defines, this overrides "tty" as the terminal group. */
 #undef TTY_GROUP
+
+/* Define if you have OSF1 C2 security installed on the system */
+#undef HAVE_OSF1_C2_SECURITY
+
 
 /* This is defined if /var/run exists. */
 #undef HAVE_VAR_RUN

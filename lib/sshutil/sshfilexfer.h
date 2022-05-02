@@ -18,18 +18,14 @@ sharing, or other data copying over any stream.
 
 #include "sshstream.h"
 
-/***********************************************************************
- * Client-side functions
- ***********************************************************************/
-
 /* Data type for the file transfer client. */
 typedef struct SshFileClientRec *SshFileClient;
 
 /* Attribute flags.  These are used to specify which attributes are
    present. */
-#define SSH_FILEXFER_ATTR_SIZE		0x01
-#define SSH_FILEXFER_ATTR_UIDGID	0x02
-#define SSH_FILEXFER_ATTR_PERMISSIONS	0x04
+#define SSH_FILEXFER_ATTR_SIZE          0x01
+#define SSH_FILEXFER_ATTR_UIDGID        0x02
+#define SSH_FILEXFER_ATTR_PERMISSIONS   0x04
 #define SSH_FILEXFER_ATTR_ACMODTIME     0x08
 
 /* Data structure for representing file attributes. */
@@ -91,21 +87,32 @@ typedef enum {
   SSH_FX_CONNECTION_LOST
 } SshFileClientError;
 
+/***********************************************************************
+ * Common functions for client and server
+ ***********************************************************************/
+
+/* Duplicate a SshFileAttributes-structure.
+ */
+SshFileAttributes ssh_file_attributes_dup(SshFileAttributes attributes);
+
+/***********************************************************************
+ * Client-side functions
+ ***********************************************************************/
 
 /* Callback function for returning only the status of the command. */
 typedef void (*SshFileStatusCallback)(SshFileClientError error,
-				      void *context);
+                                      void *context);
 
 /* Callback function for returning file handles. */
 typedef void (*SshFileHandleCallback)(SshFileClientError error,
-				      SshFileHandle handle,
-				      void *context);
+                                      SshFileHandle handle,
+                                      void *context);
 
 /* Callback function for returning data. */
 typedef void (*SshFileDataCallback)(SshFileClientError error,
-				    const unsigned char *data,
-				    size_t len,
-				    void *context);
+                                    const unsigned char *data,
+                                    size_t len,
+                                    void *context);
 
 /*
  * Callback function for returning file names. 
@@ -115,15 +122,15 @@ typedef void (*SshFileDataCallback)(SshFileClientError error,
  */
 
 typedef void (*SshFileNameCallback)(SshFileClientError error,
-				    const char *name,
-				    const char *long_name,
-				    SshFileAttributes attrs,
-				    void *context);
+                                    const char *name,
+                                    const char *long_name,
+                                    SshFileAttributes attrs,
+                                    void *context);
 
 /* Callback function for returning file attributes. */
 typedef void (*SshFileAttributeCallback)(SshFileClientError error,
-					 SshFileAttributes attributes,
-					 void *context);
+                                         SshFileAttributes attributes,
+                                         void *context);
 
 /* This function wraps a communications channel into a file transfer client.
    This takes over the stream, and it should no longer be used directly.
@@ -138,73 +145,73 @@ void ssh_file_client_destroy(SshFileClient client);
    complete.  The callback will be called either during this call or
    any time later.  Attributes may be NULL to use default values. */
 void ssh_file_client_open(SshFileClient client,
-			  const char *name,
-			  unsigned int flags,
-			  SshFileAttributes attributes,
-			  SshFileHandleCallback callback,
-			  void *context);
+                          const char *name,
+                          unsigned int flags,
+                          SshFileAttributes attributes,
+                          SshFileHandleCallback callback,
+                          void *context);
 
 /* Sends a read request, and calls the given callback when complete.  The
    callback will be called either during this call or any time later. */
 void ssh_file_client_read(SshFileHandle handle,
-			  off_t offset,
-			  size_t len,
-			  SshFileDataCallback callback,
-			  void *context);
+                          off_t offset,
+                          size_t len,
+                          SshFileDataCallback callback,
+                          void *context);
 
 /* Sends a write request, and calls the given callback when complete.  The
    callback will be called either during this call or any time later. */
 void ssh_file_client_write(SshFileHandle handle,
-			   off_t offset,
-			   const unsigned char *buf,
-			   size_t len,
-			   SshFileStatusCallback callback,
-			   void *context);
+                           off_t offset,
+                           const unsigned char *buf,
+                           size_t len,
+                           SshFileStatusCallback callback,
+                           void *context);
 
 /* Sends a close request, and calls the given callback when complete.  The
    callback will be called either during this call or any time later. */
 void ssh_file_client_close(SshFileHandle handle,
-			   SshFileStatusCallback callback,
-			   void *context);
+                           SshFileStatusCallback callback,
+                           void *context);
 
 /* Sends a stat request, and calls the given callback when complete.  The
    callback will be called either during this call or any time later. */
 void ssh_file_client_stat(SshFileClient client,
-			  const char *name,
-			  SshFileAttributeCallback callback,
-			  void *context);
+                          const char *name,
+                          SshFileAttributeCallback callback,
+                          void *context);
 
 /* Sends an fstat request, and calls the given callback when complete.  The
    callback will be called either during this call or any time later. */
 void ssh_file_client_fstat(SshFileHandle handle,
-			   SshFileAttributeCallback callback,
-			   void *context);
+                           SshFileAttributeCallback callback,
+                           void *context);
 
 /* Sends a setstat request, and calls the given callback when complete.  The
    callback will be called either during this call or any time later.
    Setstat requests can be used to implement e.g. chown and chmod. */
 void ssh_file_client_setstat(SshFileClient client,
-			     const char *name,
-			     SshFileAttributes attributes,
-			     SshFileStatusCallback callback,
-			     void *context);
+                             const char *name,
+                             SshFileAttributes attributes,
+                             SshFileStatusCallback callback,
+                             void *context);
 
 /* Sends an fsetstat request, and calls the given callback when complete.  The
    callback will be called either during this call or any time later.
    Fsetstat requests can be used to implement e.g. fchown and fchmod. */
 void ssh_file_client_fsetstat(SshFileHandle handle,
-			      SshFileAttributes attributes,
-			      SshFileStatusCallback callback,
-			      void *context);
+                              SshFileAttributes attributes,
+                              SshFileStatusCallback callback,
+                              void *context);
 
 /* Sends an opendir request, and calls the given callback when complete.  The
    callback will be called either during this call or any time later.
    The path should point to a directory.  An empty string refers to the
    current directory. */
 void ssh_file_client_opendir(SshFileClient client,
-			     const char *name,
-			     SshFileHandleCallback callback,
-			     void *context);
+                             const char *name,
+                             SshFileHandleCallback callback,
+                             void *context);
 
 /* Sends a readdir request, and calls the given callback when
    complete.  The callback will be called either during this call or
@@ -212,40 +219,40 @@ void ssh_file_client_opendir(SshFileClient client,
    component of the name is returned (i.e., the name stored in the
    directory). */
 void ssh_file_client_readdir(SshFileHandle handle,
-			     SshFileNameCallback callback,
-			     void *context);
+                             SshFileNameCallback callback,
+                             void *context);
 
 /* Sends a request to remove the given file.  This cannot be used to
    remove directories.  The callback will be called either during this call
    or any time later. */
 void ssh_file_client_remove(SshFileClient client,
-			    const char *name,
-			    SshFileStatusCallback callback,
-			    void *context);
+                            const char *name,
+                            SshFileStatusCallback callback,
+                            void *context);
 
 /* Sends a requst to create the named directory, and calls the given callback
    when complete.  The callback will be called either during this call
    or any time later.  Attrs may be NULL to use default values. */
 void ssh_file_client_mkdir(SshFileClient client,
-			   const char *name,
-			   SshFileAttributes attrs,
-			   SshFileStatusCallback callback,
-			   void *context);
+                           const char *name,
+                           SshFileAttributes attrs,
+                           SshFileStatusCallback callback,
+                           void *context);
 
 /* Sends a request to remove the given directory.  This cannot be used to
    remove normal files.  The callback will be called either during this
    call or any time later. */
 void ssh_file_client_rmdir(SshFileClient client,
-			   const char *name,
-			   SshFileStatusCallback callback,
-			   void *context);
+                           const char *name,
+                           SshFileStatusCallback callback,
+                           void *context);
 
 /* Asks the server side to resolve a path */
 
 void ssh_file_client_realpath(SshFileClient client,
-			      const char *path,
-			      SshFileNameCallback callback,
-			      void *context);
+                              const char *path,
+                              SshFileNameCallback callback,
+                              void *context);
 
 /***********************************************************************
  * Server-side functions

@@ -112,6 +112,7 @@ libsshcrypt_a_SOURCES = \
   genciph.c \
   nociph.c \
   des.c \
+  blowfish.c \
   arcfour.c \
   \
   genpkcs.c \
@@ -138,6 +139,7 @@ include_HEADERS = \
   md5.h \
   ripemd160.h \
   des.h \
+  blowfish.h \
   arcfour.h \
   hmac.h \
   macs.h \
@@ -183,9 +185,9 @@ X_LIBS = @X_LIBS@
 X_EXTRA_LIBS = @X_EXTRA_LIBS@
 X_PRE_LIBS = @X_PRE_LIBS@
 libsshcrypt_a_OBJECTS =  genhash.o md5.o sha.o ripemd160.o genmac.o \
-hmac.o macs.o genciph.o nociph.o des.o arcfour.o genpkcs.o genmp.o \
-dlglue.o dlfix.o bufzip.o genaux.o genrand.o namelist.o keyblob.o \
-libmonitor.o
+hmac.o macs.o genciph.o nociph.o des.o blowfish.o arcfour.o genpkcs.o \
+genmp.o dlglue.o dlfix.o bufzip.o genaux.o genrand.o namelist.o \
+keyblob.o libmonitor.o
 CFLAGS = @CFLAGS@
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS)
 LINK = $(CC) $(CFLAGS) $(LDFLAGS) -o $@
@@ -424,12 +426,6 @@ mostlyclean distclean maintainer-clean
 
 list_libssh_a_objects:
 	@echo BEGIN_FILE_LIST: $(libsshcrypt_a_OBJECTS) $(libsshcrypt_a_LIBADD) :END_FILE_LIST
-
-#ssh_keygen_SOURCES = ssh-keygen.c 
-#ssh_keygen_LDADD = libsshcrypt.a \
-#../sshutil/libsshutil.a \
-#  ../zlib/libz.a \
-#  ../sshmath/libsshmath.a
 
 .s.o:
 	$(CC) -c $(CFLAGS) $(SFLAGS) $<

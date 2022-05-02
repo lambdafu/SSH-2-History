@@ -14,7 +14,7 @@
   */
 
 /*
- * $Id: base64.c,v 1.5 1998/09/14 08:27:45 sjl Exp $
+ * $Id: base64.c,v 1.6 1998/09/23 11:13:56 tmo Exp $
  * $Log: base64.c,v $
  * $EndLog$
  */
@@ -67,7 +67,7 @@ size_t ssh_is_base64_buf(unsigned char *buf, size_t buf_len)
 unsigned char *ssh_buf_to_base64(const unsigned char *buf, size_t buf_len)
 {
   unsigned char *out;
-  int i, j;
+  size_t i, j;
   SshUInt32 limb;
 
   out = ssh_xmalloc(((buf_len * 8 + 5) / 6) + 5);
@@ -159,7 +159,7 @@ unsigned char *ssh_base64_to_buf(unsigned char *str, size_t *buf_len)
 	      limb =
 		((SshUInt32)ssh_inv_base64[str[i]] << 6) |
 		((SshUInt32)ssh_inv_base64[str[i + 1]]);
-	      buf[j] = (limb >> 4) & 0xff;
+	      buf[j] =(unsigned char)(limb >> 4) & 0xff;
 	      j++;
 	    }
 	  else
@@ -168,8 +168,8 @@ unsigned char *ssh_base64_to_buf(unsigned char *str, size_t *buf_len)
 		((SshUInt32)ssh_inv_base64[str[i]] << 12) |
 		((SshUInt32)ssh_inv_base64[str[i + 1]] << 6) |
 		((SshUInt32)ssh_inv_base64[str[i + 2]]);
-	      buf[j] = (limb >> 10) & 0xff;
-	      buf[j + 1] = (limb >> 2) & 0xff;
+	      buf[j] = (unsigned char)(limb >> 10) & 0xff;
+	      buf[j + 1] = (unsigned char)(limb >> 2) & 0xff;
 	      j += 2;
 	    }
 	}
@@ -181,9 +181,9 @@ unsigned char *ssh_base64_to_buf(unsigned char *str, size_t *buf_len)
 	    ((SshUInt32)ssh_inv_base64[str[i + 2]] << 6) |
 	    ((SshUInt32)ssh_inv_base64[str[i + 3]]);
 	  
-	  buf[j] = (limb >> 16) & 0xff;
-	  buf[j + 1] = (limb >> 8) & 0xff;
-	  buf[j + 2] = (limb) & 0xff;
+	  buf[j] = (unsigned char)(limb >> 16) & 0xff;
+	  buf[j + 1] = (unsigned char)(limb >> 8) & 0xff;
+	  buf[j + 2] = (unsigned char)(limb) & 0xff;
 	  j += 3;
 	}
     }
@@ -242,7 +242,7 @@ unsigned char *ssh_base64_remove_whitespace(const unsigned char *str,
 					    size_t len)
 {
   unsigned char *cp;
-  int i, j;
+  size_t i, j;
 
   if (len == 0)
     len = strlen((char *) str);

@@ -1,4 +1,4 @@
-SSH 2.0.9
+SSH 2.0.10
 ==============
 
         Timo J. Rinne <tri@ssh.fi>
@@ -99,7 +99,7 @@ Installation
       This should set everything up and create the host key.
 
       The old files are moved to *.old names. If you don't want them
-      around, run 
+      around, goto apps/ssh and run 
 
       # make clean-up-old
 
@@ -209,7 +209,7 @@ Platforms
 
 NOTES ON INSTALLATION AND USE:
 
-	* Scp2 isn't fully compatible with scp1. If target server is
+	* Scp2 isn't compatible with scp1. If target server is
 	running ssh-1.x.x, use scp1-command (the compatibility will, if
 	possible, get fixed in the future).
 
@@ -221,21 +221,25 @@ NOTES ON INSTALLATION AND USE:
 	is 1.2.26 or better (1.2.26 is the latest). So be sure you have
 	that!
 
-	* If you're getting 'protocol error: packet length too long <insert
-	very large positive or negative number here>', and you're using
-	the commercial version, then you've probably got a version of gcc
-	which mangles function names in assembler in a way that our
-	crypto functions can't handle. This is essentially a bug in our
-	configure-script. Workaround: configure with
-	--without-crypto-asm.  This should especially be noted when
-	compiling the commercial version on Linux.  This bug will be
-	fixed in future releases.
-
 	* IRIX-support still isn't complete.
 
-	* If you're Sun boots during a connect to sshd2, do the following.
+	* If your Sun boots during a connect to sshd2, do the following.
 	Fetch the latest patches from Sun, generate a new hostkey with the
 	patched version, and try again (also, you might want to try
 	--enable-blocking-connect etc).
 
+THANKS
+======	
+	...to everyone who contributed to ssh2. If you feel that your
+	name should be in this list, write mail to ssh2@ssh.fi. These
+	are in no particular order.
+
+	Dug Song
+	Andreas Ley
+	Troy Barbee
+	Simon Burge
+	Luigi Pugnetti
 	
+	... and everyone else who submitted bug-reports,
+	feature-requests and patches.
+

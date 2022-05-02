@@ -16,7 +16,7 @@ Common (client+server) internal definitions for the transport layer protocol.
 */
 
 /*
- * $Id: trcommon.h,v 1.17 1998/07/11 12:37:07 tri Exp $
+ * $Id: trcommon.h,v 1.18 1998/10/19 13:20:27 sjl Exp $
  * $Log: trcommon.h,v $
  * $EndLog$
  */
@@ -31,13 +31,13 @@ Common (client+server) internal definitions for the transport layer protocol.
 #include "bufzip.h"
 #include "gmp.h"
 
-#define SSH_VERSION_STRING		"SSH-2.0-%.200s"
-#define SSH_VERSION_STRING_COMPAT	"SSH-1.99-%.200s"
+#define SSH_VERSION_STRING              "SSH-2.0-%.200s"
+#define SSH_VERSION_STRING_COMPAT       "SSH-1.99-%.200s"
 
-#define SSH_MAX_TOTAL_PACKET_LENGTH	35000
-#define SSH_MAX_PAYLOAD_LENGTH		32768
-#define SSH_CONTROL_RESERVE		5000  /* reserve for control packets */
-#define SSH_BUFFERING_LIMIT		50000
+#define SSH_MAX_TOTAL_PACKET_LENGTH     35000
+#define SSH_MAX_PAYLOAD_LENGTH          32768
+#define SSH_CONTROL_RESERVE             5000  /* reserve for control packets */
+#define SSH_BUFFERING_LIMIT             50000
 
 typedef enum
 {
@@ -71,40 +71,40 @@ typedef const struct SshKexTypeRec *SshKexType;
 typedef struct
 {
   /* General state information. */
-  Boolean server;		    /* Are we running as server? */
+  Boolean server;                   /* Are we running as server? */
   Boolean version_compatibility;    /* Support compatibility with old ssh. */
-  Boolean doing_rekey;		    /* Are we doing rekey? */
-  Boolean rekey_request_sent;	    /* Have we sent rekey request. */
+  Boolean doing_rekey;              /* Are we doing rekey? */
+  Boolean rekey_request_sent;       /* Have we sent rekey request. */
   Boolean destroy_after_disconnect; /* Destroy this context after disconnect */
-  Boolean read_has_blocked;	    /* We are not receiving read callbacks. */
-  SshSentState sent_state;	    /* Send state. */
+  Boolean read_has_blocked;         /* We are not receiving read callbacks. */
+  SshSentState sent_state;          /* Send state. */
   SshReceivedState received_state;  /* Receive state. */
-  SshStream connection;		    /* Connection to other side. */
-  SshRandomState random_state;	    /* Random state to use. */
-  SshTransportParams params;	    /* Configuration parameters. */
+  SshStream connection;             /* Connection to other side. */
+  SshRandomState random_state;      /* Random state to use. */
+  SshTransportParams params;        /* Configuration parameters. */
 
   /* Packet sequence numbers. */
   unsigned long incoming_sequence_number;
   unsigned long outgoing_sequence_number;
   
   /* State for data going out to the connection. */
-  SshBuffer outgoing;		    /* Pending outgoing data. */
-  Boolean outgoing_eof;		    /* Send EOF when buffer empty. */
+  SshBuffer outgoing;               /* Pending outgoing data. */
+  Boolean outgoing_eof;             /* Send EOF when buffer empty. */
 
   /* State for packets coming from the connection. */
-  SshBuffer *incoming_packet;	    /* Received packet. */
-  size_t incoming_packet_index;	    /* How much data has been received? */
+  SshBuffer *incoming_packet;       /* Received packet. */
+  size_t incoming_packet_index;     /* How much data has been received? */
   size_t incoming_packet_len;       /* Total length of incoming packet. */
 
   /* State for data going upwards. */
-  SshStream up_stream;		    /* The upward stream (ourself). */
+  SshStream up_stream;              /* The upward stream (ourself). */
   SshStreamCallback up_callback;    /* The application callback. */
-  void *up_context;		    /* The application context. */
-  SshBuffer up_outgoing;	    /* Pending outgoing data upwards. */
-  Boolean up_outgoing_eof;	    /* Send EOF after current data. */
-  SshBuffer up_incoming;	    /* SshBuffer for incoming packets.*/
-  Boolean up_write_blocked;	    /* Write from up has failed. */
-  Boolean up_read_blocked;	    /* Read from up has failed. */
+  void *up_context;                 /* The application context. */
+  SshBuffer up_outgoing;            /* Pending outgoing data upwards. */
+  Boolean up_outgoing_eof;          /* Send EOF after current data. */
+  SshBuffer up_incoming;            /* SshBuffer for incoming packets.*/
+  Boolean up_write_blocked;         /* Write from up has failed. */
+  Boolean up_read_blocked;          /* Read from up has failed. */
   
   /* Data for processing version number. */
   char *own_version;                /* Does not include crlf. */
@@ -136,9 +136,9 @@ typedef struct
   } c_to_s, s_to_c;
 
   /* Internal objects for the algorithms currently in use. */
-  SshKexType kex;		    /* Note: statically allocated, const. */
+  SshKexType kex;                   /* Note: statically allocated, const. */
   SshHash hash;                     /* The hash algorithm is implied by
-				     * the key exchange algorithm. */
+                                     * the key exchange algorithm. */
   SshCipher outgoing_cipher;
   size_t incoming_granularity;
   SshCipher incoming_cipher;
@@ -200,6 +200,12 @@ typedef struct
   SshPrivateKey private_server_key;
   SshBuffer *public_server_key_blob;
 
+  /* Compatibility with older ssh-2.0.x versions */
+
+  /* MAC-bug, which is in versions ssh-2.0.9 and earlier (here our
+     implementation was conflicting with the draft) */
+  Boolean ssh_old_mac_bug_compat;
+  
   /* For dh methods: the group, "secret" and the exchange buffer */
 
   mpz_t dh_p;
@@ -217,25 +223,25 @@ typedef struct
    client or server specific initializations, and finally a call to
    ssh_tr_create_final. */
 SshTransportCommon ssh_tr_create(SshStream connection, Boolean server,
-				 Boolean compatibility,
-				 Boolean fake_old_version,
-				 const char *application_version,
-				 SshRandomState random_state,
-				 SshTransportParams params);
+                                 Boolean compatibility,
+                                 Boolean fake_old_version,
+                                 const char *application_version,
+                                 SshRandomState random_state,
+                                 SshTransportParams params);
 
 /* Prepares the client side for key exchange. */
 void ssh_tr_client_init_kex(SshTransportCommon tr,
-			    const char *service_name,
-			    const char *server_host_name,
-			    SshKeyCheckCallback key_check,
-			    void *key_check_context);
+                            const char *service_name,
+                            const char *server_host_name,
+                            SshKeyCheckCallback key_check,
+                            void *key_check_context);
 
 /* Prepares the server side for key exchange. */
 void ssh_tr_server_init_kex(SshTransportCommon tr,
-			    SshPrivateKey private_host_key,
-			    SshPrivateKey private_server_key,
-			    const unsigned char *public_host_key_blob,
-			    size_t public_host_key_blob_len);
+                            SshPrivateKey private_host_key,
+                            SshPrivateKey private_server_key,
+                            const unsigned char *public_host_key_blob,
+                            size_t public_host_key_blob_len);
 
 /* Finalizes the creation of the transport layer protocol.  Wraps it into
    a stream, and returns the stream.  The lower-level object should not
@@ -245,8 +251,8 @@ SshStream ssh_tr_create_final(SshTransportCommon tr);
 
 /* Disconnects, and optionally sends a disconnect message to the other side. */
 void ssh_tr_up_disconnect(SshTransportCommon tr, Boolean locally_generated,
-			  Boolean send_to_other_side,
-			  unsigned int reason, const char *fmt, ...);
+                          Boolean send_to_other_side,
+                          unsigned int reason, const char *fmt, ...);
 
 /* Methods table for transport streams. */
 extern const SshStreamMethodsTable ssh_tr_methods;

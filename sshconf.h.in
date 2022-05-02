@@ -42,9 +42,6 @@
 /* Package version. */
 #undef VERSION
 
-/* IPSec harness */
-#undef HARNESS
-
 /* EFENCE memory debugger */
 #undef EFENCE
 
@@ -69,9 +66,6 @@
 #undef HAVE_ETC_SECURITY_PASSWD_ADJUNCT
 
   
-/* Define if you have OSF1 C2 security installed on the system */
-#undef HAVE_OSF1_C2_SECURITY
-
 /* Define if you have shadow passwords in /etc/shadow (Solaris style). */
 #undef HAVE_ETC_SHADOW
 
@@ -200,13 +194,10 @@
 /* Enable the assembler crypt code. */
 #undef WITH_CRYPT_ASM
 
-/* Assembler code for MD5 included. */
-#undef ASM_MD5
+/* Defined if compiled symbols are _not_ prepended with underscore `_' */
+#undef HAVE_NO_SYMBOL_UNDERSCORE
 /* Define this to use assembler routines in sshmath library. */
 #undef SSHMATH_ASSEMBLER_SUBROUTINES
-
-/* Define this to use i386 assembler routines in sshmath library. */
-#undef SSHMATH_I386
 
 /* Define this if O_NONBLOCK does not work on your system (e.g., Ultrix). */
 #undef O_NONBLOCK_BROKEN
@@ -217,6 +208,9 @@
 
 /* If defines, this overrides "tty" as the terminal group. */
 #undef TTY_GROUP
+
+/* Define if you have OSF1 C2 security installed on the system */
+#undef HAVE_OSF1_C2_SECURITY
 
 /* This is defined if /var/run exists. */
 #undef HAVE_VAR_RUN
@@ -232,6 +226,9 @@
 
 /* The number of bytes in a long.  */
 #undef SIZEOF_LONG
+
+/* The number of bytes in a long long.  */
+#undef SIZEOF_LONG_LONG
 
 /* The number of bytes in a short.  */
 #undef SIZEOF_SHORT
@@ -440,6 +437,9 @@
 /* Define if you have the waitpid function.  */
 #undef HAVE_WAITPID
 
+/* Define if you have the <curses.h> header file.  */
+#undef HAVE_CURSES_H
+
 /* Define if you have the <dirent.h> header file.  */
 #undef HAVE_DIRENT_H
 
@@ -514,6 +514,9 @@
 
 /* Define if you have the <sys/utsname.h> header file.  */
 #undef HAVE_SYS_UTSNAME_H
+
+/* Define if you have the <term.h> header file.  */
+#undef HAVE_TERM_H
 
 /* Define if you have the <termcap.h> header file.  */
 #undef HAVE_TERMCAP_H

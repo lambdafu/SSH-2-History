@@ -24,6 +24,19 @@
 #include "sshcrypt.h"
 #include "sshconn.h"
 
+#ifdef SSHDIST_SSH_INTERNAL_RELEASE
+
+
+#else /* SSHDIST_SSH_INTERNAL_RELEASE */
+#ifdef SSHDIST_F_SECURE_COMMERCIAL
+
+
+#else /* SSHDIST_F_SECURE_COMMERCIAL */
+#define SSH2_PROTOCOL_VERSION_STRING \
+                SSH2_VERSION " (non-commercial)"
+#endif /* SSHDIST_F_SECURE_COMMERCIAL */
+#endif /* SSHDIST_SSH_INTERNAL_RELEASE */
+
 /* XXX temporarily defined here. */
 #ifndef SSHDIST_WINDOWS
 #define SSH_CHANNEL_SESSION
@@ -135,15 +148,15 @@ typedef void (*SshCommonAuthenticatedNotify)(const char *user, void *context);
    The object should be destroyed from the ``disconnect'' callback or from
    a ``close_notify'' callback (see below).  */
 SshCommon ssh_common_wrap(SshStream connection,
-			  SshStream auth,
-			  Boolean client,
-			  SshConfig config,
-			  SshRandomState random_state,
-			  const char *server_host_name,
-			  SshConnDisconnectProc disconnect,
-			  SshConnDebugProc debug,
-			  SshCommonAuthenticatedNotify authenticated_notify,
-			  void *context);
+                          SshStream auth,
+                          Boolean client,
+                          SshConfig config,
+                          SshRandomState random_state,
+                          const char *server_host_name,
+                          SshConnDisconnectProc disconnect,
+                          SshConnDebugProc debug,
+                          SshCommonAuthenticatedNotify authenticated_notify,
+                          void *context);
 
 /* Destroys the common protocol object.  This will not call the disconnect
    callback in any situation. */
@@ -165,7 +178,7 @@ typedef void (*SshChannelTypeDestroyProc)(void *context);
 /* Returns the channel type context for the channel type identified by
    the name. */
 void *ssh_common_get_channel_type_context(SshCommon common,
-					  const char *name);
+                                          const char *name);
 
 /* Informs the channel type independent code that a new channel has been
    created. */

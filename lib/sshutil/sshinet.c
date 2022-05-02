@@ -1,19 +1,15 @@
 /*
-  File: sship.c
+  File: sshinet.c
 
   Authors: 
-  	Tero T Mononen <tmo@ssh.fi>
+        Tero T Mononen <tmo@ssh.fi>
 
   Description: 
-	
+        IP related functions and definitions.
 
   Copyright:
-  	Copyright (c) 1998 SSH Communications Security, Finland
-	All rights reserved
-
-  Reviews:
-  	FUPR:	
-
+        Copyright (c) 1998 SSH Communications Security, Finland
+        All rights reserved
 */
 
 #include "sshincludes.h"
@@ -174,7 +170,7 @@ Boolean ssh_string_to_addr(const char *s, struct in_addr *addr)
   if ((addr->s_addr & 0xffffffff) == 0xffffffff)
     {
       if (strcmp(s, "255.255.255.255") == 0)
-	return TRUE;
+        return TRUE;
     }
   return (addr->s_addr & 0xffffffff) != 0xffffffff;
 }
@@ -184,7 +180,7 @@ char *ssh_inet_v4tostr(char *buf, size_t len, SshUInt32 addr)
   unsigned char *octets = (unsigned char *)&addr;
 
   snprintf(buf, len, "%d.%d.%d.%d",
-	   octets[0], octets[1], octets[2], octets[3]);
+           octets[0], octets[1], octets[2], octets[3]);
   return buf;
 }
 
@@ -205,20 +201,20 @@ Boolean ssh_inet_strtov4(const char *buf, SshUInt32 *paddr)
    TRUE if the address is valid and conversion is successful (the
    buffer is large enough) and FALSE otherwise.  */
 Boolean ssh_inet_strtobin(const char *ip_address, 
-			  unsigned char *out_buffer,
-			  size_t *out_buffer_len_in_out)
+                          unsigned char *out_buffer,
+                          size_t *out_buffer_len_in_out)
 {
   if (ssh_inet_is_valid_ip_address(ip_address))
     {
       /* The ssh_inet_is_valid_ip_address only supports ipv4 addresses, so
-	 this must be ipv4 address. */
+         this must be ipv4 address. */
       SshUInt32 ip;
       
       if (*out_buffer_len_in_out < 4)
-	return FALSE;
+        return FALSE;
 
       if (!ssh_inet_strtov4(ip_address, &ip))
-	return FALSE;
+        return FALSE;
 
       memcpy(out_buffer, &ip, 4);
       *out_buffer_len_in_out = 4;
@@ -257,60 +253,60 @@ Boolean ssh_inet_compare_netmask(const char *netmask, const char *ip_in)
     p = strchr(netmask, ',');
     if (p != NULL)
       {
-	next = p + 1;
-	if (p - netmask < sizeof(temp_buffer))
-	  {
-	    strncpy(temp_buffer, netmask, p - netmask);
-	    temp_buffer[p - netmask] = '\0';
-	  }
-	else
-	  {
-	    strncpy(temp_buffer, netmask, sizeof(temp_buffer));
-	    temp_buffer[sizeof(temp_buffer) - 1] = '\0';
-	  }
+        next = p + 1;
+        if (p - netmask < sizeof(temp_buffer))
+          {
+            strncpy(temp_buffer, netmask, p - netmask);
+            temp_buffer[p - netmask] = '\0';
+          }
+        else
+          {
+            strncpy(temp_buffer, netmask, sizeof(temp_buffer));
+            temp_buffer[sizeof(temp_buffer) - 1] = '\0';
+          }
       }
     else
       {
-	next = NULL;
-	strncpy(temp_buffer, netmask, sizeof(temp_buffer));
-	temp_buffer[sizeof(temp_buffer) - 1] = '\0';
+        next = NULL;
+        strncpy(temp_buffer, netmask, sizeof(temp_buffer));
+        temp_buffer[sizeof(temp_buffer) - 1] = '\0';
       }
     p = strrchr(temp_buffer, '/');
     if (p == NULL)
       {
-	mask_bits = MAX_IP_ADDR_LEN * 8;
+        mask_bits = MAX_IP_ADDR_LEN * 8;
       }
     else
       {
-	*p++ = '\0';
-	mask_bits = strtol(p, &ep, 0);
-	if (p == ep)
-	  mask_bits = -1;
+        *p++ = '\0';
+        mask_bits = strtol(p, &ep, 0);
+        if (p == ep)
+          mask_bits = -1;
       }
     len = MAX_IP_ADDR_LEN;
     if (ssh_inet_strtobin(temp_buffer, net, &len) && mask_bits != -1)
       {
-	if (len == 4)
-	  {
-	    memmove(net + 12, net, 4);
-	    memset(net, 0, 4);
-	    mask_bits += 96;
-	  }
-	if (mask_bits > 128)
-	  mask_bits = 128;
+        if (len == 4)
+          {
+            memmove(net + 12, net, 4);
+            memset(net, 0, 4);
+            mask_bits += 96;
+          }
+        if (mask_bits > 128)
+          mask_bits = 128;
 
-	memset(mask, 0, MAX_IP_ADDR_LEN);
-	memset(mask, 255, mask_bits / 8);
-	if (mask_bits % 8 != 0)
-	  mask[mask_bits / 8] =
-	    "\000\200\300\340\360\370\374\376"[mask_bits % 8];
-	for(len = 0; len < MAX_IP_ADDR_LEN; len++)
-	  {
-	    if ((ip[len] & mask[len]) != (net[len] & mask[len]))
-	      break;
-	  }
-	if (len == MAX_IP_ADDR_LEN)
-	  return TRUE;
+        memset(mask, 0, MAX_IP_ADDR_LEN);
+        memset(mask, 255, mask_bits / 8);
+        if (mask_bits % 8 != 0)
+          mask[mask_bits / 8] =
+            "\000\200\300\340\360\370\374\376"[mask_bits % 8];
+        for(len = 0; len < MAX_IP_ADDR_LEN; len++)
+          {
+            if ((ip[len] & mask[len]) != (net[len] & mask[len]))
+              break;
+          }
+        if (len == MAX_IP_ADDR_LEN)
+          return TRUE;
       }
     netmask = next;
   } while (netmask != NULL);
@@ -330,22 +326,22 @@ Boolean ssh_inet_is_valid_ip_address(const char *address)
     {
       /* Each but the first group must be preceded by a dot. */
       if (i != 0)
-	if (*address != '.')
-	  return FALSE;
+        if (*address != '.')
+          return FALSE;
         else
-	  address++;
+          address++;
 
       /* Each group must begin with a digit (now that we have skipped the
-	 dot). */
+         dot). */
       if (!isdigit(*address))
-	return FALSE;
+        return FALSE;
 
       /* Parse the group of digits as a number.  Check that the group does
-	 not have a value greater than 255.  Beware of overflows. */
+         not have a value greater than 255.  Beware of overflows. */
       for (num = 0; isdigit(*address) && num < 256; address++)
-	num = 10 * num + *address - '0';
+        num = 10 * num + *address - '0';
       if (num > 255)
-	return FALSE;
+        return FALSE;
     }
 
   /* After the four groups of numbers, we must be at end of string. */
@@ -394,21 +390,16 @@ int ssh_inet_ip_address_compare(const char *address1, const char *address2)
  * SOFTWARE.
  */
 
-#include <ctype.h>
-#include <stdlib.h>
-#include <string.h>
-#include <errno.h>
-
 /* int
  * ssh_inet_pton(af, src, dst)
- *	convert from presentation format (which usually means ASCII printable)
- *	to network format (which is usually some kind of binary format).
+ *      convert from presentation format (which usually means ASCII printable)
+ *      to network format (which is usually some kind of binary format).
  * return:
- *	1 if the address was valid for the specified address family
- *	0 if the address wasn't valid (`dst' is untouched in this case)
- *	-1 if some other error occurred (`dst' is untouched in this case, too)
+ *      1 if the address was valid for the specified address family
+ *      0 if the address wasn't valid (`dst' is untouched in this case)
+ *      -1 if some other error occurred (`dst' is untouched in this case, too)
  * author:
- *	Paul Vixie, 1996.
+ *      Paul Vixie, 1996.
  */
 static int ssh_inet_pton(SshInetAddressFamily af, const char *src, void *dst)
 {
@@ -425,11 +416,11 @@ static int ssh_inet_pton(SshInetAddressFamily af, const char *src, void *dst)
 
 /* int
  * ssh_inet_pton4(src, dst)
- *	like inet_aton() but without all the hexadecimal and shorthand.
+ *      like inet_aton() but without all the hexadecimal and shorthand.
  * return: 1 if `src' is a valid dotted quad, else 0.
  * notice: does not touch `dst' unless it's returning 1.
  * author:
- *	Paul Vixie, 1996.
+ *      Paul Vixie, 1996.
  */
 static int ssh_inet_pton4(const char *src, unsigned char *dst)
 {
@@ -448,47 +439,47 @@ static int ssh_inet_pton4(const char *src, unsigned char *dst)
        * 0x=hex, 0=octal, isdigit=decimal.
        */
       if (!isdigit(c))
-	return (0);
+        return (0);
       val = 0; base = 10;
       if (c == '0') 
-	{
-	  c = *++src;
-	  if (c == 'x' || c == 'X')
-	    base = 16, c = *++src;
-	  else
-	    base = 8;
-	}
+        {
+          c = *++src;
+          if (c == 'x' || c == 'X')
+            base = 16, c = *++src;
+          else
+            base = 8;
+        }
       for (;;) 
-	{
-	  if (isdigit(c)) 
-	    {
-	      val = (val * base) + (c - '0');
-	      c = *++src;
-	    } 
-	  else if (base == 16 && isxdigit(c)) 
-	    {
-	      val = (val << 4) |
-		(c + 10 - (islower(c) ? 'a' : 'A'));
-	      c = *++src;
-	    } 
-	  else
-	    break;
-	}
+        {
+          if (isdigit(c)) 
+            {
+              val = (val * base) + (c - '0');
+              c = *++src;
+            } 
+          else if (base == 16 && isxdigit(c)) 
+            {
+              val = (val << 4) |
+                (c + 10 - (islower(c) ? 'a' : 'A'));
+              c = *++src;
+            } 
+          else
+            break;
+        }
       if (c == '.') 
-	{
-	  /*
-	   * Internet format:
-	   *	a.b.c.d
-	   *	a.b.c	(with c treated as 16 bits)
-	   *	a.b	(with b treated as 24 bits)
-	   */
-	  if (pp >= parts + 3)
-	    return (0);
-	  *pp++ = val;
-	  c = *++src;
-	} 
+        {
+          /*
+           * Internet format:
+           *    a.b.c.d
+           *    a.b.c   (with c treated as 16 bits)
+           *    a.b     (with b treated as 24 bits)
+           */
+          if (pp >= parts + 3)
+            return (0);
+          *pp++ = val;
+          c = *++src;
+        } 
       else
-	break;
+        break;
     }
   /*
    * Check for trailing characters.
@@ -500,22 +491,22 @@ static int ssh_inet_pton4(const char *src, unsigned char *dst)
   switch (n) 
     {
     case 0:
-      return (0);		/* initial nondigit */
-    case 1:				/* a -- 32 bits */
+      return (0);               /* initial nondigit */
+    case 1:                             /* a -- 32 bits */
       break;
-    case 2:				/* a.b -- 8.24 bits */
+    case 2:                             /* a.b -- 8.24 bits */
       if (val > 0xffffff)
-	return (0);
+        return (0);
       val |= parts[0] << 24;
       break;
-    case 3:				/* a.b.c -- 8.8.16 bits */
+    case 3:                             /* a.b.c -- 8.8.16 bits */
       if (val > 0xffff)
-	return (0);
+        return (0);
       val |= (parts[0] << 24) | (parts[1] << 16);
       break;
-    case 4:				/* a.b.c.d -- 8.8.8.8 bits */
+    case 4:                             /* a.b.c.d -- 8.8.8.8 bits */
       if (val > 0xff)
-	return (0);
+        return (0);
       val |= (parts[0] << 24) | (parts[1] << 16) | (parts[2] << 8);
       break;
     }
@@ -559,46 +550,46 @@ static int ssh_inet_pton6(const char *src, unsigned char *dst)
       const char *pch;
 
       if ((pch = strchr((xdigits = xdigits_l), ch)) == NULL)
-	pch = strchr((xdigits = xdigits_u), ch);
+        pch = strchr((xdigits = xdigits_u), ch);
       if (pch != NULL) 
-	{
-	  val <<= 4;
-	  val |= (pch - xdigits);
-	  if (val > 0xffff)
-	    return (0);
-	  saw_xdigit = 1;
-	  continue;
-	}
+        {
+          val <<= 4;
+          val |= (pch - xdigits);
+          if (val > 0xffff)
+            return (0);
+          saw_xdigit = 1;
+          continue;
+        }
       if (ch == ':') 
-	{
-	  curtok = src;
-	  if (!saw_xdigit) 
-	    {
-	      if (colonp)
-		return (0);
-	      colonp = tp;
-	      continue;
-	    }
-	  if (tp + sizeof(SshUInt16) > endp)
-	    return (0);
-	  *tp++ = (unsigned char) (val >> 8) & 0xff;
-	  *tp++ = (unsigned char) val & 0xff;
-	  saw_xdigit = 0;
-	  val = 0;
-	  continue;
-	}
+        {
+          curtok = src;
+          if (!saw_xdigit) 
+            {
+              if (colonp)
+                return (0);
+              colonp = tp;
+              continue;
+            }
+          if (tp + sizeof(SshUInt16) > endp)
+            return (0);
+          *tp++ = (unsigned char) (val >> 8) & 0xff;
+          *tp++ = (unsigned char) val & 0xff;
+          saw_xdigit = 0;
+          val = 0;
+          continue;
+        }
       if (ch == '.' && ((tp + INADDRSZ) <= endp) && ssh_inet_pton4(curtok, tp) > 0) 
-	{
-	  tp += INADDRSZ;
-	  saw_xdigit = 0;
-	  break;	/* '\0' was seen by ssh_inet_pton4(). */
-	}
+        {
+          tp += INADDRSZ;
+          saw_xdigit = 0;
+          break;        /* '\0' was seen by ssh_inet_pton4(). */
+        }
       return (0);
     }
   if (saw_xdigit) 
     {
       if (tp + sizeof(SshUInt16) > endp)
-	return (0);
+        return (0);
       *tp++ = (unsigned char) (val >> 8) & 0xff;
       *tp++ = (unsigned char) val & 0xff;
     }
@@ -608,10 +599,10 @@ static int ssh_inet_pton6(const char *src, unsigned char *dst)
       int i;
 
       for (i = 1; i <= n; i++) 
-	{
-	  endp[- i] = colonp[n - i];
-	  colonp[n - i] = 0;
-	}
+        {
+          endp[- i] = colonp[n - i];
+          colonp[n - i] = 0;
+        }
       tp = endp;
     }
   if (tp != endp)
@@ -629,7 +620,7 @@ static SshUInt32 ssh_inet_addr(register const char *cp)
   if (cp)
     {
       if (ssh_inet_pton4(cp, (unsigned char *)&val.s_addr))
-	return (val.s_addr);
+        return (val.s_addr);
     }
   return (SshUInt32)0xffffffff;
 }

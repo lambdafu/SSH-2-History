@@ -6,8 +6,8 @@ Author: Tatu Ylonen <ylo@ssh.fi>
 	Antti Huima <huima@ssh.fi>
 	Tero Kivinen <kivinen@ssh.fi>
 
-Copyright (c) 1998 SSH Communications Security, Finland
-                   All rights reserved
+Copyright (c) 1995-1998 SSH Communications Security, Finland
+              All rights reserved.
 
 Timeout processing.  This header is part of the event loop interface.
 This header is machine-independent; however, the implementation is

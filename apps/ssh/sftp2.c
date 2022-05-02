@@ -45,10 +45,10 @@ typedef struct SftpCipherNameRec {
 
 typedef struct 
 {
-  Boolean connected;		       /* status */
-  unsigned char *remote_host;
-  unsigned char *remote_port;
-  unsigned char *remote_user;
+  Boolean connected;                   /* status */
+  char *remote_host;
+  char *remote_port;
+  char *remote_user;
   Boolean prompt;
   Boolean verbose;
   Boolean globbing;
@@ -86,11 +86,11 @@ typedef struct
   
   SshFileClientError error;            /* Error status (set by all calls) */
   SshFileHandle handle;                /* File handle */  
-  const unsigned char *data; 	       /* Data */
-  size_t len;			       /* Length of data */  
-  const char *name;		       /* File name */
-  const char *long_name;	       /* "long" file name */
-  SshFileAttributes attributes;	       /* File attributes */
+  const unsigned char *data;           /* Data */
+  size_t len;                          /* Length of data */  
+  char *name;                          /* File name */
+  char *long_name;                     /* "long" file name */
+  SshFileAttributes attributes;        /* File attributes */
 
   /* Ssh client option stuff */
 
@@ -103,9 +103,9 @@ typedef struct
 /* forward declarations */
 
 void sftp_free(Sftp sftp);
-int sftp_pwd(int argc, unsigned char **argv, Sftp sftp);
-int sftp_disconnect(int argc, unsigned char **argv, Sftp sftp);
-	     
+int sftp_pwd(int argc, char **argv, Sftp sftp);
+int sftp_disconnect(int argc, char **argv, Sftp sftp);
+             
 
 /*
  *  A context given to callback functions; the callback should free this
@@ -143,7 +143,7 @@ void sftp_file_status_callback(SshFileClientError error, void *context)
 /* A file handle callback */
 
 void sftp_file_handle_callback(SshFileClientError error, 
-			       SshFileHandle handle, void *context)
+                               SshFileHandle handle, void *context)
 {
   Sftp sftp;
   
@@ -161,8 +161,8 @@ void sftp_file_handle_callback(SshFileClientError error,
 /* A data return callback */
 
 void sftp_file_data_callback(SshFileClientError error, 
-			     const unsigned char *data,
-			     size_t len, void *context)
+                             const unsigned char *data,
+                             size_t len, void *context)
 {
   Sftp sftp;
 
@@ -181,10 +181,10 @@ void sftp_file_data_callback(SshFileClientError error,
 /* File name return callback */
 
 void sftp_file_name_callback(SshFileClientError error, 
-			     const char *name, 
-			     const char *long_name,
-			     SshFileAttributes attributes,
-			     void *context)
+                             const char *name, 
+                             const char *long_name,
+                             SshFileAttributes attributes,
+                             void *context)
 {
   Sftp sftp;
   
@@ -192,9 +192,9 @@ void sftp_file_name_callback(SshFileClientError error,
   if (sftp->fired)
     return;  
   sftp->error = error;
-  sftp->name = name;
-  sftp->long_name = long_name;
-  sftp->attributes = attributes;  
+  sftp->name = name ? ssh_xstrdup(name) : NULL;
+  sftp->long_name = long_name ? ssh_xstrdup(long_name) : NULL;
+  sftp->attributes = attributes ? ssh_file_attributes_dup(attributes) : NULL;
   sftp->fired = FALSE;
   sftp->called = TRUE;
   
@@ -204,8 +204,8 @@ void sftp_file_name_callback(SshFileClientError error,
 /* File attribute callback */
 
 void sftp_file_attribute_callback(SshFileClientError error, 
-				  SshFileAttributes attributes,
-				  void *context)
+                                  SshFileAttributes attributes,
+                                  void *context)
 {
   Sftp sftp;
   
@@ -213,7 +213,7 @@ void sftp_file_attribute_callback(SshFileClientError error,
   if (sftp->fired)
     return;  
   sftp->error = error;
-  sftp->attributes = attributes;  
+  sftp->attributes = ssh_file_attributes_dup(attributes);
   sftp->fired = FALSE;
   sftp->called = TRUE;
   
@@ -227,7 +227,7 @@ Boolean sftp_error(Sftp sftp)
   if (sftp->fired)
     {
       printf("Error: Operation timed out after %ld seconds.\n",
-	     sftp->timeout);
+             sftp->timeout);
       return TRUE;
     }
   
@@ -286,12 +286,12 @@ Boolean sftp_error(Sftp sftp)
 /* Open a file */ 
 
 Boolean sftp_file_open(Sftp sftp, SshFileClient client,
-		       const char *name, unsigned int flags,
-		       SshFileAttributes attributes)
+                       const char *name, unsigned int flags,
+                       SshFileAttributes attributes)
 {
   ssh_register_timeout(sftp->timeout, 0, sftp_timeout_callback, sftp);  
   ssh_file_client_open(client, name, flags, attributes, 
-		       sftp_file_handle_callback, sftp);
+                       sftp_file_handle_callback, sftp);
   ssh_event_loop_run(); 
   ssh_cancel_timeouts(sftp_timeout_callback, sftp);
   
@@ -301,26 +301,26 @@ Boolean sftp_file_open(Sftp sftp, SshFileClient client,
 /* Read data */
 
 Boolean sftp_file_read(Sftp sftp, SshFileHandle handle, 
-		       off_t offset, size_t len)
+                       off_t offset, size_t len)
 {  
   ssh_register_timeout(sftp->timeout, 0, sftp_timeout_callback, sftp);  
   ssh_file_client_read(handle, offset, len, 
-		       sftp_file_data_callback, sftp);
+                       sftp_file_data_callback, sftp);
   ssh_event_loop_run(); 
   ssh_cancel_timeouts(sftp_timeout_callback, sftp);
   
   return sftp_error(sftp);
 }
-		       
+                       
 /* Write data */
 
 Boolean sftp_file_write(Sftp sftp, SshFileHandle handle, 
-			off_t offset, const unsigned char *buf,
-			size_t len)
+                        off_t offset, const unsigned char *buf,
+                        size_t len)
 {
   sftp->called = FALSE;
   ssh_file_client_write(handle, offset, buf, len, 
-			sftp_file_status_callback, sftp);
+                        sftp_file_status_callback, sftp);
   if (!sftp->called)
     {
       ssh_register_timeout(sftp->timeout, 0, sftp_timeout_callback, sftp);  
@@ -329,7 +329,7 @@ Boolean sftp_file_write(Sftp sftp, SshFileHandle handle,
     }
   return sftp_error(sftp);
 }
-		      
+                      
 /* Close file */
 
 Boolean sftp_file_close(Sftp sftp, SshFileHandle handle)
@@ -381,12 +381,12 @@ Boolean sftp_file_fstat(Sftp sftp, SshFileHandle handle)
 /* setstat a file */
 
 Boolean sftp_file_setstat(Sftp sftp, SshFileClient client,
-			  const char *name, 
-			  SshFileAttributes attributes)
+                          const char *name, 
+                          SshFileAttributes attributes)
 {  
   sftp->called = FALSE;
   ssh_file_client_setstat(client, name, attributes,
-			  sftp_file_status_callback, sftp);
+                          sftp_file_status_callback, sftp);
   if (!sftp->called)
     {
       ssh_register_timeout(sftp->timeout, 0, sftp_timeout_callback, sftp);    
@@ -400,11 +400,11 @@ Boolean sftp_file_setstat(Sftp sftp, SshFileClient client,
 /* fsetstat a file */
 
 Boolean sftp_file_fsetstat(Sftp sftp, SshFileHandle handle,
-			   SshFileAttributes attributes)
+                           SshFileAttributes attributes)
 {
   sftp->called = FALSE;  
   ssh_file_client_fsetstat(handle, attributes,
-			   sftp_file_status_callback, sftp);
+                           sftp_file_status_callback, sftp);
   if (!sftp->called)
     {
       ssh_register_timeout(sftp->timeout, 0, sftp_timeout_callback, sftp);     
@@ -418,7 +418,7 @@ Boolean sftp_file_fsetstat(Sftp sftp, SshFileHandle handle,
 /* opendir */
 
 Boolean sftp_file_opendir(Sftp sftp, SshFileClient client,
-			  const char *name)
+                          const char *name)
 {
   sftp->called = FALSE;
   ssh_file_client_opendir(client, name, sftp_file_handle_callback, sftp);
@@ -456,7 +456,7 @@ Boolean sftp_file_readdir(Sftp sftp, SshFileHandle handle)
 /* Remove a file */
 
 Boolean sftp_file_remove(Sftp sftp, SshFileClient client,
-			 const char *name)
+                         const char *name)
 {
   sftp->called = FALSE;
   ssh_file_client_remove(client, name, sftp_file_status_callback, sftp);
@@ -473,12 +473,12 @@ Boolean sftp_file_remove(Sftp sftp, SshFileClient client,
 /* Make a directory */
 
 Boolean sftp_file_mkdir(Sftp sftp, SshFileClient client,
-			const char *name, 
-			SshFileAttributes attributes)
+                        const char *name, 
+                        SshFileAttributes attributes)
 {
   sftp->called = FALSE;
   ssh_file_client_mkdir(client, name, attributes,
-			sftp_file_status_callback, sftp);
+                        sftp_file_status_callback, sftp);
   if (!sftp->called)
     {
       ssh_register_timeout(sftp->timeout, 0, sftp_timeout_callback, sftp);
@@ -492,7 +492,7 @@ Boolean sftp_file_mkdir(Sftp sftp, SshFileClient client,
 /* Remove a directory */
 
 Boolean sftp_file_rmdir(Sftp sftp, SshFileClient client,
-			const char *name)
+                        const char *name)
 {
   sftp->called = FALSE;
   ssh_file_client_rmdir(client, name, sftp_file_status_callback, sftp);
@@ -509,7 +509,7 @@ Boolean sftp_file_rmdir(Sftp sftp, SshFileClient client,
 /* Resolve a real path  */
 
 Boolean sftp_file_realpath(Sftp sftp, SshFileClient client,
-			   const char *path)
+                           const char *path)
 {
   sftp->called = FALSE;
   ssh_file_client_realpath(client, path, sftp_file_name_callback, sftp);
@@ -553,7 +553,7 @@ Boolean sftp_open_connection(Sftp sftp)
   /* now execute ssh2 with -s sftp parameters */
   
   switch (ssh_pipe_create_and_fork(&sftp->remote_client_stream,
-				   NULL))
+                                   NULL))
     {
      case SSH_PIPE_ERROR:
       ssh_fatal("ssh_pipe_create_and_fork() failed");
@@ -562,51 +562,51 @@ Boolean sftp_open_connection(Sftp sftp)
       /* Try to wrap this as the server */
       
       sftp->remote_client = 
-	ssh_file_client_wrap(sftp->remote_client_stream);
+        ssh_file_client_wrap(sftp->remote_client_stream);
       printf("remote path : ");   
 
       if (sftp_pwd(0, NULL, sftp))
-	{
-	  printf("\nremote server failed.\n");
-	  sftp->connected = FALSE;
-	  return TRUE;
-	}
+        {
+          printf("\nremote server failed.\n");
+          sftp->connected = FALSE;
+          return TRUE;
+        }
       else
-	{
-	  sftp->connected = TRUE;
-	  return FALSE;
-	}
-	             
+        {
+          sftp->connected = TRUE;
+          return FALSE;
+        }
+                     
      case SSH_PIPE_CHILD_OK:
        /* execlp("sftp-server", "sftp-server", NULL); */
        
        i = 0;
        args[i++] = sftp->ssh_path;
        if (sftp->remote_port && *sftp->remote_port)
-	 {
-	   args[i++] = "-p";
-	   args[i++] = sftp->remote_port;
-	 }
+         {
+           args[i++] = "-p";
+           args[i++] = sftp->remote_port;
+         }
        if (user_spec)
-	 {
-	   args[i++] = "-l";
-	   args[i++] = sftp->remote_user;
-	 }
+         {
+           args[i++] = "-l";
+           args[i++] = sftp->remote_user;
+         }
        if (sftp->debug)
-	 {
-	   args[i++] = "-d";
-	   args[i++] = sftp->debug_level;
-	 }
+         {
+           args[i++] = "-d";
+           args[i++] = sftp->debug_level;
+         }
 
        for (cipher = sftp->cipher_list; 
-	    cipher != NULL; 
-	    cipher = cipher->next)
-	 {
-	   assert(i < SFTP_MAX_ARGS);
-	   
-	   args[i++] = "-c";
-	   args[i++] = cipher->name;
-	 }
+            cipher != NULL; 
+            cipher = cipher->next)
+         {
+           assert(i < SFTP_MAX_ARGS);
+           
+           args[i++] = "-c";
+           args[i++] = cipher->name;
+         }
 
        args[i++] = sftp->remote_host;
        args[i++] = "-s";
@@ -616,11 +616,11 @@ Boolean sftp_open_connection(Sftp sftp)
        assert(i < SFTP_MAX_ARGS);
 
        for (i = 0; args[i]; i++)
-	 ssh_debug("args[%d] = %s", i, args[i]);
+         ssh_debug("args[%d] = %s", i, args[i]);
 
-       execvp("ssh2", args);
-
-      exit(254);
+       execvp(sftp->ssh_path, args);
+       
+       exit(254);
     }  
   /* not reached */
   return TRUE;
@@ -650,11 +650,11 @@ Boolean sftp_open_connection(Sftp sftp)
 
 struct SftpCmdRec 
 {
-  char *cmd_name;
+  const char *cmd_name;
   int min_pars;
   int max_pars;
   char *parm_names[2];
-  int (*action)(int argc, unsigned char **argv, Sftp ctx);
+  int (*action)(int argc, char **argv, Sftp ctx);
   Boolean conn;
   char *help_text;
 };
@@ -671,17 +671,17 @@ void sftp_get_win_dim(int *width, int *height)
   if (ioctl(fileno(stdin), TIOCGWINSZ, &ws) >= 0)
     {
       if (width != NULL)
-	*width = ws.ws_col;
+        *width = ws.ws_col;
       if (height != NULL)
-	*height = ws.ws_row;
+        *height = ws.ws_row;
     }    
   else  
 #endif 
     {
       if (width != NULL)
-	*width = 80;
+        *width = 80;
       if (height != NULL)
-	*height = 25;    
+        *height = 25;    
     }
 }
 
@@ -698,24 +698,24 @@ char *sftp_path_expand(const char *path, const char *name, Boolean slash)
   if (name[0] == '/')
     {
       if (slash && name[ln - 1] != '/')
-	{
-	  r = ssh_xmalloc(ln + 2);
-	  snprintf(r, ln + 2, "%s/", name);
-	}
+        {
+          r = ssh_xmalloc(ln + 2);
+          snprintf(r, ln + 2, "%s/", name);
+        }
       else
-	r = ssh_xstrdup(name);
+        r = ssh_xstrdup(name);
     }
   else
     {
       if (path == NULL || strlen(path) == 0)
-	path = ".";  
+        path = ".";  
 
       r = ssh_xmalloc(lp + ln + 3);
             
       if (slash && name[ln > 0 ? ln - 1 : 0] != '/')
-	snprintf(r, lp + ln + 3, "%s/%s/", path, name);
+        snprintf(r, lp + ln + 3, "%s/%s/", path, name);
       else
-      	snprintf(r, lp + ln + 3, "%s/%s", path, name);      
+        snprintf(r, lp + ln + 3, "%s/%s", path, name);      
     }
       
   return r;
@@ -735,7 +735,7 @@ void sftp_page_prompt_return(Sftp sftp)
 {
   int ch;
   printf("<press return for more>");
-	  
+          
   fflush(stdout);
   do
     {
@@ -757,7 +757,7 @@ void sftp_page_list(char **list, Sftp sftp)
     {
       w = strlen(list[no_elem]);
       if (w > max_width)
-	max_width = w;      
+        max_width = w;      
     }
   
   if (no_elem == 0)
@@ -785,28 +785,28 @@ void sftp_page_list(char **list, Sftp sftp)
       h = (no_elem - k) / columns + 1;
       
       if (sftp->page && h > (rows - 1)) 
-	h = rows - 1;
+        h = rows - 1;
       
       for (i = 0; i < h; i++)
-	{
-	  for (j = 0; j < columns; j++)
-	    {
-	      if (j * h + i + k >= no_elem)
-		continue;	  
-	      printf("%*s", -max_width, list[j * h + i + k]);	  
-	    }      
-	  printf("\n");
-	}
+        {
+          for (j = 0; j < columns; j++)
+            {
+              if (j * h + i + k >= no_elem)
+                continue;         
+              printf("%*s", -max_width, list[j * h + i + k]);     
+            }      
+          printf("\n");
+        }
       k += h * columns;
       
       if (k < no_elem)
-	sftp_page_prompt_return(sftp);
+        sftp_page_prompt_return(sftp);
     }
 }
 
 /* Command not supported. */
 
-int sftp_not_sup(int argc, unsigned char **argv, Sftp ctx)
+int sftp_not_sup(int argc, char **argv, Sftp ctx)
 {
   printf("Command %s not supported.\n", argv[0]); 
   return 0;
@@ -814,7 +814,7 @@ int sftp_not_sup(int argc, unsigned char **argv, Sftp ctx)
 
 /* Command is a "no-op" */
 
-int sftp_no_op(int argc, unsigned char **argv, Sftp ctx)
+int sftp_no_op(int argc, char **argv, Sftp ctx)
 {
   printf("Command %s has currently no effect.\n", argv[0]); 
   return 0;
@@ -822,7 +822,7 @@ int sftp_no_op(int argc, unsigned char **argv, Sftp ctx)
 
 /* Print a short help text */
 
-int sftp_help(int argc, unsigned char **argv, Sftp ctx)
+int sftp_help(int argc, char **argv, Sftp ctx)
 { 
   int i, j, k, n;
   char **l, *pa;
@@ -833,20 +833,20 @@ int sftp_help(int argc, unsigned char **argv, Sftp ctx)
     {
       n = 0;
       for (i = 0; sftp_cmd[i].cmd_name != NULL; i++)
-	if (sftp_cmd[i].help_text != NULL)
-	  n++;
+        if (sftp_cmd[i].help_text != NULL)
+          n++;
 
       l = ssh_xcalloc(n + 1, sizeof(char *));
       
       for (i = 0, j = 0; sftp_cmd[i].cmd_name != NULL; i++)
-	if (sftp_cmd[i].help_text != NULL)
-	  l[j++] = ssh_xstrdup(sftp_cmd[i].cmd_name);
+        if (sftp_cmd[i].help_text != NULL)
+          l[j++] = ssh_xstrdup(sftp_cmd[i].cmd_name);
       
       sftp_page_list(l, ctx);
       ssh_xfree(l);
       
       printf("\n? command  for more information on a specific "
-	     "command.\n");      
+             "command.\n");      
       return 0;
     }
 
@@ -858,35 +858,35 @@ int sftp_help(int argc, unsigned char **argv, Sftp ctx)
   for (i = 0; sftp_cmd[i].cmd_name != NULL; i++)
     {
       if (strcmp(sftp_cmd[i].cmd_name, argv[1]) == 0)
-	{
-	  if (sftp_cmd[i].help_text == NULL)
-	    {
-	      printf("Help: No help available for %s.\n", argv[1]);
-	      return -1;
-	    }
-	  
-	  printf("\n    %s ", argv[1]);
-	  
-	  for (j = 0; j < 2; j++)
-	    {
-	      if (sftp_cmd[i].parm_names[j] == NULL)
-		continue;	      
-	      
-	      pa = ssh_xstrdup(sftp_cmd[i].parm_names[j]);
-	      for (k = 0; pa[k] != '\0'; k++)
-		if (isspace(pa[k]))
-		  pa[k] = '_';	      
-	      if (j < sftp_cmd[i].min_pars)
-		printf("%s ", pa);
-	      else
-		printf("[%s] ", pa);	      
+        {
+          if (sftp_cmd[i].help_text == NULL)
+            {
+              printf("Help: No help available for %s.\n", argv[1]);
+              return -1;
+            }
+          
+          printf("\n    %s ", argv[1]);
+          
+          for (j = 0; j < 2; j++)
+            {
+              if (sftp_cmd[i].parm_names[j] == NULL)
+                continue;             
+              
+              pa = ssh_xstrdup(sftp_cmd[i].parm_names[j]);
+              for (k = 0; pa[k] != '\0'; k++)
+                if (isspace(pa[k]))
+                  pa[k] = '_';        
+              if (j < sftp_cmd[i].min_pars)
+                printf("%s ", pa);
+              else
+                printf("[%s] ", pa);          
 
-	      ssh_xfree(pa);
-	    }
-	  
-	  printf("\n\n        %s\n\n", sftp_cmd[i].help_text);
-	  return 0;
-	}
+              ssh_xfree(pa);
+            }
+          
+          printf("\n\n        %s\n\n", sftp_cmd[i].help_text);
+          return 0;
+        }
     }    
   
   printf("Help: Unknown command %s.\n\n", argv[1]);  
@@ -895,7 +895,7 @@ int sftp_help(int argc, unsigned char **argv, Sftp ctx)
 
 /* Toggle bell */
 
-int sftp_bell(int argc, unsigned char **argv, Sftp ctx)
+int sftp_bell(int argc, char **argv, Sftp ctx)
 {
   ctx->bell = !ctx->bell;
   if (ctx->bell)
@@ -908,7 +908,7 @@ int sftp_bell(int argc, unsigned char **argv, Sftp ctx)
   
 /* Disconnect */
 
-int sftp_disconnect(int argc, unsigned char **argv, Sftp sftp)
+int sftp_disconnect(int argc, char **argv, Sftp sftp)
 { 
   if (sftp->connected)
     ssh_file_client_destroy(sftp->remote_client);
@@ -924,7 +924,7 @@ int sftp_disconnect(int argc, unsigned char **argv, Sftp sftp)
 
 /* Quit */
 
-int sftp_quit(int argc, unsigned char **argv, Sftp ctx)
+int sftp_quit(int argc, char **argv, Sftp ctx)
 {
   ctx->alive = FALSE;
   return sftp_disconnect(argc, argv, ctx);
@@ -932,7 +932,7 @@ int sftp_quit(int argc, unsigned char **argv, Sftp ctx)
 
 /* Change the remote directory */
 
-int sftp_cd(int argc, unsigned char **argv, Sftp sftp)
+int sftp_cd(int argc, char **argv, Sftp sftp)
 { 
   char *p;
   
@@ -966,7 +966,7 @@ int sftp_cd(int argc, unsigned char **argv, Sftp sftp)
  
 /* Delete a remote file */ 
 
-int sftp_delete(int argc, unsigned char **argv, Sftp sftp)
+int sftp_delete(int argc, char **argv, Sftp sftp)
 { 
   int err;
   char *p;
@@ -980,7 +980,7 @@ int sftp_delete(int argc, unsigned char **argv, Sftp sftp)
 
 /* Delete a local file */
 
-int sftp_ldelete(int argc, unsigned char **argv, Sftp sftp)
+int sftp_ldelete(int argc, char **argv, Sftp sftp)
 { 
   int err;
   char *p;
@@ -1017,10 +1017,10 @@ int sftp_dir_both(char *path, SshFileClient client, Sftp sftp)
       names[2*(n++) + 1] = ssh_xstrdup(sftp->long_name);
               
       if (n >= allocated)
-	{
-	  allocated *= 2;
-	  names = ssh_xrealloc(names, 2 * allocated * sizeof (char *));  
-	}     
+        {
+          allocated *= 2;
+          names = ssh_xrealloc(names, 2 * allocated * sizeof (char *));  
+        }     
     }
   
   if (n > 0 && sftp->sort)
@@ -1036,10 +1036,10 @@ int sftp_dir_both(char *path, SshFileClient client, Sftp sftp)
       row += strlen(names[2*i+1]) / cols + 1;
       
       if (sftp->page && i < (n - 1) && row >= next_break)
-	{
-	  sftp_page_prompt_return(sftp);
-	  next_break += rows - 1;
-	}
+        {
+          sftp_page_prompt_return(sftp);
+          next_break += rows - 1;
+        }
     }
   
   /* Free the file names */
@@ -1058,7 +1058,7 @@ int sftp_dir_both(char *path, SshFileClient client, Sftp sftp)
 
 /* Display remote directory */
 
-int sftp_dir(int argc, unsigned char **argv, Sftp sftp)
+int sftp_dir(int argc, char **argv, Sftp sftp)
 { 
   int i, err;
   char *p;
@@ -1089,19 +1089,19 @@ void sftp_kitt(off_t pos, off_t total, int width)
   for (i = 1; i < width - 2; i++)
     {
       switch(i - p)
-	{
-	 case 0:
-	  putchar('O');
-	  break;
-	  
-	 case 1:
-	 case -1:
-	  putchar('o');
-	  break;
-	  
-	 default:
-	  putchar('.');
-	}
+        {
+         case 0:
+          putchar('O');
+          break;
+          
+         case 1:
+         case -1:
+          putchar('o');
+          break;
+          
+         default:
+          putchar('.');
+        }
     }  
   putchar('|');
   fflush(stdout);
@@ -1110,8 +1110,8 @@ void sftp_kitt(off_t pos, off_t total, int width)
 /* Move a file from one "client" to another */
 
 int sftp_move_file(SshFileClient src_cl, char *src_path,
-		   SshFileClient dest_cl, char *dest_path,
-		   Sftp sftp)
+                   SshFileClient dest_cl, char *dest_path,
+                   Sftp sftp)
 {
   off_t offset;
   size_t src_len, file_len;
@@ -1124,7 +1124,7 @@ int sftp_move_file(SshFileClient src_cl, char *src_path,
     }
   src_handle = sftp->handle;
   
-  if (sftp_file_open(sftp, dest_cl, dest_path, O_CREAT | O_WRONLY, NULL))
+  if (sftp_file_open(sftp, dest_cl, dest_path, O_CREAT | O_TRUNC | O_WRONLY, NULL))
     {
       goto close_error;
     }
@@ -1136,11 +1136,11 @@ int sftp_move_file(SshFileClient src_cl, char *src_path,
   if (sftp->hash)
     {  
       if (sftp_file_fstat(sftp, src_handle))
-	goto close_error;
+        goto close_error;
       file_len = sftp->attributes->size;      
 
       printf("Transferring %s -> %s  (%luk)\n",
-	     src_path, dest_path, (unsigned long) (file_len >> 10) + 1);
+             src_path, dest_path, (unsigned long) (file_len >> 10) + 1);
       
       sftp_get_win_dim(&width, NULL);      
       sftp_kitt(0, file_len, width);
@@ -1151,16 +1151,16 @@ int sftp_move_file(SshFileClient src_cl, char *src_path,
   do
     {
       if (sftp_file_read(sftp, src_handle, offset, SFTP_BUF_SIZE))
-	goto close_error;	
+        goto close_error;       
       src_len = sftp->len;
       
       if (src_len > 0)
-	if (sftp_file_write(sftp, dest_handle, offset, sftp->data, src_len))
-	  goto close_error;
+        if (sftp_file_write(sftp, dest_handle, offset, sftp->data, src_len))
+          goto close_error;
       offset += src_len;
       
       if (sftp->hash)
-	sftp_kitt(offset, file_len, width);
+        sftp_kitt(offset, file_len, width);
     }
   while (src_len == SFTP_BUF_SIZE);
   
@@ -1181,16 +1181,16 @@ close_error:
 
 /* Get a remote file */
 
-int sftp_get(int argc, unsigned char **argv, Sftp sftp)
+int sftp_get(int argc, char **argv, Sftp sftp)
 {   
   int err;
   char *src_p, *dest_p;
   
   src_p = sftp_path_expand(sftp->remote_path, argv[1], FALSE);
   dest_p = sftp_path_expand(sftp->local_path, 
-			    argc == 3 ? argv[2] : argv[1], FALSE);
+                            argc == 3 ? argv[2] : argv[1], FALSE);
   err = sftp_move_file(sftp->remote_client, src_p, 
-		       sftp->local_client, dest_p, sftp);
+                       sftp->local_client, dest_p, sftp);
   ssh_xfree(src_p);
   ssh_xfree(dest_p);
   return err;
@@ -1198,7 +1198,7 @@ int sftp_get(int argc, unsigned char **argv, Sftp sftp)
 
 /* Toggle globbing for mdelete, mget, and mput. */
 
-int sftp_glob(int argc, unsigned char **argv, Sftp ctx)
+int sftp_glob(int argc, char **argv, Sftp ctx)
 { 
   ctx->globbing = !ctx->globbing;
   
@@ -1213,7 +1213,7 @@ int sftp_glob(int argc, unsigned char **argv, Sftp ctx)
 /* Toggle progress indicator on / off. */
   
 
-int sftp_hash(int argc, unsigned char **argv, Sftp ctx)
+int sftp_hash(int argc, char **argv, Sftp ctx)
 { 
   ctx->hash = !ctx->hash;
   
@@ -1227,7 +1227,7 @@ int sftp_hash(int argc, unsigned char **argv, Sftp ctx)
 
 /* Change local directory. */
 
-int sftp_lcd(int argc, unsigned char **argv, Sftp sftp)
+int sftp_lcd(int argc, char **argv, Sftp sftp)
 { 
   char *p;
   
@@ -1282,32 +1282,36 @@ int sftp_ls_both(char *path, SshFileClient client, Sftp sftp)
   while (!sftp_file_readdir(sftp, handle))
     {
       if (sftp->attributes->flags & SSH_FILEXFER_ATTR_PERMISSIONS)
-	type = sftp->attributes->permissions & S_IFMT;
+        type = sftp->attributes->permissions & S_IFMT;
       else
-	type = 0;
+        type = 0;
       
       if (type == S_IFDIR || type == S_IFLNK)
-       	{
-	  a = strlen(sftp->name);	  
-	  names[n] = ssh_xmalloc(a + 2);
-	  snprintf(names[n], a + 2, "%s%c", sftp->name,
-		   type == S_IFDIR ? '/' : '@'); 
-	}
+        {
+          a = strlen(sftp->name);         
+          names[n] = ssh_xmalloc(a + 2);
+          snprintf(names[n], a + 2, "%s%c", sftp->name,
+                   type == S_IFDIR ? '/' : '@'); 
+        }
       else
-	names[n] = ssh_xstrdup(sftp->name);      
+        names[n] = ssh_xstrdup(sftp->name);      
       n++;    
-	  
+          
       if (n >= allocated)
-	{
-	  allocated *= 2;
-	  names = ssh_xrealloc(names, allocated * sizeof (char *));  
-	}     
+        {
+          allocated *= 2;
+          names = ssh_xrealloc(names, allocated * sizeof (char *));  
+        }
+      ssh_xfree(sftp->name);
+      ssh_xfree(sftp->long_name);
+      ssh_xfree(sftp->attributes);
+      
     }
   names[n] = NULL;
   
   /* Paginate nad format the output */  
   sftp_page_list(names, sftp);
-	    
+            
   /* Free the file names */
   
   for (i = 0; i < n; i++)
@@ -1322,7 +1326,7 @@ int sftp_ls_both(char *path, SshFileClient client, Sftp sftp)
 
 /* Display local directory. */
 
-int sftp_ldir(int argc, unsigned char **argv, Sftp sftp)
+int sftp_ldir(int argc, char **argv, Sftp sftp)
 { 
   int i, err;
   
@@ -1337,7 +1341,7 @@ int sftp_ldir(int argc, unsigned char **argv, Sftp sftp)
 
 /* List a local directory in short format . */
 
-int sftp_lls(int argc, unsigned char **argv, Sftp sftp)
+int sftp_lls(int argc, char **argv, Sftp sftp)
 { 
   int i, err;
   char *p;
@@ -1358,7 +1362,7 @@ int sftp_lls(int argc, unsigned char **argv, Sftp sftp)
 
 /* List a remote directory in short format . */
 
-int sftp_ls(int argc, unsigned char **argv, Sftp sftp)
+int sftp_ls(int argc, char **argv, Sftp sftp)
 {
   int i, err;
   char *p;
@@ -1379,7 +1383,7 @@ int sftp_ls(int argc, unsigned char **argv, Sftp sftp)
 
 /* Get multiple remote files. */
 
-int sftp_mget(int argc, unsigned char **argv, Sftp ctx)
+int sftp_mget(int argc, char **argv, Sftp ctx)
 { 
   /* XXX */
   return -1;
@@ -1387,7 +1391,7 @@ int sftp_mget(int argc, unsigned char **argv, Sftp ctx)
 
 /* Make a remote directory. */
 
-int sftp_mkdir(int argc, unsigned char **argv, Sftp sftp)
+int sftp_mkdir(int argc, char **argv, Sftp sftp)
 { 
   int err;
   char *p;
@@ -1400,13 +1404,13 @@ int sftp_mkdir(int argc, unsigned char **argv, Sftp sftp)
   err = sftp_file_mkdir(sftp, sftp->remote_client, p, attrs);  
   ssh_xfree(p);
   ssh_xfree(attrs);
-		  
+                  
   return err;
 }  
 
 /* Transfer multiple files to remote end. */
 
-int sftp_mput(int argc, unsigned char **argv, Sftp ctx)
+int sftp_mput(int argc, char **argv, Sftp ctx)
 {   
   /* XXX */
   return -1;
@@ -1414,7 +1418,7 @@ int sftp_mput(int argc, unsigned char **argv, Sftp ctx)
 
 /* Open an connection to remote sftp (ssh2) server. */
 
-int sftp_open(int argc, unsigned char **argv, Sftp sftp)
+int sftp_open(int argc, char **argv, Sftp sftp)
 { 
   ssh_xfree(sftp->remote_host);
   sftp->remote_host = ssh_xstrdup(argv[1]);
@@ -1433,7 +1437,7 @@ int sftp_open(int argc, unsigned char **argv, Sftp sftp)
 
 /* Toggle paging. */
 
-int sftp_page(int argc, unsigned char **argv, Sftp ctx)
+int sftp_page(int argc, char **argv, Sftp ctx)
 { 
   ctx->page = !ctx->page;
   
@@ -1447,7 +1451,7 @@ int sftp_page(int argc, unsigned char **argv, Sftp ctx)
 
 /* Toggle interactive prompting. */
 
-int sftp_prompt(int argc, unsigned char **argv, Sftp ctx)
+int sftp_prompt(int argc, char **argv, Sftp ctx)
 { 
   ctx->prompt = !ctx->prompt;
   
@@ -1461,16 +1465,16 @@ int sftp_prompt(int argc, unsigned char **argv, Sftp ctx)
 
 /* Transfer a local file on the remote machine. */
  
-int sftp_put(int argc, unsigned char **argv, Sftp sftp)
+int sftp_put(int argc, char **argv, Sftp sftp)
 { 
   int err;
   char *src_p, *dest_p;
   
   src_p = sftp_path_expand(sftp->local_path, argv[1], FALSE);
   dest_p = sftp_path_expand(sftp->remote_path, 
-			    argc == 3 ? argv[2] : argv[1], FALSE);
+                            argc == 3 ? argv[2] : argv[1], FALSE);
   err = sftp_move_file(sftp->local_client, src_p, 
-		       sftp->remote_client, dest_p, sftp);
+                       sftp->remote_client, dest_p, sftp);
   ssh_xfree(src_p);
   ssh_xfree(dest_p);
   return err;
@@ -1478,7 +1482,7 @@ int sftp_put(int argc, unsigned char **argv, Sftp sftp)
 
 /* Print the current working directory on the remote machine. */
 
-int sftp_pwd(int argc, unsigned char **argv, Sftp sftp)
+int sftp_pwd(int argc, char **argv, Sftp sftp)
 { 
   if (sftp_file_realpath(sftp, sftp->remote_client, sftp->remote_path))
     return -1;
@@ -1492,7 +1496,7 @@ int sftp_pwd(int argc, unsigned char **argv, Sftp sftp)
 
 /* Print the current working directory on the local machine. */
 
-int sftp_lpwd(int argc, unsigned char **argv, Sftp sftp)
+int sftp_lpwd(int argc, char **argv, Sftp sftp)
 { 
   if (sftp_file_realpath(sftp, sftp->local_client, sftp->local_path))
     return -1;
@@ -1507,7 +1511,7 @@ int sftp_lpwd(int argc, unsigned char **argv, Sftp sftp)
 
 /* Show the current status of sftp. */
 
-int sftp_status(int argc, unsigned char **argv, Sftp sftp)
+int sftp_status(int argc, char **argv, Sftp sftp)
 { 
   if (sftp->connected)
     printf("Connected to %s.\n", sftp->remote_host);
@@ -1518,7 +1522,7 @@ int sftp_status(int argc, unsigned char **argv, Sftp sftp)
   printf("\nTransferred  out: %g kbytes\n", sftp->trans_in / 1024.0);
   printf("              in: %g kbytes\n", sftp->trans_out / 1024.0);
   printf("           total: %g kbytes\n\n", 
-	 (sftp->trans_in + sftp->trans_out) / 1024.0);
+         (sftp->trans_in + sftp->trans_out) / 1024.0);
    */
   
   printf("Prompting:        %s\n", sftp->prompt ? "yes" : "no");
@@ -1536,7 +1540,7 @@ int sftp_status(int argc, unsigned char **argv, Sftp sftp)
 
 /* Toggle sorting. */
 
-int sftp_sort(int argc, unsigned char **argv, Sftp ctx)
+int sftp_sort(int argc, char **argv, Sftp ctx)
 { 
   ctx->sort = !ctx->sort;
   
@@ -1550,7 +1554,7 @@ int sftp_sort(int argc, unsigned char **argv, Sftp ctx)
 
 /* Set timeout */
 
-int sftp_timeout(int argc, unsigned char **argv, Sftp ctx)
+int sftp_timeout(int argc, char **argv, Sftp ctx)
 { 
   int t;
   
@@ -1567,7 +1571,7 @@ int sftp_timeout(int argc, unsigned char **argv, Sftp ctx)
 
 /* Identify yourself to the remote FTP server */
 
-int sftp_user(int argc, unsigned char **argv, Sftp sftp)
+int sftp_user(int argc, char **argv, Sftp sftp)
 { 
   ssh_xfree(sftp->remote_user);
   sftp->remote_user = ssh_xstrdup(argv[1]);  
@@ -1580,7 +1584,7 @@ int sftp_user(int argc, unsigned char **argv, Sftp sftp)
 
 /* Toggle verbose mode on/off. */
 
-int sftp_verbose(int argc, unsigned char **argv, Sftp ctx)
+int sftp_verbose(int argc, char **argv, Sftp ctx)
 { 
   ctx->verbose = !ctx->verbose;
   
@@ -1715,7 +1719,7 @@ struct SftpCmdRec sftp_cmd[] =
   
     {
       "macdef", 0, 0, {NULL, NULL}, sftp_not_sup, FALSE,
-      NULL    	
+      NULL      
     },
   /*
     {  
@@ -1814,7 +1818,7 @@ struct SftpCmdRec sftp_cmd[] =
     },
   
     {
-      "user", 1, 2, {"username", "password"}, sftp_user, TRUE,
+      "user", 1, 2, {"username", "password"}, sftp_user, FALSE,
       "Identify yourself to the remote FTP server."      
     }, 
     
@@ -1857,7 +1861,7 @@ Sftp sftp_init()
   
   /* Create the local server/client pair */  
   ssh_stream_pair_create(&sftp->local_server_stream, 
-			 &sftp->local_client_stream);  
+                         &sftp->local_client_stream);  
   sftp->local_server = 
     ssh_file_server_wrap(sftp->local_server_stream);
   sftp->local_client = 
@@ -1885,7 +1889,10 @@ Sftp sftp_init()
 void sftp_free(Sftp sftp)
 {
   if (sftp == NULL)
-    return;  
+    return;
+  
+  ssh_stream_destroy(sftp->local_server_stream);
+  ssh_stream_destroy(sftp->local_client_stream);
   ssh_xfree(sftp->remote_host);
   ssh_xfree(sftp->remote_port);
   ssh_xfree(sftp->remote_user);
@@ -1925,8 +1932,8 @@ SftpCipherName sftp_new_cipher_item(char *name)
 int main(int argc, char **argv)
 {
   Sftp sftp;
-  unsigned char *cmdbuf, *earg[2];
-  unsigned char **parm, prompt_buf[40];
+  char *cmdbuf, *earg[2];
+  char **parm, prompt_buf[40];
   int i, parms, ttyfd;
   
   /* Save program name. */
@@ -1947,84 +1954,84 @@ int main(int argc, char **argv)
   while (argv[1] != NULL && *(argv[1]) == '-')
     {
       if (strcmp(argv[1], "-d") == 0)
-	{
-	  if (argc < 3)
-	    {
-	      fprintf(stderr, "%s: option -d needs an argument.\n", av0);
-	      sftp_free(sftp);
-	      return -1;
-	    }
-	  sftp->debug = 1;
-	  ssh_xfree(sftp->debug_level);
-	  sftp->debug_level = ssh_xstrdup(argv[2]);
-	  ssh_debug_set_level_string(sftp->debug_level);
-	  argc -= 2;
-	  argv += 2;
-	}
+        {
+          if (argc < 3)
+            {
+              fprintf(stderr, "%s: option -d needs an argument.\n", av0);
+              sftp_free(sftp);
+              return -1;
+            }
+          sftp->debug = 1;
+          ssh_xfree(sftp->debug_level);
+          sftp->debug_level = ssh_xstrdup(argv[2]);
+          ssh_debug_set_level_string(sftp->debug_level);
+          argc -= 2;
+          argv += 2;
+        }
       else if (strcmp(argv[1], "-c") == 0)
-	{
-	  if (argc < 3)
-	    {
-	      fprintf(stderr, "%s: option -c needs an argument.\n", av0);
-	      sftp_free(sftp);
-	      return -1;
-	    }
-	  if (sftp->cipher_list == NULL)
-	    {
-	      sftp->cipher_list_last = sftp_new_cipher_item(argv[2]);
-	      sftp->cipher_list_last->next = NULL;
-	      sftp->cipher_list = sftp->cipher_list_last;
-	    }
-	  else
-	    {
-	      sftp->cipher_list_last->next = sftp_new_cipher_item(argv[2]);
-	      sftp->cipher_list_last = sftp->cipher_list_last->next;
-	      sftp->cipher_list_last->next = NULL;
-	    }
-	  argc -= 2;
-	  argv += 2;
-	}
+        {
+          if (argc < 3)
+            {
+              fprintf(stderr, "%s: option -c needs an argument.\n", av0);
+              sftp_free(sftp);
+              return -1;
+            }
+          if (sftp->cipher_list == NULL)
+            {
+              sftp->cipher_list_last = sftp_new_cipher_item(argv[2]);
+              sftp->cipher_list_last->next = NULL;
+              sftp->cipher_list = sftp->cipher_list_last;
+            }
+          else
+            {
+              sftp->cipher_list_last->next = sftp_new_cipher_item(argv[2]);
+              sftp->cipher_list_last = sftp->cipher_list_last->next;
+              sftp->cipher_list_last->next = NULL;
+            }
+          argc -= 2;
+          argv += 2;
+        }
       else if (strcmp(argv[1], "-v") == 0)
-	{
-	  sftp->debug = 1;
-	  ssh_xfree(sftp->debug_level);
-	  sftp->debug_level = ssh_xstrdup("2");
-	  ssh_debug_set_level_string(sftp->debug_level);
-	  argc -= 1;
-	  argv += 1;
-	}
+        {
+          sftp->debug = 1;
+          ssh_xfree(sftp->debug_level);
+          sftp->debug_level = ssh_xstrdup("2");
+          ssh_debug_set_level_string(sftp->debug_level);
+          argc -= 1;
+          argv += 1;
+        }
       else if (strcmp(argv[1], "-S") == 0)
-	{
-	  if (argc < 3)
-	    {
-	      fprintf(stderr, "%s: option -S needs an argument.\n", av0);
-	      sftp_free(sftp);
-	      return -1;
-	    }
-	  ssh_xfree(sftp->ssh_path);
-	  sftp->ssh_path = ssh_xstrdup(argv[2]);
-	  argc -= 2;
-	  argv += 2;
-	}
+        {
+          if (argc < 3)
+            {
+              fprintf(stderr, "%s: option -S needs an argument.\n", av0);
+              sftp_free(sftp);
+              return -1;
+            }
+          ssh_xfree(sftp->ssh_path);
+          sftp->ssh_path = ssh_xstrdup(argv[2]);
+          argc -= 2;
+          argv += 2;
+        }
       else if (strcmp(argv[1], "-p") == 0)
-	{
-	  if (argc < 3)
-	    {
-	      fprintf(stderr, "%s: option -p needs an argument.\n", av0);
-	      sftp_free(sftp);
-	      return -1;
-	    }
-	  ssh_xfree(sftp->remote_port);
-	  sftp->remote_port = ssh_xstrdup(argv[2]);
-	  argc -= 2;
-	  argv += 2;
-	}
+        {
+          if (argc < 3)
+            {
+              fprintf(stderr, "%s: option -p needs an argument.\n", av0);
+              sftp_free(sftp);
+              return -1;
+            }
+          ssh_xfree(sftp->remote_port);
+          sftp->remote_port = ssh_xstrdup(argv[2]);
+          argc -= 2;
+          argv += 2;
+        }
       else
-	{
-	  fprintf(stderr, "%s: Unknown option %s.\n", av0, argv[1]);
-	  sftp_free(sftp);
-	  return -1;
-	}
+        {
+          fprintf(stderr, "%s: Unknown option %s.\n", av0, argv[1]);
+          sftp_free(sftp);
+          return -1;
+        }
     }
   
   if (argc > 4)
@@ -2045,11 +2052,11 @@ int main(int argc, char **argv)
       ssh_xfree(sftp->remote_host);
       sftp->remote_host = ssh_xstrdup(argv[1]);
       if (strchr(sftp->remote_host, '#'))
-	{
-	  ssh_xfree(sftp->remote_port);
-	  sftp->remote_port = ssh_xstrdup(strchr(sftp->remote_host, '#') + 1);
-	  *strchr(sftp->remote_host, '#') = '\0';
-	}
+        {
+          ssh_xfree(sftp->remote_port);
+          sftp->remote_port = ssh_xstrdup(strchr(sftp->remote_host, '#') + 1);
+          *strchr(sftp->remote_host, '#') = '\0';
+        }
     }
     
   ssh_debug("host %s port %s", sftp->remote_host, sftp->remote_port);
@@ -2082,97 +2089,99 @@ int main(int argc, char **argv)
       earg[1] = NULL;
             
 
-      if (ssh_readline("sftp>", &cmdbuf, 0) < 0)
-	{
-	  printf("\n"); /* XXX */
-	  sftp_quit(0, NULL, sftp);
-	}
+      if (ssh_readline((const unsigned char *) "sftp>",
+                       (unsigned char **) &cmdbuf, 0) < 0)
+        {
+          printf("\n"); /* XXX */
+          sftp_quit(0, NULL, sftp);
+        }
       else 
-	{	  	 
-	  printf("\n"); /* XXX */
-	  /* Cut the command line into arguments */
-	  
-	  i = 0;
-	  for (parms = 0; parms < SFTP_MAX_ARGS; parms++)
-	    {	  
-	      while (isspace(cmdbuf[i]) && cmdbuf[i] != '\0')
-		i++;
-	      if (cmdbuf[i] == '\0')
-		break;
+        {                
+          printf("\n"); /* XXX */
+          /* Cut the command line into arguments */
+          
+          i = 0;
+          for (parms = 0; parms < SFTP_MAX_ARGS; parms++)
+            {     
+              while (isspace(cmdbuf[i]) && cmdbuf[i] != '\0')
+                i++;
+              if (cmdbuf[i] == '\0')
+                break;
 
-	      parm[parms] = &cmdbuf[i];
-	      
-	      while (!isspace(cmdbuf[i]) && cmdbuf[i] != '\0')
-		i++;
-	      
-	      if (cmdbuf[i] == '\0')
-		{
-		  parms++;
-		  break;
-		}
-	      cmdbuf[i++] = '\0';	      
-	    }	  	      
-	  cmdbuf[i] = '\0';
-	  
-	  if (parms < 1)
-	    continue;
+              parm[parms] = &cmdbuf[i];
+              
+              while (!isspace(cmdbuf[i]) && cmdbuf[i] != '\0')
+                i++;
+              
+              if (cmdbuf[i] == '\0')
+                {
+                  parms++;
+                  break;
+                }
+              cmdbuf[i++] = '\0';             
+            }                 
+          cmdbuf[i] = '\0';
+          
+          if (parms < 1)
+            continue;
 
-	  /* Convert the command name to lower case */
-	  
-	  for (i = 0; (parm[0])[i] != '\0'; i++)
-	    (parm[0])[i] = tolower((parm[0])[i]);
-	  
-	  /* Search for the command in the jump table */
+          /* Convert the command name to lower case */
+          
+          for (i = 0; (parm[0])[i] != '\0'; i++)
+            (parm[0])[i] = tolower((parm[0])[i]);
+          
+          /* Search for the command in the jump table */
 
-	  for (i = 0; sftp_cmd[i].cmd_name != NULL; i++)
-	    if (strcmp(sftp_cmd[i].cmd_name, parm[0]) == 0)
-	      break;
-	     
-	  if (sftp_cmd[i].cmd_name == NULL)
-	    {
-	      printf("Unknown command %s.\n", parm[0]);
-	      continue;
-	    }
-	 	  
-	  if (parms - 1 > sftp_cmd[i].max_pars)
-	    {
-	      printf("Too many parameters\n");
-	      continue;
-	    }
+          for (i = 0; sftp_cmd[i].cmd_name != NULL; i++)
+            if (strcmp(sftp_cmd[i].cmd_name, parm[0]) == 0)
+              break;
+             
+          if (sftp_cmd[i].cmd_name == NULL)
+            {
+              ssh_warning("Unknown command %s.", parm[0]);
+              continue;
+            }
+                  
+          if (parms - 1 > sftp_cmd[i].max_pars)
+            {
+              ssh_warning("Too many parameters");
+              continue;
+            }
 
-	  if (sftp_cmd[i].conn && !sftp->connected)
-	    {
-	      printf("Not connected.\n");
-	      continue;	      
-	    }
-	  
-	  /* fill in the missing parameters */
-	  
-	  while (parms <= sftp_cmd[i].min_pars)
-	    {
-	      snprintf(prompt_buf, sizeof(prompt_buf), "%s %s>", 
-		       sftp_cmd[i].cmd_name,
-		       sftp_cmd[i].parm_names[parms-1]);
+          if (sftp_cmd[i].conn && !sftp->connected)
+            {
+              ssh_warning("Not connected.");
+              continue;       
+            }
+          
+          /* fill in the missing parameters */
+          
+          while (parms <= sftp_cmd[i].min_pars)
+            {
+              snprintf(prompt_buf, sizeof(prompt_buf), "%s %s>", 
+                       sftp_cmd[i].cmd_name,
+                       sftp_cmd[i].parm_names[parms-1]);
 
-	      if (ssh_readline(prompt_buf, &earg[parms-1], 0) <= 0)
-		{
-		  printf("\n"); /* XXX */
-		  printf(".. aborted\n");
-		  goto cmd_ok;
-		}
-	      printf("\n"); /* XXX */
-	      
-	      parm[parms] = earg[parms-1];
-	      parms++;
-	    }
-	  
-	  /* Ok, now call the appr. function */
-	  
-	  (*sftp_cmd[i].action)(parms, parm, sftp);
- 	  
-	  cmd_ok:
-	  ;
-	}
+              if (ssh_readline((const unsigned char *)prompt_buf,
+                               (unsigned char **) &earg[parms-1], 0) <= 0)
+                {
+                  /* XXX */
+                  ssh_warning(".. aborted");
+                  goto cmd_ok;
+                }
+              printf("\n"); /* XXX */
+              
+              parm[parms] = earg[parms-1];
+              parms++;
+            }
+          
+          /* Ok, now call the appr. function */
+          
+          (*sftp_cmd[i].action)(parms, parm, sftp);
+          
+        cmd_ok:
+          ;
+        }
     }
 
   printf("\r"); /* XXX */

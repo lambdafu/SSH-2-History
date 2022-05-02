@@ -24,82 +24,6 @@
 #include "sshconfig.h"
 #include "base64.h"
 
-#ifdef SSHDIST_USE_SSH2_BINARY_KEY_FORMAT
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#else /* SSHDIST_USE_SSH2_BINARY_KEY_FORMAT */
-
 /* List of identifier strings for public key blobs. */
 typedef struct Ssh2PkFormatNameListRec
 {
@@ -607,8 +531,6 @@ Boolean ssh_key_blob_write(SshUser user, const char *fname, mode_t mode,
   ssh_buffer_uninit(&buffer);
   return FALSE;
 }
-
-#endif /* SSHDIST_USE_SSH2_BINARY_KEY_FORMAT */
 
 /* Creates a new random number generator, and loads the random seed file
    into the generator. */

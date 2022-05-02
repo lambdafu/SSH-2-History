@@ -27,6 +27,7 @@
 #include "sshfilexfer.h"
 #include "sshstreampair.h"
 #include "sshunixpipestream.h"
+#include "sshgetopt.h"
 
 #define SSH_DEBUG_MODULE "Scp2"
 
@@ -178,8 +179,6 @@ int main(int argc, char **argv)
   int i;
   int ch;
   ScpFileLocation *location;
-  extern char *optarg;
-  extern int optind;
 
   ssh_event_loop_initialize();
 
@@ -187,8 +186,12 @@ int main(int argc, char **argv)
 
   ssh_debug_register_callbacks(NULL, NULL, scp_debug, (void *)(&session));
 
-  while ((ch = getopt(argc, argv, "dpvnuhS:P:c:D:tf")) != EOF)
+  while ((ch = ssh_getopt(argc, argv, "dpvnuhS:P:c:D:tf", NULL)) != -1)
     {
+      if (!ssh_optval)
+	{
+	  usage();
+	}
       switch(ch)
 	{
 	case 't':
@@ -205,33 +208,33 @@ int main(int argc, char **argv)
 	  session.preserve_flag = 1;
 	  break;
 	case 'P':
-	  session.port_flag = atoi(optarg);
+	  session.port_flag = atoi(ssh_optarg);
 	  if ((session.port_flag <= 0) || (session.port_flag > 65535))
 	    usage();
 	  break;
 	case 'c':
 	  if (session.cipher_list == NULL)
 	    {
-	      session.cipher_list_last = scp_new_cipher_item(optarg);
+	      session.cipher_list_last = scp_new_cipher_item(ssh_optarg);
 	      session.cipher_list_last->next = NULL;
 	      session.cipher_list = session.cipher_list_last;
 	    }
 	  else
 	    {
-	      session.cipher_list_last->next = scp_new_cipher_item(optarg);
+	      session.cipher_list_last->next = scp_new_cipher_item(ssh_optarg);
 	      session.cipher_list_last = session.cipher_list_last->next;
 	      session.cipher_list_last->next = NULL;
 	    }
 	  break;
 	case 'S':
 	  ssh_xfree(session.ssh_path);
-	  session.ssh_path = ssh_xstrdup(optarg);
+	  session.ssh_path = ssh_xstrdup(ssh_optarg);
 	  break;
 	case 'd':
 	  session.need_dst_dir = 1;
 	  break;
 	case 'D':
-	  session.debug_flag = ssh_xstrdup(optarg);
+	  session.debug_flag = ssh_xstrdup(ssh_optarg);
 	  ssh_debug_set_level_string(session.debug_flag);
 	  session.verbose = atoi(session.debug_flag);
 	  if (session.verbose == 0)
@@ -256,8 +259,8 @@ int main(int argc, char **argv)
 	}
     }
 
-  argc -= optind;
-  argv += optind;
+  argc -= ssh_optind;
+  argv += ssh_optind;
 
   if (argc < 2)
     usage();
@@ -1133,7 +1136,7 @@ Boolean scp_move_file(ScpSession session,
       dst_handle = scp_file_open(session,
 				 dst_client,
 				 dst_file,
-				 O_CREAT | O_WRONLY,
+				 O_CREAT | O_TRUNC | O_WRONLY,
 				 NULL);
       if (dst_handle == NULL) 
 	{

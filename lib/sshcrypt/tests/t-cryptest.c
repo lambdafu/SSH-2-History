@@ -15,7 +15,7 @@
   */
 
 /*
- * $Id: t-cryptest.c,v 1.4 1998/07/20 16:41:04 mkojo Exp $
+ * $Id: t-cryptest.c,v 1.5 1998/10/07 11:56:30 tri Exp $
  * $Log: t-cryptest.c,v $
  * $EndLog$
  */
@@ -25,6 +25,8 @@
 #include "psystem.h"
 #include "timeit.h"
 #include "gmp.h"
+
+#include "testsrcpath.h"
 
 /* The PSystem definition. */
 
@@ -162,13 +164,13 @@ SSH_PSYSTEM_HANDLER(timing_info)
     case SSH_PSYSTEM_OBJECT:
       t = context_in;
       switch (aptype)
-	{
-	case TCR_LOOPS:
-	  t->loops = mpz_get_ui((MP_INT*)data);
-	  return TRUE;
-	default:
-	  break;
-	}
+        {
+        case TCR_LOOPS:
+          t->loops = mpz_get_ui((MP_INT*)data);
+          return TRUE;
+        default:
+          break;
+        }
       break;
     default:
       break;
@@ -214,7 +216,7 @@ Boolean hash_test(void *t)
   if (ssh_hash_allocate(h->name, &hash) != SSH_CRYPTO_OK)
     {
       fprintf(h->s->fp, "hash_test: hash %s is not supported\n",
-	      h->name);
+              h->name);
       goto failed;
     }
 
@@ -222,7 +224,7 @@ Boolean hash_test(void *t)
   if (len != h->digest_len)
     {
       fprintf(h->s->fp, "hash_test: digest length %u not equal to %u bytes\n",
-	      h->digest_len, len);
+              h->digest_len, len);
       fhexdump(h->s->fp, "incorrect (data)", h->digest, h->digest_len);
       ssh_hash_free(hash);
       goto failed;
@@ -279,24 +281,24 @@ SSH_PSYSTEM_HANDLER(hash_test)
     case SSH_PSYSTEM_OBJECT:
       h = context_in;
       switch (aptype)
-	{
-	case TCR_NAME:
-	  h->name = data;
-	  return TRUE;
-	case TCR_DATA:
-	  h->data = data;
-	  h->data_len = data_len;
-	  return TRUE;
-	case TCR_DIGEST:
-	  h->digest = data;
-	  h->digest_len = data_len;
-	  return TRUE;
-	case TCR_TIMING:
-	  h->t = data;
-	  return TRUE;
-	default:
-	  break;
-	}
+        {
+        case TCR_NAME:
+          h->name = data;
+          return TRUE;
+        case TCR_DATA:
+          h->data = data;
+          h->data_len = data_len;
+          return TRUE;
+        case TCR_DIGEST:
+          h->digest = data;
+          h->digest_len = data_len;
+          return TRUE;
+        case TCR_TIMING:
+          h->t = data;
+          return TRUE;
+        default:
+          break;
+        }
       break;
     default:
       break;
@@ -334,7 +336,7 @@ Boolean mac_test(void *t)
   if (ssh_mac_allocate(h->name, h->key, h->key_len, &mac) != SSH_CRYPTO_OK)
     {
       fprintf(h->s->fp, "mac_test: mac %s not supported.\n",
-	      h->name);
+              h->name);
       goto failed;
     }
 
@@ -342,7 +344,7 @@ Boolean mac_test(void *t)
   if (len != h->digest_len)
     {
       fprintf(h->s->fp, "mac_test: digest length %u not equal to %u.\n",
-	      h->digest_len, len);
+              h->digest_len, len);
       ssh_mac_free(mac);
       goto failed;
     }
@@ -402,28 +404,28 @@ SSH_PSYSTEM_HANDLER(mac_test)
     case SSH_PSYSTEM_OBJECT:
       h = context_in;
       switch (aptype)
-	{
-	case TCR_NAME:
-	  h->name = data;
-	  return TRUE;
-	case TCR_KEY:
-	  h->key = data;
-	  h->key_len = data_len;
-	  return TRUE;
-	case TCR_DATA:
-	  h->data = data;
-	  h->data_len = data_len;
-	  return TRUE;
-	case TCR_DIGEST:
-	  h->digest = data;
-	  h->digest_len = data_len;
-	  return TRUE;
-	case TCR_TIMING:
-	  h->t = data;
-	  return TRUE;
-	default:
-	  break;
-	}
+        {
+        case TCR_NAME:
+          h->name = data;
+          return TRUE;
+        case TCR_KEY:
+          h->key = data;
+          h->key_len = data_len;
+          return TRUE;
+        case TCR_DATA:
+          h->data = data;
+          h->data_len = data_len;
+          return TRUE;
+        case TCR_DIGEST:
+          h->digest = data;
+          h->digest_len = data_len;
+          return TRUE;
+        case TCR_TIMING:
+          h->t = data;
+          return TRUE;
+        default:
+          break;
+        }
       break;
     default:
       break;
@@ -462,10 +464,10 @@ Boolean cipher_test(void *t)
   size_t len;
 
   if (ssh_cipher_allocate(c->name, c->key, c->key_len,
-			  TRUE, &cipher) != SSH_CRYPTO_OK)
+                          TRUE, &cipher) != SSH_CRYPTO_OK)
     {
       fprintf(c->s->fp, "cipher_test: cipher %s unsupported.\n",
-	      c->name);
+              c->name);
       goto failed;
     }
 
@@ -473,37 +475,37 @@ Boolean cipher_test(void *t)
   if (len != 1)
     {
       if (c->iv)
-	{
-	  if (len != c->input_len || len != c->output_len || len != c->iv_len)
-	    {
-	      fprintf(c->s->fp,
-		      "cipher_test: input = %u output = %u iv = %u\n"
-		      "             assumed all to be %u bytes.\n",
-		      c->input_len, c->output_len, c->iv_len, len);
-	      ssh_cipher_free(cipher);
-	      goto failed;
-	    }
-	  ssh_cipher_set_iv(cipher, c->iv);
-	}
+        {
+          if (len != c->input_len || len != c->output_len || len != c->iv_len)
+            {
+              fprintf(c->s->fp,
+                      "cipher_test: input = %u output = %u iv = %u\n"
+                      "             assumed all to be %u bytes.\n",
+                      c->input_len, c->output_len, c->iv_len, len);
+              ssh_cipher_free(cipher);
+              goto failed;
+            }
+          ssh_cipher_set_iv(cipher, c->iv);
+        }
       else
-	{
-	  if (len != c->input_len || len != c->output_len)
-	    {
-	      fprintf(c->s->fp,
-		      "cipher_test: input = %u output = %u\n"
-		      "             assumed both to be %u bytes.\n",
-		      c->input_len, c->output_len, len);
-	      ssh_cipher_free(cipher);
-	      goto failed;
-	    }
-	}
+        {
+          if (len != c->input_len || len != c->output_len)
+            {
+              fprintf(c->s->fp,
+                      "cipher_test: input = %u output = %u\n"
+                      "             assumed both to be %u bytes.\n",
+                      c->input_len, c->output_len, len);
+              ssh_cipher_free(cipher);
+              goto failed;
+            }
+        }
     }
 
   buf = ssh_xmalloc(len);
   if (ssh_cipher_transform(cipher, buf, c->input, len) != SSH_CRYPTO_OK)
     {
       fprintf(c->s->fp, "cipher_test: encryption with %s failed!\n",
-	      c->name);
+              c->name);
       ssh_cipher_free(cipher);
       ssh_xfree(buf);
       goto failed;
@@ -558,29 +560,29 @@ SSH_PSYSTEM_HANDLER(cipher_test)
     case SSH_PSYSTEM_OBJECT:
       c = context_in;
       switch (aptype)
-	{
-	case TCR_NAME:
-	  c->name = data;
-	  return TRUE;
-	case TCR_KEY:
-	  c->key = data;
-	  c->key_len = data_len;
-	  return TRUE;
-	case TCR_IV:
-	  c->iv = data;
-	  c->iv_len = data_len;
-	  return TRUE;
-	case TCR_INPUT:
-	  c->input = data;
-	  c->input_len = data_len;
-	  return TRUE;
-	case TCR_OUTPUT:
-	  c->output = data;
-	  c->output_len = data_len;
-	  return TRUE;
-	default:
-	  break;
-	}
+        {
+        case TCR_NAME:
+          c->name = data;
+          return TRUE;
+        case TCR_KEY:
+          c->key = data;
+          c->key_len = data_len;
+          return TRUE;
+        case TCR_IV:
+          c->iv = data;
+          c->iv_len = data_len;
+          return TRUE;
+        case TCR_INPUT:
+          c->input = data;
+          c->input_len = data_len;
+          return TRUE;
+        case TCR_OUTPUT:
+          c->output = data;
+          c->output_len = data_len;
+          return TRUE;
+        default:
+          break;
+        }
       break;
     default:
       break;
@@ -625,14 +627,14 @@ SSH_PSYSTEM_HANDLER(root)
       return TRUE;
     case SSH_PSYSTEM_OBJECT:
       switch (aptype)
-	{
-	case TCR_HASH:
-	case TCR_MAC:
-	case TCR_CIPHER:
-	  return TRUE;
-	default:
-	  break;
-	}
+        {
+        case TCR_HASH:
+        case TCR_MAC:
+        case TCR_CIPHER:
+          return TRUE;
+        default:
+          break;
+        }
       break;
     default:
       break;
@@ -671,12 +673,21 @@ int main(int ac, char *av[])
   SshPSystemDef def;  
   Passed passed;
   SshPSystemError error;
-  char *default_str = "cryptest.desc";
+  char *default_str = "./cryptest.desc";
+  char *default_str_2 = TEST_SRC_PATH "/cryptest.desc";
   
-  if (ac > 1)
-    default_str = av[1];
-  
-  fp = fopen(default_str, "r");
+  if (ac > 1) 
+    {
+      fp = fopen(av[1], "r");
+    }
+  else
+    {
+      fp = fopen(default_str, "r");
+      if (fp == NULL)
+        {
+          fp = fopen(default_str_2, "r");
+        }
+    }
   if (fp == NULL)
     {
       fprintf(stderr, "no cryptest.desc to read from.\n");
@@ -697,8 +708,8 @@ int main(int ac, char *av[])
     return 0;
 
   fprintf(stderr,
-	  "Error %u (at %u:%u): %s\n",
-	  error.status, error.line, error.pos,
-	  ssh_psystem_error_msg(error.status));
+          "Error %u (at %u:%u): %s\n",
+          error.status, error.line, error.pos,
+          ssh_psystem_error_msg(error.status));
   return 1;
 }

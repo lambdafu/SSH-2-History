@@ -23,7 +23,7 @@
   */
 
 /*
- * $Id: sshmp.h,v 1.12 1998/06/24 13:26:47 kivinen Exp $
+ * $Id: sshmp.h,v 1.14 1998/10/08 15:56:58 kivinen Exp $
  * $Log: sshmp.h,v $
  * $EndLog$
  */
@@ -87,6 +87,9 @@ typedef struct SshIntModQRec
 } SshIntModQ;
 
 /* Some memory management. */
+
+SshInt *ssh_mp_malloc(void);
+void ssh_mp_free(SshInt *op);
 
 /* This function makes the integer 'op' to have new_size words of memory
    reserved, even if it doesn't need it at the moment. This cannot truncate
@@ -161,7 +164,7 @@ void ssh_mp_out_str(FILE *fp, unsigned int base, const SshInt *op);
 /* Routines to linearize the integer into a octet string. Note, that these
    routines do not handle the signs correctly, at the moment. */
 void ssh_mp_get_buf(unsigned char *buf, size_t buf_length,
-		    const SshInt *op);
+                    const SshInt *op);
 void ssh_mp_set_buf(SshInt *ret, const unsigned char *buf, size_t buf_length);
 
 /* Handle signs. */
@@ -262,7 +265,7 @@ void ssh_mp_gcd(SshInt *d, const SshInt *a, const SshInt *b);
 
 /* Computes d = u*a + v*b, where a, b are given as input. */
 void ssh_mp_gcdext(SshInt *d, SshInt *u, SshInt *v,
-		   const SshInt *a, const SshInt *b);
+                   const SshInt *a, const SshInt *b);
 
 /* op*inv == 1 (mod m), where op and m are given as input. */
 Boolean ssh_mp_invert(SshInt *inv, const SshInt *op, const SshInt *m);
@@ -283,7 +286,7 @@ int ssh_mp_legendre(const SshInt *a, const SshInt *b);
 Boolean ssh_mp_mod_sqrt(SshInt *ret, const SshInt *op, const SshInt *p);
 
 /* Computes sqrt^2 = op, where op is given as input. */
-void ssh_mp_sqrt(SshInt *sqrt, const SshInt *op);
+void ssh_mp_sqrt(SshInt *sqrt_out, const SshInt *op);
 
 /* Routine to check whether a given value 'op' is perfect square, that is
    if op = t^2. Returns 1 if it is, 0 if not. */
@@ -304,23 +307,23 @@ void ssh_mp_dump(const SshInt *bn);
    XXX fix it with a fallback operation. 
    */
 void ssh_mp_powm_naive(SshInt *op, const SshInt *g, const SshInt *e,
-		       const SshInt *m);
+                       const SshInt *m);
 void ssh_mp_powm_bsw(SshInt *op, const SshInt *g, const SshInt *e,
-		     const SshInt *m);
+                     const SshInt *m);
 void ssh_mp_powm_naive_mont(SshInt *op, const SshInt *g, const SshInt *e,
-			    const SshInt *m);
+                            const SshInt *m);
 void ssh_mp_powm_bsw_mont(SshInt *op, const SshInt *g, const SshInt *e,
-			  const SshInt *m);
+                          const SshInt *m);
 
 /* Specialized routines for computing g^e (mod m), where g is very small. */
 void ssh_mp_powm_naive_ui(SshInt *op, SshWord g, const SshInt *e,
-			  const SshInt *m);
+                          const SshInt *m);
 void ssh_mp_powm_naive_mont_ui(SshInt *ret, SshWord g,
-			       const SshInt *e, const SshInt *m);
+                               const SshInt *e, const SshInt *m);
 
 /* Exponentiation with a very small exponent. */
 void ssh_mp_powm_naive_expui(SshInt *op, const SshInt *g, SshWord e,
-			     const SshInt *m);
+                             const SshInt *m);
 
 /* Select your favourite, or fastest, routine here. */
 #define ssh_mp_powm       ssh_mp_powm_bsw_mont
@@ -397,13 +400,13 @@ int ssh_mpm_cmp(SshIntModQ *op1, SshIntModQ *op2);
 /* Fast modular addition and subtraction, keeps the values always within
    the modular domain. */
 void ssh_mpm_add(SshIntModQ *ret, const SshIntModQ *op1,
-		 const SshIntModQ *op2);
+                 const SshIntModQ *op2);
 void ssh_mpm_sub(SshIntModQ *ret, const SshIntModQ *op1,
-		 const SshIntModQ *op2);
+                 const SshIntModQ *op2);
 
 /* Fast multiplication which keeps the values within modular domain. */
 void ssh_mpm_mul(SshIntModQ *ret, const SshIntModQ *op1,
-		 const SshIntModQ *op2);
+                 const SshIntModQ *op2);
 /* Fast multiplication by small integer. */
 void ssh_mpm_mul_ui(SshIntModQ *ret, const SshIntModQ *op, SshWord u);
 /* Very quick squaring operation. */
@@ -416,10 +419,10 @@ void ssh_mpm_square(SshIntModQ *ret, const SshIntModQ *op);
    doesn't probably exist faster algorithms. 
    */
 void ssh_mpm_div_2exp(SshIntModQ *ret, const SshIntModQ *op,
-		      unsigned int exp);
+                      unsigned int exp);
 /* Very simple multiplication by powers of 2. */
 void ssh_mpm_mul_2exp(SshIntModQ *ret, const SshIntModQ *op,
-		      unsigned int exp);
+                      unsigned int exp);
 
 /* This inversion is not fast, but we assume that you don't need faster
    implementation. It is possible to write faster inversion later. */

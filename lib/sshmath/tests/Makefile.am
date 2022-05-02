@@ -14,9 +14,10 @@
 
 AUTOMAKE_OPTIONS = 1.0 foreign dist-zip no-dependencies
 
-TESTS = t-mathtest t-test-ec t-mathspeed
+TESTS = t-mathtest \
+t-mathspeed t-sophie-germain
 
-EXTRA_PROGRAMS = t-mathtest t-test-ec t-mathspeed
+EXTRA_PROGRAMS = t-mathtest t-test-ec t-mathspeed t-sophie-germain
 
 EXTRA_DIST = 
 
@@ -28,9 +29,13 @@ INCLUDES = -I../.. -I. -I.. -I$(srcdir) -I$(srcdir)/.. -I../../sshmath \
   -I../../zlib -I$(srcdir)/../../zlib
 
 t_mathtest_SOURCES = t-mathtest.c
-t_mathtest_DEPENDCIES = $(LDADD)
-t_test_ec_SOURCES = t-test-ec.c
-t_test_ec_DEPENDCIES = $(LDADD)
+t_mathtest_DEPENDENCIES = $(LDADD)
+#ifdef SSHDIST_MATH_ADVANCED
+#
+#
+#endif /* SSHDIST_MATH_ADVANCED */
 t_mathspeed_SOURCES = t-mathspeed.c
-t_mathspeed_DEPENDCIES = $(LDADD)
+t_mathspeed_DEPENDENCIES = $(LDADD)
 
+t_sophie_germain_SOURCES = t-sophie-germain.c
+t_sophie_germain_DEPENDENCIES = $(LDADD)

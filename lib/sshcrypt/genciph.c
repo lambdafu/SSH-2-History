@@ -26,7 +26,7 @@
 #include "des.h"
 #endif /* SSHDIST_CRYPT_DES */
 #ifdef SSHDIST_CRYPT_BLOWFISH
-
+#include "blowfish.h"
 #endif /* SSHDIST_CRYPT_BLOWFISH */
 #ifdef SSHDIST_CRYPT_CAST
 
@@ -102,18 +102,18 @@ static const SshCipherDef ssh_cipher_algorithms[] =
 #endif /* SSHDIST_CRYPT_CAST */
   
 #ifdef SSHDIST_CRYPT_BLOWFISH
-
-
-
-
-
-
-
-
-
-
-
-
+  { "blowfish-ecb", 8, 0,
+    blowfish_ctxsize, blowfish_init,
+    blowfish_ecb, blowfish_set_iv, blowfish_get_iv },
+  { "blowfish-cbc", 8, 0,
+    blowfish_ctxsize, blowfish_init,
+    blowfish_cbc, blowfish_set_iv, blowfish_get_iv },
+  { "blowfish-cfb", 8, 0,
+    blowfish_ctxsize, blowfish_init,
+    blowfish_cfb, blowfish_set_iv, blowfish_get_iv },
+  { "blowfish-ofb", 8, 0,
+    blowfish_ctxsize, blowfish_init,
+    blowfish_ofb, blowfish_set_iv, blowfish_get_iv },
 #endif /* SSHDIST_CRYPT_BLOWFISH */
     
 #ifdef SSHDIST_CRYPT_DES
@@ -284,7 +284,7 @@ struct SshCipherAliasRec ssh_cipher_aliases[] =
 
 #endif /* SSHDIST_CRYPT_CAST */
 #ifdef SSHDIST_CRYPT_BLOWFISH
-
+  { "blowfish", "blowfish-cbc" },
 #endif /* SSHDIST_CRYPT_BLOWFISH */
 #ifdef SSHDIST_CRYPT_IDEA
 

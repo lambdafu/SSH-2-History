@@ -4,7 +4,7 @@ Public interface to the SSH cryptographic library.  This file defines
 the functions and interfaces available to applications.
 
 Author: Mika Kojo <mkojo@ssh.fi>
-	Tatu Ylonen <ylo@ssh.fi>
+        Tatu Ylonen <ylo@ssh.fi>
 
 Copyright (c) 1995-1998 SSH Communications Security Inc, Finland.
                         All rights reserved.
@@ -18,8 +18,6 @@ Copyright (c) 1995-1998 SSH Communications Security Inc, Finland.
 
 #ifndef SSHCRYPT_H
 #define SSHCRYPT_H
-
-#include "sshincludes.h"
 
 /* Status/error codes. */
 
@@ -96,8 +94,8 @@ typedef enum
    function. */
 
 typedef void (*SshCryptoProgressMonitor)(SshCryptoProgressID id,
-					 unsigned int time_value,
-					 void *progress_context);
+                                         unsigned int time_value,
+                                         void *progress_context);
 
 /* To register call this function with the progress monitor and a context
    structure which will be given to the function when called. To
@@ -107,8 +105,8 @@ typedef void (*SshCryptoProgressMonitor)(SshCryptoProgressID id,
 
 DLLEXPORT void DLLCALLCONV
 ssh_crypto_library_register_progress_func(SshCryptoProgressMonitor
-					  monitor_function,
-					  void *progress_context);
+                                          monitor_function,
+                                          void *progress_context);
 
 /********************* Pseudo-Random numbers ******************************/
 
@@ -142,7 +140,7 @@ DLLEXPORT SshRandomState DLLCALLCONV ssh_random_allocate(void);
 
 DLLEXPORT void DLLCALLCONV
 ssh_random_add_noise(SshRandomState state, const void *buf,
-		     size_t bytes);
+                     size_t bytes);
 
 /* Stirs the pool of randomness, making every bit of the internal state
    depend on every other bit.  This should be called after adding new
@@ -195,11 +193,11 @@ DLLEXPORT void DLLCALLCONV
 ssh_hash_reset(SshHash hash);
 
 /* Get the ASN.1 Object Identifier of the hash, if available. Returns the
-   length of the OID. Returns 0 if OID is not available. The argument
-   *oid is set to point into constant internal data structures, and
+   OID in 'standard' form e.g. "1.2.3.4". Returns NULL if a OID is not
+   available. The returned value points to internal constant data and
    need not be freed. */
-DLLEXPORT unsigned int DLLCALLCONV
-ssh_hash_asn1_oid(SshHash hash, unsigned long **oid);
+DLLEXPORT const char * DLLCALLCONV
+ssh_hash_asn1_oid(SshHash hash);
 
 /* Get the ISO/IEC dedicated hash number, if available. The value
    returned, is an octet containing the dedicated hash number. If the
@@ -228,8 +226,8 @@ ssh_hash_final(SshHash hash, unsigned char *digest);
    This calls ssh_fatal() if called with an invalid type. */
 DLLEXPORT void DLLCALLCONV
 ssh_hash_of_buffer(const char *type,
-		   const void *buf, size_t len,
-		   unsigned char *digest);
+                   const void *buf, size_t len,
+                   unsigned char *digest);
 #endif /* SSHDIST_CRYPT_GENHASH */
 
 #ifdef SSHDIST_CRYPT_GENCIPH
@@ -289,10 +287,10 @@ ssh_cipher_get_native_name(const char *name);
    This returns SSH_CRYPTO_OK on success. */
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_cipher_allocate(const char *type,
-		    const unsigned char *key,
-		    size_t keylen,
-		    Boolean for_encryption,
-		    SshCipher *cipher);
+                    const unsigned char *key,
+                    size_t keylen,
+                    Boolean for_encryption,
+                    SshCipher *cipher);
 
 /* Allocates and initializes a new cipher.  The key is set by
    computing the MD5 checksum of the given passphrase, and using the
@@ -302,9 +300,9 @@ ssh_cipher_allocate(const char *type,
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_cipher_allocate_with_passphrase(const char *type,
-				    const char *passphrase,
-				    Boolean for_encryption,
-				    SshCipher *cipher);
+                                    const char *passphrase,
+                                    Boolean for_encryption,
+                                    SshCipher *cipher);
 
 /* Allocates and initializes a new cipher. Tells the cipher to check for
    weak keys, and returns an error if weak key was given.
@@ -315,10 +313,10 @@ ssh_cipher_allocate_with_passphrase(const char *type,
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_cipher_allocate_and_test_weak_keys(const char *type,
-				       const unsigned char *key,
-				       size_t keylen,
-				       Boolean for_encryption,
-				       SshCipher *cipher);
+                                       const unsigned char *key,
+                                       size_t keylen,
+                                       Boolean for_encryption,
+                                       SshCipher *cipher);
 
 /* Clears and frees the cipher from main memory.  The cipher object becomes
    invalid, and any memory associated with it is freed. */
@@ -343,7 +341,7 @@ ssh_cipher_get_block_length(SshCipher cipher);
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_cipher_set_iv(SshCipher cipher,
-		  const unsigned char *iv);
+                  const unsigned char *iv);
 
 /* Gets the initialization vector of the cipher.  This is only
    meaningful for block ciphers used in one of the feedback/chaining
@@ -352,7 +350,7 @@ ssh_cipher_set_iv(SshCipher cipher,
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_cipher_get_iv(SshCipher cipher,
-		  unsigned char *iv);
+                  unsigned char *iv);
 
 /* Encrypts/decrypts data (depending on the for_encryption flag given when the
    SshCipher object was created).  Data is copied from src to dest while it
@@ -372,9 +370,9 @@ ssh_cipher_get_iv(SshCipher cipher,
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_cipher_transform(SshCipher cipher,
-		     unsigned char *dest,
-		     const unsigned char *src,
-		     size_t len);
+                     unsigned char *dest,
+                     const unsigned char *src,
+                     size_t len);
 #endif /* SSHDIST_CRYPT_GENCIPH */
 
 #ifdef SSHDIST_CRYPT_GENMAC
@@ -403,8 +401,8 @@ ssh_mac_supported(const char *name);
 /* Allocate mac for use in session */
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_mac_allocate(const char *type,
-		 const unsigned char *key, size_t keylen,
-		 SshMac *mac);
+                 const unsigned char *key, size_t keylen,
+                 SshMac *mac);
 
 /* Free the mac. */
 DLLEXPORT void DLLCALLCONV
@@ -458,7 +456,7 @@ typedef enum
    Failure can be caused by incorrect hash or mac type. */
 DLLEXPORT void * DLLCALLCONV
 ssh_mac_info_derive_from_hash(SshHash hash,
-			      SshMacType type);
+                              SshMacType type);
 
 /* Free the mac info, which is denoted by a void pointer. This function
    should be called only if the mac allocation with info fails (that is
@@ -483,8 +481,8 @@ ssh_mac_info_free(void *mac_info);
    */
 DLLEXPORT SshMac DLLCALLCONV
 ssh_mac_allocate_with_info(const void *mac_info, 
-			   unsigned char *key,
-			   size_t keylen);
+                           unsigned char *key,
+                           size_t keylen);
 
 #endif /* SSHDIST_CRYPT_GENMAC */
 
@@ -503,10 +501,10 @@ ssh_mac_allocate_with_info(const void *mac_info,
 
    Note: most input will be given in MP_INT's because it is reasonably
          convenient way of handling large strings of bits. However,
-	 not all values are integers, nor natural numbers. You should
-	 not assume that any MP_INT you get can be used for reasonable
-	 computations without knowledge of the meaning of the actual
-	 value. 
+         not all values are integers, nor natural numbers. You should
+         not assume that any MP_INT you get can be used for reasonable
+         computations without knowledge of the meaning of the actual
+         value. 
    
    */
 
@@ -548,12 +546,12 @@ typedef enum
      When genererating:       unsigned int 
 
         Entropy in bits. Usually it will be rounded up to nearest
-	multiple of 8. This happens within this library.
+        multiple of 8. This happens within this library.
 
      When reading information: unsigned int *
 
         The actual bit count used to generate the entropy will be
-	outputed. 
+        outputed. 
      */
   SSH_PKF_RANDOMIZER_ENTROPY,
   
@@ -567,7 +565,7 @@ typedef enum
      When generating:          const char *
 
         Name of the predefined group one wants to use. See
-	ssh_public_key_get_predefined_groups() for more information.
+        ssh_public_key_get_predefined_groups() for more information.
      
      When reading information: const char **
 
@@ -585,9 +583,7 @@ typedef enum
 
      When reading information: const char **
 
-       Returns a pointer to a string. This must be freed later with
-       ssh_xfree. If some schemes are defined for the key or group then
-       appended version of the key type will be returned.
+       Returns a pointer to a constant string. 
 
      Following key types are used:
 
@@ -602,12 +598,12 @@ typedef enum
        ec-modp:
 
          Schemes based on elliptic curves over integers (mod p)
-	 discrete logarithm problem.
+         discrete logarithm problem.
 
        ec-gf2n:
 
          Schemes based on elliptic curves over Galois field GF(2^n)
-	 discrete logarithm problem.
+         discrete logarithm problem.
        
      */
   SSH_PKF_KEY_TYPE,
@@ -635,8 +631,8 @@ typedef enum
      we have
 
         signature schemes
-	encryption schemes
-	key exchange schemes
+        encryption schemes
+        key exchange schemes
 
      and actually the key exchange schemes are here divided into their
      basic algorithms.
@@ -671,22 +667,22 @@ typedef enum
        dl-modp:
 
           generation:  MP_INT *
-	  reading:     MP_INT *
+          reading:     MP_INT *
 
        ec-modp:
 
           generation:  MP_INT *, MP_INT *
-	  reading:     MP_INT *, MP_INT *
+          reading:     MP_INT *, MP_INT *
 
-	  The comma denotes that we mean a pair or values. E.g. the first
-	  one is the x co-ordinate and the second y co-ordinate. We
-	  assume that the point is valid. 
+          The comma denotes that we mean a pair or values. E.g. the first
+          one is the x co-ordinate and the second y co-ordinate. We
+          assume that the point is valid. 
 
        ec-gf2n:
 
           generation: MP_INT *, MP_INT *
-	  reading:    MP_INT *, MP_INT *
-	  
+          reading:    MP_INT *, MP_INT *
+          
      */
      
   SSH_PKF_PUBLIC_Y,
@@ -696,17 +692,17 @@ typedef enum
        dl-modp:
 
          generation:   MP_INT *
-	 reading:      MP_INT *
+         reading:      MP_INT *
 
        ec-modp:
 
          generation:   MP_INT *
-	 reading:      MP_INT *
+         reading:      MP_INT *
 
        ec-gf2n:
 
          generation:   MP_INT *
-	 reading:      MP_INT *
+         reading:      MP_INT *
 
      */
   
@@ -721,25 +717,25 @@ typedef enum
        if-modn:
 
          generation:    MP_INT *
-	 reading:       MP_INT *
+         reading:       MP_INT *
 
      For the discrete logarithm problem based methods this identifier
      means the integer field modulus.
-	 
+         
        dl-modp:
 
          generation:    MP_INT *
-	 reading:       MP_INT *
+         reading:       MP_INT *
        
        ec-modp:
 
          generation:    MP_INT *
-	 reading:       MP_INT *
+         reading:       MP_INT *
 
        ec-gf2n:
 
          generation:    MP_INT *
-	 reading:       MP_INT *
+         reading:       MP_INT *
 
      */
   
@@ -753,7 +749,7 @@ typedef enum
        ec-gf2n:
 
          generation:   MP_INT *
-	 reading:      MP_INT *
+         reading:      MP_INT *
 
     */
      
@@ -768,7 +764,7 @@ typedef enum
        if-modn:
 
          generation:    MP_INT *
-	 reading:       MP_INT *
+         reading:       MP_INT *
 
      For the discrete logarithm problem bases system this identifier
      means the order of the group in which computation occurs.
@@ -776,17 +772,17 @@ typedef enum
        dl-modp:
 
          generation:    MP_INT *
-	 reading:       MP_INT *
+         reading:       MP_INT *
 
        ec-modp:
 
          generation:    MP_INT *
-	 reading:       MP_INT *
+         reading:       MP_INT *
 
        ec-gf2n:
 
          generation:    MP_INT *
-	 reading:       MP_INT *
+         reading:       MP_INT *
 
      */
   
@@ -797,12 +793,12 @@ typedef enum
        dl-modp:
 
          generation:   MP_INT *
-	 reading:      MP_INT *
+         reading:      MP_INT *
 
        ec-modp:
 
          generation:   MP_INT *, MP_INT *
-	 reading:      MP_INT *, MP_INT *
+         reading:      MP_INT *, MP_INT *
 
        Here we denote by comma the fact that you are supposed to give
        two values, a pair, as input. The first component will be x, and
@@ -811,8 +807,8 @@ typedef enum
        ec-gf2n:
 
          generation:   MP_INT *, MP_INT *
-	 reading:      MP_INT *, MP_INT *
-	 
+         reading:      MP_INT *, MP_INT *
+         
 
      In general generator is a value which generates the set of numbers
      over which we perform our crypto operations.
@@ -828,10 +824,10 @@ typedef enum
        if-modn:
 
          generation:    MP_INT *
-	 reading:       MP_INT *
+         reading:       MP_INT *
 
      Currently implemented is the RSA which used n = pq and e = d^1 (mod n).
-	 
+         
      */
   
   SSH_PKF_MODULO_N,
@@ -842,7 +838,7 @@ typedef enum
        if-modn:
 
          generation:    MP_INT *
-	 reading:       MP_INT *
+         reading:       MP_INT *
 
        In context of RSA this value will set the public exponent
        explicitly to some value or make sure that the value set is the
@@ -859,7 +855,7 @@ typedef enum
        if-modn:
 
          generation:     MP_INT *
-	 reading:        MP_INT *
+         reading:        MP_INT *
 
        In RSA this value has priority over public exponent. Given this
        value and primes p and q, all the RSA parameters can be
@@ -873,7 +869,7 @@ typedef enum
        if-modn:
 
          generation:     MP_INT *
-	 reading:        MP_INT *
+         reading:        MP_INT *
 
        This value can be excluded because it is automatically computed
        within the parameter making utility. Although, if given among all
@@ -887,17 +883,17 @@ typedef enum
        ec-modp:
 
          generation:       Boolean
-	 reading:          Boolean *
+         reading:          Boolean *
 
        ec-gf2n:
 
          generation:   Boolean 
-	 reading:      Boolean *
+         reading:      Boolean *
 
      Point compression can be applied when ever a point is linearized to
      a octet buffer. However, it takes time to reconstruct and thus is
      not suggested. Default is no point compression.
-	 
+         
       */
      
   SSH_PKF_POINT_COMPRESS,
@@ -905,48 +901,48 @@ typedef enum
   /*   ec-modp:
 
          generation:       MP_INT *
-	 reading:          MP_INT *
+         reading:          MP_INT *
 
        ec-gf2n:
 
          generation:   MP_INT *
-	 reading:      MP_INT *
+         reading:      MP_INT *
 
        The number of points that lie of elliptic curve your are defining,
        or reading. This is not important for the working of the system,
        only that you can make sure that your parameters are secure. 
        
-	 */
+         */
   
   SSH_PKF_CARDINALITY,
 
   /*   ec-modp:
 
          generation:       MP_INT *
-	 reading:          MP_INT *
+         reading:          MP_INT *
 
        ec-gf2n:
 
          generation:   MP_INT *
-	 reading:      MP_INT *
+         reading:      MP_INT *
 
        The another number which is used to define the elliptic curve.
-	 
-	 */
+         
+         */
   SSH_PKF_CURVE_A,
   /*   ec-modp:
 
          generation:       MP_INT *
-	 reading:          MP_INT *
+         reading:          MP_INT *
 
        ec-gf2n:
 
          generation:   MP_INT *
-	 reading:      MP_INT *
+         reading:      MP_INT *
 
        The another number which is used to define the elliptic curve. 
-	 
-	 */
+         
+         */
   SSH_PKF_CURVE_B
   
 } SshPkFormat;
@@ -1041,8 +1037,8 @@ ssh_public_key_define(SshPublicKey *key, const char *key_type, ...);
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_public_key_import(const unsigned char *buf,
-		      size_t len,
-		      SshPublicKey *key);
+                      size_t len,
+                      SshPublicKey *key);
 
 /* Create a public key blob from an SshPublicKey. Returns
    SSH_CRYPTO_OK, if everything went fine. In such a case, *buf will
@@ -1052,8 +1048,8 @@ ssh_public_key_import(const unsigned char *buf,
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_public_key_export(SshPublicKey key,
-		      unsigned char **buf,
-		      size_t *length_return);
+                      unsigned char **buf,
+                      size_t *length_return);
 
 /* Copy public key from 'key_src' to 'key_dest'. Returns SSH_CRYPTO_OK,
    if everything went fine. This copying is explicit, operation on other
@@ -1061,7 +1057,7 @@ ssh_public_key_export(SshPublicKey key,
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_public_key_copy(SshPublicKey key_src,
-		    SshPublicKey *key_dest);
+                    SshPublicKey *key_dest);
 
 /* Clears and frees the public key. Cannot fail. */
 
@@ -1097,12 +1093,12 @@ ssh_public_key_max_encrypt_output_len(SshPublicKey key);
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_public_key_encrypt(SshPublicKey key,
-		       const unsigned char *plaintext,
-		       size_t plaintext_len,
-		       unsigned char *ciphertext_buffer,
-		       size_t ciphertext_buffer_len,
-		       size_t *ciphertext_len_return,
-		       SshRandomState random_state);
+                       const unsigned char *plaintext,
+                       size_t plaintext_len,
+                       unsigned char *ciphertext_buffer,
+                       size_t ciphertext_buffer_len,
+                       size_t *ciphertext_len_return,
+                       SshRandomState random_state);
 
 /* Verifies that the given signature matches with the given data.  The
    exact relationship of the data to the signature depends on the
@@ -1117,10 +1113,10 @@ ssh_public_key_encrypt(SshPublicKey key,
 
 DLLEXPORT Boolean DLLCALLCONV
 ssh_public_key_verify_signature(SshPublicKey key,
-				const unsigned char *signature,
-				size_t signature_len,
-				const unsigned char *data,
-				size_t data_len);
+                                const unsigned char *signature,
+                                size_t signature_len,
+                                const unsigned char *data,
+                                size_t data_len);
 
 /* As above but with this interface one can give the exact digest one self.
    Idea is that now the data can be gathered in pieces rather than in
@@ -1129,10 +1125,10 @@ ssh_public_key_verify_signature(SshPublicKey key,
 
 DLLEXPORT Boolean DLLCALLCONV
 ssh_public_key_verify_signature_with_digest(SshPublicKey key,
-					    const unsigned char *signature,
-					    size_t signature_len,
-					    const unsigned char *digest,
-					    size_t digest_len);
+                                            const unsigned char *signature,
+                                            size_t signature_len,
+                                            const unsigned char *digest,
+                                            size_t digest_len);
 
 /* The hash function used for signature verification computation. Note that
    this hash returned is compatible with the interface for generic
@@ -1173,19 +1169,19 @@ ssh_public_key_derive_pk_group(SshPublicKey key);
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_private_key_import(const unsigned char *buf,
-		       size_t len,
-		       const unsigned char *cipher_key,
-		       size_t cipher_keylen,
-		       SshPrivateKey *key);
+                       size_t len,
+                       const unsigned char *cipher_key,
+                       size_t cipher_keylen,
+                       SshPrivateKey *key);
 
 /* As above, but instead of giving the explicit cipher_key one gives a
    passphrase. The passphrase is hashed by crypto library before use. */
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_private_key_import_with_passphrase(const unsigned char *buf,
-				       size_t len,
-				       const char *passphrase,
-				       SshPrivateKey *key);
+                                       size_t len,
+                                       const char *passphrase,
+                                       SshPrivateKey *key);
 
 /* Constructs a key blob (binary representation) for a given private
    key. The sensitive parts of the blob will be encrypted. If
@@ -1195,23 +1191,23 @@ ssh_private_key_import_with_passphrase(const unsigned char *buf,
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_private_key_export(SshPrivateKey key,
-		       const char *cipher_name,
-		       const unsigned char *cipher_key,
-		       size_t cipher_keylen,
-		       SshRandomState state,
-		       unsigned char **bufptr,
-		       size_t *length_return);
+                       const char *cipher_name,
+                       const unsigned char *cipher_key,
+                       size_t cipher_keylen,
+                       SshRandomState state,
+                       unsigned char **bufptr,
+                       size_t *length_return);
 
 /* As above, but instead of giving the explicit cipher_key one gives a
    passphrase. The passphrase is hashed by crypto library before use. */
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_private_key_export_with_passphrase(SshPrivateKey key,
-				       const char *cipher_name,
-				       const char *passphrase,
-				       SshRandomState state,
-				       unsigned char **bufptr,
-				       size_t *length_return);
+                                       const char *cipher_name,
+                                       const char *passphrase,
+                                       SshRandomState state,
+                                       unsigned char **bufptr,
+                                       size_t *length_return);
 
 /* XXX other methods of obtaining a private key: attach to smartcard reader,
    attach to a forwarded agent connection. */
@@ -1220,7 +1216,7 @@ ssh_private_key_export_with_passphrase(SshPrivateKey key,
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_private_key_copy(SshPrivateKey key_src,
-		     SshPrivateKey *key_dest);
+                     SshPrivateKey *key_dest);
 
 /* Clears and frees the private key from memory. */
 
@@ -1251,6 +1247,47 @@ ssh_private_key_get_info(SshPrivateKey key, ...);
 DLLEXPORT SshPkGroup DLLCALLCONV
 ssh_private_key_derive_pk_group(SshPrivateKey key);
 
+
+#ifdef SSHDIST_SMART_CARD
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#endif /* SSHDIST_SMART_CARD */
+
+
 /* Generate a public key cryptosystems private key. Basic usage is to
    generate a random key of some selected type. Other uses is to give
    explicit key values to be used through SSH interface.
@@ -1260,8 +1297,8 @@ ssh_private_key_derive_pk_group(SshPrivateKey key);
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_private_key_generate(SshRandomState random_state,
-			 SshPrivateKey *key,
-			 const char *key_type, ...);
+                         SshPrivateKey *key,
+                         const char *key_type, ...);
 
 /* Returns the maximum number of bytes that can be signed using this key.
    If this key is not capable of signing, this returns 0. It returns
@@ -1305,11 +1342,11 @@ ssh_private_key_max_decrypt_output_len(SshPrivateKey key);
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_private_key_decrypt(SshPrivateKey key,
-			const unsigned char *ciphertext,
-			size_t ciphertext_len,
-			unsigned char *plaintext_buffer,
-			size_t plaintext_buffer_len,
-			size_t *plaintext_length_return);
+                        const unsigned char *ciphertext,
+                        size_t ciphertext_len,
+                        unsigned char *plaintext_buffer,
+                        size_t plaintext_buffer_len,
+                        size_t *plaintext_length_return);
 
 /* Signs the given data using the private key.  The data will be padded
    and encoded depending on the type of the key before signing.  To verify
@@ -1329,24 +1366,24 @@ ssh_private_key_decrypt(SshPrivateKey key,
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_private_key_sign(SshPrivateKey key,
-		     const unsigned char *data,
-		     size_t data_len,
-		     unsigned char *signature_buffer,
-		     size_t signature_buffer_len,
-		     size_t *signature_length_return,
-		     SshRandomState state);
+                     const unsigned char *data,
+                     size_t data_len,
+                     unsigned char *signature_buffer,
+                     size_t signature_buffer_len,
+                     size_t *signature_length_return,
+                     SshRandomState state);
 
 /* As above but here one can give the hash digest one self. The hash which
    to use is given by the following function. */
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_private_key_sign_digest(SshPrivateKey key,
-			    const unsigned char *digest,
-			    size_t digest_len,
-			    unsigned char *signature_buffer,
-			    size_t signature_buffer_len,
-			    size_t *signature_length_return,
-			    SshRandomState state);
+                            const unsigned char *digest,
+                            size_t digest_len,
+                            unsigned char *signature_buffer,
+                            size_t signature_buffer_len,
+                            size_t *signature_length_return,
+                            SshRandomState state);
 
 /* With this interface we can derive a hash function to gather the
    signature data for signing. Hash function context returned is
@@ -1361,8 +1398,8 @@ ssh_private_key_derive_signature_hash(SshPrivateKey key);
    construction. */
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_pk_group_generate(SshRandomState state,
-		      SshPkGroup *group,
-		      const char *group_type, ...);
+                      SshPkGroup *group,
+                      const char *group_type, ...);
 
 /* Free public key group context. */
 DLLEXPORT void DLLCALLCONV
@@ -1383,15 +1420,15 @@ ssh_pk_group_get_info(SshPkGroup group, ...);
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_pk_group_export(SshPkGroup group,
-		    unsigned char **buf,
-		    size_t *buf_length);
+                    unsigned char **buf,
+                    size_t *buf_length);
 
 /* Import a binary blob of group information. */
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_pk_group_import(unsigned char *buf,
-		    size_t buf_length,
-		    SshPkGroup *group);
+                    size_t buf_length,
+                    SshPkGroup *group);
 
 
 /* Randomizers. */
@@ -1412,8 +1449,8 @@ ssh_pk_group_generate_randomizer(SshPkGroup group, SshRandomState state);
    should be kept strictly secret. */
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_pk_group_export_randomizers(SshPkGroup group,
-				unsigned char **buf,
-				size_t *buf_length);
+                                unsigned char **buf,
+                                size_t *buf_length);
 
 /* Import a binary blob of randomizers. This blob cannot generate a group,
    and thus should be used only when the receiver is actually the same
@@ -1422,9 +1459,9 @@ ssh_pk_group_export_randomizers(SshPkGroup group,
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_pk_group_import_randomizers(SshPkGroup group,
-				unsigned char *buf,
-				size_t buf_length);
-		     
+                                unsigned char *buf,
+                                size_t buf_length);
+                     
 /* Diffie-Hellman interface. */
 
 /* Number of octets needed for the setup function. Returns 0 if
@@ -1460,11 +1497,11 @@ ssh_pk_group_diffie_hellman_agree_max_output_length(SshPkGroup group);
    */
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_pk_group_diffie_hellman_setup(SshPkGroup group,
-				  void **secret,
-				  unsigned char *exchange_buffer,
-				  size_t exchange_buffer_length,
-				  size_t *return_length,
-				  SshRandomState state);
+                                  void **secret,
+                                  unsigned char *exchange_buffer,
+                                  size_t exchange_buffer_length,
+                                  size_t *return_length,
+                                  SshRandomState state);
 
 /* Compute a secret value from an exchange value and a secret. Secret will
    be free and deleted (thus no need to free it otherways). This function
@@ -1472,12 +1509,12 @@ ssh_pk_group_diffie_hellman_setup(SshPkGroup group,
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_pk_group_diffie_hellman_agree(SshPkGroup group,
-				  void *secret,
-				  unsigned char *exchange_buffer,
-				  size_t exchange_buffer_length,
-				  unsigned char *secret_value_buffer,
-				  size_t secret_value_buffer_length,
-				  size_t *return_length);
+                                  void *secret,
+                                  unsigned char *exchange_buffer,
+                                  size_t exchange_buffer_length,
+                                  unsigned char *secret_value_buffer,
+                                  size_t secret_value_buffer_length,
+                                  size_t *return_length);
 
 /* Unified Diffie-Hellman interface. */
 
@@ -1506,7 +1543,7 @@ ssh_pk_group_unified_diffie_hellman_agree_max_output_length(SshPkGroup group);
      send exchange
                ----------------->
                                  send exchange
-	       <----------------
+               <----------------
        agree                         agree
 
    The problem occurs in phase for finding public keys. These key should
@@ -1526,13 +1563,13 @@ ssh_pk_group_unified_diffie_hellman_agree_max_output_length(SshPkGroup group);
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_pk_group_unified_diffie_hellman_agree(SshPublicKey public_key,
-					  SshPrivateKey private_key,
-					  void *secret,
-					  unsigned char *exchange_buffer,
-					  size_t exchange_buffer_length,
-					  unsigned char *secret_value_buffer,
-					  size_t secret_value_buffer_length,
-					  size_t *return_length);
+                                          SshPrivateKey private_key,
+                                          void *secret,
+                                          unsigned char *exchange_buffer,
+                                          size_t exchange_buffer_length,
+                                          unsigned char *secret_value_buffer,
+                                          size_t secret_value_buffer_length,
+                                          size_t *return_length);
 #endif /* SSHDIST_CRYPT_GENPKCS */
 
 #ifdef SSHDIST_CRYPT_SECRETSHARING
@@ -1673,5 +1710,6 @@ ssh_pk_group_unified_diffie_hellman_agree(SshPublicKey public_key,
 
 
 #endif /* SSHDIST_CRYPT_SECRETSHARING */
+
 
 #endif /* SSHCRYPT_H */

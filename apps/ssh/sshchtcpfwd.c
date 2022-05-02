@@ -41,7 +41,7 @@ Code implementing TCP/IP forwarding channels for SSH2 servers and clients.
 #define SSH_DEBUG_MODULE "Ssh2ChannelTcpFwd"
 
 #define SSH_TCPIP_WINDOW         30000
-#define SSH_TCPIP_PACKET_SIZE	  4096
+#define SSH_TCPIP_PACKET_SIZE     4096
 
 typedef struct SshChannelTcpFwdConnectRec 
 {
@@ -85,7 +85,7 @@ void ssh_channel_ftcp_destroy(void *context)
     {
       remote_next = remote_fwd->next;
       if (remote_fwd->listener)
-	ssh_tcp_destroy_listener(remote_fwd->listener);
+        ssh_tcp_destroy_listener(remote_fwd->listener);
       ssh_xfree(remote_fwd->address_to_bind);
       ssh_xfree(remote_fwd->port);
       ssh_xfree(remote_fwd->connect_to_host);
@@ -136,7 +136,7 @@ void ssh_channel_dtcp_destroy(void *context)
     {
       local_next = local_fwd->next;
       if (local_fwd->listener)
-	ssh_tcp_destroy_listener(local_fwd->listener);
+        ssh_tcp_destroy_listener(local_fwd->listener);
       ssh_xfree(local_fwd->connect_to_host);
       ssh_xfree(local_fwd->connect_to_port);
       memset(local_fwd, 'F', sizeof(*local_fwd));
@@ -180,19 +180,19 @@ void ssh_channel_tcp_connection_destroy(void *context)
    connection was forwarded to) has been established. */
 
 void ssh_channel_ftcp_open_connected(SshIpError error,
-				     SshStream stream,
-				     void *context)
+                                     SshStream stream,
+                                     void *context)
 {
   SshChannelTcpFwdConnect c = (SshChannelTcpFwdConnect)context;
 
   if (error != SSH_IP_OK)
     {
       ssh_warning("Connecting to %s:%s failed (remote forward, port %s)",
-		  c->fwd->connect_to_host, c->fwd->connect_to_port,
-		  c->fwd->port);
+                  c->fwd->connect_to_host, c->fwd->connect_to_port,
+                  c->fwd->port);
       (*c->completion)(SSH_OPEN_CONNECT_FAILED,
-		       NULL, FALSE, FALSE, 0, NULL, 0, NULL, NULL, NULL,
-		       c->completion_context);
+                       NULL, FALSE, FALSE, 0, NULL, 0, NULL, NULL, NULL,
+                       c->completion_context);
       memset(c, 'F', sizeof(*c));
       ssh_xfree(c);
       return;
@@ -203,9 +203,9 @@ void ssh_channel_ftcp_open_connected(SshIpError error,
   
   /* Call the completion procedure to indicate that we are done. */
   (*c->completion)(SSH_OPEN_OK,
-		   stream, TRUE, TRUE, SSH_TCPIP_WINDOW, NULL, 0,
-		   NULL, ssh_channel_tcp_connection_destroy,
-		   (void *)c->fwd->common, c->completion_context);
+                   stream, TRUE, TRUE, SSH_TCPIP_WINDOW, NULL, 0,
+                   NULL, ssh_channel_tcp_connection_destroy,
+                   (void *)c->fwd->common, c->completion_context);
   memset(c, 'F', sizeof(*c));
   ssh_xfree(c);
 }
@@ -213,9 +213,9 @@ void ssh_channel_ftcp_open_connected(SshIpError error,
 /* Processes an open request for a remote-forwarded TCP/IP channel. */
 
 void ssh_channel_ftcp_open_request(const char *type, int channel_id,
-				   const unsigned char *data, size_t len,
-				   SshConnOpenCompletionProc completion,
-				   void *completion_context, void *context)
+                                   const unsigned char *data, size_t len,
+                                   SshConnOpenCompletionProc completion,
+                                   void *completion_context, void *context)
 {
   SshCommon common = (SshCommon)context;
   long port, originator_port;
@@ -230,53 +230,53 @@ void ssh_channel_ftcp_open_request(const char *type, int channel_id,
   ct = ssh_channel_ftcp_ct(common);
 
   if (ssh_decode_array(data, len,
-		       SSH_FORMAT_UINT32_STR, &address_to_bind, NULL,
-		       SSH_FORMAT_UINT32, &port, 
-		       SSH_FORMAT_UINT32_STR, &originator_ip, NULL,
-		       SSH_FORMAT_UINT32, &originator_port,
-		       SSH_FORMAT_END) != len)
+                       SSH_FORMAT_UINT32_STR, &address_to_bind, NULL,
+                       SSH_FORMAT_UINT32, &port, 
+                       SSH_FORMAT_UINT32_STR, &originator_ip, NULL,
+                       SSH_FORMAT_UINT32, &originator_port,
+                       SSH_FORMAT_END) != len)
     {
       /* XXX should disconnect? */
       SSH_DEBUG(0, ("bad data"));
       (*completion)(SSH_OPEN_RESOURCE_SHORTAGE,
-		    NULL, FALSE, FALSE, 0, NULL, 0, NULL, NULL, NULL,
-		    completion_context);
+                    NULL, FALSE, FALSE, 0, NULL, 0, NULL, NULL, NULL,
+                    completion_context);
       return;
     }
 
   snprintf(port_string, sizeof(port_string), "%ld", port);
 
   ssh_debug("Received remote TCP/IP forward connect for port %s from %s:%ld",
-	    port_string, originator_ip, (long)originator_port);
+            port_string, originator_ip, (long)originator_port);
   
   for (fwd = ct->remote_forwards; fwd; fwd = fwd->next)
     if (strcmp(fwd->address_to_bind, address_to_bind) == 0 &&
-	strcmp(fwd->port, port_string) == 0)
+        strcmp(fwd->port, port_string) == 0)
       {
-	c = ssh_xcalloc(1, sizeof(*c));
-	c->fwd = fwd;
-	c->channel_id = channel_id;
-	c->completion = completion;
-	c->completion_context = completion_context;
+        c = ssh_xcalloc(1, sizeof(*c));
+        c->fwd = fwd;
+        c->channel_id = channel_id;
+        c->completion = completion;
+        c->completion_context = completion_context;
 
-	ssh_tcp_connect_with_socks(fwd->connect_to_host, fwd->connect_to_port,
-			   NULL, 1, ssh_channel_ftcp_open_connected,
-			   (void *)c);
+        ssh_tcp_connect_with_socks(fwd->connect_to_host, fwd->connect_to_port,
+                           NULL, 1, ssh_channel_ftcp_open_connected,
+                           (void *)c);
 
-	ssh_xfree(address_to_bind);
-	ssh_xfree(originator_ip);
-	return;
+        ssh_xfree(address_to_bind);
+        ssh_xfree(originator_ip);
+        return;
       }
 
   ssh_warning("Received remote TCP/IP connect for non-forwarded port %s from %s:%ld",
-	      port_string, originator_ip, (long)originator_port);
+              port_string, originator_ip, (long)originator_port);
 
   ssh_xfree(address_to_bind);
   ssh_xfree(originator_ip);
   
   (*completion)(SSH_OPEN_ADMINISTRATIVELY_PROHIBITED,
-		NULL, FALSE, FALSE, 0, NULL, 0, NULL, NULL, NULL,
-		completion_context);
+                NULL, FALSE, FALSE, 0, NULL, 0, NULL, NULL, NULL,
+                completion_context);
 }
 
 /***********************************************************************
@@ -294,7 +294,7 @@ typedef struct {
 /* Called when connecting to the real destination port is complete. */
 
 void ssh_channel_dtcp_connected(SshIpError error,
-				SshStream stream, void *context)
+                                SshStream stream, void *context)
 {
   SshDirectTcp tcp = (SshDirectTcp)context;
 
@@ -305,8 +305,8 @@ void ssh_channel_dtcp_connected(SshIpError error,
     {
       /* Connection failed. */
       (*tcp->completion)(SSH_OPEN_CONNECT_FAILED,
-			 NULL, FALSE, FALSE, 0, NULL, 0, NULL, NULL, NULL,
-			 tcp->completion_context);
+                         NULL, FALSE, FALSE, 0, NULL, 0, NULL, NULL, NULL,
+                         tcp->completion_context);
       memset(tcp, 'F', sizeof(*tcp));
       ssh_xfree(tcp);
       return;
@@ -317,9 +317,9 @@ void ssh_channel_dtcp_connected(SshIpError error,
   
   /* Connection was successful.  Establish the channel. */
   (*tcp->completion)(SSH_OPEN_OK,
-		     stream, TRUE, TRUE, SSH_TCPIP_WINDOW, NULL, 0,
-		     NULL, ssh_channel_tcp_connection_destroy,
-		     (void *)tcp->common, tcp->completion_context);
+                     stream, TRUE, TRUE, SSH_TCPIP_WINDOW, NULL, 0,
+                     NULL, ssh_channel_tcp_connection_destroy,
+                     (void *)tcp->common, tcp->completion_context);
   memset(tcp, 'F', sizeof(*tcp));
   ssh_xfree(tcp);
 }
@@ -327,9 +327,9 @@ void ssh_channel_dtcp_connected(SshIpError error,
 /* Processes an open request for a TCP/IP forwarding to given address. */
 
 void ssh_channel_dtcp_open_request(const char *type, int channel_id,
-				   const unsigned char *data, size_t len,
-				   SshConnOpenCompletionProc completion,
-				   void *completion_context, void *context)
+                                   const unsigned char *data, size_t len,
+                                   SshConnOpenCompletionProc completion,
+                                   void *completion_context, void *context)
 {
   SshCommon common = (SshCommon)context;
   char *connect_to_host, connect_to_port[20], *originator_ip;
@@ -340,17 +340,17 @@ void ssh_channel_dtcp_open_request(const char *type, int channel_id,
   
   /* Parse packet data. */
   if (ssh_decode_array(data, len,
-		       SSH_FORMAT_UINT32_STR, &connect_to_host, NULL,
-		       SSH_FORMAT_UINT32, &port,
-		       SSH_FORMAT_UINT32_STR, &originator_ip, NULL,
-		       SSH_FORMAT_UINT32, &originator_port,
-		       SSH_FORMAT_END) != len)
+                       SSH_FORMAT_UINT32_STR, &connect_to_host, NULL,
+                       SSH_FORMAT_UINT32, &port,
+                       SSH_FORMAT_UINT32_STR, &originator_ip, NULL,
+                       SSH_FORMAT_UINT32, &originator_port,
+                       SSH_FORMAT_END) != len)
     {
       /* XXX disconnect? */
       SSH_DEBUG(0, ("bad data"));
       (*completion)(SSH_OPEN_RESOURCE_SHORTAGE,
-		    NULL, FALSE, FALSE, 0, NULL, 0, NULL, NULL, NULL,
-		    completion_context);
+                    NULL, FALSE, FALSE, 0, NULL, 0, NULL, NULL, NULL,
+                    completion_context);
       return;
     }
 
@@ -358,13 +358,13 @@ void ssh_channel_dtcp_open_request(const char *type, int channel_id,
   if (common->client)
     {
       ssh_warning("Direct TCP/IP connection request from server to %s:%ld denied.",
-		  connect_to_host, (long)port);
+                  connect_to_host, (long)port);
       /* Free dynamically allocated data. */
       ssh_xfree(originator_ip);
       ssh_xfree(connect_to_host);
       (*completion)(SSH_OPEN_ADMINISTRATIVELY_PROHIBITED,
-		    NULL, FALSE, FALSE, 0, NULL, 0, NULL, NULL, NULL,
-		    completion_context);
+                    NULL, FALSE, FALSE, 0, NULL, 0, NULL, NULL, NULL,
+                    completion_context);
       return;
     }
 
@@ -373,8 +373,8 @@ void ssh_channel_dtcp_open_request(const char *type, int channel_id,
   snprintf(connect_to_port, sizeof(connect_to_port), "%ld", port);
 
   ssh_debug("Direct TCP/IP connect to %s:%s from %s:%ld",
-	    connect_to_host, connect_to_port, originator_ip,
-	    (long)originator_port);
+            connect_to_host, connect_to_port, originator_ip,
+            (long)originator_port);
   
   /* Save data for callback. */
   tcp = ssh_xcalloc(1, sizeof(*tcp));
@@ -385,8 +385,8 @@ void ssh_channel_dtcp_open_request(const char *type, int channel_id,
 
   /* Connect to the given host/port. */
   ssh_tcp_connect_with_socks(connect_to_host, connect_to_port, 
-			     NULL, 1, ssh_channel_dtcp_connected, 
-			     (void *)tcp);
+                             NULL, 1, ssh_channel_dtcp_connected, 
+                             (void *)tcp);
 
   /* Free dynamically allocated data. */
   ssh_xfree(originator_ip);
@@ -402,7 +402,7 @@ void ssh_channel_dtcp_open_request(const char *type, int channel_id,
    side. */
 
 void ssh_channel_ftcp_incoming_connection(SshIpError error, SshStream stream,
-					  void *context)
+                                          void *context)
 {
   SshRemoteTcpForward fwd = (SshRemoteTcpForward)context;
   char ip[20], port[20];
@@ -421,49 +421,49 @@ void ssh_channel_ftcp_incoming_connection(SshIpError error, SshStream stream,
     strcpy(port, "UNKNOWN");
 
   ssh_debug("Connection to forwarded port %s from %s:%s",
-	    fwd->port, ip, port);
+            fwd->port, ip, port);
   /* XXXXXXXX */
-#ifdef LIBWRAP
+#ifdef HAVE_LIBWRAP
   {
     struct request_info req;
     struct servent *serv;
     char fwdportname[32];
-		
+                
     /* try to find port's name in /etc/services */
     /*    serv = getservbyport(htons(ch->listening_port), "tcp"); */
     serv = getservbyport(atoi(fwd->port), "tcp");
     if (serv == NULL)
       {
-	/* not found (or faulty getservbyport) -
-	   use the number as a name */
-	/* snprintf(fwdportname, sizeof(fwdportname), "sshdfwd-%d", ch->listening_port); */
-	snprintf(fwdportname, sizeof(fwdportname), "sshdfwd-%s", fwd->port);
+        /* not found (or faulty getservbyport) -
+           use the number as a name */
+        /* snprintf(fwdportname, sizeof(fwdportname), "sshdfwd-%d", ch->listening_port); */
+        snprintf(fwdportname, sizeof(fwdportname), "sshdfwd-%s", fwd->port);
       }
     else
       {
-	snprintf(fwdportname, sizeof(fwdportname), "sshdfwd-%.20s", serv->s_name);
+        snprintf(fwdportname, sizeof(fwdportname), "sshdfwd-%.20s", serv->s_name);
       }
     /* fill req struct with port name and fd number */
     request_init(&req, RQ_DAEMON, fwdportname,
-		 RQ_FILE, ssh_stream_fd_get_readfd(stream), NULL);
+                 RQ_FILE, ssh_stream_fd_get_readfd(stream), NULL);
     fromhost(&req);
     if (!hosts_access(&req))
       {
-	ssh_conn_send_debug(fwd->common->conn, TRUE,
-			    "Fwd connection from %.500s to local port %s refused by tcp_wrappers.",
-			    eval_client(&req), fwdportname);
-	/*	error("Fwd connection from %.500s to local port %s refused by tcp_wrappers.",
-	      eval_client(&req), fwdportname);*/
-	ssh_stream_destroy(stream);
-	/*	shutdown(newsock, 2);
-	close(newsock);*/
-	return;
+        ssh_conn_send_debug(fwd->common->conn, TRUE,
+                            "Fwd connection from %.500s to local port %s refused by tcp_wrappers.",
+                            eval_client(&req), fwdportname);
+        /*      error("Fwd connection from %.500s to local port %s refused by tcp_wrappers.",
+              eval_client(&req), fwdportname);*/
+        ssh_stream_destroy(stream);
+        /*      shutdown(newsock, 2);
+        close(newsock);*/
+        return;
       }
     ssh_log_event(SSH_LOGFACILITY_SECURITY, SSH_LOG_INFORMATIONAL,
-		  "Remote fwd connect from %.500s to local port %s",
-		  eval_client(&req), fwdportname);
+                  "Remote fwd connect from %.500s to local port %s",
+                  eval_client(&req), fwdportname);
   }
-#endif /* LIBWRAP */
+#endif /* HAVE_LIBWRAP */
 
   /* Register that we have an open channel. */
   ssh_common_new_channel(fwd->common);
@@ -471,19 +471,19 @@ void ssh_channel_ftcp_incoming_connection(SshIpError error, SshStream stream,
   /* Send a request to open a channel and connect it to the given port. */
   ssh_buffer_init(&buffer);
   ssh_encode_buffer(&buffer,
-		    SSH_FORMAT_UINT32_STR,
-		    fwd->address_to_bind, strlen(fwd->address_to_bind),
-		    SSH_FORMAT_UINT32, atol(fwd->port),
-		    SSH_FORMAT_UINT32_STR, ip, strlen(ip),
-		    SSH_FORMAT_UINT32, atol(port),
-		    SSH_FORMAT_END);
+                    SSH_FORMAT_UINT32_STR,
+                    fwd->address_to_bind, strlen(fwd->address_to_bind),
+                    SSH_FORMAT_UINT32, atol(fwd->port),
+                    SSH_FORMAT_UINT32_STR, ip, strlen(ip),
+                    SSH_FORMAT_UINT32, atol(port),
+                    SSH_FORMAT_END);
   ssh_conn_send_channel_open(fwd->common->conn, "forwarded-tcpip",
-			     stream, TRUE, FALSE, SSH_TCPIP_WINDOW,
-			     SSH_TCPIP_PACKET_SIZE,
-			     ssh_buffer_ptr(&buffer), ssh_buffer_len(&buffer),
-			     NULL,
-			     ssh_channel_tcp_connection_destroy,
-			     (void *)fwd->common, NULL, NULL);
+                             stream, TRUE, FALSE, SSH_TCPIP_WINDOW,
+                             SSH_TCPIP_PACKET_SIZE,
+                             ssh_buffer_ptr(&buffer), ssh_buffer_len(&buffer),
+                             NULL,
+                             ssh_channel_tcp_connection_destroy,
+                             (void *)fwd->common, NULL, NULL);
   ssh_buffer_uninit(&buffer);
 }  
 
@@ -495,9 +495,9 @@ void ssh_channel_ftcp_incoming_connection(SshIpError error, SshStream stream,
 /* Processes a received request to set up remote TCP/IP forwarding. */
 
 Boolean ssh_channel_remote_tcp_forward_request(const char *type,
-					       const unsigned char *data,
-					       size_t len,
-					       void *context)
+                                               const unsigned char *data,
+                                               size_t len,
+                                               void *context)
 {
   SshCommon common = (SshCommon)context;
   char *address_to_bind;
@@ -519,9 +519,9 @@ Boolean ssh_channel_remote_tcp_forward_request(const char *type,
   
   /* Parse the request. */
   if (ssh_decode_array(data, len,
-		       SSH_FORMAT_UINT32_STR, &address_to_bind, NULL,
-		       SSH_FORMAT_UINT32, &port,
-		       SSH_FORMAT_END) != len)
+                       SSH_FORMAT_UINT32_STR, &address_to_bind, NULL,
+                       SSH_FORMAT_UINT32, &port,
+                       SSH_FORMAT_END) != len)
     {
       SSH_DEBUG(0, ("bad data"));
       return FALSE;
@@ -533,12 +533,12 @@ Boolean ssh_channel_remote_tcp_forward_request(const char *type,
   /* Create a socket listener. */
   fwd = ssh_xcalloc(1, sizeof(*fwd));
   fwd->listener = ssh_tcp_make_listener(address_to_bind, port_string,
-					ssh_channel_ftcp_incoming_connection,
-					(void *)fwd);
+                                        ssh_channel_ftcp_incoming_connection,
+                                        (void *)fwd);
   if (fwd->listener == NULL)
     {
       ssh_debug("Creating remote listener for %s:%s failed.",
-		address_to_bind, port_string);
+                address_to_bind, port_string);
       ssh_xfree(address_to_bind);
       ssh_xfree(fwd);
       return FALSE;
@@ -561,9 +561,9 @@ Boolean ssh_channel_remote_tcp_forward_request(const char *type,
 /* Processes a received request to cancel remote TCP/IP forwarding. */
 
 Boolean ssh_channel_tcp_forward_cancel(const char *type,
-				       const unsigned char *data,
-				       size_t len,
-				       void *context)
+                                       const unsigned char *data,
+                                       size_t len,
+                                       void *context)
 {
   SshCommon common = (SshCommon)context;
   char *address_to_bind;
@@ -585,9 +585,9 @@ Boolean ssh_channel_tcp_forward_cancel(const char *type,
   
   /* Parse the request. */
   if (ssh_decode_array(data, len,
-		       SSH_FORMAT_UINT32_STR, &address_to_bind, NULL,
-		       SSH_FORMAT_UINT32, &port,
-		       SSH_FORMAT_END) != len)
+                       SSH_FORMAT_UINT32_STR, &address_to_bind, NULL,
+                       SSH_FORMAT_UINT32, &port,
+                       SSH_FORMAT_END) != len)
     {
       SSH_DEBUG(0, ("bad data"));
       return FALSE;
@@ -600,20 +600,20 @@ Boolean ssh_channel_tcp_forward_cancel(const char *type,
     {
       fwd = *fwdp;
       if (strcmp(port_string, fwd->port) == 0 &&
-	  strcmp(address_to_bind, fwd->address_to_bind) == 0)
-	{
-	  ssh_tcp_destroy_listener(fwd->listener);
-	  ssh_xfree(fwd->address_to_bind);
-	  ssh_xfree(fwd->port);
-	  *fwdp = fwd->next;
-	  ssh_xfree(fwd);
-	  ssh_xfree(address_to_bind);
-	  return TRUE;
-	}
+          strcmp(address_to_bind, fwd->address_to_bind) == 0)
+        {
+          ssh_tcp_destroy_listener(fwd->listener);
+          ssh_xfree(fwd->address_to_bind);
+          ssh_xfree(fwd->port);
+          *fwdp = fwd->next;
+          ssh_xfree(fwd);
+          ssh_xfree(address_to_bind);
+          return TRUE;
+        }
     }
 
   SSH_DEBUG(1, ("port %s address_to_bind %s not found",
-		port_string, address_to_bind));
+                port_string, address_to_bind));
   ssh_xfree(address_to_bind);
   return FALSE;
 }
@@ -626,13 +626,13 @@ Boolean ssh_channel_tcp_forward_cancel(const char *type,
    procedure is non-NULL, it will be called when done. */
 
 void ssh_channel_start_remote_tcp_forward(SshCommon common,
-					  const char *address_to_bind,
-					  const char *port,
-					  const char *connect_to_host,
-					  const char *connect_to_port,
-					  void (*completion)(Boolean ok,
-							     void *context),
-					  void *context)
+                                          const char *address_to_bind,
+                                          const char *port,
+                                          const char *connect_to_host,
+                                          const char *connect_to_port,
+                                          void (*completion)(Boolean ok,
+                                                             void *context),
+                                          void *context)
 {
   SshRemoteTcpForward fwd;
   SshBuffer buffer;
@@ -657,13 +657,13 @@ void ssh_channel_start_remote_tcp_forward(SshCommon common,
   /* Send a forwarding request to the remote side. */
   ssh_buffer_init(&buffer);
   ssh_encode_buffer(&buffer,
-		    SSH_FORMAT_UINT32_STR,
-		      address_to_bind, strlen(address_to_bind),
-		    SSH_FORMAT_UINT32, atol(port),
-		    SSH_FORMAT_END);
+                    SSH_FORMAT_UINT32_STR,
+                      address_to_bind, strlen(address_to_bind),
+                    SSH_FORMAT_UINT32, atol(port),
+                    SSH_FORMAT_END);
   ssh_conn_send_global_request(common->conn, "tcpip-forward",
-			       ssh_buffer_ptr(&buffer), ssh_buffer_len(&buffer),
-			       completion, context);
+                               ssh_buffer_ptr(&buffer), ssh_buffer_len(&buffer),
+                               completion, context);
   ssh_buffer_uninit(&buffer);
 }
 
@@ -675,7 +675,7 @@ void ssh_channel_start_remote_tcp_forward(SshCommon common,
    connected. */
 
 void ssh_channel_dtcp_incoming_connection(SshStreamNotification op,
-					  SshStream stream, void *context)
+                                          SshStream stream, void *context)
 {
   SshLocalTcpForward fwd = (SshLocalTcpForward)context;
   char ip[20], port[20];
@@ -691,53 +691,53 @@ void ssh_channel_dtcp_incoming_connection(SshStreamNotification op,
     strcpy(port, "UNKNOWN");
 
   /* XXXXXXXX */
-#ifdef LIBWRAP
+#ifdef HAVE_LIBWRAP
   {
     struct request_info req;
     struct servent *serv;
     char fwdportname[32];
-		
+                
     /* try to find port's name in /etc/services */
     /* serv = getservbyport(htons(ch->listening_port), "tcp"); */
     serv = getservbyport(atoi(fwd->port), "tcp");
     if (serv == NULL)
       {
-	/* not found (or faulty getservbyport) -
-	   use the number as a name */
-	/*snprintf(fwdportname, sizeof(fwdportname), "sshdfwd-%d", ch->listening_port);*/
-	snprintf(fwdportname, sizeof(fwdportname), "sshdfwd-%s", fwd->port);
+        /* not found (or faulty getservbyport) -
+           use the number as a name */
+        /*snprintf(fwdportname, sizeof(fwdportname), "sshdfwd-%d", ch->listening_port);*/
+        snprintf(fwdportname, sizeof(fwdportname), "sshdfwd-%s", fwd->port);
       }
     else
       {
-	snprintf(fwdportname, sizeof(fwdportname), "sshdfwd-%.20s", serv->s_name);
+        snprintf(fwdportname, sizeof(fwdportname), "sshdfwd-%.20s", serv->s_name);
       }
     /* fill req struct with port name and fd number */
     request_init(&req, RQ_DAEMON, fwdportname,
-		 RQ_FILE, ssh_stream_fd_get_readfd(stream), NULL);
+                 RQ_FILE, ssh_stream_fd_get_readfd(stream), NULL);
     fromhost(&req);
     if (!hosts_access(&req))
       {
-	ssh_conn_send_debug(fwd->common->conn, TRUE,
-			    "Fwd connection from %.500s to local port %s refused by tcp_wrappers.",
-			    eval_client(&req), fwdportname);
-	/*	error("Fwd connection from %.500s to local port %s refused by tcp_wrappers.",
-	      eval_client(&req), fwdportname);*/
-	ssh_stream_destroy(stream);
-	/*	shutdown(newsock, 2);
-	close(newsock);*/
-	return;
+        ssh_conn_send_debug(fwd->common->conn, TRUE,
+                            "Fwd connection from %.500s to local port %s refused by tcp_wrappers.",
+                            eval_client(&req), fwdportname);
+        /*      error("Fwd connection from %.500s to local port %s refused by tcp_wrappers.",
+              eval_client(&req), fwdportname);*/
+        ssh_stream_destroy(stream);
+        /*      shutdown(newsock, 2);
+        close(newsock);*/
+        return;
       }
     ssh_log_event(SSH_LOGFACILITY_SECURITY, SSH_LOG_INFORMATIONAL,
-		  "direct fwd connect from %.500s to local port %s",
-		  eval_client(&req), fwdportname);
+                  "direct fwd connect from %.500s to local port %s",
+                  eval_client(&req), fwdportname);
   }
-#endif /* LIBWRAP */
+#endif /* HAVE_LIBWRAP */
 
   /* Send a request to open a channel and connect it to the given port. */
   ssh_channel_dtcp_open_to_remote(fwd->common, stream,
-				  fwd->connect_to_host,
-				  fwd->connect_to_port,
-				  ip, port);
+                                  fwd->connect_to_host,
+                                  fwd->connect_to_port,
+                                  ip, port);
 }
 
 /***********************************************************************
@@ -748,24 +748,24 @@ void ssh_channel_dtcp_incoming_connection(SshStreamNotification op,
    forwarding was successfully started, FALSE otherwise. */
 
 Boolean ssh_channel_start_local_tcp_forward(SshCommon common,
-					    const char *address_to_bind,
-					    const char *port,
-					    const char *connect_to_host,
-					    const char *connect_to_port)
+                                            const char *address_to_bind,
+                                            const char *port,
+                                            const char *connect_to_host,
+                                            const char *connect_to_port)
 {
   SshLocalTcpForward fwd;
   SshChannelTypeTcpDirect ct;
 
   SSH_DEBUG(5, ("requesting local forwarding for port %s to %s:%s",
-		port, connect_to_host, connect_to_port));
+                port, connect_to_host, connect_to_port));
 
   ct = ssh_channel_dtcp_ct(common);
   
   fwd = ssh_xcalloc(1, sizeof(*fwd));
   fwd->common = common;
   fwd->listener = ssh_tcp_make_listener(address_to_bind, port,
-					ssh_channel_dtcp_incoming_connection,
-					(void *)fwd);
+                                        ssh_channel_dtcp_incoming_connection,
+                                        (void *)fwd);
   if (!fwd->listener)
     {
       SSH_DEBUG(5, ("creating listener failed"));
@@ -796,16 +796,16 @@ Boolean ssh_channel_start_local_tcp_forward(SshCommon common,
    the channel fails. */
 
 void ssh_channel_dtcp_open_to_remote(SshCommon common, SshStream stream,
-				     const char *connect_to_host,
-				     const char *connect_to_port,
-				     const char *originator_ip,
-				     const char *originator_port)
+                                     const char *connect_to_host,
+                                     const char *connect_to_port,
+                                     const char *originator_ip,
+                                     const char *originator_port)
 {
   SshBuffer buffer;
 
   SSH_DEBUG(5, ("opening direct TCP/IP connection to %s:%s originator %s:%s",
-		connect_to_host, connect_to_port,
-		originator_ip, originator_port));
+                connect_to_host, connect_to_port,
+                originator_ip, originator_port));
 
   /* Register that we have a new channel. */
   ssh_common_new_channel(common);
@@ -813,22 +813,22 @@ void ssh_channel_dtcp_open_to_remote(SshCommon common, SshStream stream,
   /* Format the channel open request in a buffer. */
   ssh_buffer_init(&buffer);
   ssh_encode_buffer(&buffer,
-		    SSH_FORMAT_UINT32_STR,
-		      connect_to_host, strlen(connect_to_host),
-		    SSH_FORMAT_UINT32, atol(connect_to_port),
-		    SSH_FORMAT_UINT32_STR,
-		      originator_ip, strlen(originator_ip),
-		    SSH_FORMAT_UINT32, atol(originator_port),
-		    SSH_FORMAT_END);
+                    SSH_FORMAT_UINT32_STR,
+                      connect_to_host, strlen(connect_to_host),
+                    SSH_FORMAT_UINT32, atol(connect_to_port),
+                    SSH_FORMAT_UINT32_STR,
+                      originator_ip, strlen(originator_ip),
+                    SSH_FORMAT_UINT32, atol(originator_port),
+                    SSH_FORMAT_END);
   
   /* Send the channel open request. */
   ssh_conn_send_channel_open(common->conn, "direct-tcpip",
-			     stream, TRUE, FALSE, SSH_TCPIP_WINDOW,
-			     SSH_TCPIP_PACKET_SIZE,
-			     ssh_buffer_ptr(&buffer), ssh_buffer_len(&buffer),
-			     NULL, 
-			     ssh_channel_tcp_connection_destroy,
-			     (void *)common, NULL, NULL);
+                             stream, TRUE, FALSE, SSH_TCPIP_WINDOW,
+                             SSH_TCPIP_PACKET_SIZE,
+                             ssh_buffer_ptr(&buffer), ssh_buffer_len(&buffer),
+                             NULL, 
+                             ssh_channel_tcp_connection_destroy,
+                             (void *)common, NULL, NULL);
 
   ssh_buffer_uninit(&buffer);
 }

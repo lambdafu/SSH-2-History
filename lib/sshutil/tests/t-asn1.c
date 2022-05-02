@@ -24,7 +24,7 @@
   */
 
 /*
- * $Id: t-asn1.c,v 1.4 1998/05/24 01:45:31 kivinen Exp $
+ * $Id: t-asn1.c,v 1.7 1998/10/12 13:25:41 mkojo Exp $
  * $Log: t-asn1.c,v $
  * $EndLog$
  */
@@ -110,7 +110,7 @@ void print_buf(unsigned char *buf, unsigned int length)
   for (i = 0; i < length; i++)
     {
       if (i > 0 && (i % 40) == 0)
-	printf("\\  ");
+        printf("\\  ");
       printf("%c", buf[i]);
     }
   printf("\"\n");
@@ -130,10 +130,10 @@ void print_hex(unsigned char *buf, unsigned int length)
   for (i = 0; i < length; i++)
     {
       if (i > 0)
-	printf(" ");
+        printf(" ");
       if (i > 0 && (i % (75/3)) == 0)
-	printf("\n  : ");
-	
+        printf("\n  : ");
+        
       printf("%02x", buf[i]);
     }
   printf("\n");
@@ -151,8 +151,8 @@ void print_node(int level, SshAsn1Node node)
   int i;
   
   if ((status = ssh_asn1_node_get(node, &class, &encoding, &tag_number,
-				  &length_encoding,
-				  &length, &data)) != SSH_ASN1_STATUS_OK)
+                                  &length_encoding,
+                                  &length, &data)) != SSH_ASN1_STATUS_OK)
     {
       printf("error: status %d\n", status);
       exit(1);
@@ -190,22 +190,22 @@ void print_node(int level, SshAsn1Node node)
       {
       case SSH_ASN1_TAG_SET:
       case SSH_ASN1_TAG_SEQUENCE:
-	printf("\n");
-	break;
-	
+        printf("\n");
+        break;
+        
       case SSH_ASN1_TAG_OCTET_STRING:
       case SSH_ASN1_TAG_VISIBLE_STRING:
       case SSH_ASN1_TAG_PRINTABLE_STRING:
       case SSH_ASN1_TAG_TELETEX_STRING:
       case SSH_ASN1_TAG_IA5_STRING:
-	print_buf(data, length);
-	break;
+        print_buf(data, length);
+        break;
       case SSH_ASN1_TAG_GENERALIZED_TIME:
       case SSH_ASN1_TAG_UNIVERSAL_TIME:
       default:
-	printf("\n");
-	print_hex(data, length);
-	break;
+        printf("\n");
+        print_hex(data, length);
+        break;
       }
   else
     {
@@ -226,12 +226,12 @@ void print_tree(SshAsn1Tree tree)
       print_node(level, ssh_asn1_get_current(tree));
 
       if (ssh_asn1_move_down(tree) == SSH_ASN1_STATUS_OK)
-	{
-	  level++;
-	  print_tree(tree);
-	  level--;
-	  ssh_asn1_move_up(tree);
-	}
+        {
+          level++;
+          print_tree(tree);
+          level--;
+          ssh_asn1_move_up(tree);
+        }
     }
   while (ssh_asn1_move_forward(tree, 1));
 }
@@ -245,8 +245,8 @@ void test(void)
 
   context = ssh_asn1_init();
   status = ssh_asn1_create_tree(context, &tree,
-				"(octet-string ())",
-				string, strlen((char *)string));
+                                "(octet-string ())",
+                                string, strlen((char *)string));
 
   printf("status %d\n", status);
   
@@ -269,7 +269,7 @@ void test_1(void)
   unsigned char *data;
   size_t length;
   MP_INT integer;
-  unsigned long oid[5] = { 1, 2, 840, 113549, 1 };
+  char *oid = "1.2.840.113549.1";
   unsigned char bit_string[3] = { 0x6e, 0x5d, 0xc0 };
 
   mpz_init_set_si(&integer, -129);
@@ -278,30 +278,30 @@ void test_1(void)
   context = ssh_asn1_init();
 
   status = ssh_asn1_create_tree(context, &tree,
-			    "(sequence () (boolean ()) (bit-string ())"
-			    "(sequence () (octet-string ()) "
-			    "(set () (object-identifier ()) (octet-string ())"
-			    "(set () "
-				"(octet-string ()) (octet-string ())"
-				"(octet-string ()) "
-			    "(octet-string ()))"
-			    "(octet-string ()) (sequence ()"
-				"(octet-string())))"
-			    "(octet-string ()) (integer ())))",
-			    TRUE,
-			    bit_string, 18,
-			    test_string_1, strlen(test_string_1),
-			    oid, 4, 
-			    test_string_2, strlen(test_string_2),
-			    test_string_3, strlen(test_string_3),
-			    test_string_4, strlen(test_string_4),
-			    test_string_7, strlen(test_string_7),
-			    test_string_8, strlen(test_string_8),
-			    test_string_9, strlen(test_string_9),
-			    test_string_10, strlen(test_string_10),
-			    test_string_11, strlen(test_string_11),
-			    &integer
-			    );
+                            "(sequence () (boolean ()) (bit-string ())"
+                            "(sequence () (octet-string ()) "
+                            "(set () (object-identifier ()) (octet-string ())"
+                            "(set () "
+                                "(octet-string ()) (octet-string ())"
+                                "(octet-string ()) "
+                            "(octet-string ()))"
+                            "(octet-string ()) (sequence ()"
+                                "(octet-string())))"
+                            "(octet-string ()) (integer ())))",
+                            TRUE,
+                            bit_string, 18,
+                            test_string_1, strlen(test_string_1),
+                            oid, 
+                            test_string_2, strlen(test_string_2),
+                            test_string_3, strlen(test_string_3),
+                            test_string_4, strlen(test_string_4),
+                            test_string_7, strlen(test_string_7),
+                            test_string_8, strlen(test_string_8),
+                            test_string_9, strlen(test_string_9),
+                            test_string_10, strlen(test_string_10),
+                            test_string_11, strlen(test_string_11),
+                            &integer
+                            );
   mpz_clear(&integer);
 
   
@@ -364,7 +364,7 @@ void test_2(void)
   SshAsn1Status status;
   SshAsn1Tree tree;
   SshAsn1Node node;
-  unsigned long oid[] = { 1, 2, 3234234, 23423, 34, 3, 23};
+  char *oid = "1.2.3234234.23423.34.3.23";
   MP_INT int_1, int_2, int_3;
   unsigned char *data;
   size_t length;
@@ -377,13 +377,13 @@ void test_2(void)
   context = ssh_asn1_init();
   
   status = ssh_asn1_create_tree(context, &tree,
-			    "(sequence (pe 1001)"
-				" (object-identifier (p 1238734))"
-				" (sequence (a 43) "
-			    "(integer (a 1))"
-				"(integer (a 55)) (integer (a 129343556))))",
-			    oid, 7,
-			    &int_1, &int_2, &int_3);
+                            "(sequence (pe 1001)"
+                                " (object-identifier (p 1238734))"
+                                " (sequence (a 43) "
+                            "(integer (a 1))"
+                                "(integer (a 55)) (integer (a 129343556))))",
+                            oid,
+                            &int_1, &int_2, &int_3);
 
   if (status != SSH_ASN1_STATUS_OK)
     {
@@ -392,11 +392,11 @@ void test_2(void)
     }
 
   status = ssh_asn1_create_node(context, &node,
-			    "(object-identifier ()) "
-				"(sequence () (integer ())"
-				" (integer ()) (integer ()))",
-			    oid, 7,
-			    &int_1, &int_2, &int_3);
+                            "(object-identifier ()) "
+                                "(sequence () (integer ())"
+                                " (integer ()) (integer ()))",
+                            oid,
+                            &int_1, &int_2, &int_3);
 
   if (status != SSH_ASN1_STATUS_OK)
     {
@@ -500,7 +500,7 @@ void test_3(void)
   ssh_asn1_free(context);  
 }
 
-void test_4()
+void test_4(void)
 {
   SshAsn1Context context;
   SshAsn1Tree tree;
@@ -518,12 +518,12 @@ void test_4()
   boolean = FALSE;
   
   status = ssh_asn1_create_tree(context, &tree,
-				"(sequence (a 50) (boolean (c 1)) "
-				"(octet-string (c 2))"
-				"(sequence () (sequence () "
-				"(sequence (a 10) (octet-string (c 987))))))",
-				boolean, string, strlen((char *) string) + 1,
-				string_2, strlen((char *) string_2) + 1);
+                                "(sequence (a 50) (boolean (c 1))"
+                                "(octet-string (c 2))"
+                                "(sequence () (sequence () "
+                                "(sequence (a 10) (octet-string (c 987))))))",
+                                boolean, string, strlen((char *) string) + 1,
+                                string_2, strlen((char *) string_2) + 1);
 
   if (status != SSH_ASN1_STATUS_OK)
     {
@@ -532,9 +532,9 @@ void test_4()
     }
 
   status = ssh_asn1_read_tree(tree, "(sequence (a 50) (sequence () "
-			      "(sequence () "
-			  "(sequence (a 10) (octet-string (c 987))))))",
-			  &new_str, &new_str_len);
+                              "(sequence () "
+                              "(sequence (a 10) (octet-string (c 987))))))",
+                              &new_str, &new_str_len);
 
   if (status != SSH_ASN1_STATUS_OK)
     {
@@ -552,29 +552,29 @@ void test_4()
   if (status == SSH_ASN1_STATUS_OK)
     {
       status = ssh_asn1_read_node(ssh_asn1_get_current(tree),
-				  "(octet-string (c 987))",
-			      &new_str, &new_str_len);
+                                  "(octet-string (c 987))",
+                              &new_str, &new_str_len);
 
       if (status != SSH_ASN1_STATUS_OK)
-	{
-	  printf("error: (4, 3)\n");
-	  exit(1);
-	}
+        {
+          printf("error: (4, 3)\n");
+          exit(1);
+        }
 
       if (verbose)
-	printf("new_str: %s", new_str);
+        printf("new_str: %s", new_str);
       ssh_xfree(new_str);
     }
   else
     {
       if (status == SSH_ASN1_STATUS_MATCH_NOT_FOUND)
-	{
-	  printf("error: (4, 4) Could not locate.\n");
-	}
+        {
+          printf("error: (4, 4) Could not locate.\n");
+        }
       else
-	{
-	  printf("error: (4, 5) %d.\n", status);
-	}
+        {
+          printf("error: (4, 5) %d.\n", status);
+        }
       exit(1);
     }
       
@@ -587,10 +587,9 @@ void test_5(void)
   SshAsn1Context context;
   SshAsn1Tree tree;
   MP_INT int_1, int_2, int_3, int_4, int_5, int_6, int_7, temp;
-  unsigned long oid[5] = { 1, 2, 840, 113549, 1 };
+  char *oid = "1.2.840.113549.1";
   unsigned char bit_string[3] = { 0x6e, 0x5d, 0xc0 };
-  unsigned long *my_oid;
-  unsigned int my_oid_len;
+  char *my_oid;
   unsigned char *my_bs;
   unsigned int my_bs_len;
   int i;
@@ -622,7 +621,7 @@ void test_5(void)
          "(integer (6)) (integer (7)) "
          "(object-identifier (20)) (bit-string (22))))",
      &int_1, &int_2, &int_3, &int_4, &int_5, &int_6, &int_7,
-     oid, 5, bit_string, 18);
+     oid, bit_string, 18);
   
   if (status != SSH_ASN1_STATUS_OK)
     {
@@ -634,7 +633,7 @@ void test_5(void)
     print_tree(tree);
 
   status = ssh_asn1_search_tree(tree,
-				"(sequence (a 3) (integer (3)))");
+                                "(sequence (a 3) (integer (3)))");
   if (status != SSH_ASN1_STATUS_OK)
     {
       printf("error: (5,2) could not find. (%d)\n", status);
@@ -642,8 +641,8 @@ void test_5(void)
     }
 
   status = ssh_asn1_read_node(ssh_asn1_get_current(tree),
-			  "(sequence (a 3) (integer (3)))",
-			  &temp);
+                          "(sequence (a 3) (integer (3)))",
+                          &temp);
 
   if (status != SSH_ASN1_STATUS_OK)
     {
@@ -685,8 +684,8 @@ void test_5(void)
     }
 
   status = ssh_asn1_read_node(ssh_asn1_get_current(tree),
-			  "(object-identifier (20))",
-			  &my_oid, &my_oid_len);
+                          "(object-identifier (20))",
+                          &my_oid);
 
   if (status != SSH_ASN1_STATUS_OK)
     {
@@ -696,18 +695,14 @@ void test_5(void)
 
   if (verbose)
     printf("Checking oids...\n");
-  for (i = 0; i < my_oid_len; i++)
-    {
-      if (verbose)
-	printf("%08x == %08x\n", (unsigned int)my_oid[i],
-	       (unsigned int)oid[i]);
-      if (my_oid[i] != oid[i])
-	{
-	  printf("error: (5, 7) not ok.\n");
-	  exit(1);
-	}
-    }
 
+  if (strcmp(my_oid, oid) != 0)
+    {
+      printf(" %s != %s\n", my_oid, oid);
+      printf("error: (5, 7) not ok.\n");
+      exit(1);
+    }
+  
   ssh_xfree(my_oid);
   
   if (verbose)
@@ -725,8 +720,8 @@ void test_5(void)
     }
 
   status = ssh_asn1_read_node(ssh_asn1_get_current(tree),
-			  "(bit-string (22))",
-			  &my_bs, &my_bs_len);
+                          "(bit-string (22))",
+                          &my_bs, &my_bs_len);
 
   if (status != SSH_ASN1_STATUS_OK)
     {
@@ -740,13 +735,13 @@ void test_5(void)
   for (i = 0; i < (my_bs_len + 7) / 8; i++)
     {
       if (verbose)
-	printf("%02x == %02x\n", my_bs[i], bit_string[i]);
+        printf("%02x == %02x\n", my_bs[i], bit_string[i]);
       
       if (my_bs[i] != bit_string[i])
-	{
-	  printf("error: (5, 9)\n");
-	  exit(1);
-	}
+        {
+          printf("error: (5, 9)\n");
+          exit(1);
+        }
     }
 
   ssh_xfree(my_bs);
@@ -864,9 +859,9 @@ void test_7(void)
     ssh_asn1_create_tree
     (context, &tree,
      /* This is something which might look like what is rather complicated
-	to parse in real life. */
+        to parse in real life. */
      "(sequence ()"
-     "(octet-string (0))"
+     "(sequence (1) (octet-string (0)))"
      "(sequence ()"
        "(boolean ())"
        "(octet-string ()))"
@@ -892,7 +887,7 @@ void test_7(void)
     (tree,
      "(sequence ()"
      /* Very simple objects can be selected by choice. */
-     "(choice (octet-string (1)) (octet-string (0)))"
+     "(choice (sequence (0) (octet-string (1))) (sequence (1) (octet-string (0))))"
      /* For little bit more complex we suggest the any construct. */
      "(any ())"
      "(optional (octet-string (10)))"

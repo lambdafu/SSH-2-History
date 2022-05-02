@@ -14,7 +14,7 @@ AUTOMAKE_OPTIONS = 1.0 foreign dist-zip no-dependencies
 TESTS = t-buffer t-crc32 t-replace t-snprintf t-malloc t-encode \
 	t-timemeasure t-dllist \
 	t-stream t-socks t-streampair t-localstream t-mapping t-udp \
-	t-asn1 t-base64 t-sshutf8 t-psystem t-filexfer t-url t-serial
+	t-asn1 t-base64 t-sshutf8 t-psystem t-filexfer t-url
 
 
 # t-parser t-uf

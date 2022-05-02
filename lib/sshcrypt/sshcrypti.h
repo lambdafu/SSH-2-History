@@ -14,7 +14,7 @@
   */
 
 /*
- * $Id: sshcrypti.h,v 1.12 1998/08/06 12:11:46 tmo Exp $
+ * $Id: sshcrypti.h,v 1.13 1998/10/10 06:54:18 mkojo Exp $
  * $Log: sshcrypti.h,v $
  * $EndLog$
  */
@@ -49,8 +49,7 @@ typedef unsigned int SshCryptoType;
 typedef struct
 {
   const char *name;
-  unsigned int asn1_oid_len;
-  unsigned long *asn1_oid;
+  char *asn1_oid;
   unsigned char iso_identifier;
   size_t digest_length;
   size_t input_block_length;
@@ -73,9 +72,9 @@ typedef struct
   size_t key_length;
   size_t (*ctxsize)(void);
   void (*init)(void *context, const unsigned char *key,
-	       size_t keylen, Boolean for_encryption);
+               size_t keylen, Boolean for_encryption);
   void (*transform)(void *context, unsigned char *dest,
-		    const unsigned char *src, size_t len);
+                    const unsigned char *src, size_t len);
   void (*set_iv)(void *context, const unsigned char *iv);
   void (*get_iv)(void *context, unsigned char *iv);
 } SshCipherDef;
@@ -93,13 +92,13 @@ typedef struct
   const SshHashDef *hash_def;
   size_t (*ctxsize)(const SshHashDef *hash_def);
   void (*init)(void *context, const unsigned char *key, size_t keylen,
-	       const SshHashDef *hash_def);
+               const SshHashDef *hash_def);
   void (*start)(void *context);
   void (*update)(void *context, const unsigned char *buf,
-		 size_t len);
+                 size_t len);
   void (*final)(void *context, unsigned char *digest);
   void (*mac_of_buffer)(void *context, const unsigned char *buf,
-			size_t len, unsigned char *digest);
+                        size_t len, unsigned char *digest);
 } SshMacDef;
 
 /* Function prototypes that are used internally. */
@@ -116,8 +115,8 @@ const SshHashDef *ssh_hash_get_definition_internal(const SshHash hash);
 /* Expansion from a passphrase into a key. */
 
 void ssh_hash_expand_key_internal(unsigned char *buffer, size_t ssh_buffer_len,
-				  const unsigned char *ps, size_t ps_len,
-				  unsigned char *magic, size_t magic_len,
-				  const SshHashDef *hash);
+                                  const unsigned char *ps, size_t ps_len,
+                                  unsigned char *magic, size_t magic_len,
+                                  const SshHashDef *hash);
 
 #endif /* SSHCRYPTI_H */

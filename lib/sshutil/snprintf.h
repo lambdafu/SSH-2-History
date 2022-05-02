@@ -18,8 +18,6 @@
 #ifndef SNPRINTF_H
 #define SNPRINTF_H
 
-#include "sshincludes.h"
-
 /* Write formatted text to buffer 'str', using format string 'format'.
    Returns number of characters written, or negative if error
    occurred. SshBuffer's size is given in 'size'. Format string is

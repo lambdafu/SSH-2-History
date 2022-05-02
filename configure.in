@@ -41,14 +41,26 @@ case "$target" in
   alpha-dec-osf*)
     # If we are not using gcc, we want the ansi version of cc. 
     if test -z "$GCC"; then
-      CFLAGS="$CFLAGS -std1"
+      CFLAGS="$CFLAGS -std1 -warnprotos"
     fi
     ;;
   *)
     ;;
 esac
 
+#AC_ADD_GCC_CFLAGS([-W])
 AC_ADD_GCC_CFLAGS([-Wall])
+
+# Disabled because we use long long
+# AC_ADD_GCC_CFLAGS([-pedantic])
+
+# Disabled because lots of system headers break on this (errno.h)
+# AC_ADD_GCC_CFLAGS([-Wredundant-decls])
+
+#AC_ADD_GCC_CFLAGS([-Wshadow -Wpointer-arith -Wbad-function-cast])
+#AC_ADD_GCC_CFLAGS([-Wcast-align -Wwrite-strings -Waggregate-return])
+#AC_ADD_GCC_CFLAGS([-Wmissing-prototypes -Wstrict-prototypes])
+
 AC_ISC_POSIX
 
 AC_PROG_RANLIB
@@ -72,23 +84,10 @@ AC_TYPE_MODE_T
 AC_CHECK_SIZEOF(long,4)
 AC_CHECK_SIZEOF(int,4)
 AC_CHECK_SIZEOF(short,2)
+AC_CHECK_SIZEOF(long long,8)
 
 AC_C_CONST
 AC_C_INLINE
-
-AC_MSG_CHECKING(whether to enable harness at IPSec)
-AC_ARG_ENABLE(ipsec-harness,
-[  --enable-ipsec-harness  Enable IPSec harness.],
-[ case "$enableval" in
-  yes)
-    AC_MSG_RESULT(yes)
-    AC_DEFINE(HARNESS)
-    ;;
-  *)
-    AC_MSG_RESULT(no)
-    ;;
-  esac ], AC_MSG_RESULT(no)
-)
 
 AC_MSG_CHECKING(whether to enable light debugging)
 debug_light_defined=no
@@ -358,16 +357,17 @@ AC_ARG_WITH(libwrap,
     AC_MSG_RESULT(yes)
     AC_CHECK_LIB(wrap, request_init, [
 	AC_DEFINE(LIBWRAP)
-        LIBS="-lwrap -lsocket -lnsl $LIBS"
+        LIBS="-lwrap $LIBS"
         AC_DEFINE(HAVE_LIBWRAP) ])
     ;;
   *)
-    AC_MSG_RESULT(yes)
+    AC_MSG_RESULT($withval)
     AC_DEFINE(LIBWRAP)
+    AC_DEFINE(HAVE_LIBWRAP)
     if test -d "$withval"; then
-    	LIBS="-L$withval -lwrap -lsocket -lnsl $LIBS"
+    	LIBS="-L$withval -I$withval -lwrap $LIBS"
     else
-	LIBS="$withval -lsocket -lnsl $LIBS"
+	LIBS="$withval $LIBS"
     fi
     AC_TRY_LINK([ int allow_severity; int deny_severity; ],
                 [ hosts_access(); ],
@@ -545,6 +545,34 @@ AC_CHECK_FUNCS(getpid getppid getuid getgid getpgrp)
 #
 #endif SSHDIST_CRYPT_RSA
 
+AC_MSG_CHECKING(whether compiled symbols are prepended with underscore)
+
+if test "${ac_cv_have_no_symbol_underscore+set}" = set; then
+  if test "$ac_cv_have_no_symbol_underscore" = "yes"; then
+    echo "(cached) no"
+    AC_DEFINE(HAVE_NO_SYMBOL_UNDERSCORE)
+  else
+    echo "(cached) yes"
+  fi
+else
+
+  AC_TRY_RUN(int underscoretestfunction() { return 0; }
+             main()
+             {
+                 underscoretestfunction();
+             },
+             [if test -n "`nm conftest 2>/dev/null | grep _underscoretestfunction 2>/dev/null`"; then
+                AC_MSG_RESULT(yes)
+                ac_cv_have_no_symbol_underscore=no
+              elif test -n "`nm conftest 2>/dev/null | grep underscoretestfunction 2>/dev/null`"; then
+                AC_MSG_RESULT(no)
+                AC_DEFINE(HAVE_NO_SYMBOL_UNDERSCORE)
+                ac_cv_have_no_symbol_underscore=yes
+              fi ], 
+             AC_MSG_WARN(failed to test underscore.), 
+             AC_MSG_WARN(cross compilation isn\'t tested))
+fi
+
 #
 # configure.in fragment for sshmath (arithmetic library)
 #
@@ -555,19 +583,19 @@ AC_CHECK_FUNCS(getpid getppid getuid getgid getpgrp)
 #
 
 #ifdef SSHDIST_MATH_ASM
-case "$target" in
-#ifdef SSHDIST_MATH_ASM_I386
-  i*86-*-bsdi*|i*86-*-freebsd*|i*86-*-netbsd*|i*86-*-openbsd*|i*86-*-linux*)
-    if test -n "$GCC"; then
-      MATH_CONF_OBJS="$MATH_CONF_OBJS sshmp_i386.o"
-      AC_DEFINE(SSHMATH_ASSEMBLER_SUBROUTINES)
-      AC_DEFINE(SSHMATH_I386)
-    fi
-    ;;
-#endif SSHDIST_MATH_ASM_I386
-  *-*-*)
-    ;;
-esac
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
+#
 #endif SSHDIST_MATH_ASM
 
 AC_SUBST(MATH_CONF_OBJS)
@@ -586,7 +614,7 @@ AC_CHECK_FUNCS(times clock)
 AC_CHECK_LIB(termcap, tgetent)
 AC_CHECK_LIB(xcurses, tgetent)
 AC_CHECK_LIB(ncurses, tgetent)
-AC_CHECK_HEADERS(termcap.h)
+AC_CHECK_HEADERS(termcap.h term.h curses.h)
 
 
 #
@@ -665,9 +693,22 @@ case "$target" in
     AC_CHECK_FUNCS(setluid getespwnam)
     no_utmpx=yes
     AC_MSG_CHECKING(for OSF/1 C2 security package)
-    osfc2sec=`/usr/sbin/setld -i | grep '^OSFC2SEC' | grep 'installed'`
-    if test -n "$osfc2sec"; then
-      AC_MSG_RESULT(yes)
+    if test "${ac_cv_osfc2sec+set}" = set; then
+      if test "$ac_cv_osfc2sec" = "yes"; then
+        echo "(cached) yes"
+      else
+        echo "(cached) no"
+      fi
+    else
+      if test -n "`/usr/sbin/setld -i | grep '^OSFC2SEC' | grep 'installed'`"; then
+        ac_cv_osfc2sec=yes
+        AC_MSG_RESULT(yes)
+      else
+        ac_cv_osfc2sec=no
+        AC_MSG_RESULT(no)
+      fi
+    fi
+    if test "x$ac_cv_osfc2sec" = "xyes" ; then
       AC_DEFINE(HAVE_OSF1_C2_SECURITY)
       SSHSESSION_CONFOBJS="$SSHSESSION_CONFOBJS tcbc2.o"
       OLD_CFLAGS="$CFLAGS"
@@ -683,8 +724,6 @@ Making a local copy of prot.h and patching it.])
         sed 's@<acl.h>@<sys/acl.h>@g' </usr/include/prot.h >prot.h
       ])
       CFLAGS="$OLD_CFLAGS"
-    else
-      AC_MSG_RESULT(no)
     fi
     AC_DEFINE(TTY_GROUP, "terminal")
     ;;
@@ -800,7 +839,7 @@ if test -z "$no_shadows_password_checking"; then
   elif test -n "$os_aix"; then
     AC_DEFINE(HAVE_ETC_SECURITY_PASSWD)
     AC_MSG_RESULT(/etc/security/passwd)
-  elif test -n "$os_sunos"; then
+  elif test -n "$os_sunos" -a -f /etc/security/passwd.adjunct; then
     AC_DEFINE(HAVE_ETC_SECURITY_PASSWD_ADJUNCT)
     AC_MSG_RESULT(/etc/security/passwd.adjunct)
   else
@@ -1078,5 +1117,5 @@ AC_SUBST(RANLIB)
 AC_SUBST(PACKAGE)
 AC_SUBST(VERSION)
 
-CPPFLAGS="$CPPFLAGS -DSSHDIST_UTIL_PACKETSTREAM -DSSHDIST_CRYPT_DL -DSSHDIST_CRYPT_DLKEX -DSSHDIST_CRYPT_RIPEMD160 -DSSHDIST_MATH_ASM_I386 -DSSHDIST_CRYPT_GENMAC -DSSHDIST_UTIL_COMMON -DSSHDIST_CRYPT_DES -DSSHDIST_CRYPT_GENHASH -DSSHDIST_CRYPT_MD5 -DSSHDIST_CRYPT_GENPKCS -DSSHDIST_CRYPT_COMPRESS -DSSHDIST_MATH_ASM -DSSHDIST_CRYPT_SHA -DSSHDIST_IPSEC_NETBSD -DSSHDIST_CRYPT_SSHMACS -DSSHDIST_CRYPT_ARCFOUR -DSSHDIST_CRYPT_DSA -DSSHDIST_CRYPT_HMAC -DSSHDIST_CRYPT_GENCIPH -DSSHDIST_ISAKMP_CFG_MODE -DSSHDIST_CRYPT_DH"
+CPPFLAGS="$CPPFLAGS -DSSHDIST_UTIL_PACKETSTREAM -DSSHDIST_CRYPT_DL -DSSHDIST_CRYPT_DLKEX -DSSHDIST_CRYPT_RIPEMD160 -DSSHDIST_CRYPT_GENMAC -DSSHDIST_UTIL_COMMON -DSSHDIST_CRYPT_DES -DSSHDIST_CRYPT_GENHASH -DSSHDIST_CRYPT_MD5 -DSSHDIST_CRYPT_GENPKCS -DSSHDIST_CRYPT_COMPRESS -DSSHDIST_CRYPT_SHA -DSSHDIST_CRYPT_BLOWFISH -DSSHDIST_CRYPT_SSHMACS -DSSHDIST_CRYPT_ARCFOUR -DSSHDIST_CRYPT_DSA -DSSHDIST_CRYPT_HMAC -DSSHDIST_CRYPT_GENCIPH -DSSHDIST_CRYPT_DH"
 AC_OUTPUT(Makefile lib/Makefile lib/zlib/Makefile lib/sshmath/Makefile lib/sshmath/tests/Makefile lib/sshutil/Makefile lib/sshutil/tests/Makefile lib/sshapputil/Makefile lib/sshapputil/tests/Makefile lib/sshcrypt/Makefile lib/sshcrypt/tests/Makefile lib/sshproto/Makefile lib/sshproto/tests/Makefile lib/sshsession/Makefile lib/sshreadline/Makefile lib/sshreadline/tests/Makefile apps/Makefile apps/ssh/Makefile)

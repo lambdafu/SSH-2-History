@@ -12,6 +12,8 @@ Copyright (c) 1997 SSH Communications Security, Finland
 #ifndef SSHSESSIONINCLUDES_H
 #define SSHSESSIONINCLUDES_H
 
+/* Do not remove this include.  sshsessionincludes.h is designed to include
+   sshincludes.h automatically. */
 #include "sshincludes.h"
 
 #ifdef HAVE_LIBUTIL_H

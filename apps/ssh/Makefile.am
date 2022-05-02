@@ -27,7 +27,8 @@ noinst_HEADERS = auths-passwd.h readpass.h signals.h ssh2includes.h \
 	sshconfig.h sshserver.h sshstdiofilter.h \
 	ssh2version.h sshuserfiles.h authc-pubkey.h authc-passwd.h \
 	sshagentint.h sshagent.h auths-pubkey.h sshchx11.h sshchagent.h \
-	sshchssh1agent.h sshchsession.h sshchtcpfwd.h
+	sshchssh1agent.h sshchsession.h sshchtcpfwd.h \
+	sshgetopt.h
 
 INCLUDES = -I. -I$(srcdir) -I../.. -I$(srcdir) -I../../include \
 	   -I$(srcdir)/../../include 
@@ -40,7 +41,8 @@ ssh2_SOURCES = ssh2.c sshauthmethodc.c readpass.c sshunixuserfiles.c \
 	       sshchx11.c sshchsession.c sshchagent.c sshchssh1agent.c \
 	       sshchtcpfwd.c sshstdiofilter.c \
 	       sshcommon.c sshconfig.c sshunixconfig.c sshclient.c \
-	       agentpath.c authc-pubkey.c authc-passwd.c agentclient.c
+	       agentpath.c authc-pubkey.c authc-passwd.c agentclient.c \
+	       sshgetopt.c
 
 ssh2_DEPENDENCIES = $(DEPENDENCIES)
 
@@ -50,18 +52,22 @@ sshd2_SOURCES = sshd2.c signals.c sshauthmethods.c auths-passwd.c \
 	        sshchx11.c sshchsession.c sshchagent.c sshchssh1agent.c \
 	        sshchtcpfwd.c \
 		sshcommon.c sshconfig.c sshunixconfig.c sshserver.c \
-                agentpath.c 
+                agentpath.c \
+		sshgetopt.c
+
 
 sshd2_DEPENDENCIES = $(DEPENDENCIES)
 
 ssh_agent2_SOURCES = ssh-agent2.c agentpath.c sshunixuserfiles.c \
 	             sshuserfiles.c \
-                     sshconfig.c sshunixconfig.c 
+                     sshconfig.c sshunixconfig.c \
+		     sshgetopt.c
 ssh_agent2_DEPENDENCIES = $(DEPENDENCIES)
 
 ssh_add2_SOURCES = ssh-add2.c agentclient.c agentpath.c \
 		   sshuserfiles.c \
-	           sshunixuserfiles.c readpass.c sshconfig.c sshunixconfig.c 
+	           sshunixuserfiles.c readpass.c sshconfig.c sshunixconfig.c \
+		   sshgetopt.c
 ssh_add2_DEPENDENCIES = $(DEPENDENCIES)
 
 ssh_askpass2_SOURCES = ssh-askpass2.c 
@@ -69,11 +75,12 @@ ssh_askpass2_LDADD = $(LDADD) $(X_LIBS) $(X_PRE_LIBS) -lX11
 
 ssh_keygen2_SOURCES = readpass.c ssh-keygen2.c sshunixuserfiles.c \
 	              sshuserfiles.c \
-		      sshconfig.c sshunixconfig.c 
+		      sshconfig.c sshunixconfig.c \
+		      sshgetopt.c
 ssh_keygen2_DEPENDENCIES = $(DEPENDENCIES) ../../lib/sshreadline/libsshreadline.a
 ssh_keygen2_LDADD = $(LDADD) -L../../lib/sshreadline -lsshreadline
 
-scp2_SOURCES = scp2.c 
+scp2_SOURCES = scp2.c sshgetopt.c
 scp2_DEPENDENCIES = $(DEPENDENCIES)
 
 sftp2_SOURCES = sftp2.c 

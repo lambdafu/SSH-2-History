@@ -10,7 +10,7 @@
   */
 
 /*
- * $Id: snprintf.c,v 1.19 1998/06/03 00:45:30 ylo Exp $
+ * $Id: snprintf.c,v 1.21 1998/10/06 11:32:34 sjl Exp $
  * $Log: snprintf.c,v $
  * $EndLog$
  */
@@ -37,7 +37,7 @@
 
 int
 snprintf_get_directive(const char *str, int *flags, int *width,
-		       int *precision, char *format_char, va_list *ap)
+                       int *precision, char *format_char, va_list *ap)
 {
   int length, n;
   const char *orig_str = str;
@@ -52,97 +52,97 @@ snprintf_get_directive(const char *str, int *flags, int *width,
       /* Get the flags */
       str++;
       while (*str == '-' || *str == '+' || *str == ' ' 
-	     || *str == '#' || *str == '0')
-	{
-	  switch (*str)
-	    {
-	    case '-':
-	      *flags |= MINUS_FLAG;
-	      break;
-	    case '+':
-	      *flags |= PLUS_FLAG;
-	      break;
-	    case ' ':
-	      *flags |= SPACE_FLAG;
-	      break;
-	    case '#':
-	      *flags |= HASH_FLAG;
-	      break;
-	    case '0':
-	      *flags |= ZERO_PADDING;
-	      break;
-	    }
-	  str++;
-	}
+             || *str == '#' || *str == '0')
+        {
+          switch (*str)
+            {
+            case '-':
+              *flags |= MINUS_FLAG;
+              break;
+            case '+':
+              *flags |= PLUS_FLAG;
+              break;
+            case ' ':
+              *flags |= SPACE_FLAG;
+              break;
+            case '#':
+              *flags |= HASH_FLAG;
+              break;
+            case '0':
+              *flags |= ZERO_PADDING;
+              break;
+            }
+          str++;
+        }
 
       /* Don't pad left-justified numbers withs zeros */
       if ((*flags & MINUS_FLAG) && (*flags & ZERO_PADDING))
-	*flags &= ~ZERO_PADDING;
+        *flags &= ~ZERO_PADDING;
       
       /* Is width field present? */
       if (isdigit(*str))
-	{
-	  n = sscanf(str, "%d", width);
-	  if (n == 0)
-	    return 0;
+        {
+          n = sscanf(str, "%d", width);
+          if (n == 0)
+            return 0;
 
-	  /* Step through the field */
-	  while (isdigit(*str))
-	    str++;
-	}
+          /* Step through the field */
+          while (isdigit(*str))
+            str++;
+        }
       else
-	if (*str == '*')
-	  {
-	    *width = va_arg(*ap, int);
-	    str++;
-	  }
+        if (*str == '*')
+          {
+            *width = va_arg(*ap, int);
+            str++;
+          }
 
       /* Is the precision field present? */
       if (*str == '.')
-	{
-	  str++;
-	  if (isdigit(*str))
-	    {
-	      n = sscanf(str, "%d", precision);
-	      if (n == 0)
-		return 0;
-	  
-	      /* Step through the field */
-	      while (isdigit(*str))
-		str++;
-	    }
-	  else
-	    if (*str == '*')
-	      {
-		*precision = va_arg(*ap, int);
-		str++;
-	      }
-	    else
-	      *precision = 0;
-	}
+        {
+          str++;
+          if (isdigit(*str))
+            {
+              n = sscanf(str, "%d", precision);
+              if (n == 0)
+                return 0;
+          
+              /* Step through the field */
+              while (isdigit(*str))
+                str++;
+            }
+          else
+            if (*str == '*')
+              {
+                *precision = va_arg(*ap, int);
+                str++;
+              }
+            else
+              *precision = 0;
+        }
 
       /* Get the optional type character */
       if (*str == 'h')
-	{
-	  *flags |= CONV_TO_SHORT;
-	  str++;
-	}
+        {
+          *flags |= CONV_TO_SHORT;
+          str++;
+        }
       else
-	{
-	  if (*str == 'l')
-	    {
-	      *flags |= IS_LONG_INT;
-	      str++;
-	    }
-	  else
-	    {
-	      if (*str == 'L')
-		{
-		  *flags |= IS_LONG_DOUBLE;
-		  str++;
-		}
-	    }
-	}
+        {
+          if (*str == 'l')
+            {
+              *flags |= IS_LONG_INT;
+              str++;
+            }
+          else
+            {
+              if (*str == 'L')
+                {
+                  *flags |= IS_LONG_DOUBLE;
+                  str++;
+                }
+            }
+        }
 
       /* Get and check the formatting character */
 
@@ -151,19 +151,19 @@ snprintf_get_directive(const char *str, int *flags, int *width,
       length = str - orig_str;
 
       switch (*format_char)
-	{
-	case 'i': case 'd': case 'o': case 'u': case 'x': case 'X': 
-	case 'f': case 'e': case 'E': case 'g': case 'G': 
-	case 'c': case 's': case 'p': case 'n':
-	  if (*format_char == 'X')
-	    *flags |= X_UPCASE;
-	  if (*format_char == 'o')
-	    *flags |= UNSIGNED_DEC;
-	  return length;
+        {
+        case 'i': case 'd': case 'o': case 'u': case 'x': case 'X': 
+        case 'f': case 'e': case 'E': case 'g': case 'G': 
+        case 'c': case 's': case 'p': case 'n':
+          if (*format_char == 'X')
+            *flags |= X_UPCASE;
+          if (*format_char == 'o')
+            *flags |= UNSIGNED_DEC;
+          return length;
 
-	default:
-	  return 0;
-	}
+        default:
+          return 0;
+        }
     }
   else
     {
@@ -181,8 +181,8 @@ snprintf_get_directive(const char *str, int *flags, int *width,
 
 int
 snprintf_convert_ulong(char *buffer, size_t buf_size, int base, char *digits,
-		       unsigned long int ulong_val, int flags, int width,
-		       int precision)
+                       unsigned long int ulong_val, int flags, int width,
+                       int precision)
 {
   int tmp_buf_len = 100 + width, len;
   char *tmp_buf, *tmp_buf_ptr, prefix[2];
@@ -207,25 +207,25 @@ snprintf_convert_ulong(char *buffer, size_t buf_size, int base, char *digits,
   if (!(flags & IS_NEGATIVE))
     {
       if (base == 16 && (flags & HASH_FLAG))
-	  if (flags && X_UPCASE)
-	    {
-	      prefix[0] = 'x';
-	      prefix[1] = '0';
-	    }
-	  else
-	    {
-	      prefix[0] = 'X';
-	      prefix[1] = '0';
-	    }
+          if (flags && X_UPCASE)
+            {
+              prefix[0] = 'x';
+              prefix[1] = '0';
+            }
+          else
+            {
+              prefix[0] = 'X';
+              prefix[1] = '0';
+            }
       
       if (base == 8 && (flags & HASH_FLAG))
-	  prefix[0] = '0';
+          prefix[0] = '0';
       
       if (base == 10 && !(flags & UNSIGNED_DEC) && (flags & PLUS_FLAG))
-	  prefix[0] = '+';
+          prefix[0] = '+';
       else
-	if (base == 10 && !(flags & UNSIGNED_DEC) && (flags & SPACE_FLAG))
-	  prefix[0] = ' ';
+        if (base == 10 && !(flags & UNSIGNED_DEC) && (flags & SPACE_FLAG))
+          prefix[0] = ' ';
     }
   else
       prefix[0] = '-';
@@ -234,7 +234,7 @@ snprintf_convert_ulong(char *buffer, size_t buf_size, int base, char *digits,
     {
       *--tmp_buf_ptr = prefix[0];
       if (prefix[1] != '\0' && tmp_buf_ptr > tmp_buf)
-	*--tmp_buf_ptr = prefix[1];
+        *--tmp_buf_ptr = prefix[1];
     }
   
   len = (tmp_buf + tmp_buf_len) - tmp_buf_ptr;
@@ -242,28 +242,28 @@ snprintf_convert_ulong(char *buffer, size_t buf_size, int base, char *digits,
   if (len <= buf_size)
     {
       if (len < width)
-	{
-	  if (width > (tmp_buf_ptr - tmp_buf))
-	    width = (tmp_buf_ptr - tmp_buf);
-	  if (flags & MINUS_FLAG)
-	    {
-	      memcpy(buffer, tmp_buf_ptr, len);
-	      memset(buffer + len, (flags & ZERO_PADDING)?'0':' ',
-		     width - len);
-	      len = width;
-	    }
-	  else
-	    {
-	      memset(buffer, (flags & ZERO_PADDING)?'0':' ',
-		     width - len);
-	      memcpy(buffer + width - len, tmp_buf_ptr, len);
-	      len = width;
-	    }
-	}
+        {
+          if (width > (tmp_buf_ptr - tmp_buf))
+            width = (tmp_buf_ptr - tmp_buf);
+          if (flags & MINUS_FLAG)
+            {
+              memcpy(buffer, tmp_buf_ptr, len);
+              memset(buffer + len, (flags & ZERO_PADDING)?'0':' ',
+                     width - len);
+              len = width;
+            }
+          else
+            {
+              memset(buffer, (flags & ZERO_PADDING)?'0':' ',
+                     width - len);
+              memcpy(buffer + width - len, tmp_buf_ptr, len);
+              len = width;
+            }
+        }
       else
-	{
-	  memcpy(buffer, tmp_buf_ptr, len);
-	}
+        {
+          memcpy(buffer, tmp_buf_ptr, len);
+        }
       ssh_xfree(tmp_buf);
       return len;
     }
@@ -277,8 +277,8 @@ snprintf_convert_ulong(char *buffer, size_t buf_size, int base, char *digits,
 
 int
 snprintf_convert_float(char *buffer, size_t buf_size,
-		       double dbl_val, int flags, int width,
-		       int precision, char format_char)
+                       double dbl_val, int flags, int width,
+                       int precision, char format_char)
 {
   char print_buf[160], print_buf_len = 0;
   char format_str[80], *format_str_ptr;
@@ -307,7 +307,9 @@ snprintf_convert_float(char *buffer, size_t buf_size,
   if (flags & HASH_FLAG)
     *format_str_ptr++ = '#';
     
-  format_str_ptr += sprintf(format_str_ptr, "%d.%d", width, precision);
+  sprintf(format_str_ptr, "%d.%d", width, precision);
+  format_str_ptr += strlen(format_str_ptr);
+
   if (flags & IS_LONG_DOUBLE)
     *format_str_ptr++ = 'L';
   *format_str_ptr++ = format_char;
@@ -349,209 +351,209 @@ vsnprintf(char *str, size_t size, const char *format, va_list ap)
   while (format_ptr < format + strlen(format))
     {
       if (*format_ptr == '%')
-	{
-	  if (format_ptr[1] == '%' && left > 0)
-	    {
-	      *str++ = '%';
-	      left--;
-	      format_ptr += 2;
-	    }
-	  else
-	    {
-	      if (left <= 0)
-		{
-		  *str = '\0';
-		  return size;
-		}
-	      else
-		{
-		  status = snprintf_get_directive(format_ptr, &flags, &width,
-						  &precision, &format_char, 
-						  &ap);
-		  if (status == 0)
-		    {
-		      *str = '\0';
-		      return 0;
-		    }
-		  else
-		    {
-		      format_ptr += status;
-		      /* Print a formatted argument */
-		      switch (format_char)
-			{
-			case 'i': case 'd':
-			  /* Convert to unsigned long int before
-			     actual conversion to string */
-			  if (flags & IS_LONG_INT)
-			    long_val = va_arg(ap, long int);
-			  else
-			    long_val = (long int) va_arg(ap, int);
-			  
-			  if (long_val < 0)
-			    {
-			      ulong_val = (unsigned long int) -long_val;
-			      flags |= IS_NEGATIVE;
-			    }
-			  else
-			    {
-			      ulong_val = (unsigned long int) long_val;
-			    }
-			  status = snprintf_convert_ulong(str, left, 10,
-							  "0123456789",
-							  ulong_val, flags,
-							  width, precision);
-			  str += status;
-			  left -= status;
-			  break;
+        {
+          if (format_ptr[1] == '%' && left > 0)
+            {
+              *str++ = '%';
+              left--;
+              format_ptr += 2;
+            }
+          else
+            {
+              if (left <= 0)
+                {
+                  *str = '\0';
+                  return size;
+                }
+              else
+                {
+                  status = snprintf_get_directive(format_ptr, &flags, &width,
+                                                  &precision, &format_char, 
+                                                  &ap);
+                  if (status == 0)
+                    {
+                      *str = '\0';
+                      return 0;
+                    }
+                  else
+                    {
+                      format_ptr += status;
+                      /* Print a formatted argument */
+                      switch (format_char)
+                        {
+                        case 'i': case 'd':
+                          /* Convert to unsigned long int before
+                             actual conversion to string */
+                          if (flags & IS_LONG_INT)
+                            long_val = va_arg(ap, long int);
+                          else
+                            long_val = (long int) va_arg(ap, int);
+                          
+                          if (long_val < 0)
+                            {
+                              ulong_val = (unsigned long int) -long_val;
+                              flags |= IS_NEGATIVE;
+                            }
+                          else
+                            {
+                              ulong_val = (unsigned long int) long_val;
+                            }
+                          status = snprintf_convert_ulong(str, left, 10,
+                                                          "0123456789",
+                                                          ulong_val, flags,
+                                                          width, precision);
+                          str += status;
+                          left -= status;
+                          break;
 
-			case 'x':
-			  if (flags & IS_LONG_INT)
-			    ulong_val = va_arg(ap, unsigned long int);
-			  else
-			    ulong_val = 
-			      (unsigned long int) va_arg(ap, unsigned int);
+                        case 'x':
+                          if (flags & IS_LONG_INT)
+                            ulong_val = va_arg(ap, unsigned long int);
+                          else
+                            ulong_val = 
+                              (unsigned long int) va_arg(ap, unsigned int);
 
-			  status = snprintf_convert_ulong(str, left, 16,
-							  "0123456789abcdef",
-							  ulong_val, flags,
-							  width, precision);
-			  str += status;
-			  left -= status;
-			  break;
+                          status = snprintf_convert_ulong(str, left, 16,
+                                                          "0123456789abcdef",
+                                                          ulong_val, flags,
+                                                          width, precision);
+                          str += status;
+                          left -= status;
+                          break;
 
-			case 'X':
-			  if (flags & IS_LONG_INT)
-			    ulong_val = va_arg(ap, unsigned long int);
-			  else
-			    ulong_val = 
-			      (unsigned long int) va_arg(ap, unsigned int);
+                        case 'X':
+                          if (flags & IS_LONG_INT)
+                            ulong_val = va_arg(ap, unsigned long int);
+                          else
+                            ulong_val = 
+                              (unsigned long int) va_arg(ap, unsigned int);
 
-			  status = snprintf_convert_ulong(str, left, 16,
-							  "0123456789ABCDEF",
-							  ulong_val, flags,
-							  width, precision);
-			  str += status;
-			  left -= status;
-			  break;
+                          status = snprintf_convert_ulong(str, left, 16,
+                                                          "0123456789ABCDEF",
+                                                          ulong_val, flags,
+                                                          width, precision);
+                          str += status;
+                          left -= status;
+                          break;
 
-			case 'o':
-			  if (flags & IS_LONG_INT)
-			    ulong_val = va_arg(ap, unsigned long int);
-			  else
-			    ulong_val = 
-			      (unsigned long int) va_arg(ap, unsigned int);
+                        case 'o':
+                          if (flags & IS_LONG_INT)
+                            ulong_val = va_arg(ap, unsigned long int);
+                          else
+                            ulong_val = 
+                              (unsigned long int) va_arg(ap, unsigned int);
 
-			  status = snprintf_convert_ulong(str, left, 8,
-							  "01234567",
-							  ulong_val, flags,
-							  width, precision);
-			  str += status;
-			  left -= status;
-			  break;
+                          status = snprintf_convert_ulong(str, left, 8,
+                                                          "01234567",
+                                                          ulong_val, flags,
+                                                          width, precision);
+                          str += status;
+                          left -= status;
+                          break;
 
-			case 'u':
-			  if (flags & IS_LONG_INT)
-			    ulong_val = va_arg(ap, unsigned long int);
-			  else
-			    ulong_val = 
-			      (unsigned long int) va_arg(ap, unsigned int);
+                        case 'u':
+                          if (flags & IS_LONG_INT)
+                            ulong_val = va_arg(ap, unsigned long int);
+                          else
+                            ulong_val = 
+                              (unsigned long int) va_arg(ap, unsigned int);
 
-			  status = snprintf_convert_ulong(str, left, 10,
-							  "0123456789",
-							  ulong_val, flags,
-							  width, precision);
-			  str += status;
-			  left -= status;
-			  break;
+                          status = snprintf_convert_ulong(str, left, 10,
+                                                          "0123456789",
+                                                          ulong_val, flags,
+                                                          width, precision);
+                          str += status;
+                          left -= status;
+                          break;
 
-			case 'p':
-			  break;
-			  
-			case 'c':
-			  if (flags & IS_LONG_INT)
-			    ulong_val = va_arg(ap, unsigned long int);
-			  else
-			    ulong_val = 
-			      (unsigned long int) va_arg(ap, unsigned int);
-			  *str++ = (unsigned char)ulong_val;
-			  left--;
-			  break;
+                        case 'p':
+                          break;
+                          
+                        case 'c':
+                          if (flags & IS_LONG_INT)
+                            ulong_val = va_arg(ap, unsigned long int);
+                          else
+                            ulong_val = 
+                              (unsigned long int) va_arg(ap, unsigned int);
+                          *str++ = (unsigned char)ulong_val;
+                          left--;
+                          break;
 
-			case 's':
-			  str_val = va_arg(ap, char *);
+                        case 's':
+                          str_val = va_arg(ap, char *);
 
-			  if (str_val == NULL)
-			    str_val = "(null)";
-			  
-			  if (precision == 0)
-			    precision = strlen(str_val);
-			  else
-			    {
-			      if (memchr(str_val, 0, precision) != NULL)
-				precision = strlen(str_val);
-			    }
-			  if (precision > left)
-			    precision = left;
+                          if (str_val == NULL)
+                            str_val = "(null)";
+                          
+                          if (precision == 0)
+                            precision = strlen(str_val);
+                          else
+                            {
+                              if (memchr(str_val, 0, precision) != NULL)
+                                precision = strlen(str_val);
+                            }
+                          if (precision > left)
+                            precision = left;
 
-			  if (width > left)
-			    width = left;
-			  if (width < precision)
-			    width = precision;
-			  i = width - precision;
+                          if (width > left)
+                            width = left;
+                          if (width < precision)
+                            width = precision;
+                          i = width - precision;
 
-			  if (flags & MINUS_FLAG)
-			    {
-			      strncpy(str, str_val, precision);
-			      memset(str + precision,
-				     (flags & ZERO_PADDING)?'0':' ', i);
-			    }
-			  else
-			    {
-			      memset(str, (flags & ZERO_PADDING)?'0':' ', i);
-			      strncpy(str + i, str_val, precision);
-			    }
-			  str += width;
-			  left -= width;
-			  break;
+                          if (flags & MINUS_FLAG)
+                            {
+                              strncpy(str, str_val, precision);
+                              memset(str + precision,
+                                     (flags & ZERO_PADDING)?'0':' ', i);
+                            }
+                          else
+                            {
+                              memset(str, (flags & ZERO_PADDING)?'0':' ', i);
+                              strncpy(str + i, str_val, precision);
+                            }
+                          str += width;
+                          left -= width;
+                          break;
 
-			case 'n':
-			  int_ptr = va_arg(ap, int *);
-			  *int_ptr = str - orig_str;
-			  break;
+                        case 'n':
+                          int_ptr = va_arg(ap, int *);
+                          *int_ptr = str - orig_str;
+                          break;
 
-			case 'f': case 'e': case 'E': case 'g': case 'G':
-			  if (flags & IS_LONG_DOUBLE)
-			    dbl_val = (double) va_arg(ap, long double);
-			  else
-			    dbl_val = va_arg(ap, double);
-			  status =
-			    snprintf_convert_float(str, left, dbl_val, flags,
-						   width, precision,
-						   format_char);
-			  str += status;
-			  left -= status;
-			  break;
-			  
-			default:
-			  break;
-			}
-		    }
-		}
-	    }
-	}
+                        case 'f': case 'e': case 'E': case 'g': case 'G':
+                          if (flags & IS_LONG_DOUBLE)
+                            dbl_val = (double) va_arg(ap, long double);
+                          else
+                            dbl_val = va_arg(ap, double);
+                          status =
+                            snprintf_convert_float(str, left, dbl_val, flags,
+                                                   width, precision,
+                                                   format_char);
+                          str += status;
+                          left -= status;
+                          break;
+                          
+                        default:
+                          break;
+                        }
+                    }
+                }
+            }
+        }
       else
-	{
-	  if (left > 0)
-	    {
-	      *str++ = *format_ptr++;
-	      left--;
-	    }
-	  else
-	    {
-	      *str = '\0';
-	      return size;
-	    }
-	}
+        {
+          if (left > 0)
+            {
+              *str++ = *format_ptr++;
+              left--;
+            }
+          else
+            {
+              *str = '\0';
+              return size;
+            }
+        }
     }
   *str = '\0';
   return size - left - 1;

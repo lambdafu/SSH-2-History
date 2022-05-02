@@ -15,7 +15,7 @@ precision integers.
 */
 
 /*
- * $Id: mpaux.c,v 1.5 1998/01/28 10:14:22 ylo Exp $
+ * $Id: mpaux.c,v 1.6 1998/09/23 11:14:30 tmo Exp $
  * $Log: mpaux.c,v $
  * $EndLog$
  */
@@ -44,7 +44,7 @@ void ssh_mp_to_buf(unsigned char *cp, size_t len, const MP_INT *x)
     }
   for (;i > 0; i--)
     {
-      cp[i - 1] = mpz_get_ui(&aux) & 0xff;
+      cp[i - 1] = (unsigned char)(mpz_get_ui(&aux) & 0xff);
       mpz_div_2exp(&aux, &aux, 8);
     }
 

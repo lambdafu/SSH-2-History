@@ -28,6 +28,8 @@
 #include "sshunixeloop.h"
 #include "sshmsgs.h"
 #include "sigchld.h"
+#include "sshgetopt.h"
+
 #include <syslog.h>
 
 #ifdef HAVE_LIBWRAP
@@ -495,9 +497,7 @@ Boolean parameter_defined(const char param, int num, char **elements)
 
 int main(int argc, char **argv)
 {
-  int i, ac;
-  char *oarg, **av;
-  Boolean flagvalue;
+  int i;
   SshServerData data;
   SshUser user;
   char config_fn[1024];
@@ -517,8 +517,6 @@ int main(int argc, char **argv)
   tcbc2_initialize_security(argc, argv);
 #endif /* HAVE_OSF1_C2_SECURITY */
   
-  ssh_split_arguments(argc, argv, &ac, &av);
-  
   data = ssh_xcalloc(1, sizeof(*data));
   user = ssh_user_initialize(NULL, TRUE);
   
@@ -536,15 +534,15 @@ int main(int argc, char **argv)
 
   /* If -d is the first flag, we set debug level here.  It is reset
      later, but something may be lost, if we leave it 'til that. */
-  if ((ac >= 3) && (strcmp("-d", av[1]) == 0))
+  if ((argc >= 3) && (strcmp("-d", argv[1]) == 0))
     {
-      ssh_debug_set_level_string(av[2]);
-      if (strcmp("0", av[2]) != 0)
+      ssh_debug_set_level_string(argv[2]);
+      if (strcmp("0", argv[2]) != 0)
 	data->debug = TRUE;
       else
 	data->debug = FALSE;
     }
-  else if ((ac >= 2) && (strcmp("-v", av[1]) == 0))
+  else if ((argc >= 2) && (strcmp("-v", argv[1]) == 0))
     {
       ssh_debug_set_level_string("2");
       data->debug = TRUE;
@@ -576,106 +574,120 @@ int main(int argc, char **argv)
 	ssh_warning("%s: Failed to read config file %s", av0, config_fn);
     }
   
+  ssh_opterr = 0;
+
   /* Parse the command line parameters. */ 
-  for (i = 1; i < ac; i++)
+  while (1)
     {
-      if ((i + 1) < ac)
-	oarg = av[i+1];
-      else
-	oarg = NULL;
+      int option;
+
+      option = ssh_getopt(argc, argv, "d:vf:g:h:io:p:q", NULL);
       
+      if (option == -1)
+	{
+	  if (ssh_optind < argc)
+	    ssh_fatal("%s: Extra arguments in command line", av0);
+	  break;
+	}
+
       /* Do we have a flag here ? */
 
-      if ((av[i][0] == '-' || av[i][0] == '+') && strlen(av[i]) == 2)
-        {
-          flagvalue = (av[i][0] == '-');
-          
-          switch (av[i][1])
-            {
-	      /* Debug mode */
-	    case 'd':
-	      if (oarg == NULL || flagvalue == FALSE)
-		ssh_fatal("%s: Illegal -d parameter (need debug level).",
-			  av0);
-	      data->config->verbose_mode = flagvalue;
-	      ssh_debug_set_level_string(oarg);
-	      i++;
-	      break;
+      switch (option)
+	{
+	  /* Debug mode */
+	case 'd':
+	  if (!ssh_optval)
+	    ssh_fatal("%s: Illegal -d parameter.", av0);
+	  data->config->verbose_mode = (ssh_optval != 0);
+	  ssh_debug_set_level_string(ssh_optarg);
+	  i++;
+	  break;
 
-	      /* Verbose mode (= -d 2) */
-	    case 'v':
-	      data->config->verbose_mode = TRUE;
-	      ssh_debug_set_level_string("2");
-	      break;
+	  /* Verbose mode (= -d 2) */
+	case 'v':
+	  data->config->verbose_mode = TRUE;
+	  ssh_debug_set_level_string("2");
+	  break;
 
 	      /* An additional configuration file */
-	    case 'f':
-	      if (oarg == NULL || flagvalue == FALSE)
-		ssh_fatal("%s: Illegal -f parameter.", av0);
-	      strncpy(config_fn, oarg, sizeof(config_fn));
-	      if (!ssh_config_read_file(user, data->config, NULL, config_fn, NULL))
-		ssh_warning("%s: Failed to read config file %s", av0,
-			    config_fn);
-	      i++;
-	      break;
+	case 'f':
+	  if (!ssh_optval)
+	    ssh_fatal("%s: Illegal -f parameter.", av0);
+	  strncpy(config_fn, ssh_optarg, sizeof(config_fn));
+	  if (!ssh_config_read_file(user, 
+				    data->config, 
+				    NULL, 
+				    config_fn, 
+				    NULL))
+	    ssh_warning("%s: Failed to read config file %s", av0,
+			config_fn);
+	  i++;
+	  break;
 	  
-	      /* Specify the login grace period */
-	    case 'g':
-	      if (oarg == NULL || flagvalue == FALSE)
-		ssh_fatal("%s: Illegal -g parameter.", av0);	      
-	      data->config->login_grace_time = atoi(oarg);
-	      if (data->config->login_grace_time < 1)
-		ssh_fatal("%s: Illegal login grace time %s seconds",
-			  av0, oarg);
-	      i++;
-	      break;
+	  /* Specify the login grace period */
+	case 'g':
+	  if (!ssh_optval)
+	    ssh_fatal("%s: Illegal -g parameter.", av0);	      
+	  data->config->login_grace_time = atoi(ssh_optarg);
+	  if (data->config->login_grace_time < 1)
+	    ssh_fatal("%s: Illegal login grace time %s seconds",
+		      av0, ssh_optarg);
+	  i++;
+	  break;
 	      
-	      /* specify the host key file */
-	    case 'h':
-	      if (oarg == NULL || flagvalue == FALSE)
-		ssh_fatal("%s: Illegal -h parameter.", av0);	      
+	  /* specify the host key file */
+	case 'h':
+	  if (!ssh_optval)
+	    ssh_fatal("%s: Illegal -h parameter.", av0);	      
 
-	      ssh_xfree(data->config->host_key_file);
-	      data->config->host_key_file = ssh_xstrdup(oarg);
-	      ssh_xfree(data->config->public_host_key_file);
-	      snprintf(config_fn, sizeof(config_fn), "%s.pub", 
-		       data->config->host_key_file);
-	      data->config->public_host_key_file = ssh_xstrdup(config_fn);
-	      i++;
-	      break;
+	  ssh_xfree(data->config->host_key_file);
+	  data->config->host_key_file = ssh_xstrdup(ssh_optarg);
+	  ssh_xfree(data->config->public_host_key_file);
+	  snprintf(config_fn, sizeof(config_fn), "%s.pub", 
+		   data->config->host_key_file);
+	  data->config->public_host_key_file = ssh_xstrdup(config_fn);
+	  i++;
+	  break;
 
 	      /* is inetd enabled ? */
-	    case 'i':
-	      data->config->inetd_mode = flagvalue;
-	      break;
+	case 'i':
+	  data->config->inetd_mode = (ssh_optval != 0);
+	  break;
 	      
-	      /* Give one line of configuration data directly */
-	    case 'o':
-	      if (oarg == NULL || flagvalue == FALSE)
-		ssh_fatal("%s: Illegal -o parameter.", av0);
-	      ssh_config_parse_line(data->config, oarg);	      
-	      i++;
-	      break;
+	  /* Give one line of configuration data directly */
+	case 'o':
+	  if (!ssh_optval)
+	    ssh_fatal("%s: Illegal -o parameter.", av0);
+	  ssh_config_parse_line(data->config, ssh_optarg);	      
+	  i++;
+	  break;
 	      
-	      /* Specify the port */
-	    case 'p':
-	      if (oarg == NULL || flagvalue == FALSE)
-		ssh_fatal("%s: Illegal -p parameter.", av0);	      
+	  /* Specify the port */
+	case 'p':
+	  if (!ssh_optval)
+	    ssh_fatal("%s: Illegal -p parameter.", av0);	      
 	      
-	      ssh_xfree(data->config->port);
-	      data->config->port = ssh_xstrdup(oarg);
-	      i++;
-	      break;
+	  ssh_xfree(data->config->port);
+	  data->config->port = ssh_xstrdup(ssh_optarg);
+	  i++;
+	  break;
 
 	      /* Quiet mode */
-	    case 'q':
-	      data->config->quiet_mode = flagvalue;
-	      break;
+	case 'q':
+	  data->config->quiet_mode = (ssh_optval != 0);
+	  break;
 
-	    default:
-	      fprintf(stderr, "%s: unknown option -%c\n", av0, av[i][1]);
-	      exit(1);
+	default:
+	  if (ssh_optmissarg)
+	    {
+	      fprintf(stderr, "%s: option -%c needs an argument\n",
+		      av0, ssh_optopt);
 	    }
+	  else
+	    {
+	      fprintf(stderr, "%s: unknown option -%c\n", av0, ssh_optopt);
+	    }
+	  exit(1);
 	}
     }
 
@@ -799,10 +811,6 @@ int main(int argc, char **argv)
   ssh_debug("Exiting event loop");
   ssh_event_loop_uninitialize();
 
-  for (i = 0; i < ac; i++)
-    ssh_xfree(av[i]);
-  ssh_xfree(av);
-  
   if (data->listener)
     remove(pidfile);
   

@@ -14,7 +14,7 @@
   */
 
 /*
- * $Id: t-gentest.c,v 1.24 1998/07/20 16:41:06 mkojo Exp $
+ * $Id: t-gentest.c,v 1.25 1998/10/07 11:56:33 tri Exp $
  * $Log: t-gentest.c,v $
  * $EndLog$
  */
@@ -24,6 +24,8 @@
 #include "sshcrypt.h"
 #include "timeit.h"
 #include "readfile.h"
+
+#include "testsrcpath.h"
 
 #ifndef PKCS_CNT
 #define PKCS_CNT 10
@@ -54,9 +56,9 @@ void rnd_set_freq(int i)
   if (rnd_freq[i][0])
     {
       if (rnd_freq[i][0] < 7)
-	rnd_freq[i][rnd_freq[i][0]]++;
+        rnd_freq[i][rnd_freq[i][0]]++;
       else
-	rnd_freq[i][7]++;
+        rnd_freq[i][7]++;
       rnd_freq[i][0] = 0;
     }
 }
@@ -80,7 +82,7 @@ void rnd_test_bits(SshRandomState state)
     {
       rnd_bits[i] = 0;
       for (j = 0; j < 8; j++)
-	rnd_freq[i][j] = 0;
+        rnd_freq[i][j] = 0;
     }
   for (j = 0; j < 256; j++)
     rnd_bytes[j] = 0;
@@ -88,31 +90,31 @@ void rnd_test_bits(SshRandomState state)
   for (i = 0; i < 1000000; i++)
     {
       if ((i & 0xffff) == 0)
-	{
-	  printf(".");
-	  fflush(stdout);
-	}
+        {
+          printf(".");
+          fflush(stdout);
+        }
       
       byte = ssh_random_get_byte(state) & 0xff;
 
       rnd_bytes[byte]++;
 
       if (byte & 128)
-	rnd_set_freq(7);
+        rnd_set_freq(7);
       if (byte & 64)
-	rnd_set_freq(6);
+        rnd_set_freq(6);
       if (byte & 32)
-	rnd_set_freq(5);
+        rnd_set_freq(5);
       if (byte & 16)
-	rnd_set_freq(4);
+        rnd_set_freq(4);
       if (byte & 8)
-	rnd_set_freq(3);
+        rnd_set_freq(3);
       if (byte & 4)
-	rnd_set_freq(2);
+        rnd_set_freq(2);
       if (byte & 2)
-	rnd_set_freq(1);
+        rnd_set_freq(1);
       if (byte & 1)
-	rnd_set_freq(0);
+        rnd_set_freq(0);
 
       rnd_add_freq();
     }
@@ -122,9 +124,9 @@ void rnd_test_bits(SshRandomState state)
   for (j = 0, hi = 0, lo = i, average = 0; j < 256; j++)
     {
       if (rnd_bytes[j] < lo)
-	lo = rnd_bytes[j];
+        lo = rnd_bytes[j];
       if (rnd_bytes[j] > hi)
-	hi = rnd_bytes[j];
+        hi = rnd_bytes[j];
     }
 
   if (hi > 5000 || lo < 3000)
@@ -134,7 +136,7 @@ void rnd_test_bits(SshRandomState state)
     }
   
   printf("Plain byte distribution: %d tries: %d highest, %d lowest.\n",
-	 i, hi, lo);
+         i, hi, lo);
 
   printf("Single bit distributions, and counts in time.\n");
   
@@ -143,42 +145,42 @@ void rnd_test_bits(SshRandomState state)
       av = ((double)rnd_bits[j]) / (double)i;
 
       printf("bit %d av. %f  %5d %5d %5d %5d %5d %5d . %5d\n", j,
-	     av,
-	     rnd_freq[j][1], rnd_freq[j][2], rnd_freq[j][3], rnd_freq[j][4],
-	     rnd_freq[j][5], rnd_freq[j][6], rnd_freq[j][7]);
+             av,
+             rnd_freq[j][1], rnd_freq[j][2], rnd_freq[j][3], rnd_freq[j][4],
+             rnd_freq[j][5], rnd_freq[j][6], rnd_freq[j][7]);
 
       /* Simple checks for too good results. */
       if (av == 0.5 ||
-	  (rnd_freq[j][1] == 250000 || rnd_freq[j][2] == 125000 ||
-	  rnd_freq[j][3] == 62500  || rnd_freq[j][4] == 31250 ||
-	  rnd_freq[j][5] == 15625))
-	{
-	  printf("\n Note: bit distributions are too good. "
-		 "Please check these results.\n");
-	  error++;
-	}
-	      
+          (rnd_freq[j][1] == 250000 || rnd_freq[j][2] == 125000 ||
+          rnd_freq[j][3] == 62500  || rnd_freq[j][4] == 31250 ||
+          rnd_freq[j][5] == 15625))
+        {
+          printf("\n Note: bit distributions are too good. "
+                 "Please check these results.\n");
+          error++;
+        }
+              
       /* Checks for too poor results. */
 
       if (av < 0.45 || av > 0.55)
-	{
-	  printf("\n Note: average bit distribution is off"
-		 " the set limits.\n");
-	  error++;
-	}
+        {
+          printf("\n Note: average bit distribution is off"
+                 " the set limits.\n");
+          error++;
+        }
       
       if ((rnd_freq[j][1] < 220000 || rnd_freq[j][1] > 270000) ||
-	  (rnd_freq[j][2] < 120000 || rnd_freq[j][2] > 130000) ||
-	  (rnd_freq[j][3] <  60000 || rnd_freq[j][3] >  65000) ||
-	  (rnd_freq[j][4] <  29000 || rnd_freq[j][4] >  33000) ||
-	  (rnd_freq[j][5] <  14000 || rnd_freq[j][5] >  16000) ||
-	  (rnd_freq[j][6] <   7000 || rnd_freq[j][6] >   8500) ||
-	  (rnd_freq[j][7] <   7000 || rnd_freq[j][7] >   8500))
-	{
-	  printf("\n Note: bit distributions in time are "
-		 "off the set limits.\n");
-	  error++;
-	}
+          (rnd_freq[j][2] < 120000 || rnd_freq[j][2] > 130000) ||
+          (rnd_freq[j][3] <  60000 || rnd_freq[j][3] >  65000) ||
+          (rnd_freq[j][4] <  29000 || rnd_freq[j][4] >  33000) ||
+          (rnd_freq[j][5] <  14000 || rnd_freq[j][5] >  16000) ||
+          (rnd_freq[j][6] <   7000 || rnd_freq[j][6] >   8500) ||
+          (rnd_freq[j][7] <   7000 || rnd_freq[j][7] >   8500))
+        {
+          printf("\n Note: bit distributions in time are "
+                 "off the set limits.\n");
+          error++;
+        }
     }
 
   printf("\n");
@@ -187,10 +189,10 @@ void rnd_test_bits(SshRandomState state)
   if (error)
     {
       printf("\nATTENTION: Simple byte and bit tests have shown that \n"
-	     "this random number generation is performing \"badly\".\n"
-	     "Please run again few times to see if this error will occur\n"
-	     "again.\n"
-	     "If this error occurs often please contact SSH.\n");
+             "this random number generation is performing \"badly\".\n"
+             "Please run again few times to see if this error will occur\n"
+             "again.\n"
+             "If this error occurs often please contact SSH.\n");
       ssh_fatal("Warning: possible failure in random number generation.");
     }
   
@@ -209,7 +211,7 @@ void rnd_test_missing_bits(SshRandomState state)
 #define GET_BIT(pos) (bit_table[pos / 8] & (1 << (pos & 0x7)))
 
   printf("Following set of tests give the number of missing sequences\n"
-	 "after n iterations.\n");
+         "after n iterations.\n");
   
   /* Sequence of 2 */
 
@@ -226,10 +228,10 @@ void rnd_test_missing_bits(SshRandomState state)
   for (i = 0; i < LOOPS; i++)
     {
       if (i > 0 && (i & 0xfff) == 0)
-	{
-	  printf(".");
-	  fflush(stdout);
-	}
+        {
+          printf(".");
+          fflush(stdout);
+        }
       l = ssh_random_get_byte(state) * 256 + ssh_random_get_byte(state);
       SET_BIT(l);
     }
@@ -239,7 +241,7 @@ void rnd_test_missing_bits(SshRandomState state)
   for (i = 0, m = 0; i < SIZE * 8; i++)
     {
       if (!GET_BIT(i))
-	m++;
+        m++;
     }
 
   average = ((double)m / (SIZE*8));
@@ -250,9 +252,9 @@ void rnd_test_missing_bits(SshRandomState state)
     }
   
   printf("After %d runs: \n"
-	 "%d of %d missing (average %f after %d full iterations).\n",
-	 LOOPS, m, SIZE * 8, 
-	 average, LOOPS/(SIZE*8));
+         "%d of %d missing (average %f after %d full iterations).\n",
+         LOOPS, m, SIZE * 8, 
+         average, LOOPS/(SIZE*8));
 
   ssh_xfree(bit_table);
 #undef SIZE
@@ -273,13 +275,13 @@ void rnd_test_missing_bits(SshRandomState state)
   for (i = 0; i < LOOPS; i++)
     {
       if (i > 0 && (i & 0x1ffff) == 0)
-	{
-	  printf(".");
-	  fflush(stdout);
-	}
+        {
+          printf(".");
+          fflush(stdout);
+        }
       l = (ssh_random_get_byte(state) >> 1) * (128*128) +
-	(ssh_random_get_byte(state) >> 1) * 128 +
-	(ssh_random_get_byte(state) >> 1);
+        (ssh_random_get_byte(state) >> 1) * 128 +
+        (ssh_random_get_byte(state) >> 1);
       SET_BIT(l);
     }
 
@@ -288,7 +290,7 @@ void rnd_test_missing_bits(SshRandomState state)
   for (i = 0, m = 0; i < SIZE * 8; i++)
     {
       if (!GET_BIT(i))
-	m++;
+        m++;
     }
 
   average = ((double)m / (SIZE*8));
@@ -299,9 +301,9 @@ void rnd_test_missing_bits(SshRandomState state)
     }
   
   printf("After %d runs: \n"
-	 "%d of %d missing (average %f after %d full iterations).\n",
-	 LOOPS, m, SIZE * 8, 
-	 average, LOOPS/(SIZE*8));
+         "%d of %d missing (average %f after %d full iterations).\n",
+         LOOPS, m, SIZE * 8, 
+         average, LOOPS/(SIZE*8));
 
   ssh_xfree(bit_table);
 #undef SIZE
@@ -322,14 +324,14 @@ void rnd_test_missing_bits(SshRandomState state)
   for (i = 0; i < LOOPS; i++)
     {
       if (i > 0 && (i & 0xffff) == 0)
-	{
-	  printf(".");
-	  fflush(stdout);
-	}
+        {
+          printf(".");
+          fflush(stdout);
+        }
       l = (ssh_random_get_byte(state) >> 3) * (32*32*32) +
-	(ssh_random_get_byte(state) >> 3) * (32*32) +
-	(ssh_random_get_byte(state) >> 3) * 32 +
-	(ssh_random_get_byte(state) >> 3);
+        (ssh_random_get_byte(state) >> 3) * (32*32) +
+        (ssh_random_get_byte(state) >> 3) * 32 +
+        (ssh_random_get_byte(state) >> 3);
       SET_BIT(l);
     }
 
@@ -338,7 +340,7 @@ void rnd_test_missing_bits(SshRandomState state)
   for (i = 0, m = 0; i < SIZE * 8; i++)
     {
       if (!GET_BIT(i))
-	m++;
+        m++;
     }
 
   average = ((double)m / (SIZE*8));
@@ -349,9 +351,9 @@ void rnd_test_missing_bits(SshRandomState state)
     }
   
   printf("After %d runs: \n"
-	 "%d of %d missing (average %f after %d full iterations).\n",
-	 LOOPS, m, SIZE * 8, 
-	 average, LOOPS/(SIZE*8));
+         "%d of %d missing (average %f after %d full iterations).\n",
+         LOOPS, m, SIZE * 8, 
+         average, LOOPS/(SIZE*8));
   
   ssh_xfree(bit_table);
 #undef SIZE
@@ -372,15 +374,15 @@ void rnd_test_missing_bits(SshRandomState state)
   for (i = 0; i < LOOPS; i++)
     {
       if (i > 0 && (i & 0xffff) == 0)
-	{
-	  printf(".");
-	  fflush(stdout);
-	}
+        {
+          printf(".");
+          fflush(stdout);
+        }
       l = (ssh_random_get_byte(state) >> 4) * (16*16*16*16) +
-	(ssh_random_get_byte(state) >> 4) * (16*16*16) +
-	(ssh_random_get_byte(state) >> 4) * (16*16) +
-	(ssh_random_get_byte(state) >> 4) * 16 +
-	(ssh_random_get_byte(state) >> 4);
+        (ssh_random_get_byte(state) >> 4) * (16*16*16) +
+        (ssh_random_get_byte(state) >> 4) * (16*16) +
+        (ssh_random_get_byte(state) >> 4) * 16 +
+        (ssh_random_get_byte(state) >> 4);
       SET_BIT(l);
     }
 
@@ -389,7 +391,7 @@ void rnd_test_missing_bits(SshRandomState state)
   for (i = 0, m = 0; i < SIZE * 8; i++)
     {
       if (!GET_BIT(i))
-	m++;
+        m++;
     }
 
   average = ((double)m / (SIZE*8));
@@ -400,9 +402,9 @@ void rnd_test_missing_bits(SshRandomState state)
     }
   
   printf("After %d runs: \n"
-	 "%d of %d missing (average %f after %d full iterations).\n",
-	 LOOPS, m, SIZE * 8, 
-	 average, LOOPS/(SIZE*8));
+         "%d of %d missing (average %f after %d full iterations).\n",
+         LOOPS, m, SIZE * 8, 
+         average, LOOPS/(SIZE*8));
   
   ssh_xfree(bit_table);
 #undef SIZE
@@ -423,16 +425,16 @@ void rnd_test_missing_bits(SshRandomState state)
   for (i = 0; i < LOOPS; i++)
     {
       if (i > 0 && (i & 0x3fff) == 0)
-	{
-	  printf(".");
-	  fflush(stdout);
-	}
+        {
+          printf(".");
+          fflush(stdout);
+        }
       l = (ssh_random_get_byte(state) >> 5) * (8*8*8*8*8) +
-	(ssh_random_get_byte(state) >> 5) * (8*8*8*8) +
-	(ssh_random_get_byte(state) >> 5) * (8*8*8) +
-	(ssh_random_get_byte(state) >> 5) * (8*8) +
-	(ssh_random_get_byte(state) >> 5) * 8 +
-	(ssh_random_get_byte(state) >> 5);
+        (ssh_random_get_byte(state) >> 5) * (8*8*8*8) +
+        (ssh_random_get_byte(state) >> 5) * (8*8*8) +
+        (ssh_random_get_byte(state) >> 5) * (8*8) +
+        (ssh_random_get_byte(state) >> 5) * 8 +
+        (ssh_random_get_byte(state) >> 5);
       SET_BIT(l);
     }
 
@@ -441,7 +443,7 @@ void rnd_test_missing_bits(SshRandomState state)
   for (i = 0, m = 0; i < SIZE * 8; i++)
     {
       if (!GET_BIT(i))
-	m++;
+        m++;
     }
 
   average = ((double)m / (SIZE*8));
@@ -460,10 +462,10 @@ void rnd_test_missing_bits(SshRandomState state)
   if (error > 2)
     {
       printf("\nATTENTION: Random statistics checks failed %d times.\n"
-	     "It is however possible that there is nothing wrong with it\n"
-	     "but to be safe run this test again.\n"
-	     "\nContact SSH if this error appears more than few times.\n",
-	     error);
+             "It is however possible that there is nothing wrong with it\n"
+             "but to be safe run this test again.\n"
+             "\nContact SSH if this error appears more than few times.\n",
+             error);
       ssh_fatal("Warning: possible failure in random number generation.");
     }
 }
@@ -499,7 +501,7 @@ void hash_random_tests(SshRandomState state)
   while ((hash_name = ssh_name_list_get_name(tmp_namelist)) != NULL)
     {
       if (ssh_hash_allocate(hash_name, &hash) != SSH_CRYPTO_OK)
-	ssh_fatal("error: hash allocate %s failed.", hash_name);
+        ssh_fatal("error: hash allocate %s failed.", hash_name);
 
       /* Put here some tests. */
 
@@ -507,12 +509,12 @@ void hash_random_tests(SshRandomState state)
     retry:
       buf2 = ssh_xmalloc(len);
       for (i = 0; i < len; i++)
-	buf2[i] = i & 0xff;
+        buf2[i] = i & 0xff;
 
       start_timing(&tmit);
       
       for (i = 0; i < 1024; i++)
-	ssh_hash_update(hash, buf2, len);
+        ssh_hash_update(hash, buf2, len);
 
       check_timing(&tmit);
       
@@ -521,17 +523,17 @@ void hash_random_tests(SshRandomState state)
       ssh_xfree(buf2);
       
       if (tmit.real_secs <= 1.0 && len < 10000000)
-	{
-	  len *= 2;
-	  printf("  - %s was too fast, retrying...\n", hash_name);
-	  goto retry;
-	}
+        {
+          len *= 2;
+          printf("  - %s was too fast, retrying...\n", hash_name);
+          goto retry;
+        }
 
       if (tmit.real_secs >= 1.0)
-	printf("%s timed to update at rate %f KBytes/sec.\n",
-	       hash_name, ((double)len) / (tmit.real_secs));
+        printf("%s timed to update at rate %f KBytes/sec.\n",
+               hash_name, ((double)len) / (tmit.real_secs));
       else
-	printf("  - timing could not be performed for %s.\n", hash_name);
+        printf("  - timing could not be performed for %s.\n", hash_name);
       
       
       /* Put here some tests. */
@@ -560,7 +562,7 @@ void hash_static_tests()
 #define HASH_OUTPUT 2
   unsigned int state = HASH_IGNORE;
   
-  status = ssh_t_read_init("hash.tests");
+  status = ssh_t_read_init(TEST_SRC_PATH "/hash.tests");
   if (status != RF_READ)
     ssh_fatal("error: hash.tests file not available or corrupted.");
 
@@ -568,73 +570,73 @@ void hash_static_tests()
     {
       status = ssh_t_read_token(&str, &len);
       switch (status)
-	{
-	case RF_LABEL:
-	  /* Delete the old hash context. */
-	  if (hash)
-	    ssh_hash_free(hash);
-	  if (len > 255)
-	    ssh_fatal("error: hash name too long.");
-	  memcpy(hash_name, str, len);
-	  hash_name[len] = '\0';
+        {
+        case RF_LABEL:
+          /* Delete the old hash context. */
+          if (hash)
+            ssh_hash_free(hash);
+          if (len > 255)
+            ssh_fatal("error: hash name too long.");
+          memcpy(hash_name, str, len);
+          hash_name[len] = '\0';
 
-	  if (ssh_hash_supported(hash_name))
-	    {
-	      if (ssh_hash_allocate(hash_name, &hash) != SSH_CRYPTO_OK)
-		ssh_fatal("error: hash allocate %s failed.", hash_name);
-	      state = HASH_INPUT;
-	    }
-	  else
-	    {
-	      ssh_debug("hash %s not supported", hash_name);
-	      state = HASH_IGNORE;
-	    }
-	  break;
-	case RF_HEX:
-	case RF_ASCII:
-	  switch (state)
-	    {
-	    case HASH_INPUT:	      
-	      ssh_hash_reset(hash);
-	      ssh_hash_update(hash, str, len);
-	      state = HASH_OUTPUT;
-	      break;
-	    case HASH_OUTPUT:
-	      ssh_hash_final(hash, buf);
-	      if (len != ssh_hash_digest_length(hash))
-		ssh_fatal("error: file digest length incorrect.");
-	      
-	      if (memcmp(str, buf, ssh_hash_digest_length(hash)) != 0)
-		{
-		  printf("Wrong digest: ");
-		  for (i = 0; i < ssh_hash_digest_length(hash); i++)
-		    {
-		      printf("%02x", buf[i]);
-		    }
-		  printf("\nShould be digest: ");
-		  for (i = 0; i < ssh_hash_digest_length(hash); i++)
-		    {
-		      printf("%02x", str[i]);
-		    }
-		  printf("\n");
-		  ssh_fatal("error: %s failed.", hash_name);
-		}
-	      state = HASH_INPUT;
-	      break;
-	    case HASH_IGNORE:
-	      break;
-	    default:
-	      ssh_fatal("error: unknown hash flag (%d).", state);
-	      break;
-	    }
-	  
-	  break;
-	case RF_EMPTY:
-	  break;
-	default:
-	  ssh_fatal("error: file error or corrupted (%d).", status);
-	  break;
-	}
+          if (ssh_hash_supported(hash_name))
+            {
+              if (ssh_hash_allocate(hash_name, &hash) != SSH_CRYPTO_OK)
+                ssh_fatal("error: hash allocate %s failed.", hash_name);
+              state = HASH_INPUT;
+            }
+          else
+            {
+              ssh_debug("hash %s not supported", hash_name);
+              state = HASH_IGNORE;
+            }
+          break;
+        case RF_HEX:
+        case RF_ASCII:
+          switch (state)
+            {
+            case HASH_INPUT:          
+              ssh_hash_reset(hash);
+              ssh_hash_update(hash, str, len);
+              state = HASH_OUTPUT;
+              break;
+            case HASH_OUTPUT:
+              ssh_hash_final(hash, buf);
+              if (len != ssh_hash_digest_length(hash))
+                ssh_fatal("error: file digest length incorrect.");
+              
+              if (memcmp(str, buf, ssh_hash_digest_length(hash)) != 0)
+                {
+                  printf("Wrong digest: ");
+                  for (i = 0; i < ssh_hash_digest_length(hash); i++)
+                    {
+                      printf("%02x", buf[i]);
+                    }
+                  printf("\nShould be digest: ");
+                  for (i = 0; i < ssh_hash_digest_length(hash); i++)
+                    {
+                      printf("%02x", str[i]);
+                    }
+                  printf("\n");
+                  ssh_fatal("error: %s failed.", hash_name);
+                }
+              state = HASH_INPUT;
+              break;
+            case HASH_IGNORE:
+              break;
+            default:
+              ssh_fatal("error: unknown hash flag (%d).", state);
+              break;
+            }
+          
+          break;
+        case RF_EMPTY:
+          break;
+        default:
+          ssh_fatal("error: file error or corrupted (%d).", status);
+          break;
+        }
     }
 
   ssh_t_close();
@@ -659,43 +661,43 @@ void hash_static_tests_do(SshRandomState state)
     ssh_fatal("error: file hash.tests.created could not be created.");
   
   ssh_t_write_token(RF_LINEFEED, NULL, 0);
-  buf2 = (unsigned char *) "hash.tests";
+  buf2 = (unsigned char *) TEST_SRC_PATH "/hash.tests";
   ssh_t_write_token(RF_COMMENT, buf2, strlen((char *) buf2));
   
   while ((hash_name = ssh_name_list_get_name(tmp_namelist)) != NULL)
     {
       if (ssh_hash_allocate(hash_name, &hash) != SSH_CRYPTO_OK)
-	ssh_fatal("error: hash allocate %s failed.", hash_name);
+        ssh_fatal("error: hash allocate %s failed.", hash_name);
 
       /* Put here some tests. */
 
       ssh_t_write_token(RF_LINEFEED, NULL, 0);
       ssh_t_write_token(RF_LABEL, (unsigned char *) hash_name,
-			strlen(hash_name));
+                        strlen(hash_name));
       ssh_t_write_token(RF_LINEFEED, NULL, 0);
 
       for (i = 0; i < 64; i++)
-	{
-	  buf2 = (unsigned char *) "first input then digest";
-	  ssh_t_write_token(RF_COMMENT, buf2, strlen((char *) buf2));
-	  
-	  len = i + 10;
-	  buf2 = ssh_xmalloc(len);
-	  for (j = 0; j < len; j++)
-	    buf2[j] = ssh_random_get_byte(state);
+        {
+          buf2 = (unsigned char *) "first input then digest";
+          ssh_t_write_token(RF_COMMENT, buf2, strlen((char *) buf2));
+          
+          len = i + 10;
+          buf2 = ssh_xmalloc(len);
+          for (j = 0; j < len; j++)
+            buf2[j] = ssh_random_get_byte(state);
 
-	  ssh_t_write_token(RF_HEX, buf2, len);
-	  ssh_t_write_token(RF_LINEFEED, NULL, 0);
+          ssh_t_write_token(RF_HEX, buf2, len);
+          ssh_t_write_token(RF_LINEFEED, NULL, 0);
 
-	  ssh_hash_reset(hash);
-	  ssh_hash_update(hash, buf2, len);
-	  ssh_hash_final(hash, buf);
+          ssh_hash_reset(hash);
+          ssh_hash_update(hash, buf2, len);
+          ssh_hash_final(hash, buf);
 
-	  ssh_t_write_token(RF_HEX, buf, ssh_hash_digest_length(hash));
-	  ssh_t_write_token(RF_LINEFEED, NULL, 0);
-	  
-	  ssh_xfree(buf2);
-	}
+          ssh_t_write_token(RF_HEX, buf, ssh_hash_digest_length(hash));
+          ssh_t_write_token(RF_LINEFEED, NULL, 0);
+          
+          ssh_xfree(buf2);
+        }
 
       /* Put here some tests. */
 
@@ -706,7 +708,7 @@ void hash_static_tests_do(SshRandomState state)
     }
 
   ssh_t_write_token(RF_LINEFEED, NULL, 0);
-  buf2 = (unsigned char *) "hash.tests";
+  buf2 = (unsigned char *) TEST_SRC_PATH "/hash.tests";
   ssh_t_write_token(RF_COMMENT, buf2, strlen((char *) buf2));
   ssh_t_write_token(RF_LINEFEED, NULL, 0);
 
@@ -759,10 +761,10 @@ void mac_random_tests(SshRandomState state)
       key = ssh_xmalloc(keylen);
       
       for (i = 0; i < keylen; i++)
-	key[i] = ssh_random_get_byte(state);
+        key[i] = ssh_random_get_byte(state);
 
       if (ssh_mac_allocate(mac_name, key, keylen, &mac) != SSH_CRYPTO_OK)
-	ssh_fatal("error: mac allocate %s failed.", mac_name);
+        ssh_fatal("error: mac allocate %s failed.", mac_name);
 
       ssh_xfree(key);
       
@@ -773,7 +775,7 @@ void mac_random_tests(SshRandomState state)
       buf2 = ssh_xmalloc(len);
 
       for (i = 0; i < len; i++)
-	buf2[i] = (i & 0xff);
+        buf2[i] = (i & 0xff);
       
       /* Put here some tests. */
       
@@ -782,26 +784,26 @@ void mac_random_tests(SshRandomState state)
       start_timing(&tmit);
       
       for (i = 0; i < 1024; i++)
-	{
-	  ssh_mac_update(mac, buf2, len);
-	}
+        {
+          ssh_mac_update(mac, buf2, len);
+        }
 
       check_timing(&tmit);
 
       ssh_xfree(buf2);
       
       if (tmit.real_secs <= 1.0 && len < 10000000)
-	{
-	  len *= 2;
-	  printf("  - %s was too fast, retrying...\n", mac_name);
-	  goto retry;
-	}
+        {
+          len *= 2;
+          printf("  - %s was too fast, retrying...\n", mac_name);
+          goto retry;
+        }
 
       if (tmit.real_secs >= 1.0)
-	printf("%s timed to update at rate %f KBytes/sec.\n",
-	       mac_name, ((double)len) / (tmit.real_secs));
+        printf("%s timed to update at rate %f KBytes/sec.\n",
+               mac_name, ((double)len) / (tmit.real_secs));
       else
-	printf("  - timing could not be performed for %s.\n", mac_name);
+        printf("  - timing could not be performed for %s.\n", mac_name);
       
       
       ssh_mac_final(mac, buf);
@@ -832,7 +834,7 @@ void mac_static_tests()
 #define MAC_INPUT    3
   unsigned int state = MAC_IGNORE;
   
-  status = ssh_t_read_init("mac.tests");
+  status = ssh_t_read_init(TEST_SRC_PATH "/mac.tests");
   if (status != RF_READ)
     ssh_fatal("error: file mac.tests not available.");
 
@@ -840,80 +842,80 @@ void mac_static_tests()
     {
       status = ssh_t_read_token(&str, &len);
       switch (status)
-	{
-	case RF_LABEL:
-	  if (mac != NULL)
-	    {
-	      ssh_mac_free(mac);
-	      ssh_xfree(buf);
-	    }
-	  
-	  if (len > 256)
-	    ssh_fatal("error: mac name too long.");
-	  memcpy(mac_name, str, len);
-	  mac_name[len] = '\0';
+        {
+        case RF_LABEL:
+          if (mac != NULL)
+            {
+              ssh_mac_free(mac);
+              ssh_xfree(buf);
+            }
+          
+          if (len > 256)
+            ssh_fatal("error: mac name too long.");
+          memcpy(mac_name, str, len);
+          mac_name[len] = '\0';
 
-	  if (ssh_mac_supported(mac_name))
-	    state = MAC_READ_KEY;
-	  else
-	    {
-	      ssh_debug("mac %s not supported", mac_name);
-	      state = MAC_IGNORE;
-	    }
-	  break;
-	case RF_HEX:
-	case RF_ASCII:
-	  switch (state)
-	    {
-	    case MAC_READ_KEY:
-	      if (ssh_mac_allocate(mac_name, str, len, &mac) != SSH_CRYPTO_OK)
-		ssh_fatal("error: mac allocate %s failed.", mac_name);
+          if (ssh_mac_supported(mac_name))
+            state = MAC_READ_KEY;
+          else
+            {
+              ssh_debug("mac %s not supported", mac_name);
+              state = MAC_IGNORE;
+            }
+          break;
+        case RF_HEX:
+        case RF_ASCII:
+          switch (state)
+            {
+            case MAC_READ_KEY:
+              if (ssh_mac_allocate(mac_name, str, len, &mac) != SSH_CRYPTO_OK)
+                ssh_fatal("error: mac allocate %s failed.", mac_name);
 
-	      buf = ssh_xmalloc(ssh_mac_length(mac));
+              buf = ssh_xmalloc(ssh_mac_length(mac));
 
-	      state = MAC_INPUT;
-	      break;
-	    case MAC_INPUT:
-	      ssh_mac_start(mac);
-	      ssh_mac_update(mac, str, len);
-	      state = MAC_OUTPUT;
-	      break;
-	    case MAC_OUTPUT:
-	      ssh_mac_final(mac, buf);
+              state = MAC_INPUT;
+              break;
+            case MAC_INPUT:
+              ssh_mac_start(mac);
+              ssh_mac_update(mac, str, len);
+              state = MAC_OUTPUT;
+              break;
+            case MAC_OUTPUT:
+              ssh_mac_final(mac, buf);
 
-	      if (len < ssh_mac_length(mac))
-		ssh_fatal("error: file mac output too short.");
+              if (len < ssh_mac_length(mac))
+                ssh_fatal("error: file mac output too short.");
 
-	      if (memcmp(str, buf, ssh_mac_length(mac)) != 0)
-		{
-		  printf("Wrong digest: ");
-		  for (i = 0; i < ssh_mac_length(mac); i++)
-		    {
-		      printf("%02x", buf[i]);
-		    }
-		  printf("\nShould be digest: ");
-		  for (i = 0; i < ssh_mac_length(mac); i++)
-		    {
-		      printf("%02x", str[i]);
-		    }
-		  printf("\n");
-		  ssh_fatal("error: mac %s failed.", mac_name);
-		}
+              if (memcmp(str, buf, ssh_mac_length(mac)) != 0)
+                {
+                  printf("Wrong digest: ");
+                  for (i = 0; i < ssh_mac_length(mac); i++)
+                    {
+                      printf("%02x", buf[i]);
+                    }
+                  printf("\nShould be digest: ");
+                  for (i = 0; i < ssh_mac_length(mac); i++)
+                    {
+                      printf("%02x", str[i]);
+                    }
+                  printf("\n");
+                  ssh_fatal("error: mac %s failed.", mac_name);
+                }
 
-	      state = MAC_INPUT;
-	      break;
-	    case MAC_IGNORE:
-	      break;
-	    default:
-	      ssh_fatal("error: unknown state (%d).", state);
-	      break;
-	    }
-	case RF_EMPTY:
-	  break;
-	default:
-	  ssh_fatal("error: file corrupted (%d).", status);
-	  break;
-	}
+              state = MAC_INPUT;
+              break;
+            case MAC_IGNORE:
+              break;
+            default:
+              ssh_fatal("error: unknown state (%d).", state);
+              break;
+            }
+        case RF_EMPTY:
+          break;
+        default:
+          ssh_fatal("error: file corrupted (%d).", status);
+          break;
+        }
     }
   
   ssh_t_close();
@@ -939,66 +941,66 @@ void mac_static_tests_do(SshRandomState state)
     ssh_fatal("error: could not open mac.tests.created for writing.");
 
   ssh_t_write_token(RF_LINEFEED, NULL, 0);
-  buf2 = (unsigned char *) "mac.tests";
+  buf2 = (unsigned char *) TEST_SRC_PATH "/mac.tests";
   ssh_t_write_token(RF_COMMENT, buf2, strlen((char *) buf2));
   ssh_t_write_token(RF_LINEFEED, NULL, 0);
   
   while ((mac_name = ssh_name_list_get_name(tmp_namelist)) != NULL)
     {
       ssh_t_write_token(RF_COMMENT, (unsigned char *) mac_name,
-			strlen(mac_name));
+                        strlen(mac_name));
       for (k = 0; k < 16; k++)
-	{
-	  keylen = (ssh_random_get_byte(state) + 1) & 31;
-	  key = ssh_xmalloc(keylen);
-	  
-	  for (i = 0; i < keylen; i++)
-	    key[i] = ssh_random_get_byte(state);
-	  
-	  if (ssh_mac_allocate(mac_name, key, keylen, &mac) != SSH_CRYPTO_OK)
-	    ssh_fatal("error: mac allocate %s failed.", mac_name);
-	  
-	  ssh_t_write_token(RF_LINEFEED, NULL, 0);
-	  ssh_t_write_token(RF_LABEL, (unsigned char *) mac_name,
-			    strlen(mac_name));
-	  
-	  ssh_t_write_token(RF_HEX, key, keylen);
-	  ssh_t_write_token(RF_LINEFEED, NULL, 0);
-	  
-	  ssh_xfree(key);
+        {
+          keylen = (ssh_random_get_byte(state) + 1) & 31;
+          key = ssh_xmalloc(keylen);
+          
+          for (i = 0; i < keylen; i++)
+            key[i] = ssh_random_get_byte(state);
+          
+          if (ssh_mac_allocate(mac_name, key, keylen, &mac) != SSH_CRYPTO_OK)
+            ssh_fatal("error: mac allocate %s failed.", mac_name);
+          
+          ssh_t_write_token(RF_LINEFEED, NULL, 0);
+          ssh_t_write_token(RF_LABEL, (unsigned char *) mac_name,
+                            strlen(mac_name));
+          
+          ssh_t_write_token(RF_HEX, key, keylen);
+          ssh_t_write_token(RF_LINEFEED, NULL, 0);
+          
+          ssh_xfree(key);
 
-	  for (j = 0; j < 8; j++)
-	    {
+          for (j = 0; j < 8; j++)
+            {
       
-	      buf = ssh_xmalloc(ssh_mac_length(mac));
-	      
-	      len = j*2 + 10;
-	      buf2 = ssh_xmalloc(len);
-	      
-	      for (i = 0; i < len; i++)
-		buf2[i] = ssh_random_get_byte(state);
+              buf = ssh_xmalloc(ssh_mac_length(mac));
+              
+              len = j*2 + 10;
+              buf2 = ssh_xmalloc(len);
+              
+              for (i = 0; i < len; i++)
+                buf2[i] = ssh_random_get_byte(state);
 
-	      ssh_t_write_token(RF_HEX, buf2, len);
-	      
-	      /* Put here some tests. */
-	      
-	      ssh_mac_start(mac);
-	      
-	      ssh_mac_update(mac, buf2, len);
-	      ssh_xfree(buf2);
-	      
-	      ssh_mac_final(mac, buf);
+              ssh_t_write_token(RF_HEX, buf2, len);
+              
+              /* Put here some tests. */
+              
+              ssh_mac_start(mac);
+              
+              ssh_mac_update(mac, buf2, len);
+              ssh_xfree(buf2);
+              
+              ssh_mac_final(mac, buf);
 
-	      ssh_t_write_token(RF_HEX, buf, ssh_mac_length(mac));
+              ssh_t_write_token(RF_HEX, buf, ssh_mac_length(mac));
 
-	      ssh_t_write_token(RF_LINEFEED, NULL, 0);
-	      
-	      /* Put here some tests. */
-	      
-	      ssh_xfree(buf);
-	    }
-	  ssh_mac_free(mac);
-	}
+              ssh_t_write_token(RF_LINEFEED, NULL, 0);
+              
+              /* Put here some tests. */
+              
+              ssh_xfree(buf);
+            }
+          ssh_mac_free(mac);
+        }
       ssh_xfree(mac_name);
       tmp_namelist = ssh_name_list_step_forward(tmp_namelist);
     }
@@ -1262,29 +1264,29 @@ void test_3des_cipher_verify(void)
   for (row = 0; row < 100; row++)
     {
       for (i = 0; i < datalen; i++)
-	{
-	  data[i] = s_data[pos + i];
-	}
+        {
+          data[i] = s_data[pos + i];
+        }
 
       pos += datalen;
       
       if (ssh_cipher_allocate("3des-ecb",
-			      key, keylen,
-			      TRUE, &cipher) != SSH_CRYPTO_OK)
-	{
-	  printf("Failure.\n");
-	  exit(1);
-	}
+                              key, keylen,
+                              TRUE, &cipher) != SSH_CRYPTO_OK)
+        {
+          printf("Failure.\n");
+          exit(1);
+        }
       
       ssh_cipher_transform(cipher, ciphered, data, datalen);
 
       for (i = 0; i < datalen; i++)
-	{
-	  if (ciphered[i] != s_data[i + pos])
-	    {
-	      printf("Error!!!\n");
-	    }
-	}
+        {
+          if (ciphered[i] != s_data[i + pos])
+            {
+              printf("Error!!!\n");
+            }
+        }
       pos += i;
       
       ssh_cipher_free(cipher);
@@ -1320,31 +1322,31 @@ void test_3des_cipher(SshRandomState state)
   for (row = 0; row < 100; row++)
     {
       for (i = 0; i < datalen; i++)
-	{
-	  data[i] = ssh_random_get_byte(state);
-	}
+        {
+          data[i] = ssh_random_get_byte(state);
+        }
       
       if (ssh_cipher_allocate("3des-ecb",
-			      key, keylen,
-			      TRUE, &cipher) != SSH_CRYPTO_OK)
-	{
-	  printf("Failure.\n");
-	  exit(1);
-	}
+                              key, keylen,
+                              TRUE, &cipher) != SSH_CRYPTO_OK)
+        {
+          printf("Failure.\n");
+          exit(1);
+        }
       
       ssh_cipher_transform(cipher, ciphered, data, datalen);
 
       for (i = 0; i < datalen; i++)
-	{
-	  printf("0x%02x, ", data[i]);
-	}
+        {
+          printf("0x%02x, ", data[i]);
+        }
 
       printf("\n");
       
       for (i = 0; i < datalen; i++)
-	{
-	  printf("0x%02x, ", ciphered[i]);
-	}
+        {
+          printf("0x%02x, ", ciphered[i]);
+        }
       printf("\n");
       
       ssh_cipher_free(cipher);
@@ -1376,125 +1378,125 @@ void cipher_random_tests(SshRandomState state)
 
       keylen = ssh_cipher_get_key_length(cipher_name);
       if (keylen == 0)
-	{
-	  do
-	    {
-	      keylen = (SshUInt32)ssh_random_get_byte(state);
-	    }
-	  while (keylen == 0);
-	}
+        {
+          do
+            {
+              keylen = (SshUInt32)ssh_random_get_byte(state);
+            }
+          while (keylen == 0);
+        }
       
       key = ssh_xmalloc(keylen);
       
       for (i = 0; i < keylen; i++)
-	{
-	  key[i] = ssh_random_get_byte(state);
-	}
+        {
+          key[i] = ssh_random_get_byte(state);
+        }
       
       if (ssh_cipher_allocate(cipher_name,
-			      key, keylen,
-			      TRUE, &cipher) != SSH_CRYPTO_OK)
-	ssh_fatal("error: cipher %s allocate failed.", cipher_name);
+                              key, keylen,
+                              TRUE, &cipher) != SSH_CRYPTO_OK)
+        ssh_fatal("error: cipher %s allocate failed.", cipher_name);
 
       len = 1024;
     retry:
       buf = ssh_xmalloc(len);
       buf2 = ssh_xmalloc(len);
       for (i = 0; i < len; i++)
-	buf2[i] = i & 0xff;
+        buf2[i] = i & 0xff;
 
       start_timing(&tmit);
       
       for (i = 0; i < 1024; i++)
-	{
+        {
       
-	  if (ssh_cipher_transform(cipher, buf, buf2, len) != SSH_CRYPTO_OK)
-	    ssh_fatal("error: cipher %s transform failed.", cipher_name);
-	}
+          if (ssh_cipher_transform(cipher, buf, buf2, len) != SSH_CRYPTO_OK)
+            ssh_fatal("error: cipher %s transform failed.", cipher_name);
+        }
 
       check_timing(&tmit);
 
       if (tmit.real_secs <= 1.0 && len < 10000000)
-	{
-	  len *= 2;
-	  ssh_xfree(buf);
-	  ssh_xfree(buf2);
-	  printf("  - %s was too fast, retrying...\n", cipher_name);
-	  goto retry;
-	}
+        {
+          len *= 2;
+          ssh_xfree(buf);
+          ssh_xfree(buf2);
+          printf("  - %s was too fast, retrying...\n", cipher_name);
+          goto retry;
+        }
 
       if (tmit.real_secs >= 1.0)
-	printf("%s timed to encrypt at rate %f KBytes/sec.\n",
-	       cipher_name, ((double)len)/tmit.real_secs);
+        printf("%s timed to encrypt at rate %f KBytes/sec.\n",
+               cipher_name, ((double)len)/tmit.real_secs);
       else
-	printf("  - timing could not be performed for %s.\n", cipher_name);
+        printf("  - timing could not be performed for %s.\n", cipher_name);
 
       
       
       ssh_cipher_free(cipher);
 
       if (ssh_cipher_allocate(cipher_name,
-			      key, keylen,
-			      FALSE, &cipher) != SSH_CRYPTO_OK)
-	ssh_fatal("error: cipher %s allocate (2) failed.", cipher_name);
+                              key, keylen,
+                              FALSE, &cipher) != SSH_CRYPTO_OK)
+        ssh_fatal("error: cipher %s allocate (2) failed.", cipher_name);
 
       start_timing(&tmit);
       
       for (i = 0; i < 1024; i++)
-	{
-	  if (ssh_cipher_transform(cipher, buf2, buf, len) != SSH_CRYPTO_OK)
-	    ssh_fatal("error: cipher %s transform failed.", cipher_name);
-	}
+        {
+          if (ssh_cipher_transform(cipher, buf2, buf, len) != SSH_CRYPTO_OK)
+            ssh_fatal("error: cipher %s transform failed.", cipher_name);
+        }
 
       check_timing(&tmit);
 
       if (tmit.real_secs <= 1.0 && len < 10000000)
-	{
-	  len *= 2;
-	  ssh_xfree(buf);
-	  ssh_xfree(buf2);
-	  printf("  - %s was too fast, retrying...\n", cipher_name);
-	  goto retry;
-	}
+        {
+          len *= 2;
+          ssh_xfree(buf);
+          ssh_xfree(buf2);
+          printf("  - %s was too fast, retrying...\n", cipher_name);
+          goto retry;
+        }
 
       if (tmit.real_secs >= 1.0)
-	printf("%s timed to decrypt at rate %f KBytes/sec.\n",
-	       cipher_name, ((double)len)/tmit.real_secs);
+        printf("%s timed to decrypt at rate %f KBytes/sec.\n",
+               cipher_name, ((double)len)/tmit.real_secs);
       else
-	printf("  - timing could not be performed for %s.\n", cipher_name);
+        printf("  - timing could not be performed for %s.\n", cipher_name);
 
       
       ssh_cipher_free(cipher);
 
       for (i = 0; i < len; i++)
-	buf2[i] = (i & 0xff);
+        buf2[i] = (i & 0xff);
 
       if (ssh_cipher_allocate(cipher_name, key, keylen,
-			      TRUE, &cipher) != SSH_CRYPTO_OK)
-	ssh_fatal("error: cipher %s allocate failed.", cipher_name);
+                              TRUE, &cipher) != SSH_CRYPTO_OK)
+        ssh_fatal("error: cipher %s allocate failed.", cipher_name);
       
       if (ssh_cipher_transform(cipher, buf, buf2, len) != SSH_CRYPTO_OK)
-	ssh_fatal("error: cipher %s failed to encrypt.", cipher_name);
+        ssh_fatal("error: cipher %s failed to encrypt.", cipher_name);
 
       ssh_cipher_free(cipher);
       
       if (ssh_cipher_allocate(cipher_name, key, keylen,
-			      FALSE, &cipher) != SSH_CRYPTO_OK)
-	ssh_fatal("error: cipher %s allocate failed.", cipher_name);
+                              FALSE, &cipher) != SSH_CRYPTO_OK)
+        ssh_fatal("error: cipher %s allocate failed.", cipher_name);
       
       if (ssh_cipher_transform(cipher, buf2, buf, len) != SSH_CRYPTO_OK)
-	ssh_fatal("error: cipher %s failed to encrypt.", cipher_name);
+        ssh_fatal("error: cipher %s failed to encrypt.", cipher_name);
 
       ssh_cipher_free(cipher);
       
       for (i = 0; i < len; i++)
-	{
-	  if (buf2[i] != (i & 0xff))
-	    {
-	      ssh_fatal("error: cipher %s data check failed on %dth byte.",
-		    cipher_name, i);
-	    }
-	}
+        {
+          if (buf2[i] != (i & 0xff))
+            {
+              ssh_fatal("error: cipher %s data check failed on %dth byte.",
+                    cipher_name, i);
+            }
+        }
 
       ssh_xfree(buf);
       ssh_xfree(buf2);
@@ -1523,7 +1525,7 @@ void cipher_static_tests()
 #define CIPHER_OUTPUT 4
   unsigned int state = CIPHER_IGNORE;
 
-  status = ssh_t_read_init("cipher.tests");
+  status = ssh_t_read_init(TEST_SRC_PATH "/cipher.tests");
   if (status != RF_READ)
     ssh_fatal("error: cipher.tests could be not be opened.");
 
@@ -1531,112 +1533,112 @@ void cipher_static_tests()
     {
       status = ssh_t_read_token(&str, &len);
       switch (status)
-	{
-	case RF_LABEL:
-	  if (cipher != NULL)
-	    ssh_cipher_free(cipher);
+        {
+        case RF_LABEL:
+          if (cipher != NULL)
+            ssh_cipher_free(cipher);
 
-	  if (len > 255)
-	    ssh_fatal("error: cipher name too long.");
+          if (len > 255)
+            ssh_fatal("error: cipher name too long.");
 
-	  memcpy(cipher_name, str, len);
-	  cipher_name[len] = '\0';
+          memcpy(cipher_name, str, len);
+          cipher_name[len] = '\0';
 
-	  if (ssh_cipher_supported(cipher_name))
-	    state = CIPHER_KEY;
-	  else
-	    {
-	      ssh_debug("cipher %s not supported", cipher_name);
-	      state = CIPHER_IGNORE;
-	    }
-	  break;
-	case RF_HEX:
-	case RF_ASCII:
-	  switch (state)
-	    {
-	    case CIPHER_KEY:
-	      if (len < ssh_cipher_get_key_length(cipher_name))
-		ssh_fatal("error: key too short.");
+          if (ssh_cipher_supported(cipher_name))
+            state = CIPHER_KEY;
+          else
+            {
+              ssh_debug("cipher %s not supported", cipher_name);
+              state = CIPHER_IGNORE;
+            }
+          break;
+        case RF_HEX:
+        case RF_ASCII:
+          switch (state)
+            {
+            case CIPHER_KEY:
+              if (len < ssh_cipher_get_key_length(cipher_name))
+                ssh_fatal("error: key too short.");
 
-	      if (len > 1024)
-		ssh_fatal("error: key too  long.");
-	      
-	      memcpy(key, str, len);
-	      keylen = len;
-	      
-	      if (ssh_cipher_allocate(cipher_name,
-				      key, keylen,
-				      TRUE, &cipher) != SSH_CRYPTO_OK)
-		ssh_fatal("error: cipher allocate %s failed.", cipher_name);
+              if (len > 1024)
+                ssh_fatal("error: key too  long.");
+              
+              memcpy(key, str, len);
+              keylen = len;
+              
+              if (ssh_cipher_allocate(cipher_name,
+                                      key, keylen,
+                                      TRUE, &cipher) != SSH_CRYPTO_OK)
+                ssh_fatal("error: cipher allocate %s failed.", cipher_name);
 
-	      state = CIPHER_INPUT1;
-	      break;
-	    case CIPHER_INPUT1:
-	      if (len != ssh_cipher_get_block_length(cipher))
-		ssh_fatal("error: iv too long for %s.", cipher_name);
-	      
-	      memcpy(iv, str, len);
-	      ssh_cipher_set_iv(cipher, str);
-	      
-	      state = CIPHER_INPUT2;
-	      break;
-	    case CIPHER_INPUT2:
-	      if (len > 1024)
-		ssh_fatal("error: input too long.");
+              state = CIPHER_INPUT1;
+              break;
+            case CIPHER_INPUT1:
+              if (len != ssh_cipher_get_block_length(cipher))
+                ssh_fatal("error: iv too long for %s.", cipher_name);
+              
+              memcpy(iv, str, len);
+              ssh_cipher_set_iv(cipher, str);
+              
+              state = CIPHER_INPUT2;
+              break;
+            case CIPHER_INPUT2:
+              if (len > 1024)
+                ssh_fatal("error: input too long.");
 
-	      memcpy(buf1, str, len);
-	      buf1_len = len;
-	      
-	      if (ssh_cipher_transform(cipher, buf2, buf1, buf1_len)
-		  != SSH_CRYPTO_OK)
-		ssh_fatal("error: in transform %s.", cipher_name);
+              memcpy(buf1, str, len);
+              buf1_len = len;
+              
+              if (ssh_cipher_transform(cipher, buf2, buf1, buf1_len)
+                  != SSH_CRYPTO_OK)
+                ssh_fatal("error: in transform %s.", cipher_name);
 
-	      state = CIPHER_OUTPUT;
-	      break;
-	    case CIPHER_OUTPUT:
-	      if (len != buf1_len)
-		ssh_fatal("error: incompatible input/output lengths.");
+              state = CIPHER_OUTPUT;
+              break;
+            case CIPHER_OUTPUT:
+              if (len != buf1_len)
+                ssh_fatal("error: incompatible input/output lengths.");
 
-	      if (memcmp(buf2, str, len) != 0)
-		ssh_fatal("error: cipher %s failed (1).", cipher_name);
+              if (memcmp(buf2, str, len) != 0)
+                ssh_fatal("error: cipher %s failed (1).", cipher_name);
 
-	      ssh_cipher_free(cipher);
+              ssh_cipher_free(cipher);
 
-	      if (ssh_cipher_allocate(cipher_name,
-				      key, keylen,
-				      FALSE, &cipher) != SSH_CRYPTO_OK)
-		ssh_fatal("error: cipher allocate %s failed.", cipher_name);
+              if (ssh_cipher_allocate(cipher_name,
+                                      key, keylen,
+                                      FALSE, &cipher) != SSH_CRYPTO_OK)
+                ssh_fatal("error: cipher allocate %s failed.", cipher_name);
 
-	      ssh_cipher_set_iv(cipher, iv);
-	      
-	      if (ssh_cipher_transform(cipher, buf2, str, len)
-		  != SSH_CRYPTO_OK)
-		ssh_fatal("error: in transform %s.", cipher_name);
+              ssh_cipher_set_iv(cipher, iv);
+              
+              if (ssh_cipher_transform(cipher, buf2, str, len)
+                  != SSH_CRYPTO_OK)
+                ssh_fatal("error: in transform %s.", cipher_name);
 
-	      if (memcmp(buf2, buf1, buf1_len) != 0)
-		ssh_fatal("error: cipher %s failed (2).", cipher_name);
+              if (memcmp(buf2, buf1, buf1_len) != 0)
+                ssh_fatal("error: cipher %s failed (2).", cipher_name);
 
-	      if (ssh_cipher_allocate(cipher_name,
-				      key, keylen,
-				      TRUE, &cipher) != SSH_CRYPTO_OK)
-		ssh_fatal("error: cipher allocate %s failed.", cipher_name);
+              if (ssh_cipher_allocate(cipher_name,
+                                      key, keylen,
+                                      TRUE, &cipher) != SSH_CRYPTO_OK)
+                ssh_fatal("error: cipher allocate %s failed.", cipher_name);
 
-	      ssh_cipher_set_iv(cipher, iv);
-	      
-	      state = CIPHER_INPUT1;
-	      break;
-	    case CIPHER_IGNORE:
-	      break;
-	    default:
-	      ssh_fatal("error: unknown state (%d).", state);
-	      break;
-	    }
-	case RF_EMPTY:
-	  break;
-	default:
-	  ssh_fatal("error: file error (%d).", status);
-	  break;
-	}
+              ssh_cipher_set_iv(cipher, iv);
+              
+              state = CIPHER_INPUT1;
+              break;
+            case CIPHER_IGNORE:
+              break;
+            default:
+              ssh_fatal("error: unknown state (%d).", state);
+              break;
+            }
+        case RF_EMPTY:
+          break;
+        default:
+          ssh_fatal("error: file error (%d).", status);
+          break;
+        }
     }
 
   ssh_t_close();
@@ -1665,7 +1667,7 @@ void cipher_static_tests_do(SshRandomState state)
     ssh_fatal("error: could not create cipher.tests.created.");
 
   ssh_t_write_token(RF_LINEFEED, NULL, 0);
-  tmp = (unsigned char *) "cipher.tests";
+  tmp = (unsigned char *) TEST_SRC_PATH "/cipher.tests";
   ssh_t_write_token(RF_COMMENT, tmp, strlen((char *) tmp));
   ssh_t_write_token(RF_LINEFEED, NULL, 0);
   
@@ -1674,73 +1676,73 @@ void cipher_static_tests_do(SshRandomState state)
       /* Cipher encryption & decryption tests. */
 
       ssh_t_write_token(RF_COMMENT, (unsigned char *) cipher_name,
-			strlen(cipher_name));
+                        strlen(cipher_name));
 
       for (k = 0; k < 16; k++)
-	{
-	  /* Generate random key. */
-	  
-	  keylen = ssh_cipher_get_key_length(cipher_name);
-	  if (keylen == 0)
-	    {
-	      do
-		{
-		  keylen = ((SshUInt32)ssh_random_get_byte(state)) & 31;
-		}
-	      while (keylen == 0);
-	    }
-	  
-	  key = ssh_xmalloc(keylen);
+        {
+          /* Generate random key. */
+          
+          keylen = ssh_cipher_get_key_length(cipher_name);
+          if (keylen == 0)
+            {
+              do
+                {
+                  keylen = ((SshUInt32)ssh_random_get_byte(state)) & 31;
+                }
+              while (keylen == 0);
+            }
+          
+          key = ssh_xmalloc(keylen);
       
-	  for (i = 0; i < keylen; i++)
-	    {
-	      key[i] = ssh_random_get_byte(state);
-	    }
+          for (i = 0; i < keylen; i++)
+            {
+              key[i] = ssh_random_get_byte(state);
+            }
       
-	  if (ssh_cipher_allocate(cipher_name,
-				  key, keylen,
-				  TRUE, &cipher) != SSH_CRYPTO_OK)
-	    ssh_fatal("error: cipher %s allocate failed.", cipher_name);
+          if (ssh_cipher_allocate(cipher_name,
+                                  key, keylen,
+                                  TRUE, &cipher) != SSH_CRYPTO_OK)
+            ssh_fatal("error: cipher %s allocate failed.", cipher_name);
 
-	  ssh_t_write_token(RF_LABEL, (unsigned char *) cipher_name,
-			    strlen(cipher_name));
-	  ssh_t_write_token(RF_HEX, key, keylen);
-	  ssh_t_write_token(RF_LINEFEED, NULL, 0);
+          ssh_t_write_token(RF_LABEL, (unsigned char *) cipher_name,
+                            strlen(cipher_name));
+          ssh_t_write_token(RF_HEX, key, keylen);
+          ssh_t_write_token(RF_LINEFEED, NULL, 0);
 
-	  input_length = (ssh_cipher_get_block_length(cipher) < 8
-			  ? 8 : ssh_cipher_get_block_length(cipher));
-	  
-	  for (j = 0; j < 8; j++)
-	    {
-	      for (i = 0; i < input_length; i++)
-		buf2[i] = ssh_random_get_byte(state);
+          input_length = (ssh_cipher_get_block_length(cipher) < 8
+                          ? 8 : ssh_cipher_get_block_length(cipher));
+          
+          for (j = 0; j < 8; j++)
+            {
+              for (i = 0; i < input_length; i++)
+                buf2[i] = ssh_random_get_byte(state);
 
-	      for (i = 0; i < ssh_cipher_get_block_length(cipher); i++)
-		iv[i] = ssh_random_get_byte(state);
+              for (i = 0; i < ssh_cipher_get_block_length(cipher); i++)
+                iv[i] = ssh_random_get_byte(state);
 
-	      ssh_cipher_set_iv(cipher, iv);
+              ssh_cipher_set_iv(cipher, iv);
 
-	      ssh_t_write_token(RF_HEX, iv,
-				ssh_cipher_get_block_length(cipher));
-	      ssh_t_write_token(RF_HEX, buf2, input_length);
+              ssh_t_write_token(RF_HEX, iv,
+                                ssh_cipher_get_block_length(cipher));
+              ssh_t_write_token(RF_HEX, buf2, input_length);
 
-	      if (ssh_cipher_transform(cipher, buf,
-				       buf2, input_length) != SSH_CRYPTO_OK)
-		ssh_fatal("error: cipher %s transform failed.", cipher_name);
+              if (ssh_cipher_transform(cipher, buf,
+                                       buf2, input_length) != SSH_CRYPTO_OK)
+                ssh_fatal("error: cipher %s transform failed.", cipher_name);
 
-	      ssh_t_write_token(RF_HEX, buf, input_length);
-	      ssh_t_write_token(RF_LINEFEED, NULL, 0);
-	    }
+              ssh_t_write_token(RF_HEX, buf, input_length);
+              ssh_t_write_token(RF_LINEFEED, NULL, 0);
+            }
 
-	  ssh_cipher_free(cipher);
-	}
+          ssh_cipher_free(cipher);
+        }
       
       ssh_xfree(key);
       ssh_xfree(cipher_name);
       tmp_namelist = ssh_name_list_step_forward(tmp_namelist);
     }
 
-  tmp = (unsigned char *) "cipher.tests";
+  tmp = (unsigned char *) TEST_SRC_PATH "/cipher.tests";
   ssh_t_write_token(RF_LINEFEED, NULL, 0);
   ssh_t_write_token(RF_COMMENT, tmp, strlen((char *) tmp));
   ssh_t_write_token(RF_LINEFEED, NULL, 0);
@@ -1777,7 +1779,7 @@ void test_cipher(SshRandomState state, int flag)
 #ifdef SSHDIST_CRYPT_GENPKCS
 
 void my_progress_func(SshCryptoProgressID id,
-		      unsigned int time_value, void *context)
+                      unsigned int time_value, void *context)
 {
   switch (id)
     {
@@ -1818,7 +1820,7 @@ void pkcs_random_tests(SshRandomState state)
 
   /* Register a progress monitoring function. */
   ssh_crypto_library_register_progress_func(my_progress_func,
-					    NULL);
+                                            NULL);
   
   while ((pkcs_name = ssh_name_list_get_name(tmp_namelist)) != NULL)
     {
@@ -1829,40 +1831,40 @@ void pkcs_random_tests(SshRandomState state)
       start_timing(&tmit);
 
       if (memcmp(pkcs_name, (const unsigned char *)"ec-", 3) != 0)
-	{
-	  if (ssh_private_key_generate(state, &private_key,
-				       pkcs_name,
-				       SSH_PKF_SIZE, size,
-				       SSH_PKF_END) != SSH_CRYPTO_OK)
-	    ssh_fatal("error: pkcs %s generate keys failed.", pkcs_name);
-	}
+        {
+          if (ssh_private_key_generate(state, &private_key,
+                                       pkcs_name,
+                                       SSH_PKF_SIZE, size,
+                                       SSH_PKF_END) != SSH_CRYPTO_OK)
+            ssh_fatal("error: pkcs %s generate keys failed.", pkcs_name);
+        }
       else
       if (memcmp(pkcs_name, (const unsigned char *)"ec-modp", 7) == 0)
-	{
-	  if (ssh_private_key_generate(state, &private_key,
-				       pkcs_name,
-				       SSH_PKF_PREDEFINED_GROUP,
-				       "ssh-ec-modp-curve-155bit-1",
-				       SSH_PKF_END) != SSH_CRYPTO_OK)
-	    ssh_fatal("error: pkcs %s generate keys failed.", pkcs_name);
-	}
+        {
+          if (ssh_private_key_generate(state, &private_key,
+                                       pkcs_name,
+                                       SSH_PKF_PREDEFINED_GROUP,
+                                       "ssh-ec-modp-curve-155bit-1",
+                                       SSH_PKF_END) != SSH_CRYPTO_OK)
+            ssh_fatal("error: pkcs %s generate keys failed.", pkcs_name);
+        }
       else
       if (memcmp(pkcs_name, (const unsigned char *)"ec-gf2n", 7) == 0)
-	{
-	  if (ssh_private_key_generate(state, &private_key,
-				       pkcs_name,
-				       SSH_PKF_PREDEFINED_GROUP,
-				       "ssh-ec-gf2n-curve-185bit-2",
-				       SSH_PKF_END) != SSH_CRYPTO_OK)
-	    ssh_fatal("error: pkcs %s generate keys failed.", pkcs_name);
-	}
+        {
+          if (ssh_private_key_generate(state, &private_key,
+                                       pkcs_name,
+                                       SSH_PKF_PREDEFINED_GROUP,
+                                       "ssh-ec-gf2n-curve-185bit-2",
+                                       SSH_PKF_END) != SSH_CRYPTO_OK)
+            ssh_fatal("error: pkcs %s generate keys failed.", pkcs_name);
+        }
       else
-	ssh_fatal("error: pkcs %s key type did not match.", pkcs_name);
+        ssh_fatal("error: pkcs %s key type did not match.", pkcs_name);
 
       check_timing(&tmit);
 
       printf("\n%s's key generation executed in %f seconds.\n",
-	     pkcs_name, tmit.real_secs);
+             pkcs_name, tmit.real_secs);
       
       printf("Private key generated.\n");
       
@@ -1871,18 +1873,18 @@ void pkcs_random_tests(SshRandomState state)
       printf("Public key derived.\n");
       
       /* Export and import tests. */
-	
+        
       if (ssh_public_key_export(public_key, &a, &a_len) != SSH_CRYPTO_OK)
-	ssh_fatal("error: public key %s export failed.", pkcs_name);
+        ssh_fatal("error: public key %s export failed.", pkcs_name);
 
       printf("Public key exported.\n");
       
       if (ssh_private_key_export_with_passphrase(private_key,
-						 cipher_name,
-						 passphrase,
-						 state,
-						 &b, &b_len) != SSH_CRYPTO_OK)
-	ssh_fatal("error: private key %s export failed.", pkcs_name);
+                                                 cipher_name,
+                                                 passphrase,
+                                                 state,
+                                                 &b, &b_len) != SSH_CRYPTO_OK)
+        ssh_fatal("error: private key %s export failed.", pkcs_name);
 
       printf("Private key exported with passphrase.\n");
       
@@ -1892,16 +1894,16 @@ void pkcs_random_tests(SshRandomState state)
       printf("Both keys were freed.\n");
 
       if (ssh_public_key_import(a, a_len, &public_key) != SSH_CRYPTO_OK)
-	ssh_fatal("error: public key %s import failed.", pkcs_name);
+        ssh_fatal("error: public key %s import failed.", pkcs_name);
 
       printf("Public key imported.\n");
       
       if (ssh_private_key_import_with_passphrase(b,
-						 b_len,
-						 passphrase,
-						 &private_key)
-	  != SSH_CRYPTO_OK)
-	ssh_fatal("error: private key %s import failed.", pkcs_name);
+                                                 b_len,
+                                                 passphrase,
+                                                 &private_key)
+          != SSH_CRYPTO_OK)
+        ssh_fatal("error: private key %s import failed.", pkcs_name);
 
       printf("Private key imported with passphrase.\n");
       
@@ -1912,49 +1914,49 @@ void pkcs_random_tests(SshRandomState state)
 
       pk_group_one = ssh_public_key_derive_pk_group(public_key);
       if (pk_group_one)
-	{
-	  printf("Testing public key group import/export. \n");
+        {
+          printf("Testing public key group import/export. \n");
 
-	  if (ssh_pk_group_export(pk_group_one,
-				  &a, &a_len) != SSH_CRYPTO_OK)
-	    ssh_fatal("error: cannot export public key group.");
+          if (ssh_pk_group_export(pk_group_one,
+                                  &a, &a_len) != SSH_CRYPTO_OK)
+            ssh_fatal("error: cannot export public key group.");
 
-	  ssh_pk_group_free(pk_group_one);
-	  
-	  if (ssh_pk_group_import(a, a_len,
-				  &pk_group_one) != SSH_CRYPTO_OK)
-	    ssh_fatal("error: cannot import public key group.");
+          ssh_pk_group_free(pk_group_one);
+          
+          if (ssh_pk_group_import(a, a_len,
+                                  &pk_group_one) != SSH_CRYPTO_OK)
+            ssh_fatal("error: cannot import public key group.");
 
-	  ssh_xfree(a);
-	  printf("Import/export runned.\n");
+          ssh_xfree(a);
+          printf("Import/export runned.\n");
 
-	  /* Randomizers. */
-	  
-	  if (use_randomizers)
-	    {
-	      printf("Generating randomizers.\n");
-	      for (i = 0; i < 20; i++)
-		ssh_pk_group_generate_randomizer(pk_group_one, state);
+          /* Randomizers. */
+          
+          if (use_randomizers)
+            {
+              printf("Generating randomizers.\n");
+              for (i = 0; i < 20; i++)
+                ssh_pk_group_generate_randomizer(pk_group_one, state);
 
-	      printf("Exporting randomizers.\n");
+              printf("Exporting randomizers.\n");
 
-	      if (ssh_pk_group_count_randomizers(pk_group_one) != 20)
-		ssh_fatal("error: generated incorrect amount of randomizers.");
-	      
-	      if (ssh_pk_group_export_randomizers(pk_group_one,
-						  &a, &a_len) != SSH_CRYPTO_OK)
-		ssh_fatal("error: cannot export randomizers.");
+              if (ssh_pk_group_count_randomizers(pk_group_one) != 20)
+                ssh_fatal("error: generated incorrect amount of randomizers.");
+              
+              if (ssh_pk_group_export_randomizers(pk_group_one,
+                                                  &a, &a_len) != SSH_CRYPTO_OK)
+                ssh_fatal("error: cannot export randomizers.");
 
-	      if (ssh_pk_group_import_randomizers(pk_group_one,
-						  a, a_len)
-		  != SSH_CRYPTO_OK)
-		ssh_fatal("error: cannot import randomizers.");
+              if (ssh_pk_group_import_randomizers(pk_group_one,
+                                                  a, a_len)
+                  != SSH_CRYPTO_OK)
+                ssh_fatal("error: cannot import randomizers.");
 
-	      ssh_xfree(a);
-	    }
-	  
-	  ssh_pk_group_free(pk_group_one);
-	}
+              ssh_xfree(a);
+            }
+          
+          ssh_pk_group_free(pk_group_one);
+        }
       
       /* Encryption tests. */
 
@@ -1962,126 +1964,126 @@ void pkcs_random_tests(SshRandomState state)
       
       a_len = ssh_public_key_max_encrypt_input_len(public_key);
       if (a_len != 0)
-	{
-	  b_len = ssh_public_key_max_encrypt_output_len(public_key);
+        {
+          b_len = ssh_public_key_max_encrypt_output_len(public_key);
 
-	  if (a_len == -1)
-	    a_len = 1024;
-	  if (b_len == -1)
-	    b_len = a_len;
-	  
-	  a = ssh_xmalloc(a_len);
-	  b = ssh_xmalloc(b_len);
-	  
-	  for (i = 0; i < a_len; i++)
-	    {
-	      a[i] = i & 0xff;
-	    }
+          if (a_len == -1)
+            a_len = 1024;
+          if (b_len == -1)
+            b_len = a_len;
+          
+          a = ssh_xmalloc(a_len);
+          b = ssh_xmalloc(b_len);
+          
+          for (i = 0; i < a_len; i++)
+            {
+              a[i] = i & 0xff;
+            }
 
-	  cnt = PKCS_CNT;
-	  
-	retry1:
-	  
-	  start_timing(&tmit);
+          cnt = PKCS_CNT;
+          
+        retry1:
+          
+          start_timing(&tmit);
 
-	  for (i = 0; i < cnt; i++)
-	    {
-	      if (ssh_public_key_encrypt(public_key, a, a_len, b, b_len, &len,
-					 state) != SSH_CRYPTO_OK)
-		ssh_fatal("error: pkcs %s encryption error.", pkcs_name);
-	    }
-	  
-	  check_timing(&tmit);
+          for (i = 0; i < cnt; i++)
+            {
+              if (ssh_public_key_encrypt(public_key, a, a_len, b, b_len, &len,
+                                         state) != SSH_CRYPTO_OK)
+                ssh_fatal("error: pkcs %s encryption error.", pkcs_name);
+            }
+          
+          check_timing(&tmit);
 
-	  if (tmit.real_secs <= 1.0 && cnt < 100000)
-	    {
-	      cnt *= 2;
-	      printf("  - %s encrypt was too fast, retrying...\n",
-		     pkcs_name);
-	      goto retry1;
-	    }
+          if (tmit.real_secs <= 1.0 && cnt < 100000)
+            {
+              cnt *= 2;
+              printf("  - %s encrypt was too fast, retrying...\n",
+                     pkcs_name);
+              goto retry1;
+            }
 
-	  if (tmit.real_secs >= 1.0)
-	    printf("%s timed to encrypt at rate %f times/sec.\n",
-		   pkcs_name, ((double)cnt)/tmit.real_secs);
-	  else
-	    printf("  - timing could not be performed for %s.\n", pkcs_name);
-	  
-	  printf("Encrypted with public key.\n");
-	  
-	  if (len > b_len)
-	    ssh_fatal("error: pkcs %s outputed ciphertext too long.",
-		      pkcs_name);
-	  
-	  if (len > ssh_private_key_max_decrypt_input_len(private_key))
-	    ssh_fatal("error: pkcs %s ciphertext length incompatible.",
-		      pkcs_name);
-	  
-	  c_len = ssh_private_key_max_decrypt_output_len(private_key);
-	  if (c_len == -1)
-	    c_len = b_len;
-	  c = ssh_xmalloc(c_len);
-	  
-	  cnt = PKCS_CNT;
-	  
-	retry2:
-	  
-	  start_timing(&tmit);
+          if (tmit.real_secs >= 1.0)
+            printf("%s timed to encrypt at rate %f times/sec.\n",
+                   pkcs_name, ((double)cnt)/tmit.real_secs);
+          else
+            printf("  - timing could not be performed for %s.\n", pkcs_name);
+          
+          printf("Encrypted with public key.\n");
+          
+          if (len > b_len)
+            ssh_fatal("error: pkcs %s outputed ciphertext too long.",
+                      pkcs_name);
+          
+          if (len > ssh_private_key_max_decrypt_input_len(private_key))
+            ssh_fatal("error: pkcs %s ciphertext length incompatible.",
+                      pkcs_name);
+          
+          c_len = ssh_private_key_max_decrypt_output_len(private_key);
+          if (c_len == -1)
+            c_len = b_len;
+          c = ssh_xmalloc(c_len);
+          
+          cnt = PKCS_CNT;
+          
+        retry2:
+          
+          start_timing(&tmit);
 
-	  for (i = 0; i < cnt; i++)
-	    {
-	      if (ssh_private_key_decrypt(private_key,
-					  b, b_len, c,
-					  c_len, &len) != SSH_CRYPTO_OK)
-		ssh_fatal("error: pkcs %s decryption error.", pkcs_name);
-	      
-	    }
-	  
-	  check_timing(&tmit);
-	  
-	  if (tmit.real_secs <= 1.0 && cnt < 100000)
-	    {
-	      cnt *= 2;
-	      printf("  - %s decrypt was too fast, retrying...\n",
-		     pkcs_name);
-	      goto retry2;
-	    }
+          for (i = 0; i < cnt; i++)
+            {
+              if (ssh_private_key_decrypt(private_key,
+                                          b, b_len, c,
+                                          c_len, &len) != SSH_CRYPTO_OK)
+                ssh_fatal("error: pkcs %s decryption error.", pkcs_name);
+              
+            }
+          
+          check_timing(&tmit);
+          
+          if (tmit.real_secs <= 1.0 && cnt < 100000)
+            {
+              cnt *= 2;
+              printf("  - %s decrypt was too fast, retrying...\n",
+                     pkcs_name);
+              goto retry2;
+            }
 
-	  if (tmit.real_secs >= 1.0)
-	    printf("%s timed to decrypt at rate %f times/sec.\n",
-		   pkcs_name, ((double)cnt)/tmit.real_secs);
-	  else
-	    printf("  - timing could not be performed for %s.\n", pkcs_name);
-	  
-	  printf("Decrypted with the private key.\n");
+          if (tmit.real_secs >= 1.0)
+            printf("%s timed to decrypt at rate %f times/sec.\n",
+                   pkcs_name, ((double)cnt)/tmit.real_secs);
+          else
+            printf("  - timing could not be performed for %s.\n", pkcs_name);
+          
+          printf("Decrypted with the private key.\n");
       
-	  if (len > c_len)
-	    ssh_fatal("error: pkcs %s outputed plaintext too long.",
-		      pkcs_name);
-	  
-	  if (len != a_len)
-	    ssh_fatal("error: pkcs %s plaintext length incompatible.",
-		      pkcs_name);
-	  
-	  ssh_xfree(b);
-	  ssh_xfree(a);
-	  
-	  c_len = len;
+          if (len > c_len)
+            ssh_fatal("error: pkcs %s outputed plaintext too long.",
+                      pkcs_name);
+          
+          if (len != a_len)
+            ssh_fatal("error: pkcs %s plaintext length incompatible.",
+                      pkcs_name);
+          
+          ssh_xfree(b);
+          ssh_xfree(a);
+          
+          c_len = len;
 
-	  for (i = 0; i < c_len; i++)
-	    {
-	      if (c[i] != (i & 0xff))
-		{
-		  ssh_fatal("error: pkcs %s decryption failed.", pkcs_name);
-		}
-	    }
-	  ssh_xfree(c);
-	}
+          for (i = 0; i < c_len; i++)
+            {
+              if (c[i] != (i & 0xff))
+                {
+                  ssh_fatal("error: pkcs %s decryption failed.", pkcs_name);
+                }
+            }
+          ssh_xfree(c);
+        }
       else
-	{
-	  printf("Method not capable for encryption.\n");
-	}
-	  
+        {
+          printf("Method not capable for encryption.\n");
+        }
+          
       /* Signature tests. */
 
       printf("Signature tests.\n");
@@ -2090,184 +2092,184 @@ void pkcs_random_tests(SshRandomState state)
       
       a_len = ssh_private_key_max_signature_input_len(private_key);
       if (a_len != 0)
-	{
-	  b_len = ssh_private_key_max_signature_output_len(private_key);
+        {
+          b_len = ssh_private_key_max_signature_output_len(private_key);
 
-	  if (a_len == -1)
-	    a_len = 1024;
-	  if (b_len == -1)
-	    b_len = a_len;
-	  
-	  a = ssh_xmalloc(a_len);
-	  b = ssh_xmalloc(b_len);
-	  
-	  for (i = 0; i < a_len; i++)
-	    {
-	      a[i] = i & 0xf;
-	    }
-	  
-	  cnt = PKCS_CNT;
-	  
-	retry3:
-	  
-	  start_timing(&tmit);
-	  
-	  for (i = 0; i < cnt; i++)
-	    {
-	      if (ssh_private_key_sign(private_key, a, a_len,
-				       b, b_len, &len, state) != SSH_CRYPTO_OK)
-		ssh_fatal("error: pkcs %s sign error.", pkcs_name);
-	    }
-	  
-	  check_timing(&tmit);
-	  
-	  if (tmit.real_secs <= 1.0 && cnt < 100000)
-	    {
-	      cnt *= 2;
-	      printf("  - %s signing was too fast, retrying...\n", pkcs_name);
-	      goto retry3;
-	    }
+          if (a_len == -1)
+            a_len = 1024;
+          if (b_len == -1)
+            b_len = a_len;
+          
+          a = ssh_xmalloc(a_len);
+          b = ssh_xmalloc(b_len);
+          
+          for (i = 0; i < a_len; i++)
+            {
+              a[i] = i & 0xf;
+            }
+          
+          cnt = PKCS_CNT;
+          
+        retry3:
+          
+          start_timing(&tmit);
+          
+          for (i = 0; i < cnt; i++)
+            {
+              if (ssh_private_key_sign(private_key, a, a_len,
+                                       b, b_len, &len, state) != SSH_CRYPTO_OK)
+                ssh_fatal("error: pkcs %s sign error.", pkcs_name);
+            }
+          
+          check_timing(&tmit);
+          
+          if (tmit.real_secs <= 1.0 && cnt < 100000)
+            {
+              cnt *= 2;
+              printf("  - %s signing was too fast, retrying...\n", pkcs_name);
+              goto retry3;
+            }
 
-	  if (tmit.real_secs >= 1.0)
-	    printf("%s signs at rate %f times/sec.\n", pkcs_name,
-		   ((double)cnt)/tmit.real_secs);
-	  else
-	    printf("  - timing could not be performed for %s.\n", pkcs_name);
-	  
-	  printf("Signed with the private key.\n");
-	  
-	  if (len > b_len)
-	    ssh_fatal("error: pkcs %s outputed signature too long.",
-		      pkcs_name);
+          if (tmit.real_secs >= 1.0)
+            printf("%s signs at rate %f times/sec.\n", pkcs_name,
+                   ((double)cnt)/tmit.real_secs);
+          else
+            printf("  - timing could not be performed for %s.\n", pkcs_name);
+          
+          printf("Signed with the private key.\n");
+          
+          if (len > b_len)
+            ssh_fatal("error: pkcs %s outputed signature too long.",
+                      pkcs_name);
 
-	  cnt = PKCS_CNT;
-	  
-	retry4:
+          cnt = PKCS_CNT;
+          
+        retry4:
 
-	  start_timing(&tmit);
-	  
-	  for (i = 0; i < cnt; i++)
-	    {
-	      if (ssh_public_key_verify_signature(public_key,
-						  b, len,
-						  a, a_len) == FALSE)
-		ssh_fatal("error: %s signature not correct.", pkcs_name);
-	    }
-	  
-	  check_timing(&tmit);
+          start_timing(&tmit);
+          
+          for (i = 0; i < cnt; i++)
+            {
+              if (ssh_public_key_verify_signature(public_key,
+                                                  b, len,
+                                                  a, a_len) == FALSE)
+                ssh_fatal("error: %s signature not correct.", pkcs_name);
+            }
+          
+          check_timing(&tmit);
 
-	  if (tmit.real_secs <= 1.0 && cnt < 100000)
-	    {
-	      cnt *= 2;
-	      printf("  - %s signing verifying was too fast, retrying...\n",
-		     pkcs_name);
-	      goto retry4;
-	    }
+          if (tmit.real_secs <= 1.0 && cnt < 100000)
+            {
+              cnt *= 2;
+              printf("  - %s signing verifying was too fast, retrying...\n",
+                     pkcs_name);
+              goto retry4;
+            }
 
-	  if (tmit.real_secs >= 1.0)
-	    printf("%s verifies signatures at rate %f times/sec.\n",
-		   pkcs_name, ((double)cnt)/tmit.real_secs);
-	  else
-	    printf("  - timing could not be performed for %s.\n",
-		   pkcs_name);
-	  
-	  printf("Verified with the public key.\n");
-	  
-	  ssh_xfree(a);
-	  ssh_xfree(b);
-	}
+          if (tmit.real_secs >= 1.0)
+            printf("%s verifies signatures at rate %f times/sec.\n",
+                   pkcs_name, ((double)cnt)/tmit.real_secs);
+          else
+            printf("  - timing could not be performed for %s.\n",
+                   pkcs_name);
+          
+          printf("Verified with the public key.\n");
+          
+          ssh_xfree(a);
+          ssh_xfree(b);
+        }
       else
-	printf("Method not capable of signing.\n");
+        printf("Method not capable of signing.\n");
 
       pk_group_one = ssh_public_key_derive_pk_group(public_key);
       pk_group_two = ssh_private_key_derive_pk_group(private_key);
 
       if (pk_group_one && pk_group_two)
-	{
-	  printf("Derived groups.\n");
+        {
+          printf("Derived groups.\n");
 
-	  a_len =
-	    ssh_pk_group_diffie_hellman_setup_max_output_length(pk_group_one);
-	  b_len =
-	    ssh_pk_group_diffie_hellman_setup_max_output_length(pk_group_two);
+          a_len =
+            ssh_pk_group_diffie_hellman_setup_max_output_length(pk_group_one);
+          b_len =
+            ssh_pk_group_diffie_hellman_setup_max_output_length(pk_group_two);
 
-	  /* Not capable for diffie hellman. */
-	  if (a_len == 0 || b_len == 0)
-	    {
-	      printf("Method not capable of performing Diffie-Hellman.\n");
-	      goto end_diffie_hellman;
-	    }
-	      
-	  a = ssh_xmalloc(a_len);
-	  b = ssh_xmalloc(b_len);
+          /* Not capable for diffie hellman. */
+          if (a_len == 0 || b_len == 0)
+            {
+              printf("Method not capable of performing Diffie-Hellman.\n");
+              goto end_diffie_hellman;
+            }
+              
+          a = ssh_xmalloc(a_len);
+          b = ssh_xmalloc(b_len);
 
-	  if (ssh_pk_group_diffie_hellman_setup(pk_group_one,
-						&secret_one,
-						a, a_len,
-						&len, state) != SSH_CRYPTO_OK)
-	    ssh_fatal("error: could not do Diffie-Hellman setup. (1)");
+          if (ssh_pk_group_diffie_hellman_setup(pk_group_one,
+                                                &secret_one,
+                                                a, a_len,
+                                                &len, state) != SSH_CRYPTO_OK)
+            ssh_fatal("error: could not do Diffie-Hellman setup. (1)");
 
-	  if (len != a_len)
-	    ssh_fatal("error: len != a_len!");
+          if (len != a_len)
+            ssh_fatal("error: len != a_len!");
 
-	  if (ssh_pk_group_diffie_hellman_setup(pk_group_two,
-						&secret_two,
-						b, b_len,
-						&len, state) != SSH_CRYPTO_OK)
-	    ssh_fatal("error: could not do Diffie-Hellman setup. (2)");
+          if (ssh_pk_group_diffie_hellman_setup(pk_group_two,
+                                                &secret_two,
+                                                b, b_len,
+                                                &len, state) != SSH_CRYPTO_OK)
+            ssh_fatal("error: could not do Diffie-Hellman setup. (2)");
 
-	  c_len =
-	    ssh_pk_group_diffie_hellman_agree_max_output_length(pk_group_one);
-	  d_len =
-	    ssh_pk_group_diffie_hellman_agree_max_output_length(pk_group_two);
+          c_len =
+            ssh_pk_group_diffie_hellman_agree_max_output_length(pk_group_one);
+          d_len =
+            ssh_pk_group_diffie_hellman_agree_max_output_length(pk_group_two);
 
-	  if (c_len == 0 || d_len == 0)
-	    ssh_fatal("error: could not continue to agree.");
-	  
-	  c = ssh_xmalloc(c_len);
-	  d = ssh_xmalloc(d_len);
-	  
-	  if (ssh_pk_group_diffie_hellman_agree(pk_group_one,
-						secret_one,
-						b, b_len,
-						c, c_len,
-						&len) != SSH_CRYPTO_OK)
-	    ssh_fatal("error: could not do Diffie-Hellman agree. (1)");
+          if (c_len == 0 || d_len == 0)
+            ssh_fatal("error: could not continue to agree.");
+          
+          c = ssh_xmalloc(c_len);
+          d = ssh_xmalloc(d_len);
+          
+          if (ssh_pk_group_diffie_hellman_agree(pk_group_one,
+                                                secret_one,
+                                                b, b_len,
+                                                c, c_len,
+                                                &len) != SSH_CRYPTO_OK)
+            ssh_fatal("error: could not do Diffie-Hellman agree. (1)");
 
-	  if (len != c_len)
-	    ssh_fatal("error: minor detail.\n");
-	  
-	  if (ssh_pk_group_diffie_hellman_agree(pk_group_two,
-						secret_two,
-						a, a_len,
-						d, d_len,
-						&len) != SSH_CRYPTO_OK)
-	    ssh_fatal("error: could not do Diffie-Hellman agree. (2)");
+          if (len != c_len)
+            ssh_fatal("error: minor detail.\n");
+          
+          if (ssh_pk_group_diffie_hellman_agree(pk_group_two,
+                                                secret_two,
+                                                a, a_len,
+                                                d, d_len,
+                                                &len) != SSH_CRYPTO_OK)
+            ssh_fatal("error: could not do Diffie-Hellman agree. (2)");
 
-	  if (d_len != len)
-	    ssh_fatal("error: minor detail.\n");
-	  
-	  if (d_len != c_len)
-	    ssh_fatal("error: not correct agreement.\n");
+          if (d_len != len)
+            ssh_fatal("error: minor detail.\n");
+          
+          if (d_len != c_len)
+            ssh_fatal("error: not correct agreement.\n");
 
-	  if (memcmp(d, c, d_len) != 0)
-	    ssh_fatal("error: incorrect result.\n");
+          if (memcmp(d, c, d_len) != 0)
+            ssh_fatal("error: incorrect result.\n");
 
-	  printf("Diffie-Hellman key agreement was a success.\n");
-	  ssh_xfree(a);
-	  ssh_xfree(b);
-	  ssh_xfree(c);
-	  ssh_xfree(d);
+          printf("Diffie-Hellman key agreement was a success.\n");
+          ssh_xfree(a);
+          ssh_xfree(b);
+          ssh_xfree(c);
+          ssh_xfree(d);
 
-	  ssh_pk_group_free(pk_group_one);
-	  ssh_pk_group_free(pk_group_two);
+          ssh_pk_group_free(pk_group_one);
+          ssh_pk_group_free(pk_group_two);
 
-	end_diffie_hellman:
-	  ;			/* OSF cc cannot compile this file if this
-				   empty statement is not here. */
-	}
+        end_diffie_hellman:
+          ;                     /* OSF cc cannot compile this file if this
+                                   empty statement is not here. */
+        }
       else
-	printf("Method not capable of extracting groups.\n");
+        printf("Method not capable of extracting groups.\n");
       
       /* Free contexts. */
       
@@ -2386,49 +2388,49 @@ int main(int argc, char *argv[])
       test_static = 1;
       
       while (argc--)
-	{
-	  for (i = 0; (*argv)[i]; i++)
-	    {
-	      switch ((*argv)[i])
-		{
-		  /* Operands. */
-		case '!':
-		  not ^= 1;
-		  break;
-		case 'D':
-		  do_static = not;
-		  break;
-		case 'R':
-		  test_rnd = not;
-		  break;
-		case 'S':
-		  test_static = not;
-		  break;
+        {
+          for (i = 0; (*argv)[i]; i++)
+            {
+              switch ((*argv)[i])
+                {
+                  /* Operands. */
+                case '!':
+                  not ^= 1;
+                  break;
+                case 'D':
+                  do_static = not;
+                  break;
+                case 'R':
+                  test_rnd = not;
+                  break;
+                case 'S':
+                  test_static = not;
+                  break;
 
-		  /* tests. */
-		case 'r':
-		  rnd_flag = not;
-		  break;
-		case 'h':
-		  hash_flag = not |
-		    (test_rnd << 1) | (test_static << 2) | (do_static << 3);
-		  break;
-		case 'm':
-		  mac_flag = not |
-		    (test_rnd << 1) | (test_static << 2) | (do_static << 3);
-		  break;
-		case 'c':
-		  cipher_flag = not |
-		    (test_rnd << 1) | (test_static << 2) | (do_static << 3);
-		  break;
-		case 'p':
-		  pkcs_flag = not;
-		  break;
-		default:
-		  break;
-		}
-	    }
-	}
+                  /* tests. */
+                case 'r':
+                  rnd_flag = not;
+                  break;
+                case 'h':
+                  hash_flag = not |
+                    (test_rnd << 1) | (test_static << 2) | (do_static << 3);
+                  break;
+                case 'm':
+                  mac_flag = not |
+                    (test_rnd << 1) | (test_static << 2) | (do_static << 3);
+                  break;
+                case 'c':
+                  cipher_flag = not |
+                    (test_rnd << 1) | (test_static << 2) | (do_static << 3);
+                  break;
+                case 'p':
+                  pkcs_flag = not;
+                  break;
+                default:
+                  break;
+                }
+            }
+        }
     }
   
   printf("\nCrypto Library testing.\n");
@@ -2445,7 +2447,7 @@ int main(int argc, char *argv[])
      {
        printf("\nHash test...\n");
        for (i = 0; i < 2; i++)
-	 test_hash(state, hash_flag);
+         test_hash(state, hash_flag);
      }
 #endif /* SSHDIST_CRYPT_GENHASH */
 #ifdef SSHDIST_CRYPT_GENMAC
@@ -2453,7 +2455,7 @@ int main(int argc, char *argv[])
      {
        printf("\nMac test...\n");
        for (i = 0; i < 2; i++)
-	 test_mac(state, mac_flag);
+         test_mac(state, mac_flag);
      }
 #endif /* SSHDIST_CRYPT_GENMAC */
 #ifdef SSHDIST_CRYPT_GENCIPH
@@ -2461,7 +2463,7 @@ int main(int argc, char *argv[])
     {
       printf("\nCipher test...\n");
       for (i = 0; i < 2; i++)
-	test_cipher(state, cipher_flag);
+        test_cipher(state, cipher_flag);
     }
 #endif /* SSHDIST_CRYPT_GENCIPH */
 #ifdef SSHDIST_CRYPT_GENPKCS
@@ -2469,7 +2471,7 @@ int main(int argc, char *argv[])
     {
       printf("\nPkcs test...\n");
       for (i = 0; i < 2; i++)
-	test_pkcs(state, pkcs_flag);
+        test_pkcs(state, pkcs_flag);
     }
 #endif /* SSHDIST_CRYPT_GENPKCS */
   

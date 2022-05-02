@@ -1,7 +1,7 @@
 /*
 
   Author: Antti Huima <huima@ssh.fi>
-  	  Tatu Ylonen <ylo@ssh.fi>
+          Tatu Ylonen <ylo@ssh.fi>
 
   Copyright (C) 1996-1998 SSH Communications Security Oy, Espoo, Finland
   All rights reserved.
@@ -31,11 +31,11 @@
 
 /* Bit masks specifying which elements are to be included in debugging
    messages. */
-#define SSH_DEBUG_FLAG_PID		0x01 /* Include process id */
-#define SSH_DEBUG_FLAG_FILE		0x02 /* Include file and line */
-#define SSH_DEBUG_FLAG_PATH		0x04 /* Include path in file names */
-#define SSH_DEBUG_FLAG_FUNCTION		0x08 /* Include function name */
-#define SSH_DEBUG_FLAG_MODULE		0x10 /* Include module name */
+#define SSH_DEBUG_FLAG_PID              0x01 /* Include process id */
+#define SSH_DEBUG_FLAG_FILE             0x02 /* Include file and line */
+#define SSH_DEBUG_FLAG_PATH             0x04 /* Include path in file names */
+#define SSH_DEBUG_FLAG_FUNCTION         0x08 /* Include function name */
+#define SSH_DEBUG_FLAG_MODULE           0x10 /* Include module name */
 
 /* Current debugging flag settings.  The initial value specifies the default
    output format. */
@@ -99,8 +99,8 @@ char *ssh_debug_format(const char *format, ...)
    ssh_xfree. */
 
 void ssh_debug_output(const char *file, unsigned int line,
-		      const char *module,
-		      const char *function, char *msg)
+                      const char *module,
+                      const char *function, char *msg)
 {
   char pid_buf[100], function_buf[100], file_buf[100], module_buf[100];
   
@@ -108,15 +108,15 @@ void ssh_debug_output(const char *file, unsigned int line,
   if (ssh_debug_flags & SSH_DEBUG_FLAG_FILE)
     {
       if (!(ssh_debug_flags & SSH_DEBUG_FLAG_PATH))
-	{
-	  /* Strip unix-style path components from file name. */
-	  if (strrchr(file, '/'))
-	    file = strrchr(file, '/') + 1;
-	  
-	  /* Strip msdos/windows style path components from file name. */
-	  if (strrchr(file, '\\'))
-	    file = strrchr(file, '\\') + 1;
-	}
+        {
+          /* Strip unix-style path components from file name. */
+          if (strrchr(file, '/'))
+            file = strrchr(file, '/') + 1;
+          
+          /* Strip msdos/windows style path components from file name. */
+          if (strrchr(file, '\\'))
+            file = strrchr(file, '\\') + 1;
+        }
 
       /* Format the file name and line number into the buffer. */
       snprintf(file_buf, sizeof(file_buf), "%s:%d", file, line);
@@ -171,10 +171,10 @@ Boolean ssh_debug_enabled(const char *module, int level)
   for (dl = ssh_debug_module_levels; dl; dl = dl->next)
     {
       if (ssh_match_pattern(module, dl->module))
-	{
-	  debug_level = dl->level;
-	  break;
-	}
+        {
+          debug_level = dl->level;
+          break;
+        }
     }
 
   /* Message should be printed if it is at a level below or equal to the
@@ -242,111 +242,111 @@ void ssh_debug_set_level_string(const char *string)
       
       /* Skip whitespace */
       while(*string && isspace(*string))
-	string++;
+        string++;
 
       /* Parse name */
       name_start = string;
       while(*string && !isspace(*string) && *string != '=' && *string != ',')
-	string++;
+        string++;
       name_end = string;
       name_len = name_end - name_start;
       
       /* Skip whitespace */
       while (*string && isspace(*string))
-	string++;
+        string++;
 
       level_value = -1;
       if (*string == '=')
-	{
-	  string++;
-	  /* Skip whitespace */
-	  while (*string && isspace(*string))
-	    string++;
-	  
-	  level_start = string;
-	  level_value = strtol(string, &level_end, 0);
-	  if (level_value == 0 && level_end == level_start)
-	    {
-	      ssh_warning("ssh_debug_set_level_string: Invalid numeric argument for %s", name_start);
-	      error = TRUE;
-	    }
-	  else
-	    {
-	      string = level_end;
-	    }
-	  
-	  /* Skip whitespace */
-	  while (*string && isspace(*string))
-	    string++;
-	}
+        {
+          string++;
+          /* Skip whitespace */
+          while (*string && isspace(*string))
+            string++;
+          
+          level_start = string;
+          level_value = strtol(string, &level_end, 0);
+          if (level_value == 0 && level_end == level_start)
+            {
+              ssh_warning("ssh_debug_set_level_string: Invalid numeric argument for %s", name_start);
+              error = TRUE;
+            }
+          else
+            {
+              string = level_end;
+            }
+          
+          /* Skip whitespace */
+          while (*string && isspace(*string))
+            string++;
+        }
       if (*string)
-	if (*string != ',')
-	  {
-	    if (!error)
-	      ssh_warning("ssh_debug_set_level_string: Ignored junk after command : %s", string);
-	    while (*string && *string != ',')
-	      string++;
-	  }
-	else
-	  string++;
+        if (*string != ',')
+          {
+            if (!error)
+              ssh_warning("ssh_debug_set_level_string: Ignored junk after command : %s", string);
+            while (*string && *string != ',')
+              string++;
+          }
+        else
+          string++;
       
       if (name_len == 6 &&
-	  strncasecmp(name_start, "global", name_len) == 0)
-	{
-	  if (level_value == -1)
-	    level_value = 0;
-	  ssh_debug_set_global_level(level_value);
-	}
+          strncasecmp(name_start, "global", name_len) == 0)
+        {
+          if (level_value == -1)
+            level_value = 0;
+          ssh_debug_set_global_level(level_value);
+        }
       else if (name_len == 3 &&
-	  strncasecmp(name_start, "pid", name_len) == 0)
-	{
-	  if (level_value != 0)
-	    ssh_debug_flags |= SSH_DEBUG_FLAG_PID;
-	  else
-	    ssh_debug_flags &= ~SSH_DEBUG_FLAG_PID;
-	}
+          strncasecmp(name_start, "pid", name_len) == 0)
+        {
+          if (level_value != 0)
+            ssh_debug_flags |= SSH_DEBUG_FLAG_PID;
+          else
+            ssh_debug_flags &= ~SSH_DEBUG_FLAG_PID;
+        }
       else if (name_len == 4 &&
-	  strncasecmp(name_start, "file", name_len) == 0)
-	{
-	  if (level_value != 0)
-	    ssh_debug_flags |= SSH_DEBUG_FLAG_FILE;
-	  else
-	    ssh_debug_flags &= ~SSH_DEBUG_FLAG_FILE;
-	}
+          strncasecmp(name_start, "file", name_len) == 0)
+        {
+          if (level_value != 0)
+            ssh_debug_flags |= SSH_DEBUG_FLAG_FILE;
+          else
+            ssh_debug_flags &= ~SSH_DEBUG_FLAG_FILE;
+        }
       else if (name_len == 6 &&
-	  strncasecmp(name_start, "module", name_len) == 0)
-	{
-	  if (level_value != 0)
-	    ssh_debug_flags |= SSH_DEBUG_FLAG_MODULE;
-	  else
-	    ssh_debug_flags &= ~SSH_DEBUG_FLAG_MODULE;
-	}
+          strncasecmp(name_start, "module", name_len) == 0)
+        {
+          if (level_value != 0)
+            ssh_debug_flags |= SSH_DEBUG_FLAG_MODULE;
+          else
+            ssh_debug_flags &= ~SSH_DEBUG_FLAG_MODULE;
+        }
       else if (name_len == 8 &&
-	  strncasecmp(name_start, "function", name_len) == 0)
-	{
-	  if (level_value != 0)
-	    ssh_debug_flags |= SSH_DEBUG_FLAG_FUNCTION;
-	  else
-	    ssh_debug_flags &= ~SSH_DEBUG_FLAG_FUNCTION;
-	}
+          strncasecmp(name_start, "function", name_len) == 0)
+        {
+          if (level_value != 0)
+            ssh_debug_flags |= SSH_DEBUG_FLAG_FUNCTION;
+          else
+            ssh_debug_flags &= ~SSH_DEBUG_FLAG_FUNCTION;
+        }
       else
-	{
-	  if (level_value == -1)
-	    level_value = 0;
-	  if (name_len > 0 && isdigit(*name_start))
-	    {
-	      level_value = atoi(name_start);
-	      ssh_debug_set_global_level(level_value);
-	    }
-	  else
-	    {
-	      name = ssh_xmalloc(name_len + 1);
-	      memcpy(name, name_start, name_len);
-	      name[name_len] = '\0';
-	      ssh_debug_set_module_level(name, level_value);
-	      ssh_xfree(name);
-	    }
-	}
+        {
+          if (level_value == -1)
+            level_value = 0;
+          if (name_len > 0 && isdigit(*name_start))
+            {
+              level_value = atoi(name_start);
+              ssh_debug_set_global_level(level_value);
+            }
+          else
+            {
+              name = ssh_xmalloc(name_len + 1);
+              memcpy(name, name_start, name_len);
+              name[name_len] = '\0';
+              ssh_debug_set_module_level(name, level_value);
+              ssh_xfree(name);
+            }
+        }
     }
 }
 
@@ -354,11 +354,11 @@ void ssh_debug_set_level_string(const char *string)
    prefixed with an offset and followed by an ascii representation 
    (x for 32 < x < 127, '.' otherwise)
 
- offset__  00 01 02 03  04 05 06 07  08 09 0a 0b  0c 0d 0e 0f  0123456789abcdef
+ offset__: 0001 0203 0405 0607 0809 0a0b 0c0d 0e0f  0123456789abcdef
 */
 
 void ssh_debug_hexdump(size_t offset, const unsigned char *data,
-		       size_t buf_siz)
+                       size_t buf_siz)
 {
   size_t i, j, jmax;
   int c;
@@ -367,37 +367,37 @@ void ssh_debug_hexdump(size_t offset, const unsigned char *data,
   for (i = 0; i < buf_siz; i += 0x10)
     {
       snprintf(buf, sizeof(buf),
-	       "%08x  ", (unsigned int)(i + offset));
+               "%08x: ", (unsigned int)(i + offset));
 
       jmax = buf_siz - i;
       jmax = jmax > 16 ? 16 : jmax;
 
       for (j = 0; j < jmax; j++) 
-	{
-	  if (j == 3 || j == 7 || j == 11)
-	    snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
-		     "%02x  ", (unsigned int)data[i+j]);
-	  else
-	    snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
-		     "%02x ", (unsigned int)data[i+j]);
-	}
+        {
+          if ((j % 2) == 1)
+            snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
+                     "%02x ", (unsigned int)data[i+j]);
+          else
+            snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
+                     "%02x", (unsigned int)data[i+j]);
+        }
       for (; j < 16; j++)
-	{
-	  if (j == 3 || j == 7 || j == 11)
-	    snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
-		     "    ");
-	  else
-	    snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
-		     "   ");
-	}			  
+        {
+          if ((j % 2) == 1)
+            snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
+                     "   ");
+          else
+            snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf),
+                     "  ");
+        }                         
 
       snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), " ");
       for (j = 0; j < jmax; j++)
-	{
-	  c = data[i+j];
-	  c = c < 32 || c >= 127 ? '.' : c;
-	  snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), "%c", c);
-	}
+        {
+          c = data[i+j];
+          c = c < 32 || c >= 127 ? '.' : c;
+          snprintf(buf + strlen(buf), sizeof(buf) - strlen(buf), "%c", c);
+        }
       ssh_debug("%s", buf);
     }
 }
@@ -497,13 +497,14 @@ void ssh_fatal(const char *fmt, ...)
    failed. */
 
 void ssh_generic_assert(int value, const char *expression,
-			const char *file,
-			unsigned int line, const char *module,
-			const char *function, int type)
+                        const char *file,
+                        unsigned int line, const char *module,
+                        const char *function, int type)
 {
   char *msg;
 
-  if (value) return; /* Assertion ok */
+  if (value)
+    return; /* Assertion ok */
 
   switch (type)
     {
@@ -513,19 +514,19 @@ void ssh_generic_assert(int value, const char *expression,
     case 3: msg = "Invariant"; /* FALL THROUGH */
     case 5: msg = "Verified expression";
       ssh_debug_output(file, line, module, function,
-		       ssh_debug_format("%s %s failed.", msg, expression));
+                       ssh_debug_format("%s %s failed.", msg, expression));
       break;
 
     case 4:
       ssh_debug_output(file, line, module, function,
-		       ssh_xstrdup("Invalid code reached."));
+                       ssh_xstrdup("Invalid code reached."));
       break;
 
-    default: ssh_fatal("Internal bug in ssh_generic_assert.");
+    default:
+      ssh_fatal("Internal bug in ssh_generic_assert.");
     }
 
   /* Call ssh_fatal() to exit. */
-
   ssh_fatal("Assertion failed (check debug output for more info).");
 }
 
@@ -534,9 +535,9 @@ void ssh_generic_assert(int value, const char *expression,
    handling. */
 
 void ssh_debug_register_callbacks(SshErrorCallback fatal_callback,
-				  SshErrorCallback warning_callback,
-				  SshErrorCallback debug_callback,
-				  void *context)
+                                  SshErrorCallback warning_callback,
+                                  SshErrorCallback debug_callback,
+                                  void *context)
 {
   ssh_debug_fatal_callback = fatal_callback;
   ssh_debug_warning_callback = warning_callback;
@@ -549,7 +550,7 @@ void ssh_debug_register_callbacks(SshErrorCallback fatal_callback,
    mechanism is used. */
 
 void ssh_log_event(SshLogFacility facility, SshLogSeverity severity,
-		   const char *fmt, ...)
+                   const char *fmt, ...)
 {
   va_list va;
   char buf[SSH_DEBUG_BUFFER_SIZE];
@@ -572,7 +573,7 @@ void ssh_log_event(SshLogFacility facility, SshLogSeverity severity,
    to use the default function. */
 
 void ssh_log_register_callback(SshLogCallback log_callback,
-			       void *context)
+                               void *context)
 {
   ssh_debug_log_callback = log_callback;
   ssh_debug_log_context = context;

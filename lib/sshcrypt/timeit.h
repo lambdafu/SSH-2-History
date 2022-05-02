@@ -14,15 +14,13 @@
   */
 
 /*
- * $Id: timeit.h,v 1.4 1998/06/07 10:01:52 mkojo Exp $
+ * $Id: timeit.h,v 1.5 1998/10/04 02:49:35 ylo Exp $
  * $Log: timeit.h,v $
  * $EndLog$
  */
 
 #ifndef TIMEIT_H
 #define TIMEIT_H
-
-#include "sshincludes.h"
 
 #if defined(HAVE_CLOCK) && defined(HAVE_GETTIMEOFDAY)
 

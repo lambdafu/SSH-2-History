@@ -12,7 +12,7 @@
   */
 
 /*
- * $Id: filelock.c,v 1.7 1998/01/28 10:14:10 ylo Exp $
+ * $Id: filelock.c,v 1.8 1998/09/23 11:14:22 tmo Exp $
  * $Log: filelock.c,v $
  * $EndLog$
  */
@@ -23,32 +23,38 @@
 int filelock_lock_shared(int fd, off_t offset, off_t len)
 {
   ssh_fatal("filelock_lock_shared unimplemented");
+  return FALSE;
 }
 
 int filelock_lock_exclusive(int fd, off_t offset, off_t len)
 {
   ssh_fatal("filelock_lock_exclusive unimplemented");
+  return FALSE;
 }
      
 int filelock_unlock(int fd, off_t offset, off_t len)
 {
   ssh_fatal("filelock_unlock unimplemented");
+  return FALSE;
 }
 #else /* macintosh */
 #ifdef WINDOWS
 int filelock_lock_shared(int fd, off_t offset, off_t len)
 {
   ssh_fatal("filelock_lock_shared unimplemented");
+  return FALSE;
 }
 
 int filelock_lock_exclusive(int fd, off_t offset, off_t len)
 {
   ssh_fatal("filelock_lock_exclusive unimplemented");
+  return FALSE;
 }
      
 int filelock_unlock(int fd, off_t offset, off_t len)
 {
   ssh_fatal("filelock_unlock unimplemented");
+  return FALSE;
 }
 
 #else /* WINDOWS */

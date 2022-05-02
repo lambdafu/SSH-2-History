@@ -5,20 +5,24 @@
  */
 /*
  *        Program: t-serial
- *	  $Source: /ssh/CVS/src/lib/sshutil/tests/t-serial.c,v $
- *	  Author : $Author: kivinen $
+ *        $Source: /ssh/CVS/src/lib/sshutil/tests/t-serial.c,v $
+ *        Author : $Author: eki $
  *
- *	  Creation          : 13:40 Aug 17 1998 kivinen
- *	  Last Modification : 23:59 Aug 18 1998 kivinen
- *	  Last check in     : $Date: 1998/08/18 21:02:48 $
- *	  Revision number   : $Revision: 1.4 $
- *	  State             : $State: Exp $
- *	  Version	    : 1.306
+ *        Creation          : 13:40 Aug 17 1998 kivinen
+ *        Last Modification : 18:44 Oct  8 1998 kivinen
+ *        Last check in     : $Date: 1998/10/16 10:22:15 $
+ *        Revision number   : $Revision: 1.6 $
+ *        State             : $State: Exp $
+ *        Version           : 1.307
  *
- *	  Description       : Serial stream test program
+ *        Description       : Serial stream test program
  *
- *	  $Log: t-serial.c,v $
- *	  $EndLog$
+ *        Requirements      : A supported smart card reader
+ *                            attached to a serial port.
+ *                            Access rights to the serial port.
+ *
+ *        $Log: t-serial.c,v $
+ *        $EndLog$
  */
 
 #include "sshincludes.h"
@@ -26,9 +30,15 @@
 #include "sshbuffer.h"
 #include "sshtimeouts.h"
 
+#ifdef WINDOWS
+#include "sshwineloop.h"
+#else /* WINDOWS */
+#include "sshunixeloop.h"
+#endif /* WINDOWS */
+
 #define SSH_DEBUG_MODULE "Main"
 
-#define SSH_SC_READ_BUFFER_LEN		1024
+#define SSH_SC_READ_BUFFER_LEN          1024
 
 typedef enum {
   SMART_CARD_IDLE,
@@ -59,7 +69,7 @@ typedef struct SmartCardRec {
 
 void sc_process_input(SmartCard sc);
 void sc_stream_callback(SshStreamNotification notification,
-			void *context);
+                        void *context);
 
 SmartCard sc_open(char *tty_name, char *name)
 {
@@ -74,11 +84,11 @@ SmartCard sc_open(char *tty_name, char *name)
     ssh_fatal("ssh_serial_open failed");
 
   if (!ssh_serial_stream_params(sc->stream,
-				SSH_SERIAL_SPEED_9600, SSH_SERIAL_SPEED_9600,
-				SSH_SERIAL_BITS_8, SSH_SERIAL_PARITY_EVEN,
-				SSH_SERIAL_STOP_BITS_2,
-				SSH_SERIAL_MODE_RAW_LOCAL,
-				SSH_SERIAL_FLOW_NONE))
+                                SSH_SERIAL_SPEED_9600, SSH_SERIAL_SPEED_9600,
+                                SSH_SERIAL_BITS_8, SSH_SERIAL_PARITY_EVEN,
+                                SSH_SERIAL_STOP_BITS_2,
+                                SSH_SERIAL_MODE_RAW_LOCAL,
+                                SSH_SERIAL_FLOW_NONE))
     ssh_fatal("ssh_serial_stream_params failed");
 
   if (!ssh_serial_stream_modem_set(sc->stream, SSH_SERIAL_MODEM_DTR))
@@ -107,7 +117,7 @@ void sc_close(void *ctx)
 }
 
 void sc_print_buffer(char *name, char *str,
-		     unsigned char *buffer, size_t buflen)
+                     unsigned char *buffer, size_t buflen)
 {
   size_t i, j;
   
@@ -115,32 +125,32 @@ void sc_print_buffer(char *name, char *str,
     {
       printf("%s %s %08x: ", name, str, i);
       for(j = 0; j < 16; j++)
-	{
-	  if (i + j < buflen)
-	    printf("%02x", buffer[i + j]);
-	  else
-	    printf("  ");
-	  if ((j % 2) == 1)
-	    printf(" ");
-	}
+        {
+          if (i + j < buflen)
+            printf("%02x", buffer[i + j]);
+          else
+            printf("  ");
+          if ((j % 2) == 1)
+            printf(" ");
+        }
       printf("  ");
       for(j = 0; j < 16; j++)
-	{
-	  if (i + j < buflen)
-	    if (isprint(buffer[i + j]))
-	      printf("%c", buffer[i + j]);
-	    else
-	      printf(".");
-	  else
-	    printf(" ");
-	}
+        {
+          if (i + j < buflen)
+            if (isprint(buffer[i + j]))
+              printf("%c", buffer[i + j]);
+            else
+              printf(".");
+          else
+            printf(" ");
+        }
       printf("\n");
     }
 }
 
 /* Serial stream notification callback */
 void sc_stream_callback(SshStreamNotification notification,
-			void *context)
+                        void *context)
 {
   SmartCard sc = (SmartCard) context;
   unsigned char *p;
@@ -151,54 +161,54 @@ void sc_stream_callback(SshStreamNotification notification,
     case SSH_STREAM_INPUT_AVAILABLE:
       SSH_DEBUG(8, ("Input available from %s", sc->name));
       while (1)
-	{
-	  ssh_buffer_append_space(sc->buffer_in, &p,
-				  SSH_SC_READ_BUFFER_LEN);
-	  l = ssh_stream_read(sc->stream, p, SSH_SC_READ_BUFFER_LEN);
-	  
-	  if (l < 0)
-	    {
-	      SSH_DEBUG(9, ("Read blocked from %s", sc->name));
-	      ssh_buffer_consume_end(sc->buffer_in, SSH_SC_READ_BUFFER_LEN);
-	      return;
-	    }
+        {
+          ssh_buffer_append_space(sc->buffer_in, &p,
+                                  SSH_SC_READ_BUFFER_LEN);
+          l = ssh_stream_read(sc->stream, p, SSH_SC_READ_BUFFER_LEN);
+          
+          if (l < 0)
+            {
+              SSH_DEBUG(9, ("Read blocked from %s", sc->name));
+              ssh_buffer_consume_end(sc->buffer_in, SSH_SC_READ_BUFFER_LEN);
+              return;
+            }
 
-	  if (l == 0)
-	    ssh_fatal("Eof received");
+          if (l == 0)
+            ssh_fatal("Eof received");
 
-	  ssh_buffer_consume_end(sc->buffer_in, SSH_SC_READ_BUFFER_LEN - l);
-	  sc_print_buffer(sc->name, "<-", ssh_buffer_ptr(sc->buffer_in) +
-			  ssh_buffer_len(sc->buffer_in) - l, l);
-	  SSH_DEBUG(8, ("Read %ld bytes, total size of input buffer %ld from %s",
-			l, ssh_buffer_len(sc->buffer_in), sc->name));
-	  sc_process_input(sc);
-	}
+          ssh_buffer_consume_end(sc->buffer_in, SSH_SC_READ_BUFFER_LEN - l);
+          sc_print_buffer(sc->name, "<-", ssh_buffer_ptr(sc->buffer_in) +
+                          ssh_buffer_len(sc->buffer_in) - l, l);
+          SSH_DEBUG(8, ("Read %ld bytes, total size of input buffer %ld from %s",
+                        l, ssh_buffer_len(sc->buffer_in), sc->name));
+          sc_process_input(sc);
+        }
       break;
 
     case SSH_STREAM_CAN_OUTPUT:
       if (ssh_buffer_len(sc->buffer_out) == 0)
-	{
-	  SSH_DEBUG(7, ("Can output, but nothing to send to %s", sc->name));
-	  return;
-	}
+        {
+          SSH_DEBUG(7, ("Can output, but nothing to send to %s", sc->name));
+          return;
+        }
 
       while (ssh_buffer_len(sc->buffer_out) != 0)
-	{
-	  SSH_DEBUG(7, ("Can output, sending %ld bytes to %s",
-			ssh_buffer_len(sc->buffer_out), sc->name));
-	  l = ssh_stream_write(sc->stream,
-			       ssh_buffer_ptr(sc->buffer_out),
-			       ssh_buffer_len(sc->buffer_out));
-	  if (l == 0)
-	    ssh_fatal("Broken pipe");
-	  if (l < 0)
-	    {
-	      SSH_DEBUG(8, ("Write blocked to %s", sc->name));
-	      return;
-	    }
-	  sc_print_buffer(sc->name, "->", ssh_buffer_ptr(sc->buffer_out), l);
-	  ssh_buffer_consume(sc->buffer_out, l);
-	}
+        {
+          SSH_DEBUG(7, ("Can output, sending %ld bytes to %s",
+                        ssh_buffer_len(sc->buffer_out), sc->name));
+          l = ssh_stream_write(sc->stream,
+                               ssh_buffer_ptr(sc->buffer_out),
+                               ssh_buffer_len(sc->buffer_out));
+          if (l == 0)
+            ssh_fatal("Broken pipe");
+          if (l < 0)
+            {
+              SSH_DEBUG(8, ("Write blocked to %s", sc->name));
+              return;
+            }
+          sc_print_buffer(sc->name, "->", ssh_buffer_ptr(sc->buffer_out), l);
+          ssh_buffer_consume(sc->buffer_out, l);
+        }
       SSH_DEBUG(8, ("All written to %s", sc->name));
       break;
 
@@ -209,8 +219,8 @@ void sc_stream_callback(SshStreamNotification notification,
 }
 
 unsigned char sc_calc_towitoko_checksum(unsigned char start,
-					unsigned char *buffer,
-					size_t len)
+                                        unsigned char *buffer,
+                                        size_t len)
 {
   unsigned char checksum;
   int i;
@@ -238,12 +248,12 @@ void append_str(SmartCard sc, unsigned char *buffer, size_t len)
 }
 
 void append_command(SmartCard sc, unsigned char class,
-		    unsigned char inst,
-		    unsigned char p1,
-		    unsigned char p2,
-		    unsigned char length,
-		    unsigned char *data,
-		    size_t data_len)
+                    unsigned char inst,
+                    unsigned char p1,
+                    unsigned char p2,
+                    unsigned char length,
+                    unsigned char *data,
+                    size_t data_len)
 {
   unsigned char buffer[4];
   int i;
@@ -273,37 +283,37 @@ void sc_process_setec(SmartCard sc)
     {
     case SMART_CARD_IDLE:
       if (*p != 0x3b)
-	{
-	  SSH_DEBUG(4, ("Setec: No sync char found from %s", sc->name));
-	  ssh_buffer_clear(sc->buffer_in);
-	}
+        {
+          SSH_DEBUG(4, ("Setec: No sync char found from %s", sc->name));
+          ssh_buffer_clear(sc->buffer_in);
+        }
       else
-	{
-	  int len;
-	  
-	  len = (p[1] & 0x0f) + 2;
-	  if (p[1] & 0x10) len++;
-	  if (p[1] & 0x20) len++;
-	  if (p[1] & 0x40) len++;
-	  if (p[1] & 0x80) len++;
-	  if (l < len) return;
-	  SSH_DEBUG(6, ("Setec: Got attr from %s", sc->name));
-	  ssh_buffer_consume(sc->buffer_in, len);
-	  sc->state = SMART_CARD_ATR_RECEIVED;
-	  append_command(sc, 0xa0, 0xf2, 0x00, 0x00, 22, NULL, 0);
-	  sc_stream_callback(SSH_STREAM_CAN_OUTPUT, sc);
-	}
+        {
+          int len;
+          
+          len = (p[1] & 0x0f) + 2;
+          if (p[1] & 0x10) len++;
+          if (p[1] & 0x20) len++;
+          if (p[1] & 0x40) len++;
+          if (p[1] & 0x80) len++;
+          if (l < len) return;
+          SSH_DEBUG(6, ("Setec: Got attr from %s", sc->name));
+          ssh_buffer_consume(sc->buffer_in, len);
+          sc->state = SMART_CARD_ATR_RECEIVED;
+          append_command(sc, 0xa0, 0xf2, 0x00, 0x00, 22, NULL, 0);
+          sc_stream_callback(SSH_STREAM_CAN_OUTPUT, sc);
+        }
       break;
     case SMART_CARD_ATR_RECEIVED:
       if (l < 1 + 22 + 2)
-	return;
+        return;
       if (*p != 0xf2)
-	{
-	  SSH_DEBUG(4, ("Setec: Invalid response to status from %s",
-			sc->name));
-	  ssh_buffer_clear(sc->buffer_in);
-	  return;
-	}
+        {
+          SSH_DEBUG(4, ("Setec: Invalid response to status from %s",
+                        sc->name));
+          ssh_buffer_clear(sc->buffer_in);
+          return;
+        }
       SSH_DEBUG(6, ("Setec: Got Status from %s", sc->name));
       ssh_buffer_consume(sc->buffer_in, 22);
       sc->state = SMART_CARD_DONE;
@@ -353,50 +363,50 @@ void sc_process_towitoko(SmartCard sc)
     {
     case SMART_CARD_IDLE:
       if (l <= 1)
-	return;
+        return;
       l = 2;
       break;
     case SMART_CARD_TOWITOKO_ACTIVATE:
       if (l < 1)
-	return;
+        return;
       l = 1;
       break;
     case SMART_CARD_TOWITOKO_ATR_H:
     case SMART_CARD_TOWITOKO_ATR_L:
       if (*p != 0x3b)
-	{
-	  SSH_DEBUG(4, ("Towitoko: No sync char found from %s", sc->name));
-	  ssh_buffer_clear(sc->buffer_in);
-	}
+        {
+          SSH_DEBUG(4, ("Towitoko: No sync char found from %s", sc->name));
+          ssh_buffer_clear(sc->buffer_in);
+        }
       else
-	{
-	  int len;
+        {
+          int len;
 
-	  ssh_cancel_timeouts(sc_send_atr, sc);
-	  len = (p[1] & 0x0f) + 2;
-	  if (p[1] & 0x10) len++;
-	  if (p[1] & 0x20) len++;
-	  if (p[1] & 0x40) len++;
-	  if (p[1] & 0x80) len++;
-	  if (l < len) return;
-	  SSH_DEBUG(6, ("Towitoko: Got attr from %s", sc->name));
-	  ssh_buffer_consume(sc->buffer_in, len);
-	  sc->state = SMART_CARD_ATR_RECEIVED;
-	  append_command(sc, 0xa0, 0xf2, 0x00, 0x00, 22, NULL, 0);
-	  sc_stream_callback(SSH_STREAM_CAN_OUTPUT, sc);
-	}
+          ssh_cancel_timeouts(sc_send_atr, sc);
+          len = (p[1] & 0x0f) + 2;
+          if (p[1] & 0x10) len++;
+          if (p[1] & 0x20) len++;
+          if (p[1] & 0x40) len++;
+          if (p[1] & 0x80) len++;
+          if (l < len) return;
+          SSH_DEBUG(6, ("Towitoko: Got attr from %s", sc->name));
+          ssh_buffer_consume(sc->buffer_in, len);
+          sc->state = SMART_CARD_ATR_RECEIVED;
+          append_command(sc, 0xa0, 0xf2, 0x00, 0x00, 22, NULL, 0);
+          sc_stream_callback(SSH_STREAM_CAN_OUTPUT, sc);
+        }
       return;
       break;
     case SMART_CARD_ATR_RECEIVED:
       if (l < 1 + 22 + 2)
-	return;
+        return;
       if (*p != 0xf2)
-	{
-	  SSH_DEBUG(4, ("Towitoko: Invalid response to status from %s",
-			sc->name));
-	  ssh_buffer_clear(sc->buffer_in);
-	  return;
-	}
+        {
+          SSH_DEBUG(4, ("Towitoko: Invalid response to status from %s",
+                        sc->name));
+          ssh_buffer_clear(sc->buffer_in);
+          return;
+        }
       SSH_DEBUG(6, ("Towitoko: Got Status from %s", sc->name));
       ssh_buffer_consume(sc->buffer_in, 22);
       sc->state = SMART_CARD_DONE;
@@ -408,7 +418,7 @@ void sc_process_towitoko(SmartCard sc)
   if (sc_calc_towitoko_checksum(0x01, p, l) != 0x01)
     {
       SSH_DEBUG(20, ("Towitoko: Input checksum doesn't match, result is %02x from %s",
-		    sc_calc_towitoko_checksum(0x01, p, l), sc->name));
+                    sc_calc_towitoko_checksum(0x01, p, l), sc->name));
       ssh_buffer_clear(sc->buffer_in);
       return;
     }
@@ -416,36 +426,36 @@ void sc_process_towitoko(SmartCard sc)
     {
     case SMART_CARD_IDLE:
       if (*p & 0x40)
-	{
-	  SSH_DEBUG(5, ("Towitoko: Card inside, sending activate to %s",
-			sc->name));
-	  sc->state = SMART_CARD_TOWITOKO_ACTIVATE;
-	  append_str(sc, (unsigned char *) "\x60\x0f", 2);
-	  sc_stream_callback(SSH_STREAM_CAN_OUTPUT, sc);
-	  ssh_cancel_timeouts(sc_send_check, sc);
-	}
+        {
+          SSH_DEBUG(5, ("Towitoko: Card inside, sending activate to %s",
+                        sc->name));
+          sc->state = SMART_CARD_TOWITOKO_ACTIVATE;
+          append_str(sc, (unsigned char *) "\x60\x0f", 2);
+          sc_stream_callback(SSH_STREAM_CAN_OUTPUT, sc);
+          ssh_cancel_timeouts(sc_send_check, sc);
+        }
       else
-	{
-	  ssh_cancel_timeouts(sc_send_check, sc);
-	  ssh_register_timeout(2, 0, sc_send_check, sc);
-	}
+        {
+          ssh_cancel_timeouts(sc_send_check, sc);
+          ssh_register_timeout(2, 0, sc_send_check, sc);
+        }
       ssh_buffer_consume(sc->buffer_in, 2);
       break;
     case SMART_CARD_TOWITOKO_ACTIVATE:
       if (l != 1)
-	{
-	  SSH_DEBUG(3, ("Towitoko: Too much data from card activate from %s",
-			sc->name));
-	}
+        {
+          SSH_DEBUG(3, ("Towitoko: Too much data from card activate from %s",
+                        sc->name));
+        }
       else
-	{
-	  SSH_DEBUG(5, ("Towitoko: Card activated, sending atr to %s",
-			sc->name));
-	  sc->state = SMART_CARD_TOWITOKO_ATR_H;
-	  append_str(sc, (unsigned char *) "\x80\x6f\x00\x05", 4);
-	  sc_stream_callback(SSH_STREAM_CAN_OUTPUT, sc);
-	  ssh_register_timeout(2, 0, sc_send_atr, sc);
-	}
+        {
+          SSH_DEBUG(5, ("Towitoko: Card activated, sending atr to %s",
+                        sc->name));
+          sc->state = SMART_CARD_TOWITOKO_ATR_H;
+          append_str(sc, (unsigned char *) "\x80\x6f\x00\x05", 4);
+          sc_stream_callback(SSH_STREAM_CAN_OUTPUT, sc);
+          ssh_register_timeout(2, 0, sc_send_atr, sc);
+        }
       ssh_buffer_consume(sc->buffer_in, 1);
       break;
     }
@@ -500,26 +510,26 @@ restart:
     {
     case SMART_CARD_READER_UNKNOWN:
       if (*p == 0x3b)
-	{
-	  ssh_cancel_timeouts(sc_test_setec, sc);
-	  ssh_cancel_timeouts(sc_test_setec_off, sc);
-	  ssh_cancel_timeouts(sc_test_towitoko, sc);
-	  sc->type = SMART_CARD_READER_SETEC;
-	  SSH_DEBUG(3, ("Reader %s is setec", sc->name));
-	  goto restart;
-	}
+        {
+          ssh_cancel_timeouts(sc_test_setec, sc);
+          ssh_cancel_timeouts(sc_test_setec_off, sc);
+          ssh_cancel_timeouts(sc_test_towitoko, sc);
+          sc->type = SMART_CARD_READER_SETEC;
+          SSH_DEBUG(3, ("Reader %s is setec", sc->name));
+          goto restart;
+        }
       if ((*p & 0x3f) == 0 && l > 1 &&
-	  sc_calc_towitoko_checksum(0x01, p, 2) == 0x01)
-	{
-	  SSH_DEBUG(3, ("Reader %s is towitoko", sc->name));
-	  ssh_cancel_timeouts(sc_test_setec, sc);
-	  ssh_cancel_timeouts(sc_test_setec_off, sc);
-	  ssh_cancel_timeouts(sc_test_towitoko, sc);
-	  sc->type = SMART_CARD_READER_TOWITOKO;
-	  goto restart;
-	}
+          sc_calc_towitoko_checksum(0x01, p, 2) == 0x01)
+        {
+          SSH_DEBUG(3, ("Reader %s is towitoko", sc->name));
+          ssh_cancel_timeouts(sc_test_setec, sc);
+          ssh_cancel_timeouts(sc_test_setec_off, sc);
+          ssh_cancel_timeouts(sc_test_towitoko, sc);
+          sc->type = SMART_CARD_READER_TOWITOKO;
+          goto restart;
+        }
       if ((*p & 0x3f) == 0 && l == 1)
-	return;
+        return;
       ssh_buffer_clear(sc->buffer_in);
       break;
     case SMART_CARD_READER_SETEC:
@@ -542,7 +552,7 @@ void sc_check_modem_status(void *ctx)
   if (modem != sc->modem)
     {
       SSH_DEBUG(3, ("Modem status changed for %s, old = 0x%x, new = 0x%x",
-		    sc->name, sc->modem, modem));
+                    sc->name, sc->modem, modem));
     }
   sc->modem = modem;
   ssh_register_timeout(0, 500000, sc_check_modem_status, sc);

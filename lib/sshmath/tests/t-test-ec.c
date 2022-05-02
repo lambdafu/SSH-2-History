@@ -95,7 +95,7 @@ void test_function_gf2n(int t1, int t2)
   printf("\n");
   
   printf("Multiplications took %.8f seconds (on average).\n",
-	 tmit.real_secs / i);
+         tmit.real_secs / i);
 
   start_timing(&tmit);
 
@@ -215,7 +215,7 @@ void test_function(int t1, int t2)
   printf("\n");
   
   printf("Multiplications took %.8f seconds (on average).\n",
-	 tmit.real_secs / i);
+         tmit.real_secs / i);
 
   start_timing(&tmit);
 
@@ -272,18 +272,18 @@ void find_small_irreducible()
     {
       ssh_bpoly_set_ui(&a, i);
       if (ssh_bpoly_is_irreducible(&a) == TRUE)
-	{
-	  if (prev)
-	    printf(", ");
+        {
+          if (prev)
+            printf(", ");
 
-	  if (j++ > 3)
-	    {
-	      printf("\n");
-	      j = 0;
-	    }
-	  ssh_bpoly_pretty_print(&a);
-	  prev = 1;
-	}
+          if (j++ > 3)
+            {
+              printf("\n");
+              j = 0;
+            }
+          ssh_bpoly_pretty_print(&a);
+          prev = 1;
+        }
     }
   printf("\n");
   
@@ -319,10 +319,10 @@ void compute_log_tables(SshBPoly *a, SshBPoly *b)
   for (j = 1; j  < (1 << i); j++)
     {
       if (ssh_bpoly_cmp_ui(&t, 1) == 0)
-	{
-	  printf("Error! Not a primitive element! Order %d.\n", j);
-	  break;
-	}
+        {
+          printf("Error! Not a primitive element! Order %d.\n", j);
+          break;
+        }
 
       k = ssh_bpoly_get_ui(&t);
       log[j] = k;
@@ -353,10 +353,10 @@ void primitive_table(SshBPoly *a, SshBPoly *b)
       ssh_bpoly_mod(&t, &t, a);
 
       if (ssh_bpoly_cmp_ui(&t, 1) == 0)
-	{
-	  printf("Error! Not a primitive element! Order %d.\n", j);
-	  break;
-	}
+        {
+          printf("Error! Not a primitive element! Order %d.\n", j);
+          break;
+        }
     }
 
   ssh_bpoly_clear(&t);
@@ -375,31 +375,31 @@ void find_ip(unsigned int size)
     {
       ssh_bpoly_set_ui(&a, i | (1 << size));
       if (ssh_bpoly_is_irreducible(&a) == TRUE)
-	{
-	  printf("Irreducible polynomial: ");
-	  ssh_bpoly_pretty_print(&a);
-	  printf("\n");
+        {
+          printf("Irreducible polynomial: ");
+          ssh_bpoly_pretty_print(&a);
+          printf("\n");
 
-	  for (j = 1, prev = 0; j < (1 << size); j++)
-	    {
-	      ssh_bpoly_set_ui(&b, j);
-	      if (ssh_bpoly_is_primitive(&b, &a) == TRUE)
-		{
-		  if (!prev)
-		    printf("  Primitive element(s): \n");
-		  printf("  ");
-		  ssh_bpoly_pretty_print(&b);
-		  printf("\n");
-		  prev = 1;
+          for (j = 1, prev = 0; j < (1 << size); j++)
+            {
+              ssh_bpoly_set_ui(&b, j);
+              if (ssh_bpoly_is_primitive(&b, &a) == TRUE)
+                {
+                  if (!prev)
+                    printf("  Primitive element(s): \n");
+                  printf("  ");
+                  ssh_bpoly_pretty_print(&b);
+                  printf("\n");
+                  prev = 1;
 
 #if 0
-		  primitive_table(&a, &b);
+                  primitive_table(&a, &b);
 #endif
-		}
-	    }
-	  if (!prev)
-	    printf("  No primitive elements found.\n");
-	}
+                }
+            }
+          if (!prev)
+            printf("  No primitive elements found.\n");
+        }
     }
   printf("\n");
   
@@ -419,18 +419,18 @@ unsigned int find_small_irreducible(unsigned int size)
     {
       ssh_bpoly_set_ui(&a, i | (1 << size));
       if (ssh_bpoly_is_irreducible(&a) == TRUE)
-	{
-	  p = ssh_bpoly_get_ui(&a);
-	  ssh_bpoly_clear(&a);
-	  return p;
-	}
+        {
+          p = ssh_bpoly_get_ui(&a);
+          ssh_bpoly_clear(&a);
+          return p;
+        }
     }
   ssh_bpoly_clear(&a);
   return 0;
 }
 
 unsigned int find_irreducible_trinomial(unsigned int size,
-					unsigned int *n0, unsigned int *n1)
+                                        unsigned int *n0, unsigned int *n1)
 {
   unsigned int b0, b1;
   SshBPoly a;
@@ -445,12 +445,12 @@ unsigned int find_irreducible_trinomial(unsigned int size,
       ssh_bpoly_set_bit(&a, b0);
       ssh_bpoly_set_bit(&a, b1);
       if (ssh_bpoly_is_irreducible(&a) == TRUE)
-	{
-	  ssh_bpoly_clear(&a);
-	  *n0 = b0;
-	  *n1 = b1;
-	  return 1;
-	}
+        {
+          ssh_bpoly_clear(&a);
+          *n0 = b0;
+          *n1 = b1;
+          return 1;
+        }
     }
   ssh_bpoly_clear(&a);
   return 0;
@@ -474,20 +474,20 @@ int find_irreducible(int size, int *bits, int bits_count)
       bits[0] = 0;
       bits[2] = size;
       for (bits[1] = bits[0] + 1; bits[1] < bits[2] - 32; bits[1]++)
-	{
-	  ssh_bpoly_set_ui(&m, 0);
-	  ssh_bpoly_set_bit(&m, bits[0]);
-	  ssh_bpoly_set_bit(&m, bits[1]);
-	  ssh_bpoly_set_bit(&m, bits[2]);
-	  if (ssh_bpoly_is_irreducible(&m) == TRUE)
-	    {
-	      printf("  Irreducible: ");
-	      ssh_bpoly_pretty_print(&m);
-	      printf("\n");
-	      ssh_bpoly_clear(&m);
-	      return 1;
-	    }
-	}
+        {
+          ssh_bpoly_set_ui(&m, 0);
+          ssh_bpoly_set_bit(&m, bits[0]);
+          ssh_bpoly_set_bit(&m, bits[1]);
+          ssh_bpoly_set_bit(&m, bits[2]);
+          if (ssh_bpoly_is_irreducible(&m) == TRUE)
+            {
+              printf("  Irreducible: ");
+              ssh_bpoly_pretty_print(&m);
+              printf("\n");
+              ssh_bpoly_clear(&m);
+              return 1;
+            }
+        }
       ssh_bpoly_clear(&m);
       return 0;
       break;
@@ -499,70 +499,70 @@ int find_irreducible(int size, int *bits, int bits_count)
       bits[1] = 1;
       bits[2] = 2;
       for (bits[3] = 3; bits[3] < bits[4] - 32; bits[3]++)
-	for (bits[2] = 2; bits[2] < bits[3] - 1; bits[2]++)
-	  for (bits[1] = 1; bits[1] < bits[2] - 1; bits[1]++)
-	    {
-	      ssh_bpoly_set_ui(&m, 0);
-	      ssh_bpoly_set_bit(&m, bits[0]);
-	      ssh_bpoly_set_bit(&m, bits[1]);
-	      ssh_bpoly_set_bit(&m, bits[2]);
-	      ssh_bpoly_set_bit(&m, bits[3]);
-	      ssh_bpoly_set_bit(&m, bits[4]);
-	      if (ssh_bpoly_is_irreducible(&m) == TRUE)
-		{
-		  printf("  Irreducible: ");
-		  ssh_bpoly_pretty_print(&m);
-		  printf("\n");
-		  ssh_bpoly_clear(&m);
-		  return 1;
-		}
-	    }
+        for (bits[2] = 2; bits[2] < bits[3] - 1; bits[2]++)
+          for (bits[1] = 1; bits[1] < bits[2] - 1; bits[1]++)
+            {
+              ssh_bpoly_set_ui(&m, 0);
+              ssh_bpoly_set_bit(&m, bits[0]);
+              ssh_bpoly_set_bit(&m, bits[1]);
+              ssh_bpoly_set_bit(&m, bits[2]);
+              ssh_bpoly_set_bit(&m, bits[3]);
+              ssh_bpoly_set_bit(&m, bits[4]);
+              if (ssh_bpoly_is_irreducible(&m) == TRUE)
+                {
+                  printf("  Irreducible: ");
+                  ssh_bpoly_pretty_print(&m);
+                  printf("\n");
+                  ssh_bpoly_clear(&m);
+                  return 1;
+                }
+            }
       ssh_bpoly_clear(&m);
       return 0;
       break;
 #endif
     default:
       if ((bits_count % 2) == 0)
-	{
-	  ssh_bpoly_clear(&m);
-	  return 0;
-	}
+        {
+          ssh_bpoly_clear(&m);
+          return 0;
+        }
 
       bits[0] = 0;
       bits[bits_count - 1] = size;
       for (i = 1; i < bits_count - 1; i++)
-	bits[i] = i;
+        bits[i] = i;
       
       while (1)
-	{
-	  ssh_bpoly_set_ui(&m, 0);
-	  for (i = 0; i < bits_count; i++)
-	    ssh_bpoly_set_bit(&m, bits[i]);
-	  if (ssh_bpoly_is_irreducible(&m) == TRUE)
-	    {
-	      if ((random() % 2) == 0)
-		{
-		  printf("  Irreducible: ");
-		  ssh_bpoly_pretty_print(&m);
-		  printf("\n");
-		  break;
-		}
-	    }
-	  
-	  for (i = 1; i < bits_count - 1; i++)
-	    if (bits[i] + 1 < bits[i + 1])
-	      {
-		for (j = 1; j < i; j++)
-		  bits[j] = j;
-		bits[i]++;
-		break;
-	      }
-	  if (i >= bits_count - 1)
-	    {
-	      ssh_bpoly_clear(&m);
-	      return 0;
-	    }
-	}
+        {
+          ssh_bpoly_set_ui(&m, 0);
+          for (i = 0; i < bits_count; i++)
+            ssh_bpoly_set_bit(&m, bits[i]);
+          if (ssh_bpoly_is_irreducible(&m) == TRUE)
+            {
+              if ((random() % 2) == 0)
+                {
+                  printf("  Irreducible: ");
+                  ssh_bpoly_pretty_print(&m);
+                  printf("\n");
+                  break;
+                }
+            }
+          
+          for (i = 1; i < bits_count - 1; i++)
+            if (bits[i] + 1 < bits[i + 1])
+              {
+                for (j = 1; j < i; j++)
+                  bits[j] = j;
+                bits[i]++;
+                break;
+              }
+          if (i >= bits_count - 1)
+            {
+              ssh_bpoly_clear(&m);
+              return 0;
+            }
+        }
       break;
     }
   ssh_bpoly_clear(&m);
@@ -598,23 +598,23 @@ unsigned int transform_binary(const MP_INT *k, char **transform_table)
     {
       scanbit = mpz_scan1(k, bit);
       if (scanbit >= maxbit)
-	break;
+        break;
 
       while (bit < scanbit)
-	{
-	  transform[transform_index++] = 0;
-	  bit++;
-	}
+        {
+          transform[transform_index++] = 0;
+          bit++;
+        }
 
       scanbit = mpz_scan0(k, bit);
       if (scanbit >= maxbit)
-	end = 1;
+        end = 1;
       
       while (bit < scanbit)
-	{
-	  transform[transform_index++] = 1;
-	  bit++;
-	}
+        {
+          transform[transform_index++] = 1;
+          bit++;
+        }
     }
 
   /* Return with transform index and table. */
@@ -651,50 +651,50 @@ unsigned int transform_mo(const MP_INT *k, char **transform_table)
     {
       scanbit = mpz_scan1(k, bit);
       if (scanbit >= maxbit)
-	break;
+        break;
 
       while (bit < scanbit)
-	{
-	  if (b == 11)
-	    {
-	      b = 1;
-	    }
-	  else
-	    {
-	      if (b == 1)
-		{
-		  transform[transform_index++] = 1;
-		  b = 0;
-		}
-	      transform[transform_index++] = 0;
-	    }
-	  bit++;	  
-	}
+        {
+          if (b == 11)
+            {
+              b = 1;
+            }
+          else
+            {
+              if (b == 1)
+                {
+                  transform[transform_index++] = 1;
+                  b = 0;
+                }
+              transform[transform_index++] = 0;
+            }
+          bit++;          
+        }
 
       scanbit = mpz_scan0(k, bit);
       if (scanbit >= maxbit)
-	{
-	  scanbit = maxbit;
-	  end = 1;
-	}
+        {
+          scanbit = maxbit;
+          end = 1;
+        }
 
       while (bit < scanbit)
-	{
-	  if (b == 0)
-	    {
-	      b = 1;
-	    }
-	  else
-	    {
-	      if (b == 1)
-		{
-		  transform[transform_index++] = -1; 
-		  b = 11;
-		}
-	      transform[transform_index++] = 0;
-	    }
-	  bit++;
-	}
+        {
+          if (b == 0)
+            {
+              b = 1;
+            }
+          else
+            {
+              if (b == 1)
+                {
+                  transform[transform_index++] = -1; 
+                  b = 11;
+                }
+              transform[transform_index++] = 0;
+            }
+          bit++;
+        }
     }
 
   /* Set the highest bit. */
@@ -852,7 +852,7 @@ int ec2n_check_values(EC2nPoint *P, EC2nCurve *E)
    curve. */
 
 unsigned int ec2n_small_curve(unsigned int iq, unsigned int ia,
-			      unsigned int ib, unsigned int n)
+                              unsigned int ib, unsigned int n)
 {
 
   SshBPoly a, b, q, x, t1, t2, trace;
@@ -918,9 +918,9 @@ unsigned int ec2n_small_curve(unsigned int iq, unsigned int ia,
       /* Compute trace. */
       ssh_bpoly_trace(&trace, &t2, &q);
       if (ssh_bpoly_cmp_ui(&trace, 0) == 0)
-	c++;
+        c++;
       else
-	c--;
+        c--;
     }
 
   if (trace_a == 1)
@@ -956,8 +956,8 @@ void factor(SshInt *large, const SshInt *composite)
   for (i = 2; i; i = ssh_sieve_next_prime(i, &sieve))
     {
       while (ssh_mp_mod_ui(large, i) == 0)
-	ssh_mp_div_ui(large, large, i);
-	  
+        ssh_mp_div_ui(large, large, i);
+          
     }
   ssh_sieve_free(&sieve);
   if (ssh_mp_is_probable_prime(large, 25))
@@ -967,7 +967,7 @@ void factor(SshInt *large, const SshInt *composite)
 }
 
 void ec2n_expand_trace(MP_INT *card, int c, unsigned int n,
-		       unsigned int k)
+                       unsigned int k)
 {
   MP_INT c1, c2, t1, t2;
   int i;
@@ -1030,10 +1030,10 @@ void ec2n_find_point(EC2nPoint *P, EC2nCurve *E)
       ssh_bpoly_set_ui(&P->x, random());
 
       if (ssh_bpoly_cmp_ui(&P->x, 0) == 0)
-	{
-	  ssh_bpoly_powm_2exp(&P->y, &E->b, ssh_bpoly_deg(&E->q) - 1, &E->q);
-	  break;
-	}
+        {
+          ssh_bpoly_powm_2exp(&P->y, &E->b, ssh_bpoly_deg(&E->q) - 1, &E->q);
+          break;
+        }
 
       ssh_bpoly_square(&t1, &P->x);
       ssh_bpoly_mod(&t1, &t1, &E->q);
@@ -1046,10 +1046,10 @@ void ec2n_find_point(EC2nPoint *P, EC2nCurve *E)
       ssh_bpoly_add(&t2, &t2, &E->b);
 
       if (ssh_bpoly_cmp_ui(&t2, 0) == 0)
-	{
-	  ssh_bpoly_set_ui(&P->y, 0);
-	  break;
-	}
+        {
+          ssh_bpoly_set_ui(&P->y, 0);
+          break;
+        }
 
       ssh_bpoly_invert(&t1, &P->x, &E->q);
       ssh_bpoly_square(&t3, &t1);
@@ -1059,11 +1059,11 @@ void ec2n_find_point(EC2nPoint *P, EC2nCurve *E)
       ssh_bpoly_mod(&t4, &t4, &E->q);
 
       if (ssh_bpoly_quad_solve(&t1, &t4, &E->q) == TRUE)
-	{
-	  ssh_bpoly_mul(&P->y, &P->x, &t1);
-	  ssh_bpoly_mod(&P->y, &P->y, &E->q);
-	  break;
-	}
+        {
+          ssh_bpoly_mul(&P->y, &P->x, &t1);
+          ssh_bpoly_mod(&P->y, &P->y, &E->q);
+          break;
+        }
     }
 
   if (ec2n_check_values(P, E) == 0)
@@ -1101,7 +1101,7 @@ void ec2n_clear_context(EC2nContext *ctx)
 }
 
 void ec2n_internal_double(EC2nPoint *R, EC2nPoint *P, EC2nCurve *E,
-			  EC2nContext *ctx)
+                          EC2nContext *ctx)
 {
   /* Doubling a point */
   ssh_bpoly_invert(&ctx->t1, &P->x, &E->q);
@@ -1129,7 +1129,7 @@ void ec2n_internal_double(EC2nPoint *R, EC2nPoint *P, EC2nCurve *E,
 }  
 
 void ec2n_internal_add(EC2nPoint *R, EC2nPoint *P, EC2nPoint *Q, EC2nCurve *E,
-		       EC2nContext *ctx)
+                       EC2nContext *ctx)
 {
 
   /* Compute lambda */
@@ -1162,7 +1162,7 @@ void ec2n_internal_add(EC2nPoint *R, EC2nPoint *P, EC2nPoint *Q, EC2nCurve *E,
 }
      
 void ec2n_generic_add(EC2nPoint *R, EC2nPoint *P, EC2nPoint *Q, EC2nCurve *E,
-		      EC2nContext *ctx)
+                      EC2nContext *ctx)
 {
   if (P->z == 0)
     {
@@ -1182,10 +1182,10 @@ void ec2n_generic_add(EC2nPoint *R, EC2nPoint *P, EC2nPoint *Q, EC2nCurve *E,
   if (ssh_bpoly_cmp(&P->x, &Q->x) == 0)
     {
       if (ssh_bpoly_cmp(&P->y, &Q->y) != 0 || ssh_bpoly_cmp_ui(&P->x, 0) == 0)
-	{
-	  R->z = 0;
-	  return;
-	}
+        {
+          R->z = 0;
+          return;
+        }
 
       ec2n_internal_double(R, P, E, ctx);
       return;
@@ -1206,7 +1206,7 @@ void ec2n_add(EC2nPoint *R, EC2nPoint *P, EC2nPoint *Q, EC2nCurve *E)
 /* Generic multiplication. But then again, with GF(2^n) one can probably
    live with just the generic one? */
 void ec2n_mul(EC2nPoint *R, EC2nPoint *P, MP_INT *k,
-	      EC2nCurve *E)
+              EC2nCurve *E)
 {
   EC2nContext ctx;
   EC2nPoint T, H, I;
@@ -1247,12 +1247,12 @@ void ec2n_mul(EC2nPoint *R, EC2nPoint *P, MP_INT *k,
     {
       ec2n_generic_add(&T, &T, &T, E, &ctx);
       if (transform[i - 1])
-	{
-	  if (transform[i - 1] == -1)
-	    ec2n_generic_add(&T, &T, &I, E, &ctx);
-	  else
-	    ec2n_generic_add(&T, &T, &H, E, &ctx);
-	}
+        {
+          if (transform[i - 1] == -1)
+            ec2n_generic_add(&T, &T, &I, E, &ctx);
+          else
+            ec2n_generic_add(&T, &T, &H, E, &ctx);
+        }
     }
 
   ec2n_copy_point(R, &T);
@@ -1292,7 +1292,7 @@ void ec2n_frobenius(EC2nPoint *R, EC2nPoint *P, EC2nCurve *E)
 
 /* Frobenius multiplication as given by Volker Mueller. */
 void ec2n_mul_frobenius(EC2nPoint *R, EC2nPoint *P, MP_INT *k,
-			EC2nCurve *E)
+                        EC2nCurve *E)
 {
   EC2nContext ctx;
   EC2nPoint T, I;
@@ -1365,19 +1365,19 @@ void ec2n_mul_frobenius(EC2nPoint *R, EC2nPoint *P, MP_INT *k,
       mpz_abs(&n, &s1);
       mpz_abs(&h, &s2);
       if (mpz_cmp_ui(&n, q/2) <= 0 && 
-	  mpz_cmp_ui(&h, 1) <= 0)
-	break;
+          mpz_cmp_ui(&h, 1) <= 0)
+        break;
 
       mpz_mod_2exp(&n, &s1, E->f_q);
       /*printf(" n = ");
       mpz_out_str(NULL, 10, &n);
       printf("\n"); */
       if (mpz_cmp_ui(&n, 0) < 0)
-	mpz_add_ui(&n, &n, q);
+        mpz_add_ui(&n, &n, q);
       r[i] = mpz_get_si(&n);
       /*printf(" r[%d] = %d\n", i, r[i]); */
       if (r[i] > (int)q/2)
-	r[i] -= (int)q;
+        r[i] -= (int)q;
 
       mpz_set_si(&n, r[i]);
       /*printf(" n = ");
@@ -1413,16 +1413,16 @@ void ec2n_mul_frobenius(EC2nPoint *R, EC2nPoint *P, MP_INT *k,
   if (t != 0)
     {
       if (t < 0)
-	ec2n_negate_point(&T, &F[-t]);
+        ec2n_negate_point(&T, &F[-t]);
       else
-	ec2n_copy_point(&T, &F[t]);
+        ec2n_copy_point(&T, &F[t]);
     }
   t = mpz_get_si(&s2);
   if (t != 0)
     {
       ec2n_frobenius(&I, P, E);
       if (t < 0)
-	ec2n_negate_point(&I, &I);
+        ec2n_negate_point(&I, &I);
       ec2n_generic_add(&T, &T, &I, E, &ctx);
     }
     
@@ -1436,12 +1436,12 @@ void ec2n_mul_frobenius(EC2nPoint *R, EC2nPoint *P, MP_INT *k,
       ec2n_frobenius(&T, &T, E);
       t = r[i - 1];
       if (t < 0)
-	{
-	  ec2n_negate_point(&I, &F[-t]);
-	  ec2n_generic_add(&T, &T, &I, E, &ctx);
-	}
+        {
+          ec2n_negate_point(&I, &F[-t]);
+          ec2n_generic_add(&T, &T, &I, E, &ctx);
+        }
       else
-	ec2n_generic_add(&T, &T, &F[t], E, &ctx);
+        ec2n_generic_add(&T, &T, &F[t], E, &ctx);
     }
   /* printf("\n"); */
   
@@ -1482,7 +1482,7 @@ void ec2n_find_point_of_order(EC2nPoint *P, MP_INT *n, EC2nCurve *E)
       ec2n_find_point(&R, E);
       ec2n_mul(P, &R, &k, E);
       if (P->z != 0)
-	break;
+        break;
     }
   ec2n_mul(&R, P, n, E);
   if (R.z != 0)
@@ -1498,8 +1498,8 @@ void ec2n_find_point_of_order(EC2nPoint *P, MP_INT *n, EC2nCurve *E)
 
 /* This routine uses some polynomial routines. It might fail badly :) */
 int ec2n_extension_embedding(SshBPoly *r1, SshBPoly *r2,
-			     SshBPoly *e1, SshBPoly *e2,
-			     SshBPoly * p, SshBPoly * m)
+                             SshBPoly *e1, SshBPoly *e2,
+                             SshBPoly * p, SshBPoly * m)
 {
   SshGF2nPoly f, c, h, t;
   SshGF2nModuli gfm;
@@ -1532,20 +1532,20 @@ int ec2n_extension_embedding(SshBPoly *r1, SshBPoly *r2,
 
       /* Do a bit of looping. */
       for (i = 1; i < ssh_bpoly_deg(m) - 1; i++)
-	{
-	  ssh_gf2n_poly_square(&t, &c);
-	  /*printf(" t = ");
-	  ssh_gf2n_poly_print(&t); 
-	  printf("\n"); */
-	  ssh_gf2n_poly_mod(&c, &t, &f);
-	  /*printf(" c = ");
-	  ssh_gf2n_poly_print(&c);
-	  printf("\n"); */
-	  ssh_gf2n_poly_add(&c, &h);
-	  /*printf(" c = ");
-	  ssh_gf2n_poly_print(&c);
-	  printf("\n"); */
-	}
+        {
+          ssh_gf2n_poly_square(&t, &c);
+          /*printf(" t = ");
+          ssh_gf2n_poly_print(&t); 
+          printf("\n"); */
+          ssh_gf2n_poly_mod(&c, &t, &f);
+          /*printf(" c = ");
+          ssh_gf2n_poly_print(&c);
+          printf("\n"); */
+          ssh_gf2n_poly_add(&c, &h);
+          /*printf(" c = ");
+          ssh_gf2n_poly_print(&c);
+          printf("\n"); */
+        }
 
       /* Do some gcd computations. */
       ssh_gf2n_poly_gcd(&h, &c, &f);
@@ -1565,17 +1565,17 @@ int ec2n_extension_embedding(SshBPoly *r1, SshBPoly *r2,
       */
 
       if (ssh_gf2n_poly_deg(&h) <= 1 ||
-	  ssh_gf2n_poly_deg(&h) == ssh_gf2n_poly_deg(&f))
-	continue;
+          ssh_gf2n_poly_deg(&h) == ssh_gf2n_poly_deg(&f))
+        continue;
 
       if (2*(ssh_gf2n_poly_deg(&h) - 1) > (ssh_gf2n_poly_deg(&f) - 1))
-	{
-	  ssh_gf2n_poly_div(&t, &c, &f, &h);
-	  ssh_gf2n_poly_set(&f, &t);
-	  /* printf("div\n"); */
-	}
+        {
+          ssh_gf2n_poly_div(&t, &c, &f, &h);
+          ssh_gf2n_poly_set(&f, &t);
+          /* printf("div\n"); */
+        }
       else
-	ssh_gf2n_poly_set(&f, &h);
+        ssh_gf2n_poly_set(&f, &h);
 
       /*
       printf(" f = ");
@@ -1600,7 +1600,7 @@ int ec2n_extension_embedding(SshBPoly *r1, SshBPoly *r2,
   /* Get the constant. */
   ssh_gf2n_init(&gf_lambda, &gfm);
   ssh_gf2n_poly_getall(&f, SSH_GF2N_POLY_GF2N, 0,
-		       &gf_lambda, SSH_GF2N_POLY_END);
+                       &gf_lambda, SSH_GF2N_POLY_END);
 
   /* Verify that the root is really from correct polynomial. */
   ssh_gf2n_poly_set_zero(&h);
@@ -1638,9 +1638,9 @@ int ec2n_extension_embedding(SshBPoly *r1, SshBPoly *r2,
   for (i = 0; i < ssh_bpoly_deg(p) - 1; i++)
     {
       if (ssh_bpoly_get_bit(e1, i))
-	ssh_bpoly_add(&v, &v, &u);
+        ssh_bpoly_add(&v, &v, &u);
       if (ssh_bpoly_get_bit(e2, i))
-	ssh_bpoly_add(&tv, &tv, &u);
+        ssh_bpoly_add(&tv, &tv, &u);
       ssh_bpoly_mul(&u, &u, &lambda);
       ssh_bpoly_mod(&u, &u, m);
     }
@@ -1658,7 +1658,7 @@ int ec2n_extension_embedding(SshBPoly *r1, SshBPoly *r2,
 
 /* Here will be magic of generating curve over f_q and over f_q^k. */
 void ec2n_generate_curve(EC2nCurve *E, unsigned int n, unsigned int k,
-			 int *bits, int bits_count)
+                         int *bits, int bits_count)
 {
   unsigned int a, b, q;
   SshBPoly p, x, y;
@@ -1691,21 +1691,21 @@ void ec2n_generate_curve(EC2nCurve *E, unsigned int n, unsigned int k,
   for (a = (random() % (1 << n)); a < (1 << n); a++)
     for (b = 1; b < (1 << n); b++)
       {
-	printf(" a = %u b = %u\n", a, b);
+        printf(" a = %u b = %u\n", a, b);
 
-	/* Compute the order (actually the trace) of the given curve. */
-	E->f_q = n;
-	E->f_c = (1 << n) + 1 - ec2n_small_curve(q, a, b, n);
-	E->f_k = k;
-	E->f_n = k * n;
-	E->f_a = a;
-	E->f_b = b;
-	
-	printf("Curve over GF(%u) has trace %d.\n", (1 << E->f_q), E->f_c);
-	
-	/* Now extend this trace to E(GF(2^(n*k))). */
-	
-	ec2n_expand_trace(&E->c, E->f_c, n, k);
+        /* Compute the order (actually the trace) of the given curve. */
+        E->f_q = n;
+        E->f_c = (1 << n) + 1 - ec2n_small_curve(q, a, b, n);
+        E->f_k = k;
+        E->f_n = k * n;
+        E->f_a = a;
+        E->f_b = b;
+        
+        printf("Curve over GF(%u) has trace %d.\n", (1 << E->f_q), E->f_c);
+        
+        /* Now extend this trace to E(GF(2^(n*k))). */
+        
+        ec2n_expand_trace(&E->c, E->f_c, n, k);
       }
 #endif
 #if 1
@@ -1779,14 +1779,14 @@ void ec2n_generate_curve(EC2nCurve *E, unsigned int n, unsigned int k,
       ssh_bpoly_set_ui(&t, random());
       ssh_bpoly_trace(&x, &t, &E->q);
       if (ssh_bpoly_cmp_ui(&x, 1) == 0)
-	break;
+        break;
     }
 
   ssh_bpoly_add(&E->a, &E->a, &t);
 #endif
   
   printf("Curve over GF(2^%u) is\n"
-	 "E: y^2 + xy = x^2 + ", E->f_n);
+         "E: y^2 + xy = x^2 + ", E->f_n);
   ssh_bpoly_hex_dump(&E->a);
   printf("*x^2 + ");
   ssh_bpoly_hex_dump(&E->b);
@@ -1801,7 +1801,7 @@ void ec2n_generate_curve(EC2nCurve *E, unsigned int n, unsigned int k,
 }
 
 void test_ec2n(unsigned int n,
-	       int *bits, int bits_count)
+               int *bits, int bits_count)
 {
   EC2nCurve E;
   EC2nPoint P, Q, R, T;
@@ -1809,7 +1809,7 @@ void test_ec2n(unsigned int n,
   MP_INT t, large;
   
   printf("Generating a curve y^2 + xy = x^3 + ax^2 + b in GF(2^(%u*%u))\n",
-	 n, k);
+         n, k);
 
   ec2n_init_curve(&E);
 
@@ -1857,7 +1857,7 @@ void test_ec2n(unsigned int n,
       /* Compute with traditional simple methods. */
       /*ec2n_copy_point(&T, &P);
       for (j = 1; j < l; j++)
-	ec2n_add(&T, &T, &P, &E); */
+        ec2n_add(&T, &T, &P, &E); */
 
       /* printf("Computing %u*P.\n", l);*/
       mpz_set_ui(&t, l);
@@ -1866,22 +1866,22 @@ void test_ec2n(unsigned int n,
 
       /*
       if ((T.z == 1 && Q.z == 1 && (ssh_bpoly_cmp(&T.x, &Q.x) != 0 ||
-				    ssh_bpoly_cmp(&T.y, &Q.y) != 0))
-	  || (T.z != Q.z))
-	{
-	  printf("%u not exactly same (1).\n", i);
-	  printf("T = (");
-	  ssh_bpoly_hex_dump(&T.x);
-	  printf(", ");
-	  ssh_bpoly_hex_dump(&T.y);
-	  printf(")\n");
-	  printf("Q = (");
-	  ssh_bpoly_hex_dump(&Q.x);
-	  printf(", ");
-	  ssh_bpoly_hex_dump(&Q.y);
-	  printf(")\n");	  
-	}
-	*/
+                                    ssh_bpoly_cmp(&T.y, &Q.y) != 0))
+          || (T.z != Q.z))
+        {
+          printf("%u not exactly same (1).\n", i);
+          printf("T = (");
+          ssh_bpoly_hex_dump(&T.x);
+          printf(", ");
+          ssh_bpoly_hex_dump(&T.y);
+          printf(")\n");
+          printf("Q = (");
+          ssh_bpoly_hex_dump(&Q.x);
+          printf(", ");
+          ssh_bpoly_hex_dump(&Q.y);
+          printf(")\n");          
+        }
+        */
       
       /* This might not. */
       /* printf("Frobenius method.\n");*/
@@ -1889,21 +1889,21 @@ void test_ec2n(unsigned int n,
 
       /* printf("Checking..\n"); */
       if ((R.z == 1 && Q.z == 1 && (ssh_bpoly_cmp(&R.x, &Q.x) != 0 ||
-				    ssh_bpoly_cmp(&R.y, &Q.y) != 0))
-	  || (R.z != Q.z))
-	{
-	  printf("%u not exactly same (2).\n", i);
-	  printf("R = (");
-	  ssh_bpoly_hex_dump(&R.x);
-	  printf(", ");
-	  ssh_bpoly_hex_dump(&R.y);
-	  printf(")\n");
-	  printf("Q = (");
-	  ssh_bpoly_hex_dump(&Q.x);
-	  printf(", ");
-	  ssh_bpoly_hex_dump(&Q.y);
-	  printf(")\n");	  
-	}
+                                    ssh_bpoly_cmp(&R.y, &Q.y) != 0))
+          || (R.z != Q.z))
+        {
+          printf("%u not exactly same (2).\n", i);
+          printf("R = (");
+          ssh_bpoly_hex_dump(&R.x);
+          printf(", ");
+          ssh_bpoly_hex_dump(&R.y);
+          printf(")\n");
+          printf("Q = (");
+          ssh_bpoly_hex_dump(&Q.x);
+          printf(", ");
+          ssh_bpoly_hex_dump(&Q.y);
+          printf(")\n");          
+        }
     }
   
   mpz_clear(&t);
@@ -1918,7 +1918,7 @@ void test_ec2n(unsigned int n,
 
 #endif
 
-void testgf2n()
+void testgf2n(void)
 {
   SshBPoly a, b,c,m;
 
@@ -1963,7 +1963,7 @@ void testgf2n()
 }
 
 #if 1
-void testpoly()
+void testpoly(void)
 {
   SshBPoly a, b, c;
   SshGF2nPoly f, g, h, u, v;
@@ -1980,13 +1980,13 @@ void testpoly()
       printf(".");
       fflush(stdout);
       while (find_irreducible((random() % 200) + 96, bits, 5) == 0)
-	{
-	  printf("x");
-	  fflush(stdout);
-	}
+        {
+          printf("x");
+          fflush(stdout);
+        }
 
       if (ssh_gf2n_init_mod_bits(&m, bits, 5) == 0)
-	continue;
+        continue;
       ssh_gf2n_poly_init(&f, &m);
       ssh_gf2n_poly_init(&h, &m);
       ssh_gf2n_poly_init(&u, &m);
@@ -1996,94 +1996,94 @@ void testpoly()
       ssh_gf2n_poly_random(&f, random() % 20);
       ssh_gf2n_poly_random(&g, random() % 20);
       if (ssh_gf2n_poly_is_zero(&f) ||
-	  ssh_gf2n_poly_is_zero(&g))
-	goto next;
+          ssh_gf2n_poly_is_zero(&g))
+        goto next;
 
       ssh_gf2n_poly_mul(&h, &f, &g);
 
       ssh_gf2n_poly_div(&u, &v, &h, &f);
       if (ssh_gf2n_poly_cmp(&u, &g) != 0)
-	{
-	  printf("DIV f not correct.\n");
-	  printf(" f(x) = ");
-	  ssh_gf2n_poly_print(&f);
-	  printf("\n g(x) = ");
-	  ssh_gf2n_poly_print(&g);
-	  printf("\n h(x) = ");
-	  ssh_gf2n_poly_print(&h);
-	  printf("\n u(x) = ");
-	  ssh_gf2n_poly_print(&u);
-	  printf("\n v(x) = ");
-	  ssh_gf2n_poly_print(&v);
-	  printf("\n");
-	  
-	}
+        {
+          printf("DIV f not correct.\n");
+          printf(" f(x) = ");
+          ssh_gf2n_poly_print(&f);
+          printf("\n g(x) = ");
+          ssh_gf2n_poly_print(&g);
+          printf("\n h(x) = ");
+          ssh_gf2n_poly_print(&h);
+          printf("\n u(x) = ");
+          ssh_gf2n_poly_print(&u);
+          printf("\n v(x) = ");
+          ssh_gf2n_poly_print(&v);
+          printf("\n");
+          
+        }
 
       ssh_gf2n_poly_div(&u, &v, &h, &g);
       if (ssh_gf2n_poly_cmp(&u, &f) != 0)
-	{
-	  printf("DIV g not correct.\n");
-	  printf(" f(x) = ");
-	  ssh_gf2n_poly_print(&f);
-	  printf("\n g(x) = ");
-	  ssh_gf2n_poly_print(&g);
-	  printf("\n h(x) = ");
-	  ssh_gf2n_poly_print(&h);
-	  printf("\n u(x) = ");
-	  ssh_gf2n_poly_print(&u);
-	  printf("\n v(x) = ");
-	  ssh_gf2n_poly_print(&v);
-	  printf("\n");
-	  
-	}
+        {
+          printf("DIV g not correct.\n");
+          printf(" f(x) = ");
+          ssh_gf2n_poly_print(&f);
+          printf("\n g(x) = ");
+          ssh_gf2n_poly_print(&g);
+          printf("\n h(x) = ");
+          ssh_gf2n_poly_print(&h);
+          printf("\n u(x) = ");
+          ssh_gf2n_poly_print(&u);
+          printf("\n v(x) = ");
+          ssh_gf2n_poly_print(&v);
+          printf("\n");
+          
+        }
 
       ssh_gf2n_poly_gcd(&u, &h, &f);
       ssh_gf2n_poly_gcd(&v, &h, &g);
 
       if (ssh_gf2n_poly_cmp(&v, &g) != 0 ||
-	  ssh_gf2n_poly_cmp(&u, &f) != 0)
-	{
-	  printf("GCD not correct.\n");
-	  printf(" f(x) = ");
-	  ssh_gf2n_poly_print(&f);
-	  printf("\n g(x) = ");
-	  ssh_gf2n_poly_print(&g);
-	  printf("\n h(x) = ");
-	  ssh_gf2n_poly_print(&h);
-	  printf("\n u(x) = ");
-	  ssh_gf2n_poly_print(&u);
-	  printf("\n v(x) = ");
-	  ssh_gf2n_poly_print(&v);
-	  printf("\n");
-	}
+          ssh_gf2n_poly_cmp(&u, &f) != 0)
+        {
+          printf("GCD not correct.\n");
+          printf(" f(x) = ");
+          ssh_gf2n_poly_print(&f);
+          printf("\n g(x) = ");
+          ssh_gf2n_poly_print(&g);
+          printf("\n h(x) = ");
+          ssh_gf2n_poly_print(&h);
+          printf("\n u(x) = ");
+          ssh_gf2n_poly_print(&u);
+          printf("\n v(x) = ");
+          ssh_gf2n_poly_print(&v);
+          printf("\n");
+        }
 
       ssh_gf2n_poly_gcd(&u, &f, &g);
       ssh_gf2n_poly_set_zero(&h);
       ssh_gf2n_poly_setall(&h, SSH_GF2N_POLY_UI, 0, 1, SSH_GF2N_POLY_END);
       if (ssh_gf2n_poly_cmp(&u, &h) == 0)
-	{
-	  ssh_gf2n_poly_invert(&u, &f, &g);
-	  ssh_gf2n_poly_mul(&v, &f, &u);
-	  ssh_gf2n_poly_mod(&v, &v, &g);
-	  
-	  ssh_gf2n_poly_set_zero(&h);
-	  ssh_gf2n_poly_setall(&h, SSH_GF2N_POLY_UI, 0, 1, SSH_GF2N_POLY_END);
-	  if (ssh_gf2n_poly_cmp(&v, &h) != 0)
-	    {
-	      printf("INVERSION not correct.\n");
-	      printf(" f(x) = ");
-	      ssh_gf2n_poly_print(&f);
-	      printf("\n g(x) = ");
-	      ssh_gf2n_poly_print(&g);
-	      printf("\n h(x) = ");
-	      ssh_gf2n_poly_print(&h);
-	      printf("\n u(x) = ");
-	      ssh_gf2n_poly_print(&u);
-	      printf("\n v(x) = ");
-	      ssh_gf2n_poly_print(&v);
-	      printf("\n");
-	    }
-	}
+        {
+          ssh_gf2n_poly_invert(&u, &f, &g);
+          ssh_gf2n_poly_mul(&v, &f, &u);
+          ssh_gf2n_poly_mod(&v, &v, &g);
+          
+          ssh_gf2n_poly_set_zero(&h);
+          ssh_gf2n_poly_setall(&h, SSH_GF2N_POLY_UI, 0, 1, SSH_GF2N_POLY_END);
+          if (ssh_gf2n_poly_cmp(&v, &h) != 0)
+            {
+              printf("INVERSION not correct.\n");
+              printf(" f(x) = ");
+              ssh_gf2n_poly_print(&f);
+              printf("\n g(x) = ");
+              ssh_gf2n_poly_print(&g);
+              printf("\n h(x) = ");
+              ssh_gf2n_poly_print(&h);
+              printf("\n u(x) = ");
+              ssh_gf2n_poly_print(&u);
+              printf("\n v(x) = ");
+              ssh_gf2n_poly_print(&v);
+              printf("\n");
+            }
+        }
 
     next:
       
@@ -2118,14 +2118,14 @@ void test_gf2n(void)
       fflush(stdout);
 
       while (find_irreducible((random() % 200) + 96, bits, 5) == 0)
-	{
-	  printf("x");
-	  fflush(stdout);
-	}
+        {
+          printf("x");
+          fflush(stdout);
+        }
 
       /* printf(" x^%u + x^%u + 1\n", n1, n0); */
       if (ssh_gf2n_init_mod_bits(&gm, bits, 5) == 0)
-	continue;
+        continue;
 
       ssh_gf2n_init(&ga, &gm);
       ssh_gf2n_init(&gb, &gm);
@@ -2141,108 +2141,108 @@ void test_gf2n(void)
 
       /* Now do some tricks. */
       for (j = 0; j < 100; j++)
-	{
-	  /* Multiplication tests. */
-	  ssh_gf2n_poor_rand(&ga);
-	  ssh_gf2n_poor_rand(&gb);
+        {
+          /* Multiplication tests. */
+          ssh_gf2n_poor_rand(&ga);
+          ssh_gf2n_poor_rand(&gb);
 
-	  ssh_bpoly_set_gf2n(&ba, &ga);
-	  ssh_bpoly_set_gf2n(&bb, &gb);
+          ssh_bpoly_set_gf2n(&ba, &ga);
+          ssh_bpoly_set_gf2n(&bb, &gb);
 
-	  ssh_gf2n_mul(&gc, &ga, &gb);
-	  ssh_bpoly_mul(&bc, &ba, &bb);
-	  ssh_bpoly_mod(&bc, &bc, &bm);
+          ssh_gf2n_mul(&gc, &ga, &gb);
+          ssh_bpoly_mul(&bc, &ba, &bb);
+          ssh_bpoly_mod(&bc, &bc, &bm);
 
-	  ssh_bpoly_set_gf2n(&r, &gc);
-	  if (ssh_bpoly_cmp(&r, &bc) != 0)
-	    {
-	      printf("error: multiplication!\n");
-	      printf(" ga = ");
-	      ssh_gf2n_hex_dump(&ga);
-	      printf("\n");
-	      printf(" ba = ");
-	      ssh_bpoly_hex_dump(&ba);
-	      printf("\n");
-	      printf(" gb = ");
-	      ssh_gf2n_hex_dump(&gb);
-	      printf("\n");
-	      printf(" bb = ");
-	      ssh_bpoly_hex_dump(&bb);
-	      printf("\n");
-	      printf(" gc = ");
-	      ssh_gf2n_hex_dump(&gc);
-	      printf("\n");
-	      printf(" bc = ");
-	      ssh_bpoly_hex_dump(&bc);
-	      printf("\n");
-	      abort();
-	    }
+          ssh_bpoly_set_gf2n(&r, &gc);
+          if (ssh_bpoly_cmp(&r, &bc) != 0)
+            {
+              printf("error: multiplication!\n");
+              printf(" ga = ");
+              ssh_gf2n_hex_dump(&ga);
+              printf("\n");
+              printf(" ba = ");
+              ssh_bpoly_hex_dump(&ba);
+              printf("\n");
+              printf(" gb = ");
+              ssh_gf2n_hex_dump(&gb);
+              printf("\n");
+              printf(" bb = ");
+              ssh_bpoly_hex_dump(&bb);
+              printf("\n");
+              printf(" gc = ");
+              ssh_gf2n_hex_dump(&gc);
+              printf("\n");
+              printf(" bc = ");
+              ssh_bpoly_hex_dump(&bc);
+              printf("\n");
+              abort();
+            }
 
-	  /* Squaring tests. */
-	  ssh_gf2n_poor_rand(&ga);
+          /* Squaring tests. */
+          ssh_gf2n_poor_rand(&ga);
 
-	  ssh_bpoly_set_gf2n(&ba, &ga);
+          ssh_bpoly_set_gf2n(&ba, &ga);
 
-	  ssh_gf2n_square(&gc, &ga);
-	  ssh_bpoly_square(&bc, &ba);
-	  ssh_bpoly_mod(&bc, &bc, &bm);
+          ssh_gf2n_square(&gc, &ga);
+          ssh_bpoly_square(&bc, &ba);
+          ssh_bpoly_mod(&bc, &bc, &bm);
 
-	  ssh_bpoly_set_gf2n(&r, &gc);
-	  if (ssh_bpoly_cmp(&r, &bc) != 0)
-	    {
-	      printf("error: squaring!\n");
-	      printf(" ga = ");
-	      ssh_gf2n_hex_dump(&ga);
-	      printf("\n");
-	      printf(" ba = ");
-	      ssh_bpoly_hex_dump(&ba);
-	      printf("\n");
-	      printf(" gc = ");
-	      ssh_gf2n_hex_dump(&gc);
-	      printf("\n");
-	      printf(" bc = ");
-	      ssh_bpoly_hex_dump(&bc);
-	      printf("\n");
-	      abort();
-	    }
+          ssh_bpoly_set_gf2n(&r, &gc);
+          if (ssh_bpoly_cmp(&r, &bc) != 0)
+            {
+              printf("error: squaring!\n");
+              printf(" ga = ");
+              ssh_gf2n_hex_dump(&ga);
+              printf("\n");
+              printf(" ba = ");
+              ssh_bpoly_hex_dump(&ba);
+              printf("\n");
+              printf(" gc = ");
+              ssh_gf2n_hex_dump(&gc);
+              printf("\n");
+              printf(" bc = ");
+              ssh_bpoly_hex_dump(&bc);
+              printf("\n");
+              abort();
+            }
 
-	  /* Inversion tests. */
-	  ssh_gf2n_poor_rand(&ga);
+          /* Inversion tests. */
+          ssh_gf2n_poor_rand(&ga);
 
-	  ssh_bpoly_set_gf2n(&ba, &ga);
+          ssh_bpoly_set_gf2n(&ba, &ga);
 
-	  ssh_bpoly_invert(&bc, &ba, &bm);
-	  /*printf(" a = ");
-	  ssh_bpoly_hex_dump(&ba);
-	  printf("\n c = ");
-	  ssh_bpoly_hex_dump(&bc);
-	  printf("\n");*/
-	  
-	  ssh_gf2n_invert(&gc, &ga);
+          ssh_bpoly_invert(&bc, &ba, &bm);
+          /*printf(" a = ");
+          ssh_bpoly_hex_dump(&ba);
+          printf("\n c = ");
+          ssh_bpoly_hex_dump(&bc);
+          printf("\n");*/
+          
+          ssh_gf2n_invert(&gc, &ga);
 
-	  ssh_gf2n_mul(&gb, &gc, &ga);
-	  if (ssh_gf2n_cmp_ui(&gb, 1) != 0)
-	    printf("error: not correct inversion in gf2n.\n");
+          ssh_gf2n_mul(&gb, &gc, &ga);
+          if (ssh_gf2n_cmp_ui(&gb, 1) != 0)
+            printf("error: not correct inversion in gf2n.\n");
 
-	  ssh_bpoly_set_gf2n(&r, &gc);
-	  if (ssh_bpoly_cmp(&r, &bc) != 0)
-	    {
-	      printf("error: inversion!\n");
-	      printf(" ga = ");
-	      ssh_gf2n_hex_dump(&ga);
-	      printf("\n");
-	      printf(" ba = ");
-	      ssh_bpoly_hex_dump(&ba);
-	      printf("\n");
-	      printf(" gc = ");
-	      ssh_gf2n_hex_dump(&gc);
-	      printf("\n");
-	      printf(" bc = ");
-	      ssh_bpoly_hex_dump(&bc);
-	      printf("\n");
-	      abort();
-	    }
-	}
+          ssh_bpoly_set_gf2n(&r, &gc);
+          if (ssh_bpoly_cmp(&r, &bc) != 0)
+            {
+              printf("error: inversion!\n");
+              printf(" ga = ");
+              ssh_gf2n_hex_dump(&ga);
+              printf("\n");
+              printf(" ba = ");
+              ssh_bpoly_hex_dump(&ba);
+              printf("\n");
+              printf(" gc = ");
+              ssh_gf2n_hex_dump(&gc);
+              printf("\n");
+              printf(" bc = ");
+              ssh_bpoly_hex_dump(&bc);
+              printf("\n");
+              abort();
+            }
+        }
 
       ssh_gf2n_clear(&ga);
       ssh_gf2n_clear(&gb);
@@ -2278,7 +2278,7 @@ int main(int ac, char *av[])
   /*testgf2n();
   find_irreducible_trinomial(177, &t0, &t1);
   printf("Trinomial found: x^%u + x^%u + 1\n",
-	 t1, t0); */
+         t1, t0); */
   /*find_ip(16); */
   
   /*

@@ -10,7 +10,7 @@
 
   Copyright (C) 1997-1998 SSH Communications Security Oy, Espoo, Finland
   All rights reserved.
-		  
+                  
   Public key authentication, server-side.
 
 */
@@ -40,14 +40,14 @@
    use a local database or the certificates to determine authorization. */
 
 Boolean ssh_server_auth_pubkey_verify(SshUser uc, char *remote_ip,
-				      unsigned char *certs,
-				      size_t certs_len, 
-				      unsigned char *sig,
-				      size_t sig_len,
-				      const unsigned char *session_id,
-				      size_t session_id_len,
-				      SshServer server,
-				      Boolean check_signatures,
+                                      unsigned char *certs,
+                                      size_t certs_len, 
+                                      unsigned char *sig,
+                                      size_t sig_len,
+                                      const unsigned char *session_id,
+                                      size_t session_id_len,
+                                      SshServer server,
+                                      Boolean check_signatures,
                                       void * context)
 {
   unsigned char *tblob;
@@ -61,7 +61,7 @@ Boolean ssh_server_auth_pubkey_verify(SshUser uc, char *remote_ip,
   char *userdir, **vars = NULL, **vals = NULL;
   
   userfile_init(ssh_user_name(uc), ssh_user_uid(uc), ssh_user_gid(uc),
-		NULL, NULL);
+                NULL, NULL);
 
 #else /* SSHDIST_WINDOWS */
 
@@ -74,7 +74,7 @@ Boolean ssh_server_auth_pubkey_verify(SshUser uc, char *remote_ip,
 #endif /* SSHDIST_WINDOWS */
 
   SSH_DEBUG(6, ("auth_pubkey_verify user = %s  check_sig = %s",
-		ssh_user_name(uc), check_signatures ? "yes" : "no"));
+                ssh_user_name(uc), check_signatures ? "yes" : "no"));
 
   /* open and read the user's authorization file */
 
@@ -87,52 +87,52 @@ Boolean ssh_server_auth_pubkey_verify(SshUser uc, char *remote_ip,
 
 
   snprintf(filen, sizeof(filen), "%s/%s", userdir,
-	   server == NULL || server->common == NULL || 
-	   server->common->config == NULL || 
-	   server->common->config->authorization_file == NULL ?
-	   SSH_AUTHORIZATION_FILE : 
-	   server->common->config->authorization_file);
+           server == NULL || server->common == NULL || 
+           server->common->config == NULL || 
+           server->common->config->authorization_file == NULL ?
+           SSH_AUTHORIZATION_FILE : 
+           server->common->config->authorization_file);
 
   n = ssh2_parse_config(uc, remote_ip ? remote_ip : "",
-			filen, &vars, &vals, NULL);
+                        filen, &vars, &vals, NULL);
 
   /* now see if we find matching "key" - definitions */
 
   for (i = 0; i < n; i++)
     { 
       if (strcmp(vars[i], "key") == 0)
-	{
-	  snprintf(filen, sizeof(filen), "%s/%s", userdir,
-		   vals[i]);
-	  SSH_DEBUG(6, ("auth_pubkey_verify: key %d, %s", i, filen));
-	  tblob = NULL;
-	  if (ssh_key_blob_read(uc, filen, NULL, &tblob, &tbloblen, NULL) 
-	      != SSH_KEY_MAGIC_PUBLIC)
-	    {
-	      if (tblob != NULL)
- 		ssh_xfree(tblob);
-	      ssh_debug("unable to read the %s's public key %s",
-			ssh_user_name(uc), filen); 
-	    }
-	  else 
-	    {
-	      if (tbloblen == certs_len)
-		if (memcmp(certs, tblob, tbloblen) == 0)
-		  {
-		    if(check_signatures)
-		      {
-			if (i + 1 < n && strcmp(vars[i + 1], FORCED_COMMAND_ID) == 0)
-			  {
-			    server->common->config->forced_command = 
-			      ssh_xstrdup(vals[i + 1]);
-			  }
-		      }
-		    ssh_xfree(tblob);		    
-		    goto match;
-		  }
-	      ssh_xfree(tblob);
-	    }
-	}    
+        {
+          snprintf(filen, sizeof(filen), "%s/%s", userdir,
+                   vals[i]);
+          SSH_DEBUG(6, ("auth_pubkey_verify: key %d, %s", i, filen));
+          tblob = NULL;
+          if (ssh_key_blob_read(uc, filen, NULL, &tblob, &tbloblen, NULL) 
+              != SSH_KEY_MAGIC_PUBLIC)
+            {
+              if (tblob != NULL)
+                ssh_xfree(tblob);
+              ssh_debug("unable to read the %s's public key %s",
+                        ssh_user_name(uc), filen); 
+            }
+          else 
+            {
+              if (tbloblen == certs_len)
+                if (memcmp(certs, tblob, tbloblen) == 0)
+                  {
+                    if(check_signatures)
+                      {
+                        if (i + 1 < n && strcmp(vars[i + 1], FORCED_COMMAND_ID) == 0)
+                          {
+                            server->common->config->forced_command = 
+                              ssh_xstrdup(vals[i + 1]);
+                          }
+                      }
+                    ssh_xfree(tblob);               
+                    goto match;
+                  }
+              ssh_xfree(tblob);
+            }
+        }    
     }
 #else /* SSHDIST_WINDOWS */
 
@@ -216,23 +216,23 @@ match:
   ssh_encode_buffer(buf,
                     SSH_FORMAT_CHAR, SSH_MSG_USERAUTH_REQUEST,
                     SSH_FORMAT_UINT32_STR, ssh_user_name(uc),
-		    strlen(ssh_user_name(uc)),
+                    strlen(ssh_user_name(uc)),
                     SSH_FORMAT_UINT32_STR, SSH_USERAUTH_SERVICE,
-		    strlen(SSH_USERAUTH_SERVICE),
+                    strlen(SSH_USERAUTH_SERVICE),
                     SSH_FORMAT_BOOLEAN, TRUE,
                     SSH_FORMAT_UINT32_STR, certs, tbloblen,
-		    SSH_FORMAT_END);
+                    SSH_FORMAT_END);
 
   SSH_DEBUG_HEXDUMP(7, ("auth_pubkey_verify: verifying following data"),
-		    ssh_buffer_ptr(buf), ssh_buffer_len(buf));
+                    ssh_buffer_ptr(buf), ssh_buffer_len(buf));
   SSH_DEBUG_HEXDUMP(7, ("auth_pubkey_verify: signature"), sig, sig_len);
 
   /* verify the signature */
 
   sig_ok = ssh_public_key_verify_signature(pubkey,
-					   sig, sig_len,
-					   ssh_buffer_ptr(buf),
-					   ssh_buffer_len(buf));   
+                                           sig, sig_len,
+                                           ssh_buffer_ptr(buf),
+                                           ssh_buffer_len(buf));   
   ssh_public_key_free(pubkey);
   ssh_buffer_free(buf);
 
@@ -266,13 +266,13 @@ exit_false:
    as authentication. */
 
 SshAuthServerResult ssh_server_auth_pubkey(SshAuthServerOperation op,
-					   const char *user,
-					   SshBuffer *packet,
-					   const unsigned char *session_id,
-					   size_t session_id_len,
-					   void **state_placeholder,
-					   void **longtime_placeholder,
-					   void *method_context)
+                                           const char *user,
+                                           SshBuffer *packet,
+                                           const unsigned char *session_id,
+                                           size_t session_id_len,
+                                           void **state_placeholder,
+                                           void **longtime_placeholder,
+                                           void *method_context)
 {
   SshUser uc = (SshUser)*longtime_placeholder;
   unsigned char *certs, *data, *sig;
@@ -289,23 +289,38 @@ SshAuthServerResult ssh_server_auth_pubkey(SshAuthServerOperation op,
     case SSH_AUTH_SERVER_OP_START:
       /* If user context not yet allocated, do it now. */
       if (uc == NULL)
-	{
-	  uc = ssh_user_initialize(user, TRUE);
-	  *longtime_placeholder = (void *)uc;
-	}
+        {
+          uc = ssh_user_initialize(user, TRUE);
+          *longtime_placeholder = (void *)uc;
+        }
 
+      /* If publickey authentication is denied in the configuration
+         file, deny it here too. */
+      if (server->config->pubkey_authentication == FALSE )
+        {
+          ssh_warning("Publickey authentication denied. (user '%s' not"
+                      " allowed to log in)", ssh_user_name(uc));
+          ssh_log_event(SSH_LOGFACILITY_SECURITY, SSH_LOG_NOTICE,
+                        "Publickey authentication denied. (user '%s' not"
+                        " allowed to log in)", ssh_user_name(uc));
+          /* XXX should be
+             SSH_AUTH_SERVER_REJECTED_AND_METHOD_DISABLED, but that
+             disconnects (incorrectly so) now */
+          return SSH_AUTH_SERVER_REJECTED;            
+        }
+      
       /* If user context allocation failed, the user probably does not 
-	 exist. */
-
+         exist. */
+      
       if (!uc)
-	return SSH_AUTH_SERVER_REJECTED;
+        return SSH_AUTH_SERVER_REJECTED;
 
       /* Reject the login if the user is not allowed to log in. */
       if (!ssh_user_login_is_allowed(uc))
-	{
-	  ssh_debug("ssh_server_auth_pubkey: login by '%s' not allowed.");
-	  return SSH_AUTH_SERVER_REJECTED;
-	}
+        {
+          ssh_debug("ssh_server_auth_pubkey: login by '%s' not allowed.");
+          return SSH_AUTH_SERVER_REJECTED;
+        }
       
       /* Parse the publickey authentication request. */
 
@@ -315,80 +330,80 @@ SshAuthServerResult ssh_server_auth_pubkey(SshAuthServerOperation op,
       sig_len = 0;
 
       bytes = ssh_decode_array(data, len,
-			       SSH_FORMAT_BOOLEAN, &real_request,
-			       SSH_FORMAT_UINT32_STR_NOCOPY,
-			       &certs, &certs_len,
-			       SSH_FORMAT_END);
+                               SSH_FORMAT_BOOLEAN, &real_request,
+                               SSH_FORMAT_UINT32_STR_NOCOPY,
+                               &certs, &certs_len,
+                               SSH_FORMAT_END);
       if (bytes == 0 || (!real_request && bytes != len))
-	{
-	  ssh_debug("ssh_server_auth_pubkey: bad packet");
-	  return SSH_AUTH_SERVER_REJECTED;
-	}
+        {
+          ssh_debug("ssh_server_auth_pubkey: bad packet");
+          return SSH_AUTH_SERVER_REJECTED;
+        }
 
       if (real_request)
-	{
-	  if (ssh_decode_array(data + bytes, len - bytes,
-			       SSH_FORMAT_UINT32_STR, &sig, &sig_len,
-			       SSH_FORMAT_END) != len - bytes)
-	    {
-	      ssh_debug("ssh_server_auth_pubkey: bad packet (real request)");
-	      return SSH_AUTH_SERVER_REJECTED;
-	    }
-	}
+        {
+          if (ssh_decode_array(data + bytes, len - bytes,
+                               SSH_FORMAT_UINT32_STR, &sig, &sig_len,
+                               SSH_FORMAT_END) != len - bytes)
+            {
+              ssh_debug("ssh_server_auth_pubkey: bad packet (real request)");
+              return SSH_AUTH_SERVER_REJECTED;
+            }
+        }
       
       /* Check whether the key is authorized for login as the specified
-	 user.  If real_request if FALSE, this does not need to verify
-	 signatures on certificates as the result is only advisory. */
+         user.  If real_request if FALSE, this does not need to verify
+         signatures on certificates as the result is only advisory. */
       if (ssh_server_auth_pubkey_verify(uc, server->common->remote_ip,
-					certs, certs_len, 
-					sig, sig_len,
-					session_id, session_id_len,
-					server,
-					real_request, 
-					server->config->callback_context) == FALSE)
-	{
-	  if (sig != NULL)
-	    ssh_xfree(sig);
-	  SSH_DEBUG(6, ("auth_pubkey_verify returned false"));
-	  return SSH_AUTH_SERVER_REJECTED;
-	}
+                                        certs, certs_len, 
+                                        sig, sig_len,
+                                        session_id, session_id_len,
+                                        server,
+                                        real_request, 
+                                        server->config->callback_context) == FALSE)
+        {
+          if (sig != NULL)
+            ssh_xfree(sig);
+          SSH_DEBUG(6, ("auth_pubkey_verify returned false"));
+          return SSH_AUTH_SERVER_REJECTED;
+        }
       
       if (real_request)
-	{	  
-	  /* Free the signature blob. */
-	  ssh_xfree(sig);
+        {         
+          /* Free the signature blob. */
+          ssh_xfree(sig);
 
-	  /* Check for root login and forced commands */
+          /* Check for root login and forced commands */
 #ifndef SSHDIST_WINDOWS
           if(ssh_user_uid(uc) == SSH_UID_ROOT &&
-	     server->config->permit_root_login == FALSE)
-	    {
-	      if(!server->config->forced_command)
-		{ 
-		  /* XXX These should be logged, but where? */
-		  ssh_debug("ssh_server_auth_pubkey: root logins"
-			    " are not permitted.");
-		  return SSH_AUTH_SERVER_REJECTED_AND_METHOD_DISABLED;
-		}
-	      else
-		{
-		  ssh_debug("Root login accepted for forced command.");
-		}
-	    }
+             server->config->permit_root_login == FALSE)
+            {
+              if(!server->config->forced_command)
+                { 
+                  /* XXX These should be logged, but where? */
+                  ssh_debug("ssh_server_auth_pubkey: root logins"
+                            " are not permitted.");
+                  return SSH_AUTH_SERVER_REJECTED_AND_METHOD_DISABLED;
+                }
+              else
+                {
+                  ssh_debug("Root login accepted for forced command.");
+                }
+            }
 #endif /* SSHDIST_WINDOWS */
 
-	  /* Because it is an real request, and it has been verified, the
-	     authorization is granted. */
-	  return SSH_AUTH_SERVER_ACCEPTED;
-	}
+          /* Because it is an real request, and it has been verified, the
+             authorization is granted. */
+          return SSH_AUTH_SERVER_ACCEPTED;
+        }
 
       /* It was just a probe request, return status now. */
       
       ssh_buffer_clear(packet);
-      ssh_encode_buffer(packet,			   
-			SSH_FORMAT_CHAR, SSH_MSG_USERAUTH_PK_OK,
-			SSH_FORMAT_UINT32_STR, certs, certs_len,
-			SSH_FORMAT_END);
+      ssh_encode_buffer(packet,                    
+                        SSH_FORMAT_CHAR, SSH_MSG_USERAUTH_PK_OK,
+                        SSH_FORMAT_UINT32_STR, certs, certs_len,
+                        SSH_FORMAT_END);
       return SSH_AUTH_SERVER_REJECTED_WITH_PACKET_BACK;
 
     case SSH_AUTH_SERVER_OP_ABORT:
@@ -401,10 +416,10 @@ SshAuthServerResult ssh_server_auth_pubkey(SshAuthServerOperation op,
     case SSH_AUTH_SERVER_OP_UNDO_LONGTIME:
     case SSH_AUTH_SERVER_OP_CLEAR_LONGTIME:
       if (uc != NULL)
-	{
-	  if (!ssh_user_free(uc, op == SSH_AUTH_SERVER_OP_UNDO_LONGTIME))
-	    ssh_fatal("ssh_server_auth_pubkey: undo failed XXX");
-	}
+        {
+          if (!ssh_user_free(uc, op == SSH_AUTH_SERVER_OP_UNDO_LONGTIME))
+            ssh_fatal("ssh_server_auth_pubkey: undo failed XXX");
+        }
       *longtime_placeholder = NULL;
       return SSH_AUTH_SERVER_REJECTED;
       

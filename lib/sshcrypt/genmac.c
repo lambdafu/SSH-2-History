@@ -14,7 +14,7 @@
   */
 
 /*
- * $Id: genmac.c,v 1.23 1998/06/04 02:58:24 kivinen Exp $
+ * $Id: genmac.c,v 1.27 1998/10/13 21:07:38 kivinen Exp $
  * $Log: genmac.c,v $
  * $EndLog$
  */
@@ -36,6 +36,15 @@
 #ifdef SSHDIST_CRYPT_SHA
 #include "sha.h"
 #endif /* SSHDIST_CRYPT_SHA */
+#ifdef SSHDIST_CRYPT_RIPEMD160
+#include "ripemd160.h"
+#endif /* SSHDIST_CRYPT_RIPEMD160 */
+#ifdef SSHDIST_CRYPT_RIPEMD128
+
+#endif /* SSHDIST_CRYPT_RIPEMD128 */
+#ifdef SSHDIST_CRYPT_TIGER
+
+#endif /* SSHDIST_CRYPT_TIGER */
 
 /* Control structure. */
   
@@ -66,6 +75,62 @@ static const SshMacDef ssh_mac_algorithms[] =
     ssh_hmac_start, ssh_hmac_update, ssh_hmac_96_final,
     ssh_hmac_96_of_buffer },
 #endif /* SSHDIST_CRYPT_SHA */
+#ifdef SSHDIST_CRYPT_RIPEMD160
+  { "hmac-ripemd160", 20, FALSE,
+    &ssh_hash_ripemd160_def,
+    ssh_hmac_ctxsize, ssh_hmac_init,
+    ssh_hmac_start, ssh_hmac_update, ssh_hmac_final,
+    ssh_hmac_of_buffer },
+  { "hmac-ripemd160-96", 12, FALSE,
+    &ssh_hash_ripemd160_def,
+    ssh_hmac_ctxsize, ssh_hmac_init,
+    ssh_hmac_start, ssh_hmac_update, ssh_hmac_96_final,
+    ssh_hmac_96_of_buffer },
+#endif /* SSHDIST_CRYPT_RIPEMD160 */
+#ifdef SSHDIST_CRYPT_RIPEMD128
+
+
+
+
+
+
+
+
+
+
+#endif /* SSHDIST_CRYPT_RIPEMD128 */
+#ifdef SSHDIST_CRYPT_TIGER
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#endif /* SSHDIST_CRYPT_TIGER */
 #endif /* SSHDIST_CRYPT_HMAC */
 #ifdef SSHDIST_CRYPT_SSHMACS
 #ifdef SSHDIST_CRYPT_SHA
@@ -92,6 +157,47 @@ static const SshMacDef ssh_mac_algorithms[] =
     ssh_kdk_mac_start, ssh_kdk_mac_update, ssh_kdk_mac_final,
     ssh_kdk_mac_of_buffer },
 #endif /* SSHDIST_CRYPT_MD5 */
+#ifdef SSHDIST_CRYPT_RIPEMD160
+  { "ripemd160-8", 8, TRUE,
+    &ssh_hash_ripemd160_def,
+    ssh_kdk_mac_ctxsize, ssh_kdk_mac_init,
+    ssh_kdk_mac_start, ssh_kdk_mac_update, ssh_kdk_mac_64_final,
+    ssh_kdk_mac_64_of_buffer },
+  { "ripemd160", 20, TRUE,
+    &ssh_hash_ripemd160_def,
+    ssh_kdk_mac_ctxsize, ssh_kdk_mac_init,
+    ssh_kdk_mac_start, ssh_kdk_mac_update, ssh_kdk_mac_final,
+    ssh_kdk_mac_of_buffer },
+#endif /* SSHDIST_CRYPT_RIPEMD160 */
+#ifdef SSHDIST_CRYPT_RIPEMD128
+
+
+
+
+
+
+
+
+
+
+#endif /* SSHDIST_CRYPT_RIPEMD128 */
+#ifdef SSHDIST_CRYPT_TIGER
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#endif /* SSHDIST_CRYPT_TIGER */
 #endif /* SSHDIST_CRYPT_SSHMACS */
   { "none", 0, FALSE, NULL },
   { NULL }
@@ -118,9 +224,9 @@ ssh_mac_get_supported(void)
   for (i = 0; ssh_mac_algorithms[i].name != NULL; i++)
     {
       if (ssh_buffer_len(&buf) != 0)
-	ssh_buffer_append(&buf, (unsigned char *) ",", 1);
+        ssh_buffer_append(&buf, (unsigned char *) ",", 1);
       ssh_buffer_append(&buf, (unsigned char *) ssh_mac_algorithms[i].name,
-		    strlen(ssh_mac_algorithms[i].name));
+                    strlen(ssh_mac_algorithms[i].name));
     }
   ssh_buffer_append(&buf, (unsigned char *) "\0", 1);
   list = ssh_xstrdup(ssh_buffer_ptr(&buf));
@@ -148,8 +254,8 @@ ssh_mac_supported(const char *name)
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_mac_allocate(const char *type,
-		 const unsigned char *key, size_t keylen,
-		 SshMac *mac_return)
+                 const unsigned char *key, size_t keylen,
+                 SshMac *mac_return)
 {
   int i;
   SshMac mac;
@@ -158,35 +264,35 @@ ssh_mac_allocate(const char *type,
   for (i = 0; ssh_mac_algorithms[i].name != NULL; i++)
     {
       if (strcmp(ssh_mac_algorithms[i].name, type) == 0)
-	{
-	  /* Found the specified mac type.  Initialize the data structure. */
-	  mac = ssh_xmalloc(sizeof(*mac));
-	  mac->ops = &ssh_mac_algorithms[i];
-	  mac->ops_allocated = FALSE;
-	  
-	  if (mac->ops->ctxsize)
-	    {
-	      mac->context = ssh_xmalloc((*mac->ops->ctxsize)
-					 (ssh_mac_algorithms[i].hash_def) +
-					 (mac->ops->allocate_key ==
-					  TRUE ? keylen : 0));
-	      (*mac->ops->init)(mac->context, key, keylen,
-				ssh_mac_algorithms[i].hash_def);
-	    }
-	  else
-	    mac->context = NULL;
-	      
-	  /* Return the MAC context. */
-	  *mac_return = mac;
-	  return SSH_CRYPTO_OK;
-	}
+        {
+          /* Found the specified mac type.  Initialize the data structure. */
+          mac = ssh_xmalloc(sizeof(*mac));
+          mac->ops = &ssh_mac_algorithms[i];
+          mac->ops_allocated = FALSE;
+          
+          if (mac->ops->ctxsize)
+            {
+              mac->context = ssh_xmalloc((*mac->ops->ctxsize)
+                                         (ssh_mac_algorithms[i].hash_def) +
+                                         (mac->ops->allocate_key ==
+                                          TRUE ? keylen : 0));
+              (*mac->ops->init)(mac->context, key, keylen,
+                                ssh_mac_algorithms[i].hash_def);
+            }
+          else
+            mac->context = NULL;
+              
+          /* Return the MAC context. */
+          *mac_return = mac;
+          return SSH_CRYPTO_OK;
+        }
     }
   return SSH_CRYPTO_UNSUPPORTED;
 }
 
 DLLEXPORT void * DLLCALLCONV
 ssh_mac_info_derive_from_hash(SshHash hash,
-			      SshMacType type)
+                              SshMacType type)
 {
   const SshHashDef *hash_def;
   SshMacDef  *mac_def;
@@ -209,7 +315,7 @@ ssh_mac_info_derive_from_hash(SshHash hash,
     case SSH_MAC_TYPE_HMAC:
       mac_def->digest_length = hash_def->digest_length;
       mac_def->allocate_key  = FALSE;
-      mac_def->ctxsize	     = ssh_hmac_ctxsize;
+      mac_def->ctxsize       = ssh_hmac_ctxsize;
       mac_def->init          = ssh_hmac_init;
       mac_def->start         = ssh_hmac_start;
       mac_def->update        = ssh_hmac_update;
@@ -259,8 +365,8 @@ ssh_mac_info_free(void *mac_info)
 /* Derive a mac from a hash. */
 DLLEXPORT SshMac DLLCALLCONV
 ssh_mac_allocate_with_info(const void *mac_info, 
-			   unsigned char *key,
-			   size_t keylen)
+                           unsigned char *key,
+                           size_t keylen)
 {
   SshMac mac;
 
@@ -275,11 +381,11 @@ ssh_mac_allocate_with_info(const void *mac_info,
   if (mac->ops->ctxsize)
     {
       mac->context = ssh_xmalloc((*mac->ops->ctxsize)
-				 (mac->ops->hash_def) +
-				 (mac->ops->allocate_key ==
-				  TRUE ? keylen : 0));
+                                 (mac->ops->hash_def) +
+                                 (mac->ops->allocate_key ==
+                                  TRUE ? keylen : 0));
       (*mac->ops->init)(mac->context, key, keylen,
-			mac->ops->hash_def);
+                        mac->ops->hash_def);
     }
   else
     {
@@ -343,7 +449,7 @@ ssh_mac_final(SshMac mac, unsigned char *digest)
   
 DLLEXPORT void DLLCALLCONV
 ssh_mac_of_buffer(SshMac mac, unsigned char *src, size_t len,
-		  unsigned char *digest)
+                  unsigned char *digest)
 {
   if (mac->ops)
     if (mac->ops->mac_of_buffer)

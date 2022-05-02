@@ -41,13 +41,13 @@
    host key.
      `server_name'  The server name as passed in when the protocol
                     was created.  This is expected to be the name that
-		    the user typed.
-     `blob'	    The linear representation of the public key (including
+                    the user typed.
+     `blob'         The linear representation of the public key (including
                     optional certificates).
      `len'          The length of the public key blob.
      `result_cb'    This function must be called when the validity has been
-     		    determined.  The argument must be TRUE if the host key
-		    is to be accepted, and FALSE if it is to be rejected.
+                    determined.  The argument must be TRUE if the host key
+                    is to be accepted, and FALSE if it is to be rejected.
      `result_context' This must be passed to the result function.
      `context'      Context argument.
    This function should call the result callback in every case.  This is not
@@ -55,11 +55,11 @@
    do basically anything before calling the result callback. */
 
 void ssh_client_key_check(const char *server_name,
-			  const unsigned char *blob, size_t len,
-			  void (*result_cb)(Boolean result,
-					    void *result_context),
-			  void *result_context,
-			  void *context)
+                          const unsigned char *blob, size_t len,
+                          void (*result_cb)(Boolean result,
+                                            void *result_context),
+                          void *result_context,
+                          void *context)
 {
   SshClient client;
   char *udir, filen[1024], comment[1024];
@@ -88,34 +88,34 @@ void ssh_client_key_check(const char *server_name,
   if (stat(filen, &st) < 0)
     {
       if (mkdir(filen, 0700) < 0)
-	{
-	  ssh_warning("ssh_userdir: could not create user's ssh hostkey" 
-		      "directory %s", filen);
+        {
+          ssh_warning("ssh_userdir: could not create user's ssh hostkey" 
+                      "directory %s", filen);
         }
     }
 
   /* produce a file name from the server name */
   snprintf(filen, sizeof(filen)-20, "%s/hostkeys/key_%s_", 
-	   udir, client->common->config->port);
+           udir, client->common->config->port);
   ssh_xfree(udir);
   j = strlen(filen);
 
   for (i = 0; server_name[i] != '\0'; i++)
     {
       if (j > sizeof(filen) - 10)
-	break;
+        break;
 
       if (isalpha(server_name[i]))
-	{
-	  filen[j++] = tolower(server_name[i]);
-	  continue;
-	}
+        {
+          filen[j++] = tolower(server_name[i]);
+          continue;
+        }
       if (isdigit(server_name[i]) || server_name[i] == '.' || 
-	  server_name[i] == '-')
-	{
-	  filen[j++] = server_name[i];
-	  continue;
-	}
+          server_name[i] == '-')
+        {
+          filen[j++] = server_name[i];
+          continue;
+        }
 
       /* escape this character in octal */
       filen[j++] = '_';
@@ -133,23 +133,23 @@ void ssh_client_key_check(const char *server_name,
   blob2 = NULL;
 
   magic = ssh_key_blob_read(client->user_data, filen, NULL,
-			    &blob2, &blob2_len, NULL);
+                            &blob2, &blob2_len, NULL);
 
   switch(magic)
     {
     case SSH_KEY_MAGIC_FAIL:
       ssh_warning("Accepting host %s key without checking.",
-		server_name);
+                server_name);
       now = time(NULL);
       snprintf(comment, sizeof(comment)-1, 
-	       "host key for %s, accepted by %s %s", 
-	       server_name, ssh_user_name(client->user_data), ctime(&now));
+               "host key for %s, accepted by %s %s", 
+               server_name, ssh_user_name(client->user_data), ctime(&now));
       comment[strlen(comment)-1] = '\0';
 
       if (ssh_key_blob_write(client->user_data, filen, 0600,
-			     SSH_KEY_MAGIC_PUBLIC,
-			     comment, blob, len, NULL))
-	ssh_warning("Unable to write host key %s", filen);
+                             SSH_KEY_MAGIC_PUBLIC,
+                             comment, blob, len, NULL))
+        ssh_warning("Unable to write host key %s", filen);
       ssh_debug("Host key saved to %s", filen);
       ssh_debug("%s", comment);
       break;
@@ -157,16 +157,16 @@ void ssh_client_key_check(const char *server_name,
     case SSH_KEY_MAGIC_PUBLIC:
 
       if (blob2_len == len && memcmp(blob, blob2, len) == 0)
-	break;
+        break;
 
       /* break left out intentionally */
 
     default:
 
       ssh_warning("** !! ILLEGAL HOST KEY FOR %s !! **",
-		server_name);
+                server_name);
       ssh_warning("Remove %s and try again if you think that this is normal.",
-		filen);
+                filen);
       /* XXX we throw ssh_fatal here to avoid SIGSEGV at later time. (it's
          most definitely a bug.) */
 
@@ -177,8 +177,8 @@ void ssh_client_key_check(const char *server_name,
 
       /* disconnect now */
       (*client->common->disconnect)(SSH_DISCONNECT_HOST_KEY_NOT_VERIFIABLE, 
-				    "Illegal host key.", 
-				    client->common->context);
+                                    "Illegal host key.", 
+                                    client->common->context);
       (*result_cb)(FALSE, result_context);
       return;
     }
@@ -197,7 +197,7 @@ void ssh_client_key_check(const char *server_name,
    from the config data. */
 
 Boolean ssh_client_update_transport_params(SshConfig config,
-					   SshTransportParams params)
+                                           SshTransportParams params)
 {
   char *hlp;
 
@@ -207,12 +207,12 @@ Boolean ssh_client_update_transport_params(SshConfig config,
 
       if (hlp)
         {
-	  ssh_xfree(params->ciphers_c_to_s);
-	  params->ciphers_c_to_s = ssh_xstrdup(hlp);
-	  ssh_xfree(params->ciphers_s_to_c);
-	  params->ciphers_s_to_c = ssh_xstrdup(hlp);
-	  ssh_xfree(hlp);
-	}
+          ssh_xfree(params->ciphers_c_to_s);
+          params->ciphers_c_to_s = ssh_xstrdup(hlp);
+          ssh_xfree(params->ciphers_s_to_c);
+          params->ciphers_s_to_c = ssh_xstrdup(hlp);
+          ssh_xfree(hlp);
+        }
     }
 
   if (config->compression == TRUE)
@@ -253,7 +253,7 @@ void ssh_client_version_check(const char *version, void *context)
       client->config->ssh1_args != NULL)
     {
       ssh_warning("Executing %s for ssh1 compatibility.",
-		client->config->ssh1_path);
+                client->config->ssh1_path);
 
       /* Close the old connection to the server. */
       close(client->config->ssh1_fd);
@@ -262,53 +262,53 @@ void ssh_client_version_check(const char *version, void *context)
       arg = 0;
       args[arg++] = "ssh";
       for (i = 1; client->config->ssh1_args[i]; i++)
-	{
-	  if (arg >= sizeof(args)/sizeof(args[0]) - 2)
-	    ssh_fatal("Too many arguments for compatibility ssh1.");
-	  aa = client->config->ssh1_args[i];
-	  if (strcmp(aa, "-l") == 0 ||
-	      strcmp(aa, "-i") == 0 ||
-	      strcmp(aa, "-e") == 0 ||
-	      strcmp(aa, "-c") == 0 ||
-	      strcmp(aa, "-p") == 0 ||
-	      strcmp(aa, "-R") == 0 ||
-	      strcmp(aa, "-o") == 0 ||
-	      strcmp(aa, "-L") == 0)
-	    {
-	      args[arg++] = aa;
-	      if (client->config->ssh1_args[i + 1])
-		args[arg++] = client->config->ssh1_args[++i];
-	    }
-	  else
-	    if (strcmp(aa, "-d") == 0)
-	      {
-		args[arg++] = "-v";
-		if (client->config->ssh1_args[i + 1])
-		  i++; /* Skip the level. */
-	      }
-	    else
-	      if (strcmp(aa, "-n") == 0 ||
-		  strcmp(aa, "-a") == 0 ||
-		  strcmp(aa, "-x") == 0 ||
-		  strcmp(aa, "-t") == 0 ||
-		  strcmp(aa, "-v") == 0 ||
-		  strcmp(aa, "-V") == 0 ||
-		  strcmp(aa, "-q") == 0 ||
-		  strcmp(aa, "-f") == 0 ||
-		  strcmp(aa, "-P") == 0 ||
-		  strcmp(aa, "-C") == 0 ||
-		  strcmp(aa, "-g") == 0)
-		args[arg++] = aa;
-	      else
-		if (aa[0] != '-')
-		  args[arg++] = aa;
-	}
+        {
+          if (arg >= sizeof(args)/sizeof(args[0]) - 2)
+            ssh_fatal("Too many arguments for compatibility ssh1.");
+          aa = client->config->ssh1_args[i];
+          if (strcmp(aa, "-l") == 0 ||
+              strcmp(aa, "-i") == 0 ||
+              strcmp(aa, "-e") == 0 ||
+              strcmp(aa, "-c") == 0 ||
+              strcmp(aa, "-p") == 0 ||
+              strcmp(aa, "-R") == 0 ||
+              strcmp(aa, "-o") == 0 ||
+              strcmp(aa, "-L") == 0)
+            {
+              args[arg++] = aa;
+              if (client->config->ssh1_args[i + 1])
+                args[arg++] = client->config->ssh1_args[++i];
+            }
+          else
+            if (strcmp(aa, "-d") == 0)
+              {
+                args[arg++] = "-v";
+                if (client->config->ssh1_args[i + 1])
+                  i++; /* Skip the level. */
+              }
+            else
+              if (strcmp(aa, "-n") == 0 ||
+                  strcmp(aa, "-a") == 0 ||
+                  strcmp(aa, "-x") == 0 ||
+                  strcmp(aa, "-t") == 0 ||
+                  strcmp(aa, "-v") == 0 ||
+                  strcmp(aa, "-V") == 0 ||
+                  strcmp(aa, "-q") == 0 ||
+                  strcmp(aa, "-f") == 0 ||
+                  strcmp(aa, "-P") == 0 ||
+                  strcmp(aa, "-C") == 0 ||
+                  strcmp(aa, "-g") == 0)
+                args[arg++] = aa;
+              else
+                if (aa[0] != '-')
+                  args[arg++] = aa;
+        }
       args[arg++] = NULL;
 
 #if 0
       printf("args:\n");
       for (i = 0; args[i]; i++)
-	printf("  %s\n", args[i]);
+        printf("  %s\n", args[i]);
 #endif
 
       /* Use ssh1 to connect. */
@@ -337,15 +337,15 @@ void ssh_client_version_check(const char *version, void *context)
    a ``close_notify'' callback (see below).  */
 
 SshClient ssh_client_wrap(SshStream stream, SshConfig config,
-			  SshUser user_data,
-			  const char *server_host_name,
-			  const char *user,
-			  SshRandomState random_state,
-			  SshClientDisconnectProc disconnect,
-			  SshClientDebugProc debug,
-			  void (*authenticated_notify)(const char *user,
-						       void *context),
-			  void *context)
+                          SshUser user_data,
+                          const char *server_host_name,
+                          const char *user,
+                          SshRandomState random_state,
+                          SshClientDisconnectProc disconnect,
+                          SshClientDebugProc debug,
+                          void (*authenticated_notify)(const char *user,
+                                                       void *context),
+                          void *context)
 {
   SshClient client;
   SshStream trans, auth;
@@ -368,14 +368,15 @@ SshClient ssh_client_wrap(SshStream stream, SshConfig config,
 
   /* Create a transport layer protocol object. */
   ssh_debug("ssh_client_wrap: creating transport protocol");
-  trans = ssh_transport_client_wrap(stream, random_state, SSH2_VERSION,
-				    SSH_USERAUTH_SERVICE,
-				    params, server_host_name,
-				    ssh_client_key_check,
-				    (void *)client,
-				    (config->ssh1_path && config->ssh1compatibility) ?
-				      ssh_client_version_check : NULL,
-				    (void *)client);
+  trans = ssh_transport_client_wrap(stream, random_state, 
+                                    SSH2_PROTOCOL_VERSION_STRING,
+                                    SSH_USERAUTH_SERVICE,
+                                    params, server_host_name,
+                                    ssh_client_key_check,
+                                    (void *)client,
+                                    (config->ssh1_path && config->ssh1compatibility) ?
+                                      ssh_client_version_check : NULL,
+                                    (void *)client);
 
   /* Create the authentication methods array. */
   client->methods = ssh_client_authentication_initialize();
@@ -383,13 +384,13 @@ SshClient ssh_client_wrap(SshStream stream, SshConfig config,
   /* Create an authentication protocol object. */
   ssh_debug("ssh_client_wrap: creating userauth protocol");
   auth = ssh_auth_client_wrap(trans, user, SSH_CONNECTION_SERVICE,
-			      client->methods, (void *)client);
+                              client->methods, (void *)client);
   
   /* Create the common part of client/client objects. */
   client->common = ssh_common_wrap(stream, auth, TRUE, config, random_state,
-				   server_host_name,
-				   disconnect, debug, authenticated_notify,
-				   context);
+                                   server_host_name,
+                                   disconnect, debug, authenticated_notify,
+                                   context);
 
   if (client->common == NULL)
     {
@@ -438,21 +439,21 @@ void ssh_client_destroy(SshClient client)
    ``close_notify'', unless it has already been called. */
 
 void ssh_client_start_session(SshClient client, SshStream stdio_stream,
-			      SshStream stderr_stream, Boolean auto_close,
-			      Boolean is_subsystem, const char *command,
-			      Boolean allocate_pty, const char *term,
-			      const char **env,
-			      Boolean forward_x11, Boolean forward_agent,
-			      void (*completion)(Boolean success,
-						 void *context),
-			      void (*close_notify)(void *context),
-			      void *context)
+                              SshStream stderr_stream, Boolean auto_close,
+                              Boolean is_subsystem, const char *command,
+                              Boolean allocate_pty, const char *term,
+                              const char **env,
+                              Boolean forward_x11, Boolean forward_agent,
+                              void (*completion)(Boolean success,
+                                                 void *context),
+                              void (*close_notify)(void *context),
+                              void *context)
 {
   ssh_channel_start_session(client->common, stdio_stream, stderr_stream,
-			    auto_close, is_subsystem, command, allocate_pty,
-			    term, env, forward_x11, forward_agent,
-			    completion, close_notify,
-			    context);
+                            auto_close, is_subsystem, command, allocate_pty,
+                            term, env, forward_x11, forward_agent,
+                            completion, close_notify,
+                            context);
 }
 
 #ifdef SSH_CHANNEL_TCPFWD
@@ -461,31 +462,31 @@ void ssh_client_start_session(SshClient client, SshStream stdio_stream,
    procedure is non-NULL, it will be called when done. */
 
 void ssh_client_remote_tcp_ip_forward(SshClient client,
-				      const char *address_to_bind,
-				      const char *port,
-				      const char *connect_to_host,
-				      const char *connect_to_port,
-				      void (*completion)(Boolean success,
-							 void *context),
-				      void *context)
+                                      const char *address_to_bind,
+                                      const char *port,
+                                      const char *connect_to_host,
+                                      const char *connect_to_port,
+                                      void (*completion)(Boolean success,
+                                                         void *context),
+                                      void *context)
 {
   ssh_channel_start_remote_tcp_forward(client->common, address_to_bind, port,
-				       connect_to_host, connect_to_port,
-				       completion, context);
+                                       connect_to_host, connect_to_port,
+                                       completion, context);
 }
 
 /* Requests forwarding of the given local TCP/IP port.  If the completion
    procedure is non-NULL, it will be called when done. */
 
 Boolean ssh_client_local_tcp_ip_forward(SshClient client,
-					const char *address_to_bind,
-					const char *port,
-					const char *connect_to_host,
-					const char *connect_to_port)
+                                        const char *address_to_bind,
+                                        const char *port,
+                                        const char *connect_to_host,
+                                        const char *connect_to_port)
 {
   return ssh_channel_start_local_tcp_forward(client->common, address_to_bind,
-					     port, connect_to_host,
-					     connect_to_port);
+                                             port, connect_to_host,
+                                             connect_to_port);
 }
 
 /* Opens a direct connection to the given TCP/IP port at the remote side.
@@ -493,14 +494,14 @@ Boolean ssh_client_local_tcp_ip_forward(SshClient client,
    to the other side.  ``stream'' will be used to transfer channel data. */
 
 void ssh_client_open_remote_tcp_ip(SshClient client, SshStream stream,
-				   const char *connect_to_host,
-				   const char *connect_to_port,
-				   const char *originator_ip,
-				   const char *originator_port)
+                                   const char *connect_to_host,
+                                   const char *connect_to_port,
+                                   const char *originator_ip,
+                                   const char *originator_port)
 {
   ssh_channel_dtcp_open_to_remote(client->common, stream,
-				  connect_to_host, connect_to_port,
-				  originator_ip, originator_port);
+                                  connect_to_host, connect_to_port,
+                                  originator_ip, originator_port);
 }
 
 #endif /* SSH_CHANNEL_TCPFWD */

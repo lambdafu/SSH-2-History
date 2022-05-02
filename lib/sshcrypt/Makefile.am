@@ -31,6 +31,7 @@ libsshcrypt_a_SOURCES = \
   genciph.c \
   nociph.c \
   des.c \
+  blowfish.c \
   arcfour.c \
   \
   genpkcs.c \
@@ -60,6 +61,7 @@ include_HEADERS = \
   md5.h \
   ripemd160.h \
   des.h \
+  blowfish.h \
   arcfour.h \
   hmac.h \
   macs.h \
@@ -91,12 +93,6 @@ INCLUDES = -I../.. -I. -I$(srcdir) -I../sshutil -I$(srcdir)/../sshutil \
 	-I../sshmath -I$(srcdir)/../sshmath -I../zlib -I$(srcdir)/../zlib \
 	-I../sshscard -I$(srcdir)/../sshscard \
 	-I../trq -I$(srcdir)/../trq
-
-#ssh_keygen_SOURCES = ssh-keygen.c 
-#ssh_keygen_LDADD = libsshcrypt.a \
-#../sshutil/libsshutil.a \
-#  ../zlib/libz.a \
-#  ../sshmath/libsshmath.a
 
 .s.o:
 	$(CC) -c $(CFLAGS) $(SFLAGS) $<

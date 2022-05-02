@@ -103,6 +103,7 @@ noinst_LIBRARIES = libsshutil.a
 libsshutil_a_SOURCES = \
 	bufaux.c		\
 	sshbuffer.c		\
+	sshfilebuffer.c		\
 	sshunixeloop.c		\
 	sshunixfdstream.c	\
 	match.c			\
@@ -121,6 +122,7 @@ libsshutil_a_SOURCES = \
 	sshfilterstream.c	\
 	base64.c		\
 	sshutf8.c		\
+	sshfilexfer.c		\
 	sshfilexferc.c		\
 	sshfilexfers.c		\
 	sshfilexferi.c		\
@@ -131,6 +133,7 @@ libsshutil_a_SOURCES = \
 	vlint32.c		\
 	crc32.c			\
 	filelock.c		\
+	sshfileio.c		\
 	sshpacketwrapper.c	\
 	sshpacketstream.c	\
 	sshpacketimpl.c		\
@@ -149,6 +152,7 @@ include_HEADERS = \
 	sshdebug.h		\
 	bufaux.h		\
 	sshbuffer.h		\
+	sshfilebuffer.h		\
 	sshenum.h		\
 	sshencode.h		\
 	sshunixfdstream.h	\
@@ -168,6 +172,7 @@ include_HEADERS = \
 	vlint32.h		\
 	crc32.h			\
 	filelock.h		\
+	sshfileio.h		\
 	sshpacketstream.h	\
 	sshmalloc.h
 
@@ -195,14 +200,14 @@ X_CFLAGS = @X_CFLAGS@
 X_LIBS = @X_LIBS@
 X_EXTRA_LIBS = @X_EXTRA_LIBS@
 X_PRE_LIBS = @X_PRE_LIBS@
-libsshutil_a_OBJECTS =  bufaux.o sshbuffer.o sshunixeloop.o \
-sshunixfdstream.o match.o mpaux.o sshgetput.o signals.o sshtcp.o \
-sshunixtcp.o sshstream.o sshdebug.o sshenum.o sshencode.o sshsocks.o \
-sshunixlocalstream.o sshstreampair.o sshfilterstream.o base64.o \
-sshutf8.o sshfilexferc.o sshfilexfers.o sshfilexferi.o \
-sshunixrealpath.o sshurl.o sshinet.o cstack.o vlint32.o crc32.o \
-filelock.o sshpacketwrapper.o sshpacketstream.o sshpacketimpl.o \
-sshmalloc.o
+libsshutil_a_OBJECTS =  bufaux.o sshbuffer.o sshfilebuffer.o \
+sshunixeloop.o sshunixfdstream.o match.o mpaux.o sshgetput.o signals.o \
+sshtcp.o sshunixtcp.o sshstream.o sshdebug.o sshenum.o sshencode.o \
+sshsocks.o sshunixlocalstream.o sshstreampair.o sshfilterstream.o \
+base64.o sshutf8.o sshfilexfer.o sshfilexferc.o sshfilexfers.o \
+sshfilexferi.o sshunixrealpath.o sshurl.o sshinet.o cstack.o vlint32.o \
+crc32.o filelock.o sshfileio.o sshpacketwrapper.o sshpacketstream.o \
+sshpacketimpl.o sshmalloc.o
 CFLAGS = @CFLAGS@
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS)
 LINK = $(CC) $(CFLAGS) $(LDFLAGS) -o $@

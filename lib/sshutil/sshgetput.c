@@ -95,16 +95,16 @@ SshUInt16 SSH_GET_16BIT_LSB_FIRST(const unsigned char *cp)
 
 void SSH_PUT_32BIT_LSB_FIRST(unsigned char *cp, SshUInt32 value)
 {
-  (cp)[0] = (value); 
-  (cp)[1] = (value) >> 8; 
-  (cp)[2] = (value) >> 16; 
-  (cp)[3] = (value) >> 24; 
+  (cp)[0] = (unsigned char)(value); 
+  (cp)[1] = (unsigned char)((value) >> 8); 
+  (cp)[2] = (unsigned char)((value) >> 16); 
+  (cp)[3] = (unsigned char)((value) >> 24); 
 }
 
 void SSH_PUT_16BIT_LSB_FIRST(unsigned char *cp, SshUInt16 value)
 {
-  (cp)[0] = (value); 
-  (cp)[1] = (value) >> 8;
+  (cp)[0] = (unsigned char)(value); 
+  (cp)[1] = (unsigned char)((value) >> 8);
 }
 
 /* Getting bytes msb first */
@@ -125,16 +125,16 @@ SshUInt16 SSH_GET_16BIT(const unsigned char *cp)
 
 void SSH_PUT_32BIT(unsigned char *cp, SshUInt32 value)
 {
-  (cp)[0] = (value) >> 24; 
-  (cp)[1] = (value) >> 16; 
-  (cp)[2] = (value) >> 8; 
-  (cp)[3] = (value); 
+  (cp)[0] = (unsigned char)((value) >> 24); 
+  (cp)[1] = (unsigned char)((value) >> 16); 
+  (cp)[2] = (unsigned char)((value) >> 8); 
+  (cp)[3] = (unsigned char)(value); 
 }
 
 void SSH_PUT_16BIT(unsigned char *cp, SshUInt16 value)
 {
-  (cp)[0] = (value) >> 8;
-  (cp)[1] = (value); 
+  (cp)[0] = (unsigned char)((value) >> 8);
+  (cp)[1] = (unsigned char)(value); 
 }
 /*------------ macros for storing/extracting lsb first words -------------*/
 

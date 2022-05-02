@@ -30,7 +30,7 @@ implementation is actually shared with the client (in sshcommon.c).
    from the config data. */
 
 Boolean ssh_server_update_transport_params(SshConfig config,
-					   SshTransportParams params)
+                                           SshTransportParams params)
 {
   char *hlp;
 
@@ -40,13 +40,13 @@ Boolean ssh_server_update_transport_params(SshConfig config,
 
       if (hlp)
         {
-	  ssh_xfree(params->ciphers_c_to_s);
-	  params->ciphers_c_to_s = ssh_xstrdup(hlp);
-	  ssh_xfree(params->ciphers_s_to_c);
-	  params->ciphers_s_to_c = ssh_xstrdup(hlp);
+          ssh_xfree(params->ciphers_c_to_s);
+          params->ciphers_c_to_s = ssh_xstrdup(hlp);
+          ssh_xfree(params->ciphers_s_to_c);
+          params->ciphers_s_to_c = ssh_xstrdup(hlp);
 
-	  ssh_xfree(hlp);
-	}
+          ssh_xfree(hlp);
+        }
     }
 
   hlp = ssh_public_key_list_canonialize(params->host_key_algorithms);
@@ -77,12 +77,12 @@ Boolean ssh_server_update_transport_params(SshConfig config,
    The object should be destroyed from the ``disconnect'' callback. */
 
 SshServer ssh_server_wrap(SshStream stream, SshConfig config,
-			  SshRandomState random_state,
-			  SshPrivateKey private_server_key,
-			  SshServerDisconnectProc disconnect,
-			  SshServerDebugProc debug,
-			  SshVersionCallback version_check,
-			  void *context)
+                          SshRandomState random_state,
+                          SshPrivateKey private_server_key,
+                          SshServerDisconnectProc disconnect,
+                          SshServerDebugProc debug,
+                          SshVersionCallback version_check,
+                          void *context)
 {
   SshServer server;
   SshStream trans, auth;
@@ -109,13 +109,14 @@ SshServer ssh_server_wrap(SshStream stream, SshConfig config,
   
   /* Create a transport layer protocol object. */
   ssh_debug("ssh_server_wrap: creating transport protocol");
-  trans = ssh_transport_server_wrap(stream, random_state, SSH2_VERSION,
-				    params, config->private_host_key,
-				    private_server_key,
-				    config->public_host_key_blob,
-				    config->public_host_key_blob_len,
-				    version_check,
-				    (void *)context);
+  trans = ssh_transport_server_wrap(stream, random_state, 
+                                    SSH2_PROTOCOL_VERSION_STRING,
+                                    params, config->private_host_key,
+                                    private_server_key,
+                                    config->public_host_key_blob,
+                                    config->public_host_key_blob_len,
+                                    version_check,
+                                    (void *)context);
 
   /* Create the authentication methods array for the server. */
   server->methods = ssh_server_authentication_initialize();
@@ -125,12 +126,12 @@ SshServer ssh_server_wrap(SshStream stream, SshConfig config,
   ssh_debug("ssh_server_wrap: creating userauth protocol");
   /* XXX policy_proc */
   auth = ssh_auth_server_wrap(trans, NULL, (void *)server,
-			      server->methods, (void *)server);
+                              server->methods, (void *)server);
 
   /* Create the common part of client/server objects. */
   server->common = ssh_common_wrap(stream, auth, FALSE, config, random_state,
-				   NULL,
-				   disconnect, debug, NULL, context);
+                                   NULL,
+                                   disconnect, debug, NULL, context);
 
   if (server->common == NULL)
     {

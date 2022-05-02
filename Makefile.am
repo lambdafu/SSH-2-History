@@ -50,6 +50,9 @@ dist-ssh-commercial:
 dist-ssh-noncommercial:
 	$(MAKE) make-dist dist=ssh-noncommercial
 
+dist-ssh-internal:
+	$(MAKE) make-dist dist=ssh-internal
+
 dist-ipsec-100:
 	$(MAKE) make-dist dist=ipsec
 
@@ -61,5 +64,8 @@ dist-isakmp:
 
 dist-ssh-emul:
 	$(MAKE) make-dist dist=ssh-emul
+
+dist-ssh-x509-library:
+	$(MAKE) make-dist dist=x509-library
 
 

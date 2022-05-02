@@ -1,3 +1,47 @@
+1998-10-19  Sami Lehtinen  <sjl@ssh.fi>
+
+	* Added correct parsing for specifying 'user@host' on the
+	commandline. (`ssh2 user@host' equals `ssh2 -luser host')
+
+	* Fixed --with-etcdir and --with-libwrap options in configure and
+	apps/ssh/Makefile.am.
+
+	* Fixed calculating MAC, as it was done against the draft. Added
+	compatibility code, so that we can work with older
+	ssh-2.0.x-versions (2.0.{7,8,9}) still.
+
+	* Implemented PasswordAuthentication and PubkeyAuthentication
+	keywords in the server. Still need to be done in the client.
+	
+1998-10-07  Sami Lehtinen  <sjl@ssh.fi>
+
+	* Added code to configure, so that it detects whether compiled
+	symbols are prepended with underscore or not. With changes to the
+	assembler files, this should fix the problems with commercial
+	versions assembler-optimized crypto functions.
+
+	* Fixed a _lot_ of buggy code in sftp2. Shouldn't seg fault
+ 	anymore.
+
+1998-10-06  Timo Rinne  <tri@ssh.fi>
+
+	*  Fixed -t flag in ssh2 client to have an desired 
+	   effect (force pty allocation).
+
+1998-10-02  Timo Rinne  <tri@ssh.fi>
+
+	* Added O_TRUNC into scp.  Existing target files are now
+	  also truncated.
+
+1998-09-30  Timo J. Rinne  <tri@ssh.fi>
+
+	* Added ssh_getopt.
+
+	* Fixed command line parsing of ssh2 and sshd2.
+
+	* Modified ssh-add2, ssh-agent2, ssh-keygen2 and scp2 to
+	  use ssh_getopt2.
+
 1998-09-17  Sami Lehtinen  <sjl@ssh.fi>
 
 	* Added support for environment variable DESTDIR in
@@ -26,12 +70,12 @@
 
 	* Fixed a bug in 'make install'.
 
-Thu Aug 27 20:39:48 1998  Sami Lehtinen  <sjl@ssh.fi>
+1998-08-27  Sami Lehtinen  <sjl@ssh.fi>
 
 	* Changed 'make install' so that it now renames the old files to
 	have '.old'-trailer.
 
-Wed Aug 26 19:09:52 1998  Sami Lehtinen  <sjl@ssh.fi>
+1998-08-26  Sami Lehtinen  <sjl@ssh.fi>
 
 	* Earlier addition: Fixed ssh2-client to not kill all forwarded
 	connections on session_close, but instead fork to background to
@@ -43,7 +87,7 @@ Wed Aug 26 19:09:52 1998  Sami Lehtinen  <sjl@ssh.fi>
 
 	* Made ssh forward also ssh1 agent connections.
 
-Wed Aug  5 12:49:02 1998  Sami Lehtinen  <sjl@ssh.fi>
+1998-08-05  Sami Lehtinen  <sjl@ssh.fi>
 
 	* Changed ssh-add2 to fetch first key named 'id_*' when executed
 	without aurguments.

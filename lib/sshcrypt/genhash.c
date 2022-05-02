@@ -3,15 +3,15 @@
 genhash.c
 
 Author: Antti Huima <huima@ssh.fi>
-	Tatu Ylonen <ylo@ssh.fi>
+        Tatu Ylonen <ylo@ssh.fi>
 
 Copyright (C) 1996 SSH Security Communications Oy, Espoo, Finland
                    All rights reserved
-		 
+                 
 */
 
 /*
- * $Id: genhash.c,v 1.20 1998/05/26 20:28:57 mkojo Exp $
+ * $Id: genhash.c,v 1.22 1998/10/10 06:54:09 mkojo Exp $
  * $Log: genhash.c,v $
  * $EndLog$
  */
@@ -35,6 +35,9 @@ Copyright (C) 1996 SSH Security Communications Oy, Espoo, Finland
 #ifdef SSHDIST_CRYPT_RIPEMD128
 
 #endif /* SSHDIST_CRYPT_RIPEMD128 */
+#ifdef SSHDIST_CRYPT_TIGER
+
+#endif /* SSHDIST_CRYPT_TIGER */
 
 /* List of supported hash algorithms. */
 
@@ -61,6 +64,11 @@ static const SshHashDef *ssh_hash_algorithms[] =
 
 
 #endif /* SSHDIST_CRYPT_RIPEMD128 */
+#ifdef SSHDIST_CRYPT_TIGER
+
+
+
+#endif /* SSHDIST_CRYPT_TIGER */
   NULL
 };
 
@@ -90,9 +98,9 @@ ssh_hash_get_supported()
   for (i = 0; ssh_hash_algorithms[i] != NULL; i++)
     {
       if (ssh_buffer_len(&buf) != 0)
-	ssh_buffer_append(&buf, (unsigned char *) ",", 1);
+        ssh_buffer_append(&buf, (unsigned char *) ",", 1);
       ssh_buffer_append(&buf, (unsigned char *) ssh_hash_algorithms[i]->name,
-		    strlen(ssh_hash_algorithms[i]->name));
+                    strlen(ssh_hash_algorithms[i]->name));
     }
   ssh_buffer_append(&buf, (unsigned char *) "\0", 1);
   list = ssh_xstrdup(ssh_buffer_ptr(&buf));
@@ -126,13 +134,13 @@ ssh_hash_allocate(const char *type, SshHash *hash)
   for (i = 0; ssh_hash_algorithms[i] != NULL; i++)
     {
       if (strcmp(ssh_hash_algorithms[i]->name, type) == 0)
-	{
-	  *hash = ssh_xmalloc(sizeof(**hash));
-	  (*hash)->ops = ssh_hash_algorithms[i];
-	  (*hash)->context = ssh_xmalloc((*ssh_hash_algorithms[i]->ctxsize)());
-	  (*ssh_hash_algorithms[i]->reset_context)((*hash)->context);
-	  return SSH_CRYPTO_OK;
-	}
+        {
+          *hash = ssh_xmalloc(sizeof(**hash));
+          (*hash)->ops = ssh_hash_algorithms[i];
+          (*hash)->context = ssh_xmalloc((*ssh_hash_algorithms[i]->ctxsize)());
+          (*ssh_hash_algorithms[i]->reset_context)((*hash)->context);
+          return SSH_CRYPTO_OK;
+        }
     }
   return SSH_CRYPTO_UNSUPPORTED;
 }
@@ -177,9 +185,9 @@ ssh_hash_allocate_internal(const SshHashDef *hash_def)
    This function is currently meant only for internal use. */
 
 void ssh_hash_expand_key_internal(unsigned char *buffer, size_t ssh_buffer_len,
-				  const unsigned char *ps, size_t ps_len,
-				  unsigned char *magic, size_t magic_len,
-				  const SshHashDef *hash)
+                                  const unsigned char *ps, size_t ps_len,
+                                  unsigned char *magic, size_t magic_len,
+                                  const SshHashDef *hash)
 {
   unsigned char *hash_buf;
   size_t hash_buf_len;
@@ -196,7 +204,7 @@ void ssh_hash_expand_key_internal(unsigned char *buffer, size_t ssh_buffer_len,
 
   /* Allocate enough memory. */
   hash_buf_len = ((ssh_buffer_len +
-		   hash->digest_length) / hash->digest_length) *
+                   hash->digest_length) / hash->digest_length) *
     hash->digest_length;
 
   /* Allocate just once for simplicity in freeing memory. */
@@ -209,9 +217,9 @@ void ssh_hash_expand_key_internal(unsigned char *buffer, size_t ssh_buffer_len,
       (*hash->reset_context)(context);
       (*hash->update)(context, ps, ps_len);
       if (i > 0)
-	(*hash->update)(context, hash_buf, i);
+        (*hash->update)(context, hash_buf, i);
       if (magic_len > 0)
-	(*hash->update)(context, magic, magic_len);
+        (*hash->update)(context, magic, magic_len);
       (*hash->final)(context, hash_buf + i);
     }
   /* Copy and free. */
@@ -230,12 +238,11 @@ ssh_hash_free(SshHash hash)
 }
 
 /* Returns the ASN.1 Object Identifier of the hash function if
-   known. Returns 0 if OID is not known. */
-DLLEXPORT unsigned int DLLCALLCONV
-ssh_hash_asn1_oid(SshHash hash, unsigned long **oid)
+   known. Returns NULL if OID is not known. */
+DLLEXPORT const char * DLLCALLCONV
+ssh_hash_asn1_oid(SshHash hash)
 {
-  *oid = hash->ops->asn1_oid;
-  return hash->ops->asn1_oid_len;
+  return hash->ops->asn1_oid;
 }
 
 /* Returns the ISO/IEC dedicated hash number if available. 0 if not
@@ -291,8 +298,8 @@ ssh_hash_final(SshHash hash, unsigned char *digest)
 
 DLLEXPORT void DLLCALLCONV
 ssh_hash_of_buffer(const char *type,
-		   const void *buf, size_t len,
-		   unsigned char *digest)
+                   const void *buf, size_t len,
+                   unsigned char *digest)
 {
   SshHash hash;
 

@@ -70,7 +70,7 @@ void hexdump(unsigned char *buf, size_t len)
   printf("\n");
 }
 
-unsigned int my_rand()
+unsigned int my_rand(void)
 {
 #if 0
   unsigned long my_time = time(NULL) ^ clock();
@@ -108,16 +108,16 @@ void clean_entries(int k_len, int v_len)
   for (i = 0; i < MAX_KEYS; i++)
     {
       if (seeds[i] != 0)
-	{
-	  if (k_len != 0)
-	    ssh_xfree(keys[i]);
-	  ssh_xfree(values[i]);
-	  keys[i] = NULL;
-	  values[i] = NULL;
-	  seeds[i] = 0;
+        {
+          if (k_len != 0)
+            ssh_xfree(keys[i]);
+          ssh_xfree(values[i]);
+          keys[i] = NULL;
+          values[i] = NULL;
+          seeds[i] = 0;
 
-	  count++;
-	}
+          count++;
+        }
     }
   assert(count == num_entries);
   
@@ -125,7 +125,7 @@ void clean_entries(int k_len, int v_len)
 }
 
 Boolean add_entry(SshMapping set, unsigned long seed,
-		  int k_len, int v_len, int idx, Boolean rval)
+                  int k_len, int v_len, int idx, Boolean rval)
 {
   unsigned char *key, *value;
   Boolean result;
@@ -152,21 +152,21 @@ Boolean add_entry(SshMapping set, unsigned long seed,
       key_len[idx] = (size_t)k_len;
       
       if (k_len == 0)
-	key = (unsigned char *)(&seeds[idx]);
+        key = (unsigned char *)(&seeds[idx]);
       else
-	{
-	  key = ssh_xmalloc(key_len[idx]);
-	  fill_rand(key, key_len[idx]);
-	  memcpy(key, &seeds[idx], sizeof(unsigned long));
-	}      
+        {
+          key = ssh_xmalloc(key_len[idx]);
+          fill_rand(key, key_len[idx]);
+          memcpy(key, &seeds[idx], sizeof(unsigned long));
+        }      
       keys[idx] = key;
     }
   else
     {
       if (k_len == 0)
-	key = (unsigned char *)(&seeds[idx]);
+        key = (unsigned char *)(&seeds[idx]);
       else
-	key = keys[idx];
+        key = keys[idx];
     }
       
 
@@ -189,26 +189,26 @@ Boolean add_entry(SshMapping set, unsigned long seed,
   if (rval == FALSE)
     {
       if (k_len == -1)
-	key_len[idx] = 4 + (random() % 100);
+        key_len[idx] = 4 + (random() % 100);
       else
-	key_len[idx] = (size_t)k_len;
+        key_len[idx] = (size_t)k_len;
       
       if (k_len == 0)
-	key = (unsigned char *)(&seeds[idx]);
+        key = (unsigned char *)(&seeds[idx]);
       else
-	{
-	  key = ssh_xmalloc(key_len[idx]);
-	  fill_rand(key, key_len[idx]);
-	  memcpy(key, &seeds[idx], sizeof(unsigned long));
-	}      
+        {
+          key = ssh_xmalloc(key_len[idx]);
+          fill_rand(key, key_len[idx]);
+          memcpy(key, &seeds[idx], sizeof(unsigned long));
+        }      
       keys[idx] = key;
     }
   else
     {
       if (k_len == 0)
-	key = (unsigned char *)(&seeds[idx]);
+        key = (unsigned char *)(&seeds[idx]);
       else
-	key = keys[idx];
+        key = keys[idx];
     }
       
 
@@ -225,7 +225,7 @@ Boolean add_entry(SshMapping set, unsigned long seed,
 
   if (v_len == -1)  
     result = ssh_mapping_put_vl(set, key, key_len[idx],
-				value, val_len[idx]);
+                                value, val_len[idx]);
   else
     result = ssh_mapping_put(set, key, value);
 
@@ -236,7 +236,7 @@ Boolean add_entry(SshMapping set, unsigned long seed,
 }
 
 Boolean check_entry(SshMapping set, int k_len, int v_len, int idx,
-		    Boolean rval)
+                    Boolean rval)
 {
   unsigned char *value;
   size_t size;
@@ -263,20 +263,20 @@ Boolean check_entry(SshMapping set, int k_len, int v_len, int idx,
   if (v_len == -1)
     {
       if (k_len == 0)
-	result = ssh_mapping_get_vl(set, &seeds[idx], key_len[idx],
-				    (void **) &value, &size);
+        result = ssh_mapping_get_vl(set, &seeds[idx], key_len[idx],
+                                    (void **) &value, &size);
       else
-	result = ssh_mapping_get_vl(set, keys[idx], key_len[idx],
-				    (void **) &value, &size);
+        result = ssh_mapping_get_vl(set, keys[idx], key_len[idx],
+                                    (void **) &value, &size);
 
       if (result != rval)
-	return FALSE;
+        return FALSE;
       
       if (size != val_len[idx])
-	return FALSE;
+        return FALSE;
 
       if (memcmp(value, values[idx], size) != 0)
-	return FALSE;
+        return FALSE;
 
       return TRUE;
     }
@@ -299,7 +299,7 @@ Boolean check_entry(SshMapping set, int k_len, int v_len, int idx,
 }
 
 Boolean remove_entry(SshMapping set, int k_len, int v_len, int idx,
-		     Boolean rval)
+                     Boolean rval)
 {
   unsigned char *value;
   size_t size;
@@ -333,27 +333,27 @@ Boolean remove_entry(SshMapping set, int k_len, int v_len, int idx,
   if (v_len == -1)
     {
       if (k_len == 0)
-	result = ssh_mapping_remove_vl(set, &seeds[idx], key_len[idx],
-				       (void **) &value, &size);
+        result = ssh_mapping_remove_vl(set, &seeds[idx], key_len[idx],
+                                       (void **) &value, &size);
       else
-	result = ssh_mapping_remove_vl(set, keys[idx], key_len[idx],
-				       (void **) &value, &size);
+        result = ssh_mapping_remove_vl(set, keys[idx], key_len[idx],
+                                       (void **) &value, &size);
 
       if (result != rval)
-	return FALSE;
+        return FALSE;
       
       if (size != val_len[idx])
-	return FALSE;
+        return FALSE;
 
       if (memcmp(value, values[idx], size) != 0)
-	return FALSE;
+        return FALSE;
 
       ssh_xfree(value);
 
       ssh_xfree(values[idx]);
       values[idx] = NULL;
       if (k_len != 0)
-	ssh_xfree(keys[idx]);
+        ssh_xfree(keys[idx]);
       keys[idx] = NULL;
       seeds[idx] = 0;
       
@@ -407,122 +407,122 @@ int test1(SshMapping m, int test_loops, int k_len, int v_len)
       state = (random() + loop) % 5;
 
       if (num_entries == 0)
-	state = 0;
+        state = 0;
 
       if (num_entries >= MAX_KEYS)
-	state = 2;
+        state = 2;
       
       switch (state)
-	{
-	case 4:
-	case 0:
-	  if (num_entries >= MAX_KEYS)
-	      break;
+        {
+        case 4:
+        case 0:
+          if (num_entries >= MAX_KEYS)
+              break;
 
-	  for (i = 0; i < MAX_KEYS; i++)
-	    {
-	      if (seeds[i] == 0)
-		break;
-	    }
-	  assert(i < MAX_KEYS);
-	  num_entries++;
-    	  
-	  seed = count++;
-	  assert(seed != 0);
-	  /* printf("%5d:  add    %8lu,  index %4d\n", loop, seed, i);  */
-	  value = add_entry(m, seed, k_len, v_len, i, FALSE);
-	  if (value == FALSE)
-	    {
-	      printf("ssh_mapping_add failed.\n");
-	      return 1;
-	    }
-	  break;
+          for (i = 0; i < MAX_KEYS; i++)
+            {
+              if (seeds[i] == 0)
+                break;
+            }
+          assert(i < MAX_KEYS);
+          num_entries++;
+          
+          seed = count++;
+          assert(seed != 0);
+          /* printf("%5d:  add    %8lu,  index %4d\n", loop, seed, i);  */
+          value = add_entry(m, seed, k_len, v_len, i, FALSE);
+          if (value == FALSE)
+            {
+              printf("ssh_mapping_add failed.\n");
+              return 1;
+            }
+          break;
 
-	case 1:
-	  if (num_entries == 0)
-	    break;
+        case 1:
+          if (num_entries == 0)
+            break;
 
-	  /* Get one existing mapping from the set. */
-	  j = (random() % num_entries) + 1;
+          /* Get one existing mapping from the set. */
+          j = (random() % num_entries) + 1;
 
-	  for (i = 0; i < MAX_KEYS; i++)
-	    {
-	      if (seeds[i] != 0)		
-		j--;
-	      if (j == 0)
-		break;	    
-	    }
-	  assert(i < MAX_KEYS);
-	  assert(seeds[i] != 0);
+          for (i = 0; i < MAX_KEYS; i++)
+            {
+              if (seeds[i] != 0)                
+                j--;
+              if (j == 0)
+                break;      
+            }
+          assert(i < MAX_KEYS);
+          assert(seeds[i] != 0);
 
-	  /* printf("%5d:  get    %8lu,  index %4d\n", loop, seeds[i], i); */
-	  value = check_entry(m, k_len, v_len, i, TRUE);
-	  if (value == FALSE)
-	    {
-	      printf("ssh_mapping_get failed.\n");
-	      return 2;
-	    }
-	  break;
-	  
-	case 2:
-	  if (num_entries == 0)
-	    break;
+          /* printf("%5d:  get    %8lu,  index %4d\n", loop, seeds[i], i); */
+          value = check_entry(m, k_len, v_len, i, TRUE);
+          if (value == FALSE)
+            {
+              printf("ssh_mapping_get failed.\n");
+              return 2;
+            }
+          break;
+          
+        case 2:
+          if (num_entries == 0)
+            break;
 
-	  /* Get one existing mapping from the set. */
-	  j = (random() % num_entries) + 1;
+          /* Get one existing mapping from the set. */
+          j = (random() % num_entries) + 1;
 
-	  for (i = 0; i < MAX_KEYS; i++)
-	    {
-	      if (seeds[i] != 0)
-		{
-		  if (--j < 2)
-		    break;
-		}
-	    }	  
-	  assert(seeds[i] != 0);
-	  assert(i < MAX_KEYS);
-	  num_entries--;
+          for (i = 0; i < MAX_KEYS; i++)
+            {
+              if (seeds[i] != 0)
+                {
+                  if (--j < 2)
+                    break;
+                }
+            }     
+          assert(seeds[i] != 0);
+          assert(i < MAX_KEYS);
+          num_entries--;
 
-	  /* printf("%5d:  remove %8lu,  index %4d\n", loop, seeds[i], i); */
-	  value = remove_entry(m, k_len, v_len, i, TRUE);
-	  if (value == FALSE)
-	    {
-	      printf("ssh_mapping_remove failed.\n");
-	      return 3;
-	    }
-	  break;
+          /* printf("%5d:  remove %8lu,  index %4d\n", loop, seeds[i], i); */
+          value = remove_entry(m, k_len, v_len, i, TRUE);
+          if (value == FALSE)
+            {
+              printf("ssh_mapping_remove failed.\n");
+              return 3;
+            }
+          break;
 
-	case 3:
-	  if (num_entries == 0)
-	    break;
-	  
-	  /* Get one existing mapping from the set. */
-	  j = (random() % num_entries) + 1;
+        case 3:
+          if (num_entries == 0)
+            break;
+          
+          /* Get one existing mapping from the set. */
+          j = (random() % num_entries) + 1;
 
-	  for (i = 0; i < MAX_KEYS; i++)
-	    {
-	      if (seeds[i] != 0)
-		{
-		  if (--j < 2)
-		    break;
-		}
-	    }
-	  assert(i < MAX_KEYS);
-	  assert(seeds[i] != 0);
+          for (i = 0; i < MAX_KEYS; i++)
+            {
+              if (seeds[i] != 0)
+                {
+                  if (--j < 2)
+                    break;
+                }
+            }
+          assert(i < MAX_KEYS);
+          assert(seeds[i] != 0);
 
-	  /* printf("%5d:  add 2  %8lu,  index %4d\n", loop, seeds[i], i); */
-	  value = add_entry(m, seeds[i], k_len, v_len, i, TRUE);
-	  if (value == FALSE)
-	    {
-	      printf("ssh_mapping_add failed.\n");
-	      return 4;
-	    }
-	  break;
-	  	  	  
-	default:
-	  printf("Test program thinks too much.\n");
-	  break;
-	}      
+          /* printf("%5d:  add 2  %8lu,  index %4d\n", loop, seeds[i], i); */
+          value = add_entry(m, seeds[i], k_len, v_len, i, TRUE);
+          if (value == FALSE)
+            {
+              printf("ssh_mapping_add failed.\n");
+              return 4;
+            }
+          break;
+                          
+        default:
+          printf("Test program thinks too much.\n");
+          break;
+        }      
     }
 
   clean_entries(k_len, v_len);
@@ -532,7 +532,7 @@ int test1(SshMapping m, int test_loops, int k_len, int v_len)
 
 
 unsigned long my_hash_function(const void *key,
-			       const size_t key_length)
+                               const size_t key_length)
 {
   size_t i;
   unsigned long hash;
@@ -572,8 +572,8 @@ int test2(int start_adds, int test_loops)
   count = 1;
 
   m = ssh_mapping_allocate_with_func(SSH_MAPPING_FL_INTEGER_KEY |
-				     SSH_MAPPING_FL_STORE_POINTERS,
-				     NULL, NULL, NULL, 0, 0);
+                                     SSH_MAPPING_FL_STORE_POINTERS,
+                                     NULL, NULL, NULL, 0, 0);
   if (!m)
     {
       printf("ssh_mapping_allocate_with_func failed.\n");
@@ -590,21 +590,21 @@ int test2(int start_adds, int test_loops)
       key[head] = count++;
       value = ssh_mapping_put(m, &key[head], (void *)(key[head] + 100));
       if (value == TRUE)
-	{
-	  printf("ssh_mapping_put failed, loop 1,%d\n", loop);
-	  return 2;
-	}
+        {
+          printf("ssh_mapping_put failed, loop 1,%d\n", loop);
+          return 2;
+        }
       head++;
       keys_in_array++;
       if (head == KEY_ARRAY)
-	head = 0;
+        head = 0;
       assert(head != tail);
     }
   t = get_time(&tc);
 
 #ifndef QUIET
   printf("added %5d keys to mapping, time %5.3f [%6.2f adds/sec]\n",
-	 start_adds, t, ((double)start_adds)/t);
+         start_adds, t, ((double)start_adds)/t);
 #endif
   
   start_time(&tc);
@@ -613,76 +613,76 @@ int test2(int start_adds, int test_loops)
       state = random() % 3;
 
       if (keys_in_array >= KEY_ARRAY)
-	state = 0;
+        state = 0;
       if (keys_in_array == 0)
-	state = 1;
+        state = 1;
 
       switch (state)
-	{
-	case 0:
-	  key[head] = count++;
-	  value = ssh_mapping_put(m, &key[head], (void *)(key[head] + 100));
-	  if (value == TRUE)
-	    {	      
-	      printf("ssh_mapping_put failed, loop 2,%d\n", loop);
-	      return 2;
-	    }
-	  head++;
-	  keys_in_array++;
-	  if (head == KEY_ARRAY)
-	    head = 0;
-	  assert(head != tail);
-	  break;
+        {
+        case 0:
+          key[head] = count++;
+          value = ssh_mapping_put(m, &key[head], (void *)(key[head] + 100));
+          if (value == TRUE)
+            {         
+              printf("ssh_mapping_put failed, loop 2,%d\n", loop);
+              return 2;
+            }
+          head++;
+          keys_in_array++;
+          if (head == KEY_ARRAY)
+            head = 0;
+          assert(head != tail);
+          break;
 
-	case 1:
-	  value = ssh_mapping_remove(m, &key[tail], &p);
-	  if (value == FALSE)
-	    {
-	      printf("ssh_mapping_remove failed, loop 2,%d\n", loop);
-	      return 2;
-	    }
-	  if ((unsigned long) p != key[tail] + 100)
-	    {
-	      printf("ssh_mapping_remove failed (2), loop 2,%d \n", loop);
-	      return 2;
-	    }
-	  key[tail] = 0;	  
-	  keys_in_array--;	  
-	  tail++;
-	  if (tail == KEY_ARRAY)
-	    tail = 0;
-	  break;
+        case 1:
+          value = ssh_mapping_remove(m, &key[tail], &p);
+          if (value == FALSE)
+            {
+              printf("ssh_mapping_remove failed, loop 2,%d\n", loop);
+              return 2;
+            }
+          if ((unsigned long) p != key[tail] + 100)
+            {
+              printf("ssh_mapping_remove failed (2), loop 2,%d \n", loop);
+              return 2;
+            }
+          key[tail] = 0;          
+          keys_in_array--;        
+          tail++;
+          if (tail == KEY_ARRAY)
+            tail = 0;
+          break;
 
-	case 2:
-	  idx = random() % keys_in_array;
-	  if (tail + idx < KEY_ARRAY)
-	    idx += tail;
-	  else
-	    idx -= KEY_ARRAY - tail;
-	  
-	  value = ssh_mapping_get(m, &key[idx], &p);
-	  if (value == FALSE)
-	    {
-	      printf("ssh_mapping_get failed, loop 2,%d\n", loop);
-	      return 2;
-	    }
-	  if ((unsigned long)p != key[idx] + 100)
-	    {
-	      printf("ssh_mapping_get failed (2), loop 2,%d \n", loop);
-	      return 2;
-	    }
-	  break;
+        case 2:
+          idx = random() % keys_in_array;
+          if (tail + idx < KEY_ARRAY)
+            idx += tail;
+          else
+            idx -= KEY_ARRAY - tail;
+          
+          value = ssh_mapping_get(m, &key[idx], &p);
+          if (value == FALSE)
+            {
+              printf("ssh_mapping_get failed, loop 2,%d\n", loop);
+              return 2;
+            }
+          if ((unsigned long)p != key[idx] + 100)
+            {
+              printf("ssh_mapping_get failed (2), loop 2,%d \n", loop);
+              return 2;
+            }
+          break;
 
-	default:
-	  printf("Invalid state.\n");
-	  return 1000;
-	}      
+        default:
+          printf("Invalid state.\n");
+          return 1000;
+        }      
     }
   t = get_time(&tc);
 
 #ifndef QUIET
   printf("%5d random ops., time %5.3f [%6.2f ops/sec]\n",
-	 test_loops, t, ((double)test_loops)/t);
+         test_loops, t, ((double)test_loops)/t);
 #endif
   
   start_time(&tc);
@@ -692,21 +692,21 @@ int test2(int start_adds, int test_loops)
       count = 0;
       ssh_mapping_reset_index(m);
       while (ssh_mapping_get_next(m, &idx, &p) == TRUE)
-	{
-	  count++;
-	  if ((unsigned long) p != idx + 100)
-	    {
-	      printf("ssh_mapping_get_next failed. count %lu.\n", count);
-	      return 3;
-	    }
-	}
+        {
+          count++;
+          if ((unsigned long) p != idx + 100)
+            {
+              printf("ssh_mapping_get_next failed. count %lu.\n", count);
+              return 3;
+            }
+        }
       n += count;
     }
   t = get_time(&tc);
 
 #ifndef QUIET
   printf("Linear search: %lu keys in mapping, time %5.3f [%6.2f calls/sec]\n",
-	 count, t, ((double)n)/t);
+         count, t, ((double)n)/t);
 #endif
   
   if (count != keys_in_array)
@@ -970,7 +970,7 @@ int test4(int start_adds, int test_loops)
   count = 1;
 
   m = ssh_mapping_allocate(SSH_MAPPING_TYPE_POINTER, sizeof(unsigned long),
-			   0);
+                           0);
   if (!m)
     {
       printf("ssh_mapping_allocate failed.\n");
@@ -987,21 +987,21 @@ int test4(int start_adds, int test_loops)
       key[head] = count++;
       value = ssh_mapping_put(m, &key[head], (void *)(key[head] + 100));
       if (value == TRUE)
-	{
-	  printf("ssh_mapping_put failed, loop 1,%d\n", loop);
-	  return 2;
-	}
+        {
+          printf("ssh_mapping_put failed, loop 1,%d\n", loop);
+          return 2;
+        }
       head++;
       keys_in_array++;
       if (head == KEY_ARRAY)
-	head = 0;
+        head = 0;
       assert(head != tail);
     }
   t = get_time(&tc);
 
 #ifndef QUIET
   printf("added %5d keys to mapping, time %5.3f [%6.2f adds/sec]\n",
-	 start_adds, t, ((double)start_adds)/t);
+         start_adds, t, ((double)start_adds)/t);
 #endif
   
   start_time(&tc);
@@ -1010,77 +1010,77 @@ int test4(int start_adds, int test_loops)
       state = random() % 3;
 
       if (keys_in_array >= KEY_ARRAY)
-	state = 0;
+        state = 0;
       if (keys_in_array == 0)
-	state = 1;
+        state = 1;
 
       switch (state)
-	{
-	case 0:
-	  key[head] = count++;
-	  value = ssh_mapping_put(m, &key[head],
-				  (void *)(key[head] + 100));
-	  if (value == TRUE)
-	    {	      
-	      printf("ssh_mapping_put failed, loop 2,%d\n", loop);
-	      return 2;
-	    }
-	  head++;
-	  keys_in_array++;
-	  if (head == KEY_ARRAY)
-	    head = 0;
-	  assert(head != tail);
-	  break;
+        {
+        case 0:
+          key[head] = count++;
+          value = ssh_mapping_put(m, &key[head],
+                                  (void *)(key[head] + 100));
+          if (value == TRUE)
+            {         
+              printf("ssh_mapping_put failed, loop 2,%d\n", loop);
+              return 2;
+            }
+          head++;
+          keys_in_array++;
+          if (head == KEY_ARRAY)
+            head = 0;
+          assert(head != tail);
+          break;
 
-	case 1:
-	  value = ssh_mapping_remove(m, &key[tail], &p);
-	  if (value == FALSE)
-	    {
-	      printf("ssh_mapping_remove failed, loop 2,%d\n", loop);
-	      return 2;
-	    }
-	  if ((unsigned long) p != key[tail] + 100)
-	    {
-	      printf("ssh_mapping_remove failed (2), loop 2,%d \n", loop);
-	      return 2;
-	    }
-	  key[tail] = 0;	  
-	  keys_in_array--;	  
-	  tail++;
-	  if (tail == KEY_ARRAY)
-	    tail = 0;
-	  break;
+        case 1:
+          value = ssh_mapping_remove(m, &key[tail], &p);
+          if (value == FALSE)
+            {
+              printf("ssh_mapping_remove failed, loop 2,%d\n", loop);
+              return 2;
+            }
+          if ((unsigned long) p != key[tail] + 100)
+            {
+              printf("ssh_mapping_remove failed (2), loop 2,%d \n", loop);
+              return 2;
+            }
+          key[tail] = 0;          
+          keys_in_array--;        
+          tail++;
+          if (tail == KEY_ARRAY)
+            tail = 0;
+          break;
 
-	case 2:
-	  idx = random() % keys_in_array;
-	  if (tail + idx < KEY_ARRAY)
-	    idx += tail;
-	  else
-	    idx -= KEY_ARRAY - tail;
-	  
-	  value = ssh_mapping_get(m, &key[idx], &p);
-	  if (value == FALSE)
-	    {
-	      printf("ssh_mapping_get failed, loop 2,%d\n", loop);
-	      return 2;
-	    }
-	  if ((unsigned long)p != key[idx] + 100)
-	    {
-	      printf("ssh_mapping_get failed (2), loop 2,%d \n", loop);
-	      return 2;
-	    }
-	  break;
+        case 2:
+          idx = random() % keys_in_array;
+          if (tail + idx < KEY_ARRAY)
+            idx += tail;
+          else
+            idx -= KEY_ARRAY - tail;
+          
+          value = ssh_mapping_get(m, &key[idx], &p);
+          if (value == FALSE)
+            {
+              printf("ssh_mapping_get failed, loop 2,%d\n", loop);
+              return 2;
+            }
+          if ((unsigned long)p != key[idx] + 100)
+            {
+              printf("ssh_mapping_get failed (2), loop 2,%d \n", loop);
+              return 2;
+            }
+          break;
 
-	default:
-	  printf("Invalid state.\n");
-	  return 1000;
-	}      
+        default:
+          printf("Invalid state.\n");
+          return 1000;
+        }      
     }
   t = get_time(&tc);
 
 #ifndef QUIET
   printf("%5d random ops., time %5.3f [%6.2f ops/sec]\n",
-	 test_loops, t, ((double)test_loops)/t);
+         test_loops, t, ((double)test_loops)/t);
 #endif
   
   start_time(&tc);
@@ -1090,23 +1090,23 @@ int test4(int start_adds, int test_loops)
       count = 0;
       ssh_mapping_reset_index(m);
       while (ssh_mapping_get_next(m, &k, &p) == TRUE)
-	{
-	  count++;
-	  if ((unsigned long) p != *((unsigned long *)k) + 100)
-	    {
-	      printf("ssh_mapping_get_next failed. count %lu.\n", count);
-	      printf("index %p != value %p\n",
-		     (void *)((unsigned long)k + 100), p);
-	      return 3;
-	    }
-	}
+        {
+          count++;
+          if ((unsigned long) p != *((unsigned long *)k) + 100)
+            {
+              printf("ssh_mapping_get_next failed. count %lu.\n", count);
+              printf("index %p != value %p\n",
+                     (void *)((unsigned long)k + 100), p);
+              return 3;
+            }
+        }
       n += count;
     }
   t = get_time(&tc);
 
 #ifndef QUIET
   printf("Linear search: %lu keys in mapping, time %5.3f [%6.2f calls/sec]\n",
-	 count, t, ((double)n)/t);
+         count, t, ((double)n)/t);
 #endif
   
   if (count != keys_in_array)
@@ -1155,24 +1155,24 @@ int test5(int start_adds, int test_loops)
     {
       key[head] = count++;
       value = ssh_mapping_put_vl(m, &key[head], sizeof(unsigned long),
-				 (void *)(key[head] + 100),
-				 (key[head] % 1024) + 1);
+                                 (void *)(key[head] + 100),
+                                 (key[head] % 1024) + 1);
       if (value == TRUE)
-	{
-	  printf("ssh_mapping_put_vl failed, loop 1,%d\n", loop);
-	  return 2;
-	}
+        {
+          printf("ssh_mapping_put_vl failed, loop 1,%d\n", loop);
+          return 2;
+        }
       head++;
       keys_in_array++;
       if (head == KEY_ARRAY)
-	head = 0;
+        head = 0;
       assert(head != tail);
     }
   t = get_time(&tc);
 
 #ifndef QUIET
   printf("added %5d keys to mapping, time %5.3f [%6.2f adds/sec]\n",
-	 start_adds, t, ((double)start_adds)/t);
+         start_adds, t, ((double)start_adds)/t);
 #endif
   
   start_time(&tc);
@@ -1181,91 +1181,91 @@ int test5(int start_adds, int test_loops)
       state = random() % 3;
 
       if (keys_in_array >= KEY_ARRAY)
-	state = 0;
+        state = 0;
       if (keys_in_array == 0)
-	state = 1;
+        state = 1;
 
       switch (state)
-	{
-	case 0:
-	  key[head] = count++;
-	  value = ssh_mapping_put_vl(m, &key[head], sizeof(unsigned long),
-				     (void *)(key[head] + 100),
-				     (key[head] % 1024) + 1);
-	  if (value == TRUE)
-	    {	      
-	      printf("ssh_mapping_put_vl failed, loop 2,%d\n", loop);
-	      return 2;
-	    }
-	  head++;
-	  keys_in_array++;
-	  if (head == KEY_ARRAY)
-	    head = 0;
-	  assert(head != tail);
-	  break;
+        {
+        case 0:
+          key[head] = count++;
+          value = ssh_mapping_put_vl(m, &key[head], sizeof(unsigned long),
+                                     (void *)(key[head] + 100),
+                                     (key[head] % 1024) + 1);
+          if (value == TRUE)
+            {         
+              printf("ssh_mapping_put_vl failed, loop 2,%d\n", loop);
+              return 2;
+            }
+          head++;
+          keys_in_array++;
+          if (head == KEY_ARRAY)
+            head = 0;
+          assert(head != tail);
+          break;
 
-	case 1:
-	  value = ssh_mapping_remove_vl(m, &key[tail], sizeof(unsigned long),
-					&p, &val_l);
-	  if (value == FALSE)
-	    {
-	      printf("ssh_mapping_remove_vl failed, loop 2,%d\n", loop);
-	      return 2;
-	    }
-	  if ((unsigned long) p != key[tail] + 100)
-	    {
-	      printf("ssh_mapping_remove_vl failed (2), loop 2,%d \n", loop);
-	      return 2;
-	    }
-	  if (val_l != (key[tail] % 1024) + 1)
-	    {
-	      printf("ssh_mapping_remove_vl failed (2), loop 2,%d \n", loop);
-	      return 2;
-	    }
+        case 1:
+          value = ssh_mapping_remove_vl(m, &key[tail], sizeof(unsigned long),
+                                        &p, &val_l);
+          if (value == FALSE)
+            {
+              printf("ssh_mapping_remove_vl failed, loop 2,%d\n", loop);
+              return 2;
+            }
+          if ((unsigned long) p != key[tail] + 100)
+            {
+              printf("ssh_mapping_remove_vl failed (2), loop 2,%d \n", loop);
+              return 2;
+            }
+          if (val_l != (key[tail] % 1024) + 1)
+            {
+              printf("ssh_mapping_remove_vl failed (2), loop 2,%d \n", loop);
+              return 2;
+            }
 
-	  key[tail] = 0;	  
-	  keys_in_array--;	  
-	  tail++;
-	  if (tail == KEY_ARRAY)
-	    tail = 0;
-	  break;
+          key[tail] = 0;          
+          keys_in_array--;        
+          tail++;
+          if (tail == KEY_ARRAY)
+            tail = 0;
+          break;
 
-	case 2:
-	  idx = random() % keys_in_array;
-	  if (tail + idx < KEY_ARRAY)
-	    idx += tail;
-	  else
-	    idx -= KEY_ARRAY - tail;
-	  
-	  value = ssh_mapping_get_vl(m, &key[idx], sizeof(unsigned long),
-				     &p, &val_l);
-	  if (value == FALSE)
-	    {
-	      printf("ssh_mapping_get_vl failed, loop 2,%d\n", loop);
-	      return 2;
-	    }
-	  if ((unsigned long)p != key[idx] + 100)
-	    {
-	      printf("ssh_mapping_get_vl failed (2), loop 2,%d \n", loop);
-	      return 2;
-	    }
-	  if (val_l != (key[idx] % 1024) + 1)
-	    {
-	      printf("ssh_mapping_get_vl failed (2), loop 2,%d \n", loop);
-	      return 2;
-	    }
-	  break;
+        case 2:
+          idx = random() % keys_in_array;
+          if (tail + idx < KEY_ARRAY)
+            idx += tail;
+          else
+            idx -= KEY_ARRAY - tail;
+          
+          value = ssh_mapping_get_vl(m, &key[idx], sizeof(unsigned long),
+                                     &p, &val_l);
+          if (value == FALSE)
+            {
+              printf("ssh_mapping_get_vl failed, loop 2,%d\n", loop);
+              return 2;
+            }
+          if ((unsigned long)p != key[idx] + 100)
+            {
+              printf("ssh_mapping_get_vl failed (2), loop 2,%d \n", loop);
+              return 2;
+            }
+          if (val_l != (key[idx] % 1024) + 1)
+            {
+              printf("ssh_mapping_get_vl failed (2), loop 2,%d \n", loop);
+              return 2;
+            }
+          break;
 
-	default:
-	  printf("Invalid state.\n");
-	  return 1000;
-	}      
+        default:
+          printf("Invalid state.\n");
+          return 1000;
+        }      
     }
   t = get_time(&tc);
 
 #ifndef QUIET
   printf("%5d random ops., time %5.3f [%6.2f ops/sec]\n",
-	 test_loops, t, ((double)test_loops)/t);
+         test_loops, t, ((double)test_loops)/t);
 #endif
   
   start_time(&tc);
@@ -1275,27 +1275,27 @@ int test5(int start_adds, int test_loops)
       count = 0;
       ssh_mapping_reset_index(m);
       while (ssh_mapping_get_next_vl(m, (void **) &k, &key_l, &p, &val_l)
-	     == TRUE)
-	{
-	  count++;
-	  if ((unsigned long) p != *((unsigned long *)k) + 100)
-	    {
-	      printf("ssh_mapping_get_next_vl failed. count %lu.\n", count);
-	      return 3;
-	    }
-	  if (val_l != (*((unsigned long *)k) % 1024) + 1)
-	    {
-	      printf("ssh_mapping_get_next_vl failed (2), loop 2,%d \n", loop);
-	      return 2;
-	    }
-	}
+             == TRUE)
+        {
+          count++;
+          if ((unsigned long) p != *((unsigned long *)k) + 100)
+            {
+              printf("ssh_mapping_get_next_vl failed. count %lu.\n", count);
+              return 3;
+            }
+          if (val_l != (*((unsigned long *)k) % 1024) + 1)
+            {
+              printf("ssh_mapping_get_next_vl failed (2), loop 2,%d \n", loop);
+              return 2;
+            }
+        }
       n += count;
     }
   t = get_time(&tc);
 
 #ifndef QUIET
   printf("Linear search: %lu keys in mapping, time %5.3f [%6.2f calls/sec]\n",
-	 count, t, ((double)n)/t);
+         count, t, ((double)n)/t);
 #endif
   
   if (count != keys_in_array)
@@ -1318,7 +1318,7 @@ unsigned long my_hash_func(const void *key, const size_t size)
 }
 
 int my_compare_func(const void *key1, const void *key2,
-		    const size_t length)
+                    const size_t length)
 {
   return memcmp(key1, key2, length);
 }
@@ -1339,9 +1339,9 @@ int main(void)
   printf("Testing 'store pointers' mapping.\n");
 #endif
   context = ssh_mapping_allocate_with_func(SSH_MAPPING_FL_INTEGER_KEY |      
-					   SSH_MAPPING_FL_STORE_POINTERS,
-					   my_hash_func, my_compare_func,
-					   NULL, 100, 1024);
+                                           SSH_MAPPING_FL_STORE_POINTERS,
+                                           my_hash_func, my_compare_func,
+                                           NULL, 100, 1024);
   if (!context)
     {
       printf("ssh_mapping_allocate_with_func failed.\n");
@@ -1357,7 +1357,7 @@ int main(void)
 
 #ifndef QUIET 
   printf("ok. [time: %4.1f sec;  %6.2f ops/sec]\n\n",
-	 t, (double)NUM_TESTS/t);
+         t, (double)NUM_TESTS/t);
 #endif
   ssh_mapping_free(context);
 
@@ -1386,7 +1386,7 @@ int main(void)
 
 #ifndef QUIET
   printf("ok. [time: %4.1f sec;  %6.2f ops/sec]\n\n",
-	 t, (double)NUM_TESTS/t);
+         t, (double)NUM_TESTS/t);
 #endif
   ssh_mapping_free(context);
 
@@ -1412,7 +1412,7 @@ int main(void)
 
 #ifndef QUIET
   printf("ok. [time: %4.1f sec;  %6.2f ops/sec]\n\n",
-	 t, (double)NUM_TESTS/t);
+         t, (double)NUM_TESTS/t);
 #endif
   ssh_mapping_free(context);
 
@@ -1438,7 +1438,7 @@ int main(void)
 
 #ifndef QUIET
   printf("ok. [time: %4.1f sec;  %6.2f ops/sec]\n\n",
-	 t, (double)NUM_TESTS/t);
+         t, (double)NUM_TESTS/t);
 #endif
   ssh_mapping_free(context);
 

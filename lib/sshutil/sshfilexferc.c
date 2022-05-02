@@ -174,9 +174,9 @@ void ssh_file_client_try_send(SshFileClient client)
   while (client->queued_requests != NULL)
     {
       /* If buffers are full, stop sending.  We will be called again
-	 from a callback when sending is again possible. */
+         from a callback when sending is again possible. */
       if (!ssh_packet_wrapper_can_send(client->conn))
-	return;
+        return;
 
       /* Take a request from the queue. */
       request = client->queued_requests;
@@ -184,7 +184,7 @@ void ssh_file_client_try_send(SshFileClient client)
 
       /* Send the request to the other side. */
       ssh_packet_wrapper_send(client->conn, request->packet_type,
-			      request->request, request->request_len);
+                              request->request, request->request_len);
 
       /* Put the request in the waiting queue. */
       request->next = client->sent_requests;
@@ -196,7 +196,7 @@ void ssh_file_client_try_send(SshFileClient client)
    list.  Removes the request from the list and returns it. */
 
 SshFileClientRequest ssh_file_client_find_request(SshFileClient client,
-						  unsigned int id)
+                                                  unsigned int id)
 {
   SshFileClientRequest request, *requestp;
 
@@ -217,8 +217,8 @@ SshFileClientRequest ssh_file_client_find_request(SshFileClient client,
    is typically used for status replies. */
   
 void ssh_file_client_return_status(SshFileClient client,
-				   unsigned int id,
-				   SshFileClientError error)
+                                   unsigned int id,
+                                   SshFileClientError error)
 {
   SshFileClientRequest request;
 
@@ -229,7 +229,7 @@ void ssh_file_client_return_status(SshFileClient client,
   if (request == NULL)
     {
       ssh_warning("ssh_file_client_return_status: id %d not found, error %d",
-		  id, (int)error);
+                  id, (int)error);
       return;
     }
   
@@ -238,32 +238,32 @@ void ssh_file_client_return_status(SshFileClient client,
     {
     case SSH_FILEXFER_HANDLE_REPLY:
       if (request->handle_callback)
-	(*request->handle_callback)(error, NULL, request->context);
+        (*request->handle_callback)(error, NULL, request->context);
       break;
       
     case SSH_FILEXFER_STATUS_REPLY:
       if (request->status_callback)
-	(*request->status_callback)(error, request->context);
+        (*request->status_callback)(error, request->context);
       break;
       
     case SSH_FILEXFER_DATA_REPLY:
       if (request->data_callback)
-	(*request->data_callback)(error, NULL, (size_t)0, request->context);
+        (*request->data_callback)(error, NULL, (size_t)0, request->context);
       break;
       
     case SSH_FILEXFER_NAME_REPLY:
       if (request->name_callback)
-	(*request->name_callback)(error, NULL, NULL, NULL, request->context);
+        (*request->name_callback)(error, NULL, NULL, NULL, request->context);
       break;
       
     case SSH_FILEXFER_ATTRS_REPLY:
       if (request->attribute_callback)
-	(*request->attribute_callback)(error, NULL, request->context);
+        (*request->attribute_callback)(error, NULL, request->context);
       break;
       
     default:
       ssh_fatal("ssh_file_client_eof_proc: bad expect %d",
-		(int)request->expected_reply);
+                (int)request->expected_reply);
     }
 
   /* Free the request. */
@@ -275,8 +275,8 @@ void ssh_file_client_return_status(SshFileClient client,
    is freed. */
 
 SshFileHandle ssh_file_client_make_handle(SshFileClient client,
-					  unsigned char *value,
-					  size_t len)
+                                          unsigned char *value,
+                                          size_t len)
 {
   SshFileHandle handle;
 
@@ -316,8 +316,8 @@ void ssh_file_client_free_handle(SshFileHandle handle)
 /* Allocates a new request structure and adds it on the queued list. */
 
 SshFileClientRequest ssh_file_request(SshFileClient client,
-				      unsigned int packet_type,
-				      SshFileClientExpect reply_type, ...)
+                                      unsigned int packet_type,
+                                      SshFileClientExpect reply_type, ...)
 {
   SshFileClientRequest request;
   va_list va;
@@ -329,8 +329,8 @@ SshFileClientRequest ssh_file_request(SshFileClient client,
   va_start(va, reply_type);
   ssh_buffer_init(&buffer);
   ssh_encode_buffer(&buffer,
-		    SSH_FORMAT_UINT32, (unsigned long)client->next_id,
-		    SSH_FORMAT_END);
+                    SSH_FORMAT_UINT32, (unsigned long)client->next_id,
+                    SSH_FORMAT_END);
   ssh_encode_va(&buffer, va);
 
   /* Allocate and initialize the request data structure. */
@@ -338,7 +338,7 @@ SshFileClientRequest ssh_file_request(SshFileClient client,
   memset(request, 0, sizeof(*request));
   request->id = client->next_id++;
   request->request = ssh_xmemdup(ssh_buffer_ptr(&buffer),
-				 ssh_buffer_len(&buffer));
+                                 ssh_buffer_len(&buffer));
   request->request_len = ssh_buffer_len(&buffer);
   request->packet_type = packet_type;
   request->expected_reply = reply_type;
@@ -361,11 +361,11 @@ SshFileClientRequest ssh_file_request(SshFileClient client,
    complete. */
 
 void ssh_file_client_open(SshFileClient client,
-			  const char *name,
-			  unsigned int flags,
-			  SshFileAttributes attributes,
-			  SshFileHandleCallback callback,
-			  void *context)
+                          const char *name,
+                          unsigned int flags,
+                          SshFileAttributes attributes,
+                          SshFileHandleCallback callback,
+                          void *context)
 {
   SshFileClientRequest request;
   struct SshFileAttributesRec default_attrs;
@@ -408,11 +408,11 @@ void ssh_file_client_open(SshFileClient client,
     }
   
   request = ssh_file_request(client, SSH_FXP_OPEN, SSH_FILEXFER_HANDLE_REPLY,
-			     SSH_FORMAT_UINT32_STR, name, strlen(name),
-			     SSH_FORMAT_UINT32, (unsigned long)pflags,
-			     SSH_FORMAT_EXTENDED, 
-			       ssh_file_attrs_encoder, attributes,
-			     SSH_FORMAT_END);
+                             SSH_FORMAT_UINT32_STR, name, strlen(name),
+                             SSH_FORMAT_UINT32, (unsigned long)pflags,
+                             SSH_FORMAT_EXTENDED, 
+                               ssh_file_attrs_encoder, attributes,
+                             SSH_FORMAT_END);
   
   /* Note that the callback will not be delivered until from the bottom
      of the event loop, and thus it is safe to set the callback here. */
@@ -423,10 +423,10 @@ void ssh_file_client_open(SshFileClient client,
 /* Sends a read request. */
 
 void ssh_file_client_read(SshFileHandle handle,
-			  off_t offset,
-			  size_t len,
-			  SshFileDataCallback callback,
-			  void *context)
+                          off_t offset,
+                          size_t len,
+                          SshFileDataCallback callback,
+                          void *context)
 {
   unsigned long off_high, off_low;
   SshFileClientRequest request;
@@ -440,12 +440,12 @@ void ssh_file_client_read(SshFileHandle handle,
   off_low = offset & 0xffffffffL;
   off_high = sizeof(offset) > 4 ? (offset >> 32) : 0;
   request = ssh_file_request(handle->client, SSH_FXP_READ,
-			     SSH_FILEXFER_DATA_REPLY,
-			     SSH_FORMAT_UINT32_STR, handle->value, handle->len,
-			     SSH_FORMAT_UINT32, off_high,
-			     SSH_FORMAT_UINT32, off_low,
-			     SSH_FORMAT_UINT32, (unsigned long)len,
-			     SSH_FORMAT_END);
+                             SSH_FILEXFER_DATA_REPLY,
+                             SSH_FORMAT_UINT32_STR, handle->value, handle->len,
+                             SSH_FORMAT_UINT32, off_high,
+                             SSH_FORMAT_UINT32, off_low,
+                             SSH_FORMAT_UINT32, (unsigned long)len,
+                             SSH_FORMAT_END);
   request->data_callback = callback;
   request->context = context;
 }
@@ -453,11 +453,11 @@ void ssh_file_client_read(SshFileHandle handle,
 /* Sends a write request. */
 
 void ssh_file_client_write(SshFileHandle handle,
-			   off_t offset,
-			   const unsigned char *buf,
-			   size_t len,
-			   SshFileStatusCallback callback,
-			   void *context)
+                           off_t offset,
+                           const unsigned char *buf,
+                           size_t len,
+                           SshFileStatusCallback callback,
+                           void *context)
 {
   unsigned long off_high, off_low;
   SshFileClientRequest request;
@@ -471,14 +471,14 @@ void ssh_file_client_write(SshFileHandle handle,
   off_low = offset & 0xffffffffL;
   off_high = sizeof(offset) > 4 ? (offset >> 32) : 0;
   request = ssh_file_request(handle->client, SSH_FXP_WRITE,
-			     SSH_FILEXFER_STATUS_REPLY,
-			     SSH_FORMAT_UINT32_STR, 
-			       handle->value, handle->len,
-			     SSH_FORMAT_UINT32, off_high,
-			     SSH_FORMAT_UINT32, off_low,
-			     SSH_FORMAT_UINT32_STR, 
-			       buf, len,
-			     SSH_FORMAT_END);
+                             SSH_FILEXFER_STATUS_REPLY,
+                             SSH_FORMAT_UINT32_STR, 
+                               handle->value, handle->len,
+                             SSH_FORMAT_UINT32, off_high,
+                             SSH_FORMAT_UINT32, off_low,
+                             SSH_FORMAT_UINT32_STR, 
+                               buf, len,
+                             SSH_FORMAT_END);
   request->status_callback = callback;
   request->context = context;
 }
@@ -486,8 +486,8 @@ void ssh_file_client_write(SshFileHandle handle,
 /* Sends a close request. */
 
 void ssh_file_client_close(SshFileHandle handle,
-			   SshFileStatusCallback callback,
-			   void *context)
+                           SshFileStatusCallback callback,
+                           void *context)
 {
   SshFileClientRequest request;
 
@@ -499,10 +499,10 @@ void ssh_file_client_close(SshFileHandle handle,
     }
 
   request = ssh_file_request(handle->client, SSH_FXP_CLOSE,
-			     SSH_FILEXFER_STATUS_REPLY,
-			     SSH_FORMAT_UINT32_STR, 
-			       handle->value, handle->len,
-			     SSH_FORMAT_END);
+                             SSH_FILEXFER_STATUS_REPLY,
+                             SSH_FORMAT_UINT32_STR, 
+                               handle->value, handle->len,
+                             SSH_FORMAT_END);
   request->status_callback = callback;
   request->context = context;
 
@@ -513,9 +513,9 @@ void ssh_file_client_close(SshFileHandle handle,
 /* Sends a stat request. */
 
 void ssh_file_client_stat(SshFileClient client,
-			  const char *name,
-			  SshFileAttributeCallback callback,
-			  void *context)
+                          const char *name,
+                          SshFileAttributeCallback callback,
+                          void *context)
 {
   SshFileClientRequest request;
 
@@ -532,10 +532,10 @@ void ssh_file_client_stat(SshFileClient client,
     }
 
   request = ssh_file_request(client, SSH_FXP_STAT,
-			     SSH_FILEXFER_ATTRS_REPLY,
-			     SSH_FORMAT_UINT32_STR, 
-			       name, strlen(name),
-			     SSH_FORMAT_END);
+                             SSH_FILEXFER_ATTRS_REPLY,
+                             SSH_FORMAT_UINT32_STR, 
+                               name, strlen(name),
+                             SSH_FORMAT_END);
   request->attribute_callback = callback;
   request->context = context;
 }
@@ -543,8 +543,8 @@ void ssh_file_client_stat(SshFileClient client,
 /* Sends an fstat request. */
 
 void ssh_file_client_fstat(SshFileHandle handle,
-			   SshFileAttributeCallback callback,
-			   void *context)
+                           SshFileAttributeCallback callback,
+                           void *context)
 {
   SshFileClientRequest request;
 
@@ -555,10 +555,10 @@ void ssh_file_client_fstat(SshFileHandle handle,
     }
 
   request = ssh_file_request(handle->client, SSH_FXP_FSTAT,
-			     SSH_FILEXFER_ATTRS_REPLY,
-			     SSH_FORMAT_UINT32_STR, 
-			       handle->value, handle->len,
-			     SSH_FORMAT_END);
+                             SSH_FILEXFER_ATTRS_REPLY,
+                             SSH_FORMAT_UINT32_STR, 
+                               handle->value, handle->len,
+                             SSH_FORMAT_END);
   request->attribute_callback = callback;
   request->context = context;
 }
@@ -566,10 +566,10 @@ void ssh_file_client_fstat(SshFileHandle handle,
 /* Sends a setstat request (i.e., chown, chmod, or truncate). */
 
 void ssh_file_client_setstat(SshFileClient client,
-			     const char *name,
-			     SshFileAttributes attributes,
-			     SshFileStatusCallback callback,
-			     void *context)
+                             const char *name,
+                             SshFileAttributes attributes,
+                             SshFileStatusCallback callback,
+                             void *context)
 {
   SshFileClientRequest request;
 
@@ -580,11 +580,11 @@ void ssh_file_client_setstat(SshFileClient client,
     }
 
   request = ssh_file_request(client, SSH_FXP_SETSTAT,
-			     SSH_FILEXFER_STATUS_REPLY,
-			     SSH_FORMAT_UINT32_STR, name, strlen(name),
-			     SSH_FORMAT_EXTENDED, 
-			       ssh_file_attrs_encoder, attributes,
-			     SSH_FORMAT_END);
+                             SSH_FILEXFER_STATUS_REPLY,
+                             SSH_FORMAT_UINT32_STR, name, strlen(name),
+                             SSH_FORMAT_EXTENDED, 
+                               ssh_file_attrs_encoder, attributes,
+                             SSH_FORMAT_END);
   request->status_callback = callback;
   request->context = context;
 }
@@ -592,9 +592,9 @@ void ssh_file_client_setstat(SshFileClient client,
 /* Sends an fsetstat request (i.e., fchmod, fchown, or ftruncate). */
 
 void ssh_file_client_fsetstat(SshFileHandle handle,
-			      SshFileAttributes attributes,
-			      SshFileStatusCallback callback,
-			      void *context)
+                              SshFileAttributes attributes,
+                              SshFileStatusCallback callback,
+                              void *context)
 {
   SshFileClientRequest request;
 
@@ -605,11 +605,11 @@ void ssh_file_client_fsetstat(SshFileHandle handle,
     }
 
   request = ssh_file_request(handle->client, SSH_FXP_FSETSTAT,
-			     SSH_FILEXFER_STATUS_REPLY,
-			     SSH_FORMAT_UINT32_STR, handle->value, handle->len,
-			     SSH_FORMAT_EXTENDED, 
-			       ssh_file_attrs_encoder, attributes,
-			     SSH_FORMAT_END);
+                             SSH_FILEXFER_STATUS_REPLY,
+                             SSH_FORMAT_UINT32_STR, handle->value, handle->len,
+                             SSH_FORMAT_EXTENDED, 
+                               ssh_file_attrs_encoder, attributes,
+                             SSH_FORMAT_END);
   request->status_callback = callback;
   request->context = context;
 }
@@ -618,9 +618,9 @@ void ssh_file_client_fsetstat(SshFileHandle handle,
    readdir. */
 
 void ssh_file_client_opendir(SshFileClient client,
-			     const char *name,
-			     SshFileHandleCallback callback,
-			     void *context)
+                             const char *name,
+                             SshFileHandleCallback callback,
+                             void *context)
 {
   SshFileClientRequest request;
 
@@ -631,9 +631,9 @@ void ssh_file_client_opendir(SshFileClient client,
     }
 
   request = ssh_file_request(client, SSH_FXP_OPENDIR,
-			     SSH_FILEXFER_HANDLE_REPLY,
-			     SSH_FORMAT_UINT32_STR, name, strlen(name),
-			     SSH_FORMAT_END);
+                             SSH_FILEXFER_HANDLE_REPLY,
+                             SSH_FORMAT_UINT32_STR, name, strlen(name),
+                             SSH_FORMAT_END);
   request->handle_callback = callback;
   request->context = context;
 }
@@ -641,8 +641,8 @@ void ssh_file_client_opendir(SshFileClient client,
 /* Read the next directory entry. */
 
 void ssh_file_client_readdir(SshFileHandle handle,
-			     SshFileNameCallback callback,
-			     void *context)
+                             SshFileNameCallback callback,
+                             void *context)
 {
   SshFileClientRequest request;
   unsigned int a;
@@ -652,10 +652,10 @@ void ssh_file_client_readdir(SshFileHandle handle,
     {
       a = handle->next_name++;
       (*callback)(SSH_FX_OK, 
-		  handle->names[a], 
-		  handle->long_names[a], 
-		  handle->attrs[a], 		  
-		  context);
+                  handle->names[a], 
+                  handle->long_names[a], 
+                  handle->attrs[a],               
+                  context);
       return;
     }
 
@@ -668,10 +668,10 @@ void ssh_file_client_readdir(SshFileHandle handle,
   
   /* Otherwise, request more names from the server. */
   request = ssh_file_request(handle->client, SSH_FXP_READDIR,
-			     SSH_FILEXFER_NAME_REPLY,
-			     SSH_FORMAT_UINT32_STR, 
-			       handle->value, handle->len,
-			     SSH_FORMAT_END);
+                             SSH_FILEXFER_NAME_REPLY,
+                             SSH_FORMAT_UINT32_STR, 
+                               handle->value, handle->len,
+                             SSH_FORMAT_END);
   request->name_callback = callback;
   request->context = context;
   request->handle = handle;
@@ -680,9 +680,9 @@ void ssh_file_client_readdir(SshFileHandle handle,
 /* Remove a file */
 
 void ssh_file_client_remove(SshFileClient client,
-			    const char *name,
-			    SshFileStatusCallback callback,
-			    void *context)
+                            const char *name,
+                            SshFileStatusCallback callback,
+                            void *context)
 {
   SshFileClientRequest request;
 
@@ -693,10 +693,10 @@ void ssh_file_client_remove(SshFileClient client,
     }
 
   request = ssh_file_request(client, SSH_FXP_REMOVE,
-			     SSH_FILEXFER_STATUS_REPLY,
-			     SSH_FORMAT_UINT32_STR, 
-			       name, strlen(name),
-			     SSH_FORMAT_END);
+                             SSH_FILEXFER_STATUS_REPLY,
+                             SSH_FORMAT_UINT32_STR, 
+                               name, strlen(name),
+                             SSH_FORMAT_END);
   request->status_callback = callback;
   request->context = context;
 }
@@ -704,10 +704,10 @@ void ssh_file_client_remove(SshFileClient client,
 /* Make directory */
 
 void ssh_file_client_mkdir(SshFileClient client,
-			   const char *name,
-			   SshFileAttributes attributes,
-			   SshFileStatusCallback callback,
-			   void *context)
+                           const char *name,
+                           SshFileAttributes attributes,
+                           SshFileStatusCallback callback,
+                           void *context)
 {
   SshFileClientRequest request;
   struct SshFileAttributesRec default_attrs;
@@ -726,11 +726,11 @@ void ssh_file_client_mkdir(SshFileClient client,
     }
 
   request = ssh_file_request(client, SSH_FXP_MKDIR,
-			     SSH_FILEXFER_STATUS_REPLY,
-			     SSH_FORMAT_UINT32_STR, name, strlen(name),
-			     SSH_FORMAT_EXTENDED, ssh_file_attrs_encoder,
-			       attributes,
-			     SSH_FORMAT_END);
+                             SSH_FILEXFER_STATUS_REPLY,
+                             SSH_FORMAT_UINT32_STR, name, strlen(name),
+                             SSH_FORMAT_EXTENDED, ssh_file_attrs_encoder,
+                               attributes,
+                             SSH_FORMAT_END);
   request->status_callback = callback;
   request->context = context;
 }
@@ -738,9 +738,9 @@ void ssh_file_client_mkdir(SshFileClient client,
 /* Remove a directory */
 
 void ssh_file_client_rmdir(SshFileClient client,
-			   const char *name,
-			   SshFileStatusCallback callback,
-			   void *context)
+                           const char *name,
+                           SshFileStatusCallback callback,
+                           void *context)
 {
   SshFileClientRequest request;
 
@@ -751,10 +751,10 @@ void ssh_file_client_rmdir(SshFileClient client,
     }
 
   request = ssh_file_request(client, SSH_FXP_RMDIR,
-			     SSH_FILEXFER_STATUS_REPLY,
-			     SSH_FORMAT_UINT32_STR, 
-			       name, strlen(name),
-			     SSH_FORMAT_END);
+                             SSH_FILEXFER_STATUS_REPLY,
+                             SSH_FORMAT_UINT32_STR, 
+                               name, strlen(name),
+                             SSH_FORMAT_END);
   request->status_callback = callback;
   request->context = context;
 }
@@ -762,9 +762,9 @@ void ssh_file_client_rmdir(SshFileClient client,
 /* realpath */
 
 void ssh_file_client_realpath(SshFileClient client,
-			      const char *name,
-			      SshFileNameCallback callback,
-			      void *context)
+                              const char *name,
+                              SshFileNameCallback callback,
+                              void *context)
 {
   SshFileClientRequest request;
 
@@ -775,10 +775,10 @@ void ssh_file_client_realpath(SshFileClient client,
     }
 
   request = ssh_file_request(client, SSH_FXP_REALPATH,
-			     SSH_FILEXFER_NAME_REPLY,
-			     SSH_FORMAT_UINT32_STR, 
-			       name, strlen(name),
-			     SSH_FORMAT_END);
+                             SSH_FILEXFER_NAME_REPLY,
+                             SSH_FORMAT_UINT32_STR, 
+                               name, strlen(name),
+                             SSH_FORMAT_END);
   request->name_callback = callback;
   request->context = context;
   request->handle = NULL;
@@ -787,8 +787,8 @@ void ssh_file_client_realpath(SshFileClient client,
 /* This function is called whenever a packet is received from the server. */
 
 void ssh_file_client_receive_proc(SshPacketType type,
-				  const unsigned char *data, size_t len,
-				  void *context)
+                                  const unsigned char *data, size_t len,
+                                  void *context)
 {
   SshFileClient client = (SshFileClient)context;
   SshFileClientRequest request;
@@ -803,12 +803,12 @@ void ssh_file_client_receive_proc(SshPacketType type,
     {
     case SSH_FXP_VERSION:
       if (ssh_decode_array(data, len,
-			   SSH_FORMAT_UINT32, &u,
-			   SSH_FORMAT_END) != len)
-	{
-	  ssh_warning("ssh_file_client_receive_proc: bad VERSION");
-	  return;
-	}
+                           SSH_FORMAT_UINT32, &u,
+                           SSH_FORMAT_END) != len)
+        {
+          ssh_warning("ssh_file_client_receive_proc: bad VERSION");
+          return;
+        }
       client->version = (u < SSH_FILEXFER_VERSION) ? u : SSH_FILEXFER_VERSION;
       client->version_received = TRUE;
       ssh_file_client_try_send(client);
@@ -816,109 +816,109 @@ void ssh_file_client_receive_proc(SshPacketType type,
 
     case SSH_FXP_STATUS:
       if (ssh_decode_array(data, len,
-			   SSH_FORMAT_UINT32, &id,
-			   SSH_FORMAT_UINT32, &u,
-			   SSH_FORMAT_END) != len)
-	{
-	  ssh_warning("ssh_file_client_receive_proc: bad STATUS");
-	  return;
-	}
+                           SSH_FORMAT_UINT32, &id,
+                           SSH_FORMAT_UINT32, &u,
+                           SSH_FORMAT_END) != len)
+        {
+          ssh_warning("ssh_file_client_receive_proc: bad STATUS");
+          return;
+        }
       ssh_file_client_return_status(client, id, (SshFileClientError)u);
       break;
 
     case SSH_FXP_HANDLE:
       if (ssh_decode_array(data, len,
-			   SSH_FORMAT_UINT32, &id,
-			   SSH_FORMAT_UINT32_STR, &s, &slen,
-			   SSH_FORMAT_END) != len)
-	{
-	  ssh_warning("ssh_file_client_receive_proc: bad HANDLE");
-	  return;
-	}
+                           SSH_FORMAT_UINT32, &id,
+                           SSH_FORMAT_UINT32_STR, &s, &slen,
+                           SSH_FORMAT_END) != len)
+        {
+          ssh_warning("ssh_file_client_receive_proc: bad HANDLE");
+          return;
+        }
 
       /* Try to find a matching request. */
       request = ssh_file_client_find_request(client, id);
       if (!request)
-	{
-	  /* No such request found. */
-	  ssh_warning("ssh_file_client_receive_proc: unknown HANDLE");
-	  return;
-	}
+        {
+          /* No such request found. */
+          ssh_warning("ssh_file_client_receive_proc: unknown HANDLE");
+          return;
+        }
 
       /* Check that the request really expects a reply of this type. */
       if (request->expected_reply != SSH_FILEXFER_HANDLE_REPLY)
-	{
-	  ssh_warning("ssh_file_client_receive_proc: unexpected HANDLE");
-	  return;
-	}
+        {
+          ssh_warning("ssh_file_client_receive_proc: unexpected HANDLE");
+          return;
+        }
 
       /* Call the callback.  If none was supplied, free the handle. */
       if (request->handle_callback)
-	(*request->handle_callback)(SSH_FX_OK,
-				    ssh_file_client_make_handle(client, s,
-								slen),
-				    request->context);
+        (*request->handle_callback)(SSH_FX_OK,
+                                    ssh_file_client_make_handle(client, s,
+                                                                slen),
+                                    request->context);
       else
-	ssh_xfree(s);
+        ssh_xfree(s);
       break;
       
     case SSH_FXP_DATA:
       if (ssh_decode_array(data, len,
-			   SSH_FORMAT_UINT32, &id,
-			   SSH_FORMAT_UINT32_STR_NOCOPY, &s, &slen,
-			   SSH_FORMAT_END) != len)
-	{
-	  ssh_warning("ssh_file_client_receive_proc: bad DATA");
-	  return;
-	}
+                           SSH_FORMAT_UINT32, &id,
+                           SSH_FORMAT_UINT32_STR_NOCOPY, &s, &slen,
+                           SSH_FORMAT_END) != len)
+        {
+          ssh_warning("ssh_file_client_receive_proc: bad DATA");
+          return;
+        }
 
       /* Try to find a matching request. */
       request = ssh_file_client_find_request(client, id);
       if (!request)
-	{
-	  /* No such request found. */
-	  ssh_warning("ssh_file_client_receive_proc: unknown DATA");
-	  return;
-	}
+        {
+          /* No such request found. */
+          ssh_warning("ssh_file_client_receive_proc: unknown DATA");
+          return;
+        }
 
       /* Check that the request really expects a reply of this type. */
       if (request->expected_reply != SSH_FILEXFER_DATA_REPLY)
-	{
-	  ssh_warning("ssh_file_client_receive_proc: unexpected DATA");
-	  return;
-	}
+        {
+          ssh_warning("ssh_file_client_receive_proc: unexpected DATA");
+          return;
+        }
 
       /* Call the callback.  If none was supplied, free the handle. */
       if (request->data_callback)
-	(*request->data_callback)(SSH_FX_OK, s, slen, request->context);
+        (*request->data_callback)(SSH_FX_OK, s, slen, request->context);
       break;
 
     case SSH_FXP_NAME:
       bytes = ssh_decode_array(data, len,
-			       SSH_FORMAT_UINT32, &id,
-			       SSH_FORMAT_UINT32, &u,
-			       SSH_FORMAT_END);
+                               SSH_FORMAT_UINT32, &id,
+                               SSH_FORMAT_UINT32, &u,
+                               SSH_FORMAT_END);
       if (bytes == 0)
-	{
-	  ssh_warning("ssh_file_client_receive_proc: bad NAME");
-	  return;
-	}
+        {
+          ssh_warning("ssh_file_client_receive_proc: bad NAME");
+          return;
+        }
 
       /* Try to find a matching request. */
       request = ssh_file_client_find_request(client, id);
       if (!request)
-	{
-	  /* No such request found. */
-	  ssh_warning("ssh_file_client_receive_proc: unknown NAME");
-	  return;
-	}
+        {
+          /* No such request found. */
+          ssh_warning("ssh_file_client_receive_proc: unknown NAME");
+          return;
+        }
 
       /* Check that the request really expects a reply of this type. */
       if (request->expected_reply != SSH_FILEXFER_NAME_REPLY)
-	{
-	  ssh_warning("ssh_file_client_receive_proc: unexpected NAME");
-	  return;
-	}
+        {
+          ssh_warning("ssh_file_client_receive_proc: unexpected NAME");
+          return;
+        }
 
       /* Get the file handle. */
       handle = request->handle;
@@ -927,54 +927,54 @@ void ssh_file_client_receive_proc(SshPacketType type,
        * of a single name */
       
       if (handle == NULL)
-	{	  
-	  if (u != 1)
-	    {
-	      ssh_warning("ssh_file_client_receive_proc: null handle and "
-			  "%lu names.", u);
-	      return;
-	    }
-	  
-	  offset = bytes;	  
-	  bytes = ssh_decode_array(data + offset, len - offset,
-				   SSH_FORMAT_UINT32_STR,
-				     &name, NULL,
-				   SSH_FORMAT_UINT32_STR,
-				     &long_name, NULL,
-				   SSH_FORMAT_EXTENDED, 
-				     ssh_file_attrs_decoder, 
-				     &attrs,
-				   SSH_FORMAT_END);
-	  
-	   if (bytes == 0)
-	    {
-	      ssh_warning("ssh_file_client_receive_proc: bad NAME");
-	      return;
-	    }
-	 
-	  /* Call the context */
+        {         
+          if (u != 1)
+            {
+              ssh_warning("ssh_file_client_receive_proc: null handle and "
+                          "%lu names.", u);
+              return;
+            }
+          
+          offset = bytes;         
+          bytes = ssh_decode_array(data + offset, len - offset,
+                                   SSH_FORMAT_UINT32_STR,
+                                     &name, NULL,
+                                   SSH_FORMAT_UINT32_STR,
+                                     &long_name, NULL,
+                                   SSH_FORMAT_EXTENDED, 
+                                     ssh_file_attrs_decoder, 
+                                     &attrs,
+                                   SSH_FORMAT_END);
+          
+           if (bytes == 0)
+            {
+              ssh_warning("ssh_file_client_receive_proc: bad NAME");
+              return;
+            }
+         
+          /* Call the context */
 
-	  (*request->name_callback)(SSH_FX_OK,
-				    (char *) name, (char *) long_name, attrs,
-				    request->context);	  
-	  ssh_xfree(name);
-	  ssh_xfree(long_name);
-	  ssh_xfree(attrs);	  
-	  
-	  return;
-	}
+          (*request->name_callback)(SSH_FX_OK,
+                                    (char *) name, (char *) long_name, attrs,
+                                    request->context);    
+          ssh_xfree(name);
+          ssh_xfree(long_name);
+          ssh_xfree(attrs);       
+          
+          return;
+        }
       
       /* Sanity check: should not have any unprocessed names left. */
       if (handle->next_name < handle->num_names)
-	ssh_warning("ssh_file_client_receive_proc: names still left");
+        ssh_warning("ssh_file_client_receive_proc: names still left");
 
       /* Free any previous names. */
       for (i = 0; i < handle->num_names; i++)
-	{
-	  ssh_xfree(handle->names[i]);
-	  ssh_xfree(handle->long_names[i]);
-	  ssh_xfree(handle->attrs[i]);
-	}
+        {
+          ssh_xfree(handle->names[i]);
+          ssh_xfree(handle->long_names[i]);
+          ssh_xfree(handle->attrs[i]);
+        }
       ssh_xfree(handle->names);
       ssh_xfree(handle->long_names);
       ssh_xfree(handle->attrs);
@@ -986,103 +986,103 @@ void ssh_file_client_receive_proc(SshPacketType type,
       offset = bytes;
 
       for (i = 0; i < u; i++)
-	{
-	  bytes = ssh_decode_array(data + offset, len - offset,
-				   SSH_FORMAT_UINT32_STR,
-				     &handle->names[i], NULL,
-				   SSH_FORMAT_UINT32_STR,
-				     &handle->long_names[i], NULL,
-				   SSH_FORMAT_EXTENDED, 
-				     ssh_file_attrs_decoder, 
-				     &handle->attrs[i],
-				   SSH_FORMAT_END);
-	  if (bytes == 0)
-	    {
-	      ssh_warning("ssh_file_client_receive_proc: bad NAME %d", i);
-	      for (; i > 0; i--)
-		{
-		  ssh_xfree(handle->names[i - 1]);
-		  ssh_xfree(handle->long_names[i - 1]);
-		  ssh_xfree(handle->attrs[i - 1]);
-		}
-	      ssh_xfree(handle->names);
-	      ssh_xfree(handle->long_names);
-	      ssh_xfree(handle->attrs);	      
-	      handle->names = NULL;
-	      handle->long_names = NULL;
-	      handle->attrs = NULL;
-	      handle->num_names = 0;
-	      handle->next_name = 0;
-	      return;
-	    }
+        {
+          bytes = ssh_decode_array(data + offset, len - offset,
+                                   SSH_FORMAT_UINT32_STR,
+                                     &handle->names[i], NULL,
+                                   SSH_FORMAT_UINT32_STR,
+                                     &handle->long_names[i], NULL,
+                                   SSH_FORMAT_EXTENDED, 
+                                     ssh_file_attrs_decoder, 
+                                     &handle->attrs[i],
+                                   SSH_FORMAT_END);
+          if (bytes == 0)
+            {
+              ssh_warning("ssh_file_client_receive_proc: bad NAME %d", i);
+              for (; i > 0; i--)
+                {
+                  ssh_xfree(handle->names[i - 1]);
+                  ssh_xfree(handle->long_names[i - 1]);
+                  ssh_xfree(handle->attrs[i - 1]);
+                }
+              ssh_xfree(handle->names);
+              ssh_xfree(handle->long_names);
+              ssh_xfree(handle->attrs);       
+              handle->names = NULL;
+              handle->long_names = NULL;
+              handle->attrs = NULL;
+              handle->num_names = 0;
+              handle->next_name = 0;
+              return;
+            }
 
-	  /* Move to next name. */
-	  offset += bytes;
-	}
+          /* Move to next name. */
+          offset += bytes;
+        }
       handle->num_names = u;
       handle->next_name = 0;
 
       /* Should have consumed all data. */
       if (offset != len)
-	{
-	  ssh_warning("ssh_file_client_receive_proc: bad NAME %d", i);
-	  return;
-	}
+        {
+          ssh_warning("ssh_file_client_receive_proc: bad NAME %d", i);
+          return;
+        }
 
       /* Call the callback.  If none was supplied, free the handle. */
       if (request->name_callback)
-	{
-	  if (handle->next_name < handle->num_names)
-	    {
-	      a = handle->next_name++;	      
-	      (*request->name_callback)(SSH_FX_OK,
-					handle->names[a],
-					handle->long_names[a],
-					handle->attrs[a],
-					request->context);
-	    }
-	  else
-	    (*request->name_callback)(SSH_FX_EOF, NULL, NULL, NULL,
-				      request->context);
-	}
+        {
+          if (handle->next_name < handle->num_names)
+            {
+              a = handle->next_name++;        
+              (*request->name_callback)(SSH_FX_OK,
+                                        handle->names[a],
+                                        handle->long_names[a],
+                                        handle->attrs[a],
+                                        request->context);
+            }
+          else
+            (*request->name_callback)(SSH_FX_EOF, NULL, NULL, NULL,
+                                      request->context);
+        }
       break;
 
     case SSH_FXP_ATTRS:
       if (ssh_decode_array(data, len,
-			   SSH_FORMAT_UINT32, &id,
-			   SSH_FORMAT_EXTENDED, 
-			     ssh_file_attrs_decoder, &attrs,
-			   SSH_FORMAT_END) != len)
-	{
-	  ssh_warning("ssh_file_client_receive_proc: bad ATTRS");
-	  return;
-	}
+                           SSH_FORMAT_UINT32, &id,
+                           SSH_FORMAT_EXTENDED, 
+                             ssh_file_attrs_decoder, &attrs,
+                           SSH_FORMAT_END) != len)
+        {
+          ssh_warning("ssh_file_client_receive_proc: bad ATTRS");
+          return;
+        }
 
       /* Try to find matching request. */
       request = ssh_file_client_find_request(client, id);
       if (!request)
-	{
-	  /* No such request found. */
-	  ssh_warning("ssh_file_client_receive_proc: unknown ATTRS");
-	  return;
-	}
+        {
+          /* No such request found. */
+          ssh_warning("ssh_file_client_receive_proc: unknown ATTRS");
+          return;
+        }
 
       /* Check that the request really expects a reply of this type. */
       if (request->expected_reply != SSH_FILEXFER_ATTRS_REPLY)
-	{
-	  ssh_warning("ssh_file_client_receive_proc: unexpected ATTRS");
-	  return;
-	}
+        {
+          ssh_warning("ssh_file_client_receive_proc: unexpected ATTRS");
+          return;
+        }
 
       /* Call the callback.  If none was supplied, free the handle. */
       if (request->attribute_callback)
-	(*request->attribute_callback)(SSH_FX_OK, attrs, request->context);
+        (*request->attribute_callback)(SSH_FX_OK, attrs, request->context);
       ssh_xfree(attrs);
       break;
 
     default:
       ssh_warning("ssh_file_client_receive_proc: unexpected packet %d",
-		  (int)type);
+                  (int)type);
     }
 }
 
@@ -1098,7 +1098,7 @@ void ssh_file_client_eof_proc(void *context)
   /* Complete all sent requests with an error. */
   while (client->sent_requests)
     ssh_file_client_return_status(client, client->sent_requests->id,
-				  SSH_FX_CONNECTION_LOST);
+                                  SSH_FX_CONNECTION_LOST);
 
   /* Fake sending of queued requests. */
   client->sent_requests = client->queued_requests;
@@ -1107,7 +1107,7 @@ void ssh_file_client_eof_proc(void *context)
   /* Then complete them all with an error. */
   while (client->sent_requests)
     ssh_file_client_return_status(client, client->sent_requests->id,
-				  SSH_FX_CONNECTION_LOST);
+                                  SSH_FX_CONNECTION_LOST);
 }
 
 /* This function is called whenever we can send again after can_send
@@ -1139,14 +1139,14 @@ SshFileClient ssh_file_client_wrap(SshStream stream)
 
   /* Turn the stream into a packet stream. */
   client->conn = ssh_packet_wrap(stream,
-				 ssh_file_client_receive_proc,
-				 ssh_file_client_eof_proc,
-				 ssh_file_client_can_send_proc,
-				 (void *)client);
+                                 ssh_file_client_receive_proc,
+                                 ssh_file_client_eof_proc,
+                                 ssh_file_client_can_send_proc,
+                                 (void *)client);
 
   /* Send initialization packet. */
   ssh_packet_wrapper_send_encode(client->conn, SSH_FXP_INIT,
-				 SSH_FORMAT_UINT32, 0L, SSH_FORMAT_END);
+                                 SSH_FORMAT_UINT32, 0L, SSH_FORMAT_END);
 
   return client;
 }
