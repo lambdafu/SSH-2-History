@@ -80,7 +80,7 @@ int utf8_advanced_tests(void)
 
 int main(int argc, char **argv)
 {
-  srand(time(NULL));
+  srand(ssh_time());
 
   utf8_basic_tests();
   ssh_debug("basic tests passed.");

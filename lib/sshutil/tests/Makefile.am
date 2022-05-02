@@ -15,8 +15,7 @@ TESTS = t-buffer t-crc32 t-replace t-snprintf t-malloc t-encode \
 	t-timemeasure t-dllist \
 	t-stream t-socks t-streampair t-localstream t-mapping t-udp \
 	t-asn1 t-base64 t-sshutf8 t-psystem t-filexfer t-url \
-	t-inet_ntoa
-
+	t-inet_ntoa t-dsprintf t-time
 
 # t-parser t-uf
 
@@ -26,7 +25,7 @@ EXTRA_PROGRAMS = t-buffer t-crc32 t-encode \
 	t-snprintf t-malloc t-socks t-streampair t-localstream \
 	t-mapping t-udp \
 	t-asn1 t-base64 t-sshutf8 t-psystem t-filexfer t-url t-serial \
-	t-sshlist t-inet_ntoa t-debug
+	t-sshlist t-inet_ntoa t-debug t-dns t-dsprintf t-time
 
 LDADD = ../libsshutil.a ../../sshmath/libsshmath.a
 INCLUDES = -I../.. -I. -I.. -I$(srcdir) -I$(srcdir)/..  \
@@ -34,11 +33,12 @@ INCLUDES = -I../.. -I. -I.. -I$(srcdir) -I$(srcdir)/..  \
 	-I../../sshmath -I$(srcdir)/../../sshmath -I../../sshscard \
 	-I../../sshcrypt -I../../trq
 
-
 t_buffer_SOURCES = t-buffer.c
 t_buffer_DEPENDENCIES = $(LDADD)
 t_crc32_SOURCES = t-crc32.c
 t_crc32_DEPENDENCIES = $(LDADD)
+t_dns_SOURCES = t-dns.c
+t_dns_DEPENDENCIES = $(LDADD)
 t_encode_SOURCES = t-encode.c
 t_encode_DEPENDENCIES = $(LDADD)
 t_timemeasure_SOURCES = t-timemeasure.c
@@ -83,3 +83,5 @@ t_inet_ntoa_SOURCES = t-inet_ntoa.c
 t_inet_ntoa_DEPENDENCIES = $(LDADD)
 t_debug_SOURCES = t-debug.c
 t_debug_DEPENDENCIES = $(LDADD)
+t_dsprintf_SOURCES = t-dsprintf.c
+t_dsprintf_DEPENDENCIES = $(LDADD)

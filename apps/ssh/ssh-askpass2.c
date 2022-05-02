@@ -8,6 +8,12 @@ Copyright (c) 1997 SSH Communications Security, Finland
 */
 
 #include "sshincludes.h"
+#include "sshgetopt.h"
+
+#ifdef time
+#undef time
+#endif 
+
 #include <X11/X.h>
 #include <X11/Xlib.h>
 #include <X11/Xutil.h>
@@ -77,6 +83,9 @@ int exiting = 0;
 int next_led = 0;
 int leds_x, leds_y;
 int *led_state;
+
+/* Timeout */
+unsigned int timeout_time;
 
 void fatal(char *fmt, ...)
 {
@@ -600,6 +609,12 @@ void check_keyboard()
   modifiers = XGetModifierMapping(display);
 }
 
+void timeout(int sig) /*ARGUSED*/
+{
+  close_display();
+  exit(0);
+}
+
 /* Event loop. */
 void event_loop()
 {
@@ -613,6 +628,11 @@ void event_loop()
      mapping notify will certainly arrive to our event loop. */
   map_windows();
 
+  if (timeout_time > 0)
+    {
+      signal(SIGALRM, timeout);
+      alarm(timeout_time);
+    }
   while(exiting == 0)
     {
       XNextEvent(display, &event);
@@ -652,15 +672,30 @@ void event_loop()
 
 int main(int argc, char **argv)
 {
+  int opt;
+
   open_display();
   read_resources();
 
   /* If we get just one argument, use it as the prompt. */
   /* This must be called not before than read_resources() if we
      wish to override the default from the resources database. */
-  if (argc == 2)
-    prompt = argv[1];
+  while ((opt = ssh_getopt(argc, argv, "t:", NULL)) != -1)
+    {
+      switch (opt)
+        {
+        case 't':
+          timeout_time = (unsigned int)atoi(ssh_optarg);
+          if (timeout_time < 0)
+            timeout_time = 0;
+          break;
 
+        default:
+          exit(1);
+        }
+    }
+  if (argc > ssh_optind)
+    prompt = argv[ssh_optind];
   get_font();
   compute_dimensions();
   open_windows();

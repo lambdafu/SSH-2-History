@@ -15,6 +15,7 @@
 AUTOMAKE_OPTIONS = 1.0 foreign dist-zip
 
 SUBDIRS = ssh
+# ipsecfwd
 
 includes:
 	-for dir in $(SUBDIRS); do \

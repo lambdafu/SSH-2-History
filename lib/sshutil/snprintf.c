@@ -10,13 +10,13 @@
   */
 
 /*
- * $Id: snprintf.c,v 1.23 1998/11/05 21:14:05 ylo Exp $
+ * $Id: snprintf.c,v 1.24 1999/03/15 15:23:03 tri Exp $
  * $Log: snprintf.c,v $
  * $EndLog$
  */
 
 #include "sshincludes.h"
-#include "snprintf.h"
+#include "sshsnprintf.h"
 
 #undef isdigit
 #define isdigit(ch) ((ch) >= '0' && (ch) <= '9')

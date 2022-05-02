@@ -14,7 +14,7 @@
   */
 
 /*
- * $Id: t-gentest.c,v 1.25 1998/10/07 11:56:33 tri Exp $
+ * $Id: t-gentest.c,v 1.26 1999/04/28 00:59:45 kivinen Exp $
  * $Log: t-gentest.c,v $
  * $EndLog$
  */
@@ -1997,8 +1997,9 @@ void pkcs_random_tests(SshRandomState state)
             }
 
           if (tmit.real_secs >= 1.0)
-            printf("%s timed to encrypt at rate %f times/sec.\n",
-                   pkcs_name, ((double)cnt)/tmit.real_secs);
+            printf("%s timed to encrypt at rate %f times/sec (%f ms/encrypt).\n",
+                   pkcs_name, ((double)cnt)/tmit.real_secs,
+                   tmit.real_secs / (double) cnt * 1000);
           else
             printf("  - timing could not be performed for %s.\n", pkcs_name);
           
@@ -2043,8 +2044,9 @@ void pkcs_random_tests(SshRandomState state)
             }
 
           if (tmit.real_secs >= 1.0)
-            printf("%s timed to decrypt at rate %f times/sec.\n",
-                   pkcs_name, ((double)cnt)/tmit.real_secs);
+            printf("%s timed to decrypt at rate %f times/sec (%f ms/decrypt).\n",
+                   pkcs_name, ((double)cnt)/tmit.real_secs,
+                   tmit.real_secs / (double) cnt * 1000);
           else
             printf("  - timing could not be performed for %s.\n", pkcs_name);
           
@@ -2124,8 +2126,9 @@ void pkcs_random_tests(SshRandomState state)
             }
 
           if (tmit.real_secs >= 1.0)
-            printf("%s signs at rate %f times/sec.\n", pkcs_name,
-                   ((double)cnt)/tmit.real_secs);
+            printf("%s signs at rate %f times/sec (%f ms/sign).\n", pkcs_name,
+                   ((double)cnt)/tmit.real_secs,
+                   tmit.real_secs / (double) cnt * 1000);
           else
             printf("  - timing could not be performed for %s.\n", pkcs_name);
           
@@ -2160,8 +2163,9 @@ void pkcs_random_tests(SshRandomState state)
             }
 
           if (tmit.real_secs >= 1.0)
-            printf("%s verifies signatures at rate %f times/sec.\n",
-                   pkcs_name, ((double)cnt)/tmit.real_secs);
+            printf("%s verifies signatures at rate %f times/sec (%f ms/verify).\n",
+                   pkcs_name, ((double)cnt)/tmit.real_secs,
+                   tmit.real_secs / (double) cnt * 1000);
           else
             printf("  - timing could not be performed for %s.\n",
                    pkcs_name);

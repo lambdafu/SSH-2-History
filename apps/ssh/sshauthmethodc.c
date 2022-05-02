@@ -21,6 +21,7 @@
 #include "readpass.h"
 #include "authc-pubkey.h"
 #include "authc-passwd.h"
+#include "authc-hostbased.h"
 
 #define SSH_DEBUG_MODULE "SshAuthMethodClient"
 
@@ -28,8 +29,9 @@
 
 SshAuthClientMethod ssh_client_auth_methods[] =
 {
-  { "publickey", ssh_client_auth_pubkey }, 
-  { "password", ssh_client_auth_password },
+  { SSH_AUTH_PUBKEY, ssh_client_auth_pubkey }, 
+  { SSH_AUTH_PASSWD, ssh_client_auth_passwd },
+  { SSH_AUTH_HOSTBASED, ssh_client_auth_hostbased },
   { NULL, NULL }
 };
 

@@ -45,6 +45,15 @@
 #define SSH_RANDSEED_LEN 512
 #endif /* SSH_RANDSEED_LEN */
 
+/* Default names for pgp keyring files */
+#ifndef SSH_PGP_PUBLIC_KEY_FILE
+#define SSH_PGP_PUBLIC_KEY_FILE "pubring.pgp"
+#endif /* SSH_PGP_PUBLIC_KEY_FILE */
+
+#ifndef SSH_PGP_SECRET_KEY_FILE
+#define SSH_PGP_SECRET_KEY_FILE "secring.pgp"
+#endif /* SSH_PGP_SECRET_KEY_FILE */
+
 /* the standard cipher used for passphrase encryption */
 
 #ifndef SSH_PASSPHRASE_CIPHER
@@ -65,7 +74,7 @@
 
 #ifndef SSH_USER_CONFIG_DIRECTORY
 #define SSH_USER_CONFIG_DIRECTORY "%D/" SSH_USER_DIR
-#endif
+#endif /* SSH_USER_CONFIG_DIRECTORY */
 
 /* the standard "identification" file */
 
@@ -90,6 +99,14 @@
 #define SSH_SERVER_DIR ETCDIR "/ssh2"
 #endif /* SSH_SERVER_DIR */
 
+#ifndef SSH_KNOWNHOSTS_DIR
+#define SSH_KNOWNHOSTS_DIR "/knownhosts"
+#endif /* SSH_KNOWNHOSTS_DIR */
+
+#ifndef SSH_GLOBAL_KNOWNHOSTS_DIR
+#define SSH_GLOBAL_KNOWNHOSTS_DIR SSH_SERVER_DIR SSH_KNOWNHOSTS_DIR
+#endif /* SSH_GLOBAL_KNOWNHOSTS_DIR */
+
 /* global configuration file for the client */
 
 #ifndef SSH_CLIENT_GLOBAL_CONFIG_FILE
@@ -109,6 +126,11 @@
 #endif /* SSH_SERVER_CONFIG_FILE */
 
 
+/* Ssh-only version of /etc/hosts.equiv. */
+#ifndef SSH_HOSTS_EQUIV
+#define SSH_HOSTS_EQUIV ETCDIR "/shosts.equiv"
+#endif /* SSH_HOSTS_EQUIV */
+
 /* Magic identifying codes for private and public key files. */
 
 #define SSH_KEY_MAGIC_FAIL              0
@@ -116,10 +138,10 @@
 #define SSH_KEY_MAGIC_PRIVATE           0x73736802
 #define SSH_KEY_MAGIC_PRIVATE_ENCRYPTED 0x73736803
 
-/* Return a pointer to user's ssh2 directory.
-   The directory is created if `create_if_needed' is TRUE. 
-   Return NULL on failure.  The returned value has been allocated with ssh_xmalloc,
-   and the caller is responsible for freeing it with ssh_xfree when no longer
+/* Return a pointer to user's ssh2 directory.  The directory is
+   created if `create_if_needed' is TRUE.  Return NULL on failure.
+   The returned value has been allocated with ssh_xmalloc, and the
+   caller is responsible for freeing it with ssh_xfree when no longer
    needed. */
 char *ssh_userdir(SshUser user, SshConfig config, Boolean create_if_needed);
 
@@ -198,16 +220,30 @@ Boolean ssh_privkey_write(SshUser user,
                           SshPrivateKey key, SshRandomState rand,
                           void *context);
 
+struct SshConfigPrivateKey {
+  char *keyfile;
+#ifdef WITH_PGP
+  char *pgp_keyring;
+  char *pgp_name;
+  char *pgp_fingerprint;
+  SshUInt32 pgp_id;
+#endif /* WITH_PGP */
+};
+
 /* Build a list of private key files that should be tried when
    logging into `host'.  The list's last entry is NULL.
    The caller should free the array and all strings in it with ssh_xfree when 
    no longer needed. */
-char **ssh_privkey_list(SshUser user, char *host, SshConfig config);
+struct SshConfigPrivateKey **ssh_privkey_list(SshUser user, 
+                                              char *host, 
+                                              SshConfig config);
 
+#if 0 /* XXX */
 /* definition for the ssh2 log facility. */
 #ifndef SSH_LOGFACILITY
 #define SSH_LOGFACILITY SSH_LOGFACILITY_AUTH
 #endif /* SSH_LOGFACILITY */
+#endif
 
 /* Generate a name string from any blob.  String consists of
    caller given string and space and sha1 hash of the blob in hex. 

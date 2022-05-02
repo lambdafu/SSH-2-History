@@ -44,8 +44,8 @@ size_t ssh_cross_encode_packet(SshBuffer *buffer, SshCrossPacketType type, ...)
    SSH_FORMAT_END.  This returns the number of bytes added to the buffer. */
 
 size_t ssh_cross_encode_packet_va(SshBuffer *buffer,
-			    SshCrossPacketType type,
-			    va_list ap)
+                                  SshCrossPacketType type,
+                                  va_list ap)
 {
   size_t payload_size, original_len;
   unsigned char *p;
@@ -56,9 +56,9 @@ size_t ssh_cross_encode_packet_va(SshBuffer *buffer,
 
   /* Construct the cross-layer packet header with dummy length. */
   ssh_encode_buffer(buffer,
-		    SSH_FORMAT_UINT32, 0,
-		    SSH_FORMAT_CHAR, (unsigned int)type,
-		    SSH_FORMAT_END);
+                    SSH_FORMAT_UINT32, (SshUInt32) 0,
+                    SSH_FORMAT_CHAR, (unsigned int)type,
+                    SSH_FORMAT_END);
 
   /* Encode the packet payload. */
   payload_size = ssh_encode_va(buffer, ap);

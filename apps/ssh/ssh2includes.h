@@ -25,4 +25,20 @@ ssh2includes.h
 #define SSH_USER_ENV_FILE       "environment"
 #define SSH_SYSTEM_RC           ETCDIR "/sshrc"
 
+/* Definitions for authentication method names. */
+#define SSH_AUTH_PUBKEY "publickey"
+#define SSH_AUTH_PASSWD "password"
+#define SSH_AUTH_HOSTBASED "hostbased"
+
+/* Path to sshsigner2 */
+#define SSH_SIGNER_PATH "ssh-signer2"
+
+/* arguments to ssh2 */
+#define SSH2_GETOPT_ARGUMENTS "ac:Cvd:e:fF:hi:l:L:no:p:PqR:s:Stx8gV"
+
+
+#define SSH2_VERSION_STRING "SSH-" SSH2_VERSION
+#define SSH2_PROTOCOL_VERSION_STRING SSH2_VERSION " (non-commercial)"
+
+
 #endif /* SSH2INCLUDES_H */

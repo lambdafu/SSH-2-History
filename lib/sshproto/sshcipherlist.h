@@ -22,15 +22,6 @@
 #define SSH_STD_CIPHERS \
         "3des-cbc,blowfish-cbc,arcfour,idea-cbc,cast128-cbc,twofish-cbc,none"
 
-/* the "ssh-dss" type */
-#define SSH_SSH_DSS    "ssh-dss"
-#define SSH_CRYPTO_DSS "dl-modp{sign{dsa-nist-sha1},dh{plain}}"
-
-/* the "ssh-rsa" type" */
-#define SSH_SSH_RSA    "ssh-rsa"
-#define SSH_CRYPTO_RSA \
-        "if-modn{sign{rsa-pkcs1-md5,rsa-pkcs1-none},encrypt{rsa-pkcs1-none}}"
-                        
 /*
    True if list `list' contains item `item'.
 */

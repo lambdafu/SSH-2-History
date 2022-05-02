@@ -92,20 +92,21 @@ PACKAGE = @PACKAGE@
 RANLIB = @RANLIB@
 SSH1_PATH = @SSH1_PATH@
 SSHSESSION_CONFOBJS = @SSHSESSION_CONFOBJS@
+SSHSIGNERINSTALLMODE = @SSHSIGNERINSTALLMODE@
 VERSION = @VERSION@
 X11_DIR = @X11_DIR@
 XAUTH_PATH = @XAUTH_PATH@
 
 AUTOMAKE_OPTIONS = 1.0 foreign dist-zip no-dependencies
 
-SUBDIRS = zlib sshmath sshreadline sshutil sshapputil sshcrypt sshproto sshsession
+SUBDIRS = zlib sshmath sshreadline sshutil sshapputil sshcrypt sshproto sshsession sshpgp
 
 # sshtest testsuite
 
 lib_LIBRARIES = libssh.a
 # libsshcrypt.kpure.a
 
-SUBLIBRARIES = sshmath/libsshmath.a zlib/libz.a sshutil/libsshutil.a sshapputil/libsshapputil.a sshcrypt/libsshcrypt.a sshproto/libsshproto.a sshsession/libsshsession.a sshreadline/libsshreadline.a
+SUBLIBRARIES = sshmath/libsshmath.a zlib/libz.a sshutil/libsshutil.a sshapputil/libsshapputil.a sshcrypt/libsshcrypt.a sshproto/libsshproto.a sshsession/libsshsession.a sshreadline/libsshreadline.a sshpgp/libsshpgp.a
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = ../sshconf.h
 CONFIG_CLEAN_FILES = 

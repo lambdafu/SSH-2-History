@@ -13,7 +13,7 @@
 
 #include "sshincludes.h"
 #include "sshdebug.h"
-#include "match.h"
+#include "sshmatch.h"
 
 /* Be very careful in calling debugging output from the debugging
    module itself. Careless introduction of debugging constructs
@@ -30,7 +30,9 @@
 #define SSH_DEBUG_MODULE "SshDebug"
 
 #ifdef WINDOWS
+#ifndef KERNEL
 #include <tchar.h>
+#endif
 #endif /* WINDOWS */
 
 #ifdef __GNUC__
@@ -1191,7 +1193,7 @@ static void ssh_debug_parse_format(void)
               item->type = SSH_DEBUG_FORMAT_TERMCONTROL;
               item->arg = NULL;
               item->numarg = atoi(arg);
-              if (item->numarg < 0 || item->numarg > 255) goto failure;
+              if (item->numarg < 1 || item->numarg > 255) goto failure;
               break;
 
             case 'C':
@@ -1534,8 +1536,8 @@ void ssh_debug_output(int level,
 #endif /* WANT_COMPLEX_FORMATS */
 
 #ifdef HAVE_LOCALTIME
-  struct tm *current_time;
-  time_t now;
+  struct SshCalendarTimeRec current_time[1];
+  SshTime now;
 #endif /* HAVE_LOCALTIME */
 
   ssh_debug_msg_number++;
@@ -1566,8 +1568,8 @@ void ssh_debug_output(int level,
 #endif
   
 #ifdef HAVE_LOCALTIME
-  now = time(NULL);  
-  current_time = localtime(&now);
+  now = ssh_time();  
+  ssh_calendar_time(now, current_time, TRUE);
 #endif
 
   *current = '\0';
@@ -1650,32 +1652,32 @@ void ssh_debug_output(int level,
 
         case SSH_DEBUG_FORMAT_MINUTES:
           snprintf(temp, SSH_DEBUG_TMP_BUF_SIZE, "%02d",
-                   current_time->tm_min);
+                   current_time->minute);
           break;
 
         case SSH_DEBUG_FORMAT_SECONDS:
           snprintf(temp, SSH_DEBUG_TMP_BUF_SIZE, "%02d",
-                   current_time->tm_sec);
+                   current_time->second);
           break;
 
         case SSH_DEBUG_FORMAT_DAY:
           snprintf(temp, SSH_DEBUG_TMP_BUF_SIZE, "%02d",
-                   current_time->tm_mday);
+                   current_time->monthday);
           break;
 
         case SSH_DEBUG_FORMAT_YEAR:
           snprintf(temp, SSH_DEBUG_TMP_BUF_SIZE, "%04d",
-                   current_time->tm_year + 1900);
+                   current_time->year);
           break;
 
         case SSH_DEBUG_FORMAT_MONTH:
           snprintf(temp, SSH_DEBUG_TMP_BUF_SIZE, "%02d",
-                   current_time->tm_mon + 1);
+                   current_time->month + 1);
           break;
 
         case SSH_DEBUG_FORMAT_HOURS:
           snprintf(temp, SSH_DEBUG_TMP_BUF_SIZE, "%02d",
-                   current_time->tm_hour);
+                   current_time->hour);
           break;
 
         case SSH_DEBUG_FORMAT_ORDINAL:

@@ -11,7 +11,7 @@ Unix-specific code for sockets.
 */
 
 /*
- * $Id: sshunixtcp.c,v 1.11 1998/07/29 18:31:16 tmo Exp $
+ * $Id: sshunixtcp.c,v 1.16 1999/04/28 13:20:05 tri Exp $
  * $Log: sshunixtcp.c,v $
  * $EndLog$
  */
@@ -61,7 +61,7 @@ void ssh_socket_set_reuseaddr(int sock)
 {
   int on = 1;
   setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, (void *)&on, 
-	     sizeof(on));
+             sizeof(on));
 }
 
 #ifdef NO_NONBLOCKING_CONNECT
@@ -76,7 +76,13 @@ void ssh_socket_low_connect_try_once(unsigned int events, void *context)
   memset(&sinaddr, 0, sizeof(sinaddr));
   sinaddr.sin_family = AF_INET;
   sinaddr.sin_port = htons(c->port);
-  if (!ssh_inet_strtov4(c->address, &sinaddr.sin_addr.s_addr))
+
+#ifdef BROKEN_INET_ADDR
+  sinaddr.sin_addr.s_addr = inet_network(c->address);
+#else /* BROKEN_INET_ADDR */
+  sinaddr.sin_addr.s_addr = inet_addr(c->address);
+#endif /* BROKEN_INET_ADDR */
+  if ((sinaddr.sin_addr.s_addr & 0xffffffff) == 0xffffffff)
     {
       close(c->sock);
       (*c->callback)(SSH_IP_NO_ADDRESS, NULL, c->context);
@@ -91,7 +97,7 @@ void ssh_socket_low_connect_try_once(unsigned int events, void *context)
     {
       /* Successful connection. */
       (*c->callback)(SSH_IP_OK, ssh_stream_fd_wrap(c->sock, TRUE),
-		     c->context);
+                     c->context);
       ssh_xfree(c->address);
       ssh_xfree(c);
       return;
@@ -140,7 +146,12 @@ void ssh_socket_low_connect_try(unsigned int events, void *context)
   sinaddr.sin_family = AF_INET;
   sinaddr.sin_port = htons(c->port);
   
-  if (!ssh_inet_strtov4(c->address, (SshUInt32 *)&sinaddr.sin_addr.s_addr))
+#ifdef BROKEN_INET_ADDR
+  sinaddr.sin_addr.s_addr = inet_network(c->address);
+#else /* BROKEN_INET_ADDR */
+  sinaddr.sin_addr.s_addr = inet_addr(c->address);
+#endif /* BROKEN_INET_ADDR */
+  if ((sinaddr.sin_addr.s_addr & 0xffffffff) == 0xffffffff)
     {
       ssh_io_unregister_fd(c->sock, FALSE);
       close(c->sock);
@@ -157,7 +168,7 @@ void ssh_socket_low_connect_try(unsigned int events, void *context)
       /* Successful connection. */
       ssh_io_unregister_fd(c->sock, FALSE);
       (*c->callback)(SSH_IP_OK, ssh_stream_fd_wrap(c->sock, TRUE),
-		     c->context);
+                     c->context);
       ssh_xfree(c->address);
       ssh_xfree(c);
       return;
@@ -207,7 +218,7 @@ void ssh_socket_low_connect_try(unsigned int events, void *context)
    The address to use is the first address from the list. */
 
 void ssh_socket_low_connect(const char *address_list, unsigned int port,
-			    SshTcpCallback callback, void *context)
+                            SshTcpCallback callback, void *context)
 {
   int sock, first_len;
   LowConnect c;
@@ -280,10 +291,10 @@ void ssh_tcp_listen_callback(unsigned int events, void *context)
       addrlen = sizeof(sinaddr);
       sock = accept(listener->sock, (struct sockaddr *)&sinaddr, &addrlen);
       if (sock < 0)
-	{
-	  ssh_debug("ssh_tcp_listen_callback: accept failed");
-	  return;
-	}
+        {
+          ssh_debug("ssh_tcp_listen_callback: accept failed");
+          return;
+        }
 
       /* Re-enable requests on the listener. */
       ssh_io_set_fd_request(listener->sock, SSH_IO_READ);
@@ -291,8 +302,8 @@ void ssh_tcp_listen_callback(unsigned int events, void *context)
       /* Inform user callback of the new socket.  Note that this might
          destroy the listener. */
       (*listener->callback)(SSH_IP_NEW_CONNECTION,
-			    ssh_stream_fd_wrap(sock, TRUE),
-			    listener->context);
+                            ssh_stream_fd_wrap(sock, TRUE),
+                            listener->context);
     }
 }
 
@@ -303,9 +314,9 @@ void ssh_tcp_listen_callback(unsigned int events, void *context)
    a new connection is received at the socket.  This returns NULL on error. */
 
 SshTcpListener ssh_tcp_make_listener(const char *local_address,
-				     const char *port_or_service,
-				     SshTcpCallback callback,
-				     void *context)
+                                     const char *port_or_service,
+                                     SshTcpCallback callback,
+                                     void *context)
 {
   int sock, port;
   struct sockaddr_in sinaddr;
@@ -316,7 +327,13 @@ SshTcpListener ssh_tcp_make_listener(const char *local_address,
   memset(&sinaddr, 0, sizeof(sinaddr));
   sinaddr.sin_family = AF_INET;
   sinaddr.sin_port = htons(port);
-  if (!ssh_inet_strtov4(local_address, (SshUInt32 *)&sinaddr.sin_addr.s_addr))
+  
+#ifdef BROKEN_INET_ADDR
+  sinaddr.sin_addr.s_addr = inet_network(local_address);
+#else /* BROKEN_INET_ADDR */
+  sinaddr.sin_addr.s_addr = inet_addr(local_address);
+#endif /* BROKEN_INET_ADDR */
+  if ((sinaddr.sin_addr.s_addr & 0xffffffff) == 0xffffffff)
     return NULL;
 
   /* Create a socket. */
@@ -359,9 +376,9 @@ void ssh_tcp_destroy_listener(SshTcpListener listener)
   if (listener->path)
     {
       /* Do not remove the listener here.  There are situations where we
-	 fork after creating a listener, and want to close it in one but not
-	 the other fork.  Thus, listeners should be removed by the application
-	 after they have been destroyed. */
+         fork after creating a listener, and want to close it in one but not
+         the other fork.  Thus, listeners should be removed by the application
+         after they have been destroyed. */
       /* remove(listener->path); */
       ssh_xfree(listener->path);
     }
@@ -381,7 +398,7 @@ Boolean ssh_tcp_has_ip_options(SshStream stream)
     return FALSE;
   option_size = sizeof(options);
   return getsockopt(sock, IPPROTO_IP, IP_OPTIONS, options,
-		    &option_size) >= 0 && option_size != 0;
+                    &option_size) >= 0 && option_size != 0;
 }
 
 /* Returns the ip-address of the remote host, as string.  This returns
@@ -389,7 +406,7 @@ Boolean ssh_tcp_has_ip_options(SshStream stream)
    insufficient. */
 
 Boolean ssh_tcp_get_remote_address(SshStream stream, char *buf, 
-				      size_t buflen)
+                                   size_t buflen)
 {
   struct sockaddr_in saddr;
   int saddrlen, sock;
@@ -410,7 +427,7 @@ Boolean ssh_tcp_get_remote_address(SshStream stream, char *buf,
    stream is not a socket stream or buffer space is insufficient. */
 
 Boolean ssh_tcp_get_remote_port(SshStream stream, char *buf, 
-				   size_t buflen)
+                                size_t buflen)
 {
   struct sockaddr_in saddr;
   int saddrlen, sock;
@@ -430,7 +447,7 @@ Boolean ssh_tcp_get_remote_port(SshStream stream, char *buf,
 /* Returns the ip-address of the local host, as string.  This returns FALSE
    if the stream is not a socket stream or buffer space is insufficient. */
 Boolean ssh_tcp_get_local_address(SshStream stream, char *buf, 
-				     size_t buflen)
+                                  size_t buflen)
 {
   struct sockaddr_in saddr;
   int saddrlen, sock;
@@ -450,7 +467,7 @@ Boolean ssh_tcp_get_local_address(SshStream stream, char *buf,
 /* Returns the local port number, as a string.  This returns FALSE if the
    stream is not a socket stream or buffer space is insufficient. */
 Boolean ssh_tcp_get_local_port(SshStream stream, char *buf, 
-				  size_t buflen)
+                               size_t buflen)
 {
   struct sockaddr_in saddr;
   int saddrlen, sock;
@@ -479,10 +496,26 @@ Boolean ssh_socket_set_nodelay(SshStream stream, Boolean on)
     return FALSE;
 
   return setsockopt(sock, IPPROTO_TCP, TCP_NODELAY, (void *)&onoff,
-		    sizeof(onoff)) > 0;
+                    sizeof(onoff)) == 0;
 #else /* ENABLE_TCP_NODELAY */
   return FALSE;
 #endif /* ENABLE_TCP_NODELAY */
+}  
+
+Boolean ssh_socket_set_keepalive(SshStream stream, Boolean on)
+{
+  int onoff = on, sock;
+
+  sock = ssh_stream_fd_get_readfd(stream);
+  if (sock == -1)
+    return FALSE;
+
+#if defined (SOL_SOCKET) && defined (SO_KEEPALIVE)
+  return setsockopt(sock, SOL_SOCKET, SO_KEEPALIVE, (void *)&onoff,
+                    sizeof(onoff)) == 0;
+#else /* defined (SOL_SOCKET) && defined (SO_KEEPALIVE) */
+  return FALSE;
+#endif /* defined (SOL_SOCKET) && defined (SO_KEEPALIVE) */
 }  
 
 /* -------------- functions for name server lookups ------------------ */
@@ -517,39 +550,36 @@ void ssh_tcp_get_host_name(char *buf, size_t buflen)
 #endif /* HAVE_GETHOSTNAME */
 }
 
-/* Looks up all ip-addresses of the host, returning them as a comma-separated
-   list when calling the callback.  The host name may already be an ip
-   address, in which case it is returned directly. */
+/* Looks up all ip-addresses of the host, returning them as a
+   comma-separated list. The host name may already be an ip address,
+   in which case it is returned directly. This is an simplification
+   of function ssh_tcp_get_host_addrs_by_name for situations when
+   the operation may block. 
 
-void ssh_tcp_get_host_addrs_by_name(const char *name, 
-				       SshLookupCallback callback,
-				       void *context)
+   The function returns NULL if the name can not be resolved. When the
+   return value is non null, it is a pointer to a string allocated by
+   this function, and must be freed by the caller when no longer
+   needed. */
+char *ssh_tcp_get_host_addrs_by_name_sync(const char *name)
 {
   char addresses[1024], *cp;
-  struct hostent *hp;
+  unsigned char outbuf[16];
   struct in_addr in_addr;
+  struct hostent *hp;
+  size_t outbuflen = 4;
   int i;
 
   /* First check if it is already an ip address. */
-  if (ssh_inet_strtov4(name, (SshUInt32 *)&in_addr.s_addr))
-    {
-      /* Already an ip address. */
-      (*callback)(SSH_IP_OK, name, context);
-      return;
-    }
+  if (ssh_inet_strtobin(name, outbuf, &outbuflen))
+    return ssh_xstrdup(name);
 
   /* Look up the host from the name servers. */
   hp = gethostbyname(name);
   if (!hp)
-    {
-      (*callback)(SSH_IP_NO_ADDRESS, NULL, context);
-      return;
-    }
+    return NULL;
+
   if (!hp->h_addr_list[0])
-    {
-      (*callback)(SSH_IP_NO_ADDRESS, NULL, context);
-      return;
-    }
+    return NULL;
 
   /* Format the addresses into a comma-separated string. */
   strcpy(addresses, "");
@@ -558,71 +588,108 @@ void ssh_tcp_get_host_addrs_by_name(const char *name,
       memcpy(&in_addr, hp->h_addr_list[i], sizeof(in_addr));
       cp = inet_ntoa(in_addr);
       if (strlen(addresses) + strlen(cp) + 2 >= sizeof(addresses))
-	break;
+        break;
       if (i > 0)
-	strcat(addresses, ",");
+        strcat(addresses, ",");
       strcat(addresses, cp);
     }
-
-  (*callback)(SSH_IP_OK, addresses, context);
+  return ssh_xstrdup(addresses);
 }
+
+/* Looks up all ip-addresses of the host, returning them as a
+   comma-separated list when calling the callback.  The host name may
+   already be an ip address, in which case it is returned directly. */
+
+void ssh_tcp_get_host_addrs_by_name(const char *name, 
+                                    SshLookupCallback callback,
+                                    void *context)
+{
+  char *addrs; 
+
+  addrs = ssh_tcp_get_host_addrs_by_name_sync(name);
+  if (addrs)
+    {
+      (*callback)(SSH_IP_OK, addrs, context);
+      ssh_xfree(addrs);
+    }
+  else
+    (*callback)(SSH_IP_NO_ADDRESS, NULL, context);
+}
+
+
+/* Looks up the name of the host by its ip-address.  Verifies that the
+   address returned by the name servers also has the original ip
+   address. This is an simplification of function
+   ssh_tcp_get_host_by_addr for situations when the operation may
+   block.
+
+   Function returns NULL, if the reverse lookup fails for some reason,
+   or pointer to dynamically allocated memory containing the host
+   name.  The memory should be deallocated by the caller when no
+   longer needed.  */
+
+char *ssh_tcp_get_host_by_addr_sync(const char *addr)
+{
+  char name[1024];
+  size_t outbuflen = 4;
+  struct hostent *hp;
+  struct in_addr in_addr;
+  unsigned char outbuf[16];
+  int i;
+
+  if (!ssh_inet_strtobin(addr, outbuf, &outbuflen))
+    return NULL;
+
+  memmove(&in_addr.s_addr, outbuf, outbuflen);
+  hp = gethostbyaddr((char *)&in_addr, sizeof(struct in_addr), AF_INET);
+  if (!hp)
+    return NULL;
+
+  /* Got host name. */
+  strncpy(name, hp->h_name, sizeof(name));
+  name[sizeof(name) - 1] = '\0';
+  
+  /* Map it back to an IP address and check that the given address
+     actually is an address of this host.  This is necessary because
+     anyone with access to a name server can define arbitrary names
+     for an IP address.  Mapping from name to IP address can be
+     trusted better (but can still be fooled if the intruder has
+     access to the name server of the domain). */
+  hp = gethostbyname(name);
+  if (!hp)
+    return NULL;
+  
+  /* Look for the address from the list of addresses. */
+  for (i = 0; hp->h_addr_list[i]; i++)
+    if (memcmp(hp->h_addr_list[i], &in_addr, sizeof(in_addr)) == 0)
+      break;
+  /* If we reached the end of the list, the address was not there. */
+  if (!hp->h_addr_list[i])
+    return NULL;
+
+  /* Address was found for the host name.  We accept the host name. */
+  return ssh_xstrdup(name);
+} 
 
 /* Looks up the name of the host by its ip-address.  Verifies that the
    address returned by the name servers also has the original ip address.
    Calls the callback with either error or success.  The callback should
    copy the returned name. */
 
-void ssh_tcp_get_host_by_addr(const char *addr, SshLookupCallback callback,
-				 void *context)
+void ssh_tcp_get_host_by_addr(const char *addr, 
+                              SshLookupCallback callback,
+                              void *context)
 {
-  struct in_addr in_addr;
-  struct hostent *hp;
-  int i;
-  char name[1024];
+  char *name; 
 
-  if (!ssh_inet_strtov4(addr, (SshUInt32 *)&in_addr.s_addr))
+  name = ssh_tcp_get_host_by_addr_sync(addr);
+  if (name)
     {
-      (*callback)(SSH_IP_NO_NAME, NULL, context);
-      return;
+      (*callback)(SSH_IP_OK, name, context);
+      ssh_xfree(name);
     }
-  hp = gethostbyaddr((char *)&in_addr, sizeof(struct in_addr), AF_INET);
-  if (!hp)
-    {
-      (*callback)(SSH_IP_NO_NAME, NULL, context);
-      return;
-    }
-
-  /* Got host name. */
-  strncpy(name, hp->h_name, sizeof(name));
-  name[sizeof(name) - 1] = '\0';
-  
-  /* Map it back to an IP address and check that the given address actually
-     is an address of this host.  This is necessary because anyone with
-     access to a name server can define arbitrary names for an IP address.
-     Mapping from name to IP address can be trusted better (but can still
-     be fooled if the intruder has access to the name server of the
-     domain). */
-  hp = gethostbyname(name);
-  if (!hp)
-    {
-      (*callback)(SSH_IP_NO_ADDRESS, NULL, context);
-      return;
-    }
-  
-  /* Look for the address from the list of addresses. */
-  for (i = 0; hp->h_addr_list[i]; i++)
-    if (memcmp(hp->h_addr_list[i], &in_addr, sizeof(in_addr))
-	== 0)
-      break;
-  /* If we reached the end of the list, the address was not there. */
-  if (!hp->h_addr_list[i])
-    {
-      (*callback)(SSH_IP_FAILURE, NULL, context);
-      return;
-    }
-  /* Address was found for the host name.  We accept the host name. */
-
-  (*callback)(SSH_IP_OK, name, context);
+  else
+    (*callback)(SSH_IP_NO_ADDRESS, NULL, context);
 }
 
 /* Looks up the service (port number) by name and protocol.  `protocol' must
@@ -657,7 +724,7 @@ int ssh_tcp_get_port_by_service(const char *name, const char *proto)
    truncated if it is too long. */
 
 void ssh_tcp_get_service_by_port(unsigned int port, const char *proto,
-				    char *buf, size_t buflen)
+                                 char *buf, size_t buflen)
 {
 #ifdef HAVE_GETSERVBYPORT
   struct servent *se;
@@ -682,7 +749,7 @@ void ssh_tcp_get_service_by_port(unsigned int port, const char *proto,
    and >0 if port2 is smaller.  The result is zero if either address is
    invalid. */
 int ssh_socket_port_number_compare(const char *port1, const char *port2,
-				   const char *proto)
+                                   const char *proto)
 {
   int nport1, nport2;
   
@@ -699,4 +766,3 @@ int ssh_socket_port_number_compare(const char *port1, const char *port2,
     else
       return 1;
 }
-

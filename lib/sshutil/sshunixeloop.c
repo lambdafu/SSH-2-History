@@ -1,7 +1,7 @@
 /*
 
   Author: Antti Huima <huima@ssh.fi>
-  	  Tatu Ylonen <ylo@ssh.fi>
+          Tatu Ylonen <ylo@ssh.fi>
 
   Copyright (C) 1996-1998 SSH Communications Security Oy, Espoo, Finland
   All rights reserved.
@@ -13,7 +13,7 @@
   */
 
 /*
- * $Id: sshunixeloop.c,v 1.17 1998/09/09 21:50:22 kivinen Exp $
+ * $Id: sshunixeloop.c,v 1.20 1999/05/04 02:20:24 kivinen Exp $
  * $Log: sshunixeloop.c,v $
  * $EndLog$
  */
@@ -88,20 +88,42 @@ typedef struct {
 
 static EventLoopRec ssh_eloop_event_rec;
 static Boolean ssh_eloop_initialized = FALSE;
+static struct timeval check_time;
 
-#ifndef HAVE_GETTIMEOFDAY
 static int ssh_eloop_gettimeofday(struct timeval *tp, void *ignored_tz)
 {
+#ifndef HAVE_GETTIMEOFDAY
   if (tp)
     {
-      tp->tv_sec = time(NULL);
+      tp->tv_sec = ssh_time();
       tp->tv_usec = 0;
     }
+#else
+  gettimeofday(tp, ignored_tz);
+#endif
+  if (tp->tv_sec < check_time.tv_sec)
+    {
+      unsigned long diff;
+      TimeRec *temp;
+
+      diff = check_time.tv_sec - tp->tv_sec;
+      /* Clock moved backwards, update timeouts */
+      SSH_DEBUG(1, ("Time moved backwards, adjusting timeouts backwards by %d seconds",
+                    diff));
+      for(temp = ssh_eloop_event_rec.time_records;
+          temp != NULL;
+          temp = temp->next)
+        {
+          SSH_DEBUG(9, ("Timeout was registered at %d.",
+                        temp->firing_time.tv_sec));
+          temp->firing_time.tv_sec -= diff;
+          SSH_DEBUG(7, ("New timeout is registered at %d.",
+                        temp->firing_time.tv_sec));
+        }
+    }
+  check_time = *tp;
   return 0;
 }
-#else
-#  define ssh_eloop_gettimeofday	gettimeofday
-#endif
 
 /* Initializes the event loop.  This must be called before any other
    event loop, timeout, or stream function.  The IO records list
@@ -121,7 +143,7 @@ void ssh_event_loop_initialize(void)
   ssh_eloop_event_rec.requests_array_size = SSH_ELOOP_INITIAL_REQS_ARRAY_SIZE;
   ssh_eloop_event_rec.requests =
     ssh_xmalloc(sizeof(ssh_eloop_event_rec.requests[0]) *
-		ssh_eloop_event_rec.requests_array_size);
+                ssh_eloop_event_rec.requests_array_size);
 #ifdef HAVE_SIGNAL
   ssh_eloop_event_rec.signal_records = ssh_xmalloc(sizeof(SignalRec) * NSIG);
 #endif /* HAVE_SIGNAL */
@@ -175,7 +197,7 @@ static void ssh_event_loop_delete_all_signals(void)
   for (sig = 1; sig <= NSIG; sig++)
     {
       if (sigismember((&(ssh_eloop_event_rec.used_signals)), sig))
-	ssh_unregister_signal(sig);
+        ssh_unregister_signal(sig);
     }
 }
 #endif /* HAVE_SIGNAL */
@@ -221,13 +243,13 @@ static RETSIGTYPE ssh_event_loop_signal_handler(int sig)
     {
       /* We were in select(), deliver the callback immediately. */
       if (ssh_eloop_event_rec.signal_records[sig - 1].callback)
-	(*ssh_eloop_event_rec.signal_records[sig - 1].callback)(sig,
-	   ssh_eloop_event_rec.signal_records[sig - 1].context);
+        (*ssh_eloop_event_rec.signal_records[sig - 1].callback)(sig,
+           ssh_eloop_event_rec.signal_records[sig - 1].context);
     }
   else
     {
       /* We are currently processing a callback; deliver the signal callback
-	 when the current callback returns. */
+         when the current callback returns. */
       ssh_eloop_event_rec.signal_fired = TRUE;
       ssh_eloop_event_rec.fired_signals[sig - 1] = TRUE;
     }
@@ -242,7 +264,7 @@ static RETSIGTYPE ssh_event_loop_signal_handler(int sig)
 
 /* Compare two struct timevals. */
 static int ssh_event_loop_compare_time(struct timeval *first,
-				       struct timeval *second)
+                                       struct timeval *second)
 {
   return
     (first->tv_sec  < second->tv_sec)  ? -1 :
@@ -253,8 +275,8 @@ static int ssh_event_loop_compare_time(struct timeval *first,
 
 /* Convert relative timeout to absolute. */
 static void ssh_eloop_convert_relative_to_absolute(long seconds,
-						   long microseconds,
-						   struct timeval *timeval)
+                                                   long microseconds,
+                                                   struct timeval *timeval)
 {
   assert(microseconds >= 0 && microseconds < 1000000L);
   ssh_eloop_gettimeofday(timeval, NULL);
@@ -271,9 +293,9 @@ static void ssh_eloop_convert_relative_to_absolute(long seconds,
    the timeout. */
 
 void ssh_register_timeout(long seconds,
-			  long microseconds,
-			  SshTimeoutCallback callback,
-			  void *context)
+                          long microseconds,
+                          SshTimeoutCallback callback,
+                          void *context)
 {
   TimeRec **iter;
   TimeRec *created = ssh_xmalloc(sizeof(*created));
@@ -288,7 +310,7 @@ void ssh_register_timeout(long seconds,
 
   /* Convert to absolute time and initialize timeout record. */
   ssh_eloop_convert_relative_to_absolute(seconds, microseconds,
-					 &created->firing_time);
+                                         &created->firing_time);
   created->callback = callback;
   created->context = context;
   created->killed = FALSE;
@@ -296,8 +318,8 @@ void ssh_register_timeout(long seconds,
   /* Insert the new timeout in the sorted list of timeouts. */
   iter = &ssh_eloop_event_rec.time_records;
   while ((*iter != NULL) &&
-	 (ssh_event_loop_compare_time(&((*iter)->firing_time),
-				      &(created->firing_time)) < 0))
+         (ssh_event_loop_compare_time(&((*iter)->firing_time),
+                                      &(created->firing_time)) < 0))
     iter = &((*iter)->next);
 
   created->next = *iter;
@@ -310,9 +332,9 @@ void ssh_register_timeout(long seconds,
    for the specified amount of time. */
 
 void ssh_register_idle_timeout(long seconds,
-			       long microseconds,
-			       SshTimeoutCallback callback,
-			       void *context)
+                               long microseconds,
+                               SshTimeoutCallback callback,
+                               void *context)
 {
   SSH_TRACE(1, ("Idle timeouts not yet implemented."));
   /* XXX Note: it is a legal implementation to never call idle timeouts.
@@ -331,14 +353,14 @@ void ssh_cancel_timeouts(SshTimeoutCallback callback, void *context)
   while (iter != NULL)
     {
       if ((iter->context == context ||
-	   context == SSH_ALL_CONTEXTS) &&
-	  (iter->callback == callback ||
-	   callback == SSH_ALL_CALLBACKS) &&
-	  iter->killed == FALSE)
-	{
-	  SSH_DEBUG(7, ("Removed timeout at %d.", iter->firing_time.tv_sec));
-	  iter->killed = TRUE;
-	}
+           context == SSH_ALL_CONTEXTS) &&
+          (iter->callback == callback ||
+           callback == SSH_ALL_CALLBACKS) &&
+          iter->killed == FALSE)
+        {
+          SSH_DEBUG(7, ("Removed timeout at %d.", iter->firing_time.tv_sec));
+          iter->killed = TRUE;
+        }
       iter = iter->next;
     }
 }
@@ -350,7 +372,7 @@ void ssh_cancel_timeouts(SshTimeoutCallback callback, void *context)
 
 #ifdef HAVE_SIGNAL
 void ssh_register_signal(int sig, SshSignalCallback callback,
-			 void *context)
+                         void *context)
 {
   struct sigaction action;
   sigset_t mask, old_mask;
@@ -453,13 +475,13 @@ void ssh_io_register_fd(int fd, SshIoCallback callback, void *context)
     {
       assert(fd < 10000);  /* Sanity check... */
       ssh_eloop_event_rec.requests_array_size +=
-	SSH_ELOOP_REQS_ARRAY_SIZE_STEP;
+        SSH_ELOOP_REQS_ARRAY_SIZE_STEP;
       if (fd >= ssh_eloop_event_rec.requests_array_size)
-	ssh_eloop_event_rec.requests_array_size = fd + 1;
+        ssh_eloop_event_rec.requests_array_size = fd + 1;
       ssh_eloop_event_rec.requests =
-	ssh_xrealloc(ssh_eloop_event_rec.requests,
-		     ssh_eloop_event_rec.requests_array_size *
-		     sizeof(ssh_eloop_event_rec.requests[0]));
+        ssh_xrealloc(ssh_eloop_event_rec.requests,
+                     ssh_eloop_event_rec.requests_array_size *
+                     sizeof(ssh_eloop_event_rec.requests[0]));
     }
   ssh_eloop_event_rec.requests[fd] = 0;
 
@@ -484,22 +506,22 @@ void ssh_io_unregister_fd(int fd, Boolean keep_nonblocking)
   while (iter != NULL)
     {
       if ((iter->fd == fd) && (iter->killed == FALSE))
-	{
-	  if (!iter->was_nonblocking && !keep_nonblocking)
-	    {
+        {
+          if (!iter->was_nonblocking && !keep_nonblocking)
+            {
 #if defined(O_NONBLOCK) && !defined(O_NONBLOCK_BROKEN)
-	      fcntl(iter->fd, F_SETFL, 
-		    fcntl(iter->fd, F_GETFL, 0) & ~O_NONBLOCK);
+              fcntl(iter->fd, F_SETFL, 
+                    fcntl(iter->fd, F_GETFL, 0) & ~O_NONBLOCK);
 #else /* O_NONBLOCK && !O_NONBLOCK_BROKEN */
-	      fcntl(iter->fd, F_SETFL,
-		    fcntl(iter->fd, F_GETFL, 0) & ~O_NDELAY);
+              fcntl(iter->fd, F_SETFL,
+                    fcntl(iter->fd, F_GETFL, 0) & ~O_NDELAY);
 #endif /* O_NONBLOCK && !O_NONBLOCK_BROKEN */
-	    }
-	  iter->killed = TRUE;
-	  SSH_DEBUG(7, ("Killed the file descriptor %d, waiting for removal",
-			fd));
-	  return;
-	}
+            }
+          iter->killed = TRUE;
+          SSH_DEBUG(7, ("Killed the file descriptor %d, waiting for removal",
+                        fd));
+          return;
+        }
       iter = iter->next;
     }
   /* File descriptor was not found. */
@@ -515,7 +537,7 @@ void ssh_io_set_fd_request(int fd, unsigned int request)
 {
   if (fd >= ssh_eloop_event_rec.requests_array_size)
     ssh_fatal("File descriptor %d exceeded the array size in "
-	  "ssh_io_set_fd_request.", fd);
+          "ssh_io_set_fd_request.", fd);
   ssh_eloop_event_rec.requests[fd] = request;
 }
 
@@ -552,31 +574,31 @@ void ssh_event_loop_run(void)
 #ifdef HAVE_SIGNAL
       /* Handle signals. */
       while (ssh_eloop_event_rec.signal_fired)
-	{
-	  int i;
+        {
+          int i;
 
-	  /* We don't want to get signals during this because we're
-	     modifying the signals list. */
-	  sigprocmask(SIG_BLOCK, &ssh_eloop_event_rec.used_signals, &old_set);
-	  for (i = 1; i <= NSIG; i++)
-	    {
-	      if (ssh_eloop_event_rec.fired_signals[i - 1])
-		{
-		  ssh_eloop_event_rec.fired_signals[i - 1] = FALSE;
-		  SSH_DEBUG(7, ("Calling a signal handler."));
-		  if (ssh_eloop_event_rec.signal_records[i - 1].callback)
-		    (*ssh_eloop_event_rec.signal_records[i - 1].callback)(i,
-		        ssh_eloop_event_rec.signal_records[i - 1].context);
-		  done_something = TRUE;
-		}
-	    }
-	  ssh_eloop_event_rec.signal_fired = FALSE;
-	  
-	  /* Turn the mask off so that signals that have arrived during
-	     the iteration get into the queue. Then start the iteration
-	     again if the queue is not empty. */
-	  sigprocmask(SIG_SETMASK, &old_set, NULL);
-	}
+          /* We don't want to get signals during this because we're
+             modifying the signals list. */
+          sigprocmask(SIG_BLOCK, &ssh_eloop_event_rec.used_signals, &old_set);
+          for (i = 1; i <= NSIG; i++)
+            {
+              if (ssh_eloop_event_rec.fired_signals[i - 1])
+                {
+                  ssh_eloop_event_rec.fired_signals[i - 1] = FALSE;
+                  SSH_DEBUG(7, ("Calling a signal handler."));
+                  if (ssh_eloop_event_rec.signal_records[i - 1].callback)
+                    (*ssh_eloop_event_rec.signal_records[i - 1].callback)(i,
+                        ssh_eloop_event_rec.signal_records[i - 1].context);
+                  done_something = TRUE;
+                }
+            }
+          ssh_eloop_event_rec.signal_fired = FALSE;
+          
+          /* Turn the mask off so that signals that have arrived during
+             the iteration get into the queue. Then start the iteration
+             again if the queue is not empty. */
+          sigprocmask(SIG_SETMASK, &old_set, NULL);
+        }
 #endif /* HAVE_SIGNAL */
 
       ssh_eloop_event_rec.select_timeout_ptr = NULL;
@@ -586,88 +608,103 @@ void ssh_event_loop_run(void)
       
       /* If there are any timeouts to be fired fire them now.
          If there are any timeouts waiting set the timeout of the 
-	 select() call to match the earliest of the timeouts. */
+         select() call to match the earliest of the timeouts. */
       if (ssh_eloop_event_rec.time_records != NULL)
-	{
-	  /* Calculate idle time from last time when something else than idle
-	     timeouts was done */
-	  if (done_something)
-	    {
-	      idle_time.tv_sec = 0;
-	      idle_time.tv_usec = 0;
-	    }
-	  else
-	    {
-	      idle_time.tv_sec = current_time.tv_sec - prev_time.tv_sec;
-	      idle_time.tv_usec = current_time.tv_usec - prev_time.tv_usec;
-	      if (idle_time.tv_usec < 0)
-		{
-		  idle_time.tv_sec--;
-		  idle_time.tv_usec += 1000000L;
-		}
-	    }
-	  
-	  while ((time_temp = ssh_eloop_event_rec.time_records) != NULL)
-	    {
-	      if (time_temp->killed == FALSE)
-		{
-		  modified_time = current_time;
-		  if (modified_time.tv_usec >= 1000000)
-		    {
-		      modified_time.tv_usec -= 1000000;
-		      modified_time.tv_sec++;
-		    }
-		  if (ssh_event_loop_compare_time(&(time_temp->firing_time),
-					       &modified_time) > 0)
-		    break;
+        {
+          /* Calculate idle time from last time when something else than idle
+             timeouts was done */
+          if (done_something)
+            {
+              idle_time.tv_sec = 0;
+              idle_time.tv_usec = 0;
+            }
+          else
+            {
+              idle_time.tv_sec = current_time.tv_sec - prev_time.tv_sec;
+              idle_time.tv_usec = current_time.tv_usec - prev_time.tv_usec;
+              if (idle_time.tv_usec < 0)
+                {
+                  idle_time.tv_sec--;
+                  idle_time.tv_usec += 1000000L;
+                }
+            }
+          
+          while ((time_temp = ssh_eloop_event_rec.time_records) != NULL)
+            {
+              if (time_temp->killed == FALSE)
+                {
+                  modified_time = current_time;
+                  if (modified_time.tv_usec >= 1000000)
+                    {
+                      modified_time.tv_usec -= 1000000;
+                      modified_time.tv_sec++;
+                    }
+                  if (ssh_event_loop_compare_time(&(time_temp->firing_time),
+                                                  &modified_time) > 0)
+                    break;
 
-		  ssh_eloop_event_rec.time_records =
-		    ssh_eloop_event_rec.time_records->next;
-		  
-		  /* It is safe to add or kill timeouts in the
+                  ssh_eloop_event_rec.time_records =
+                    ssh_eloop_event_rec.time_records->next;
+                  
+                  /* It is safe to add or kill timeouts in the
                      callback. */
-		  SSH_DEBUG(7, ("Calling a timeout callback."));
-		  (*time_temp->callback)(time_temp->context);
-		  done_something = TRUE;
-		  ssh_eloop_gettimeofday(&current_time, NULL);
-		}
-	      else
-		{
-		  ssh_eloop_event_rec.time_records =
-		    ssh_eloop_event_rec.time_records->next;
-		}
-	      ssh_xfree(time_temp);
-	    }
-	  /* If there are any time records in the queue the first of
-	     them is not killed. */
-	  /* Determine the amount of time until the next timeout.  We
-	     know that it is not in the past since we just processed all
-	     expired timeouts. */
-	  if (ssh_eloop_event_rec.time_records != NULL)
-	    {
-	      unsigned long sec, usec;
+                  SSH_DEBUG(7, ("Calling a timeout callback."));
+                  (*time_temp->callback)(time_temp->context);
+                  done_something = TRUE;
+#if 0
+                  /* Removed this to make event loop fair. After this
+                     modification the select part below also gets some time
+                     //kivinen */ 
+                  ssh_eloop_gettimeofday(&current_time, NULL);
+#endif
+                }
+              else
+                {
+                  ssh_eloop_event_rec.time_records =
+                    ssh_eloop_event_rec.time_records->next;
+                }
+              ssh_xfree(time_temp);
+            }
+          /* If there are any time records in the queue the first of
+             them is not killed. */
+          /* Determine the amount of time until the next timeout.  This can be
+             in the past, because we run expire queue only once. */
+          ssh_eloop_gettimeofday(&current_time, NULL);
+          if (ssh_eloop_event_rec.time_records != NULL)
+            {
+              unsigned long sec, usec;
 
-	      sec = ssh_eloop_event_rec.time_records->firing_time.tv_sec;
-	      usec = ssh_eloop_event_rec.time_records->firing_time.tv_usec;
-		
-	      sec = sec - current_time.tv_sec;
-	      if (usec < current_time.tv_usec)
-		{
-		  sec--;
-		  usec = usec + 1000000 - current_time.tv_usec;
-		}
-	      else
-		usec = usec - current_time.tv_usec;
+              sec = ssh_eloop_event_rec.time_records->firing_time.tv_sec;
+              usec = ssh_eloop_event_rec.time_records->firing_time.tv_usec;
 
-	      select_timeout.tv_sec = sec;
-	      select_timeout.tv_usec = usec;
-		  
-	      ssh_eloop_event_rec.select_timeout_ptr = &select_timeout;
-	      SSH_DEBUG(8, ("Select timeout: %ld seconds, %ld usec.",
-			    ssh_eloop_event_rec.select_timeout_ptr->tv_sec,
-			    ssh_eloop_event_rec.select_timeout_ptr->tv_usec));
-	    }
-	}
+              if (sec < current_time.tv_sec ||
+                  (sec == current_time.tv_sec &&
+                   usec < current_time.tv_usec))
+                {
+                  sec = 0;
+                  usec = 0;
+                }
+              else
+                {
+                  sec = sec - current_time.tv_sec;
+                  if (usec < current_time.tv_usec)
+                    {
+                      sec--;
+                      usec = usec + 1000000 - current_time.tv_usec;
+                    }
+                  else
+                    usec = usec - current_time.tv_usec;
+                }
+              
+              select_timeout.tv_sec = sec;
+              select_timeout.tv_usec = usec;
+                  
+              ssh_eloop_event_rec.select_timeout_ptr = &select_timeout;
+              SSH_DEBUG(8, ("Select timeout: %ld seconds, %ld usec.",
+                            ssh_eloop_event_rec.select_timeout_ptr->tv_sec,
+                            ssh_eloop_event_rec.select_timeout_ptr->tv_usec));
+            }
+        }
 
       /* Choose the file descriptors to be selected. */
       FD_ZERO(&readfds);
@@ -677,40 +714,40 @@ void ssh_event_loop_run(void)
 
       iorec_temp = ssh_eloop_event_rec.io_records;
       while (iorec_temp != NULL)
-	{
-	  if (iorec_temp->killed == FALSE)
-	    {
-	      if (ssh_eloop_event_rec.requests[iorec_temp->fd] & SSH_IO_READ)
-		{
-		  num_files_selected++;
-		  FD_SET(iorec_temp->fd, &readfds);
-		}
-	      if (ssh_eloop_event_rec.requests[iorec_temp->fd] & SSH_IO_WRITE)
-		{
-		  FD_SET(iorec_temp->fd, &writefds);
-		  num_files_selected++;
-		}
-	      if (max_fd < iorec_temp->fd)
-		max_fd = iorec_temp->fd;
-	    }
-	  iorec_temp = iorec_temp->next;
-	}
+        {
+          if (iorec_temp->killed == FALSE)
+            {
+              if (ssh_eloop_event_rec.requests[iorec_temp->fd] & SSH_IO_READ)
+                {
+                  num_files_selected++;
+                  FD_SET(iorec_temp->fd, &readfds);
+                }
+              if (ssh_eloop_event_rec.requests[iorec_temp->fd] & SSH_IO_WRITE)
+                {
+                  FD_SET(iorec_temp->fd, &writefds);
+                  num_files_selected++;
+                }
+              if (max_fd < iorec_temp->fd)
+                max_fd = iorec_temp->fd;
+            }
+          iorec_temp = iorec_temp->next;
+        }
       
       /* If the select() would definitely block infinitely, return now. */
       if ((num_files_selected < 1) &&
-	  (ssh_eloop_event_rec.select_timeout_ptr == NULL))
-	break;
+          (ssh_eloop_event_rec.select_timeout_ptr == NULL))
+        break;
 
       /* Exit now if the event loop has been aborted. */
       if (!ssh_eloop_event_rec.running)
-	break;
+        break;
 
       /* If we had done something (other than running idle timeouts) copy the
-	 current time to prev time */
+         current time to prev time */
       if (done_something)
-	{
-	  prev_time = current_time;
-	}
+        {
+          prev_time = current_time;
+        }
 
       /* Raise the in_select flag. If signals arrive during the
          select() function call, the signal handler notices that and
@@ -718,75 +755,75 @@ void ssh_event_loop_run(void)
       ssh_eloop_event_rec.in_select = TRUE;
 
       if (ssh_eloop_event_rec.select_timeout_ptr != NULL &&
-	  ssh_eloop_event_rec.select_timeout_ptr->tv_sec == 0 &&
-	  ssh_eloop_event_rec.select_timeout_ptr->tv_usec != 0)
-	SSH_DEBUG(8, ("select timeout: %ld %ld",
-		      (long)ssh_eloop_event_rec.select_timeout_ptr->tv_sec,
-		      (long)ssh_eloop_event_rec.select_timeout_ptr->tv_usec));
+          ssh_eloop_event_rec.select_timeout_ptr->tv_sec == 0 &&
+          ssh_eloop_event_rec.select_timeout_ptr->tv_usec != 0)
+        SSH_DEBUG(8, ("select timeout: %ld %ld",
+                      (long)ssh_eloop_event_rec.select_timeout_ptr->tv_sec,
+                      (long)ssh_eloop_event_rec.select_timeout_ptr->tv_usec));
       
       SSH_DEBUG(8, ("Select."));
       select_return_value = select(max_fd + 1, &readfds, &writefds, NULL,
-				   ssh_eloop_event_rec.select_timeout_ptr);
+                                   ssh_eloop_event_rec.select_timeout_ptr);
 
       ssh_eloop_event_rec.in_select = FALSE;
       done_something = FALSE;
 
       switch (select_return_value)
-	{
-	case 0: /* Timeout */
-	  break;
-	case -1: /* Error */
-	  switch (errno)
-	    {
-	    case EBADF: /* Bad file descriptor. */
-	      ssh_fatal("Bad file descriptor in the event loop.");
-	      break;
-	    case EINTR: /* Caught a signal. */
-	      SSH_DEBUG(7, ("Select exited because of a caught signal."));
-	      break;
-	    case EINVAL: /* Invalid time limit. */
-	      ssh_fatal("Bad time limit in the event loop.");
-	      break;
-	    }
-	  break;
-	default: /* Some IO is ready */	  
-	  done_something = TRUE;
-	  iorec_temp = ssh_eloop_event_rec.io_records;
-	  iorec_ptr = &(ssh_eloop_event_rec.io_records);
-	  while (iorec_temp != NULL)
-	    {
-	      if ((FD_ISSET(iorec_temp->fd, &readfds)) &&
-		  (iorec_temp->killed == FALSE) &&
-		  (ssh_eloop_event_rec.requests[iorec_temp->fd] & SSH_IO_READ))
-		(*iorec_temp->callback)(SSH_IO_READ, iorec_temp->context);
+        {
+        case 0: /* Timeout */
+          break;
+        case -1: /* Error */
+          switch (errno)
+            {
+            case EBADF: /* Bad file descriptor. */
+              ssh_fatal("Bad file descriptor in the event loop.");
+              break;
+            case EINTR: /* Caught a signal. */
+              SSH_DEBUG(7, ("Select exited because of a caught signal."));
+              break;
+            case EINVAL: /* Invalid time limit. */
+              ssh_fatal("Bad time limit in the event loop.");
+              break;
+            }
+          break;
+        default: /* Some IO is ready */   
+          done_something = TRUE;
+          iorec_temp = ssh_eloop_event_rec.io_records;
+          iorec_ptr = &(ssh_eloop_event_rec.io_records);
+          while (iorec_temp != NULL)
+            {
+              if ((FD_ISSET(iorec_temp->fd, &readfds)) &&
+                  (iorec_temp->killed == FALSE) &&
+                  (ssh_eloop_event_rec.requests[iorec_temp->fd] & SSH_IO_READ))
+                (*iorec_temp->callback)(SSH_IO_READ, iorec_temp->context);
 
-	      if ((FD_ISSET(iorec_temp->fd, &writefds)) &&
-		  (iorec_temp->killed == FALSE) &&
-		  (ssh_eloop_event_rec.requests[iorec_temp->fd] &
-		   SSH_IO_WRITE))
-		(*iorec_temp->callback)(SSH_IO_WRITE, iorec_temp->context);
+              if ((FD_ISSET(iorec_temp->fd, &writefds)) &&
+                  (iorec_temp->killed == FALSE) &&
+                  (ssh_eloop_event_rec.requests[iorec_temp->fd] &
+                   SSH_IO_WRITE))
+                (*iorec_temp->callback)(SSH_IO_WRITE, iorec_temp->context);
 
-	      /* If the IO item is killed remove it now. */
-	      if (iorec_temp->killed == TRUE)
-		{
-		  SSH_DEBUG(7, ("Removed a killed IO callback."));
-		  /* First set the pointer to point to the next item
+              /* If the IO item is killed remove it now. */
+              if (iorec_temp->killed == TRUE)
+                {
+                  SSH_DEBUG(7, ("Removed a killed IO callback."));
+                  /* First set the pointer to point to the next item
                      in the list. */
-		  *iorec_ptr = iorec_temp->next;
+                  *iorec_ptr = iorec_temp->next;
 
-		  /* Then free the killed structure. */
-		  ssh_xfree(iorec_temp);
+                  /* Then free the killed structure. */
+                  ssh_xfree(iorec_temp);
 
-		  /* Finally set the iteration pointer to the next item
+                  /* Finally set the iteration pointer to the next item
                      in the list. */
-		  iorec_temp = *iorec_ptr;
-		}
-	      else
-		{
-		  iorec_ptr = &(iorec_temp->next);
-		  iorec_temp = iorec_temp->next;
-		}
-	    }
-	}
+                  iorec_temp = *iorec_ptr;
+                }
+              else
+                {
+                  iorec_ptr = &(iorec_temp->next);
+                  iorec_temp = iorec_temp->next;
+                }
+            }
+        }
     }
 }

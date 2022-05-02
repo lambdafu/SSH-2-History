@@ -1,6 +1,6 @@
 /*
 
-  ssh2d.c
+  sshd2.c
   
   Authors:
         Tatu Ylonen <ylo@ssh.fi>
@@ -29,7 +29,8 @@
 #include "sshmsgs.h"
 #include "sigchld.h"
 #include "sshgetopt.h"
-
+#include "auths-common.h"
+#include "sshencode.h"
 #include <syslog.h>
 
 #ifdef HAVE_LIBWRAP
@@ -42,9 +43,9 @@ int allow_severity = LOG_INFO;
 int deny_severity = LOG_WARNING;
 #endif /* HAVE_LIBWRAP */
 
-#if HAVE_OSF1_C2_SECURITY
-#include "tcbc2.h"
-#endif /* HAVE_OSF1_C2_SECURITY */
+#ifdef HAVE_SIA
+#include "sshsia.h"
+#endif /* HAVE_SIA */
 
 #if HAVE_SCO_ETC_SHADOW
 #include <sys/types.h>
@@ -65,6 +66,7 @@ typedef struct SshServerData
   SshPrivateKey private_server_key;
   Boolean debug;
   SshTcpListener listener;
+  int connections;
   SshUser user;
   Boolean ssh_fatal_called;
 } *SshServerData;
@@ -206,7 +208,7 @@ void ssh_server_version_check(const char *version, void *context)
       strncmp(version, "SSH-1.99", 8) != 0 &&
       c->server->config->ssh1compatibility == TRUE &&
       c->server->config->ssh1_path != NULL &&
-      c->server->config->ssh1_args != NULL)
+      c->server->config->ssh1_argv != NULL)
     {
       ssh_debug("Executing %s for ssh1 compatibility.",
                 c->server->config->ssh1_path);
@@ -217,11 +219,11 @@ void ssh_server_version_check(const char *version, void *context)
       args[arg++] = "-V";
       snprintf(buf, sizeof(buf), "%s\n", version); /* add newline */
       args[arg++] = buf;
-      for (i = 1; c->server->config->ssh1_args[i]; i++)
+      for (i = 1; c->server->config->ssh1_argv[i]; i++)
         {
           if (arg >= sizeof(args)/sizeof(args[0]) - 2)
             ssh_fatal("Too many arguments for compatibility ssh1.");
-          aa = c->server->config->ssh1_args[i];
+          aa = c->server->config->ssh1_argv[i];
           if (strcmp(aa, "-f") == 0 ||
               strcmp(aa, "-b") == 0 ||
               strcmp(aa, "-g") == 0 ||
@@ -230,14 +232,14 @@ void ssh_server_version_check(const char *version, void *context)
               strcmp(aa, "-p") == 0)
             {
               args[arg++] = aa;
-              if (c->server->config->ssh1_args[i + 1])
-                args[arg++] = c->server->config->ssh1_args[++i];
+              if (c->server->config->ssh1_argv[i + 1])
+                args[arg++] = c->server->config->ssh1_argv[++i];
             }
           else
             if (strcmp(aa, "-d") == 0)
               {
                 args[arg++] = aa;
-                if (c->server->config->ssh1_args[i + 1])
+                if (c->server->config->ssh1_argv[i + 1])
                   i++; /* Skip the level. */
               }
             else
@@ -265,12 +267,200 @@ void ssh_server_version_check(const char *version, void *context)
     }
 }
 
-/* This called, when we have an authenticated user ready to continue. */
+/* This function will be used to see what authentications we can use
+   for the user, and to provide a common place to put access
+   control-information. */
+char *auth_policy_proc(const char *user,
+                       const char *service,
+                       const char *client_ip,
+                       const char *client_port,
+                       const char *completed_authentications,
+                       void *context)
+{
+  SshServer server = (SshServer)context;
+  SshConfig config = server->config;
+  SshUser uc = NULL;
+  char *cp;
+  
+  SSH_DEBUG(2, ("user '%s' service '%s' client_ip '%s' client_port '%s' "
+                "completed '%s'",
+                user, service, client_ip, client_port,
+                completed_authentications));
+
+  /* Check whether user's login is allowed */
+  /* XXX AllowUsers */
+  if (ssh_server_auth_check_user(&uc, user, server->config))
+    {
+      /* failure */
+      char *s = "login to account %.100s not allowed or account non-existent.";
+      
+      ssh_log_event(config->log_facility,
+                    SSH_LOG_WARNING,
+                    s,
+                    user);
+      SSH_TRACE(1, (s, user));
+      /* Reject the login if the user is not allowed to log in. */
+      return ssh_xstrdup("");
+    }
+  
+  /* Check whether logins from remote host are allowed */
+  if (ssh_server_auth_check_host(server->common))
+    {
+      char *s;
+      s = "Connection from %.100s denied. Authentication as user " \
+        "%.100s was attempted.";
+      
+      /* logins from remote host are not allowed. */
+      ssh_log_event(server->config->log_facility, SSH_LOG_WARNING,
+                    s, server->common->remote_host,
+                    ssh_user_name(uc));
+      SSH_TRACE(1, (s, server->common->remote_host, ssh_user_name(uc)));
+      
+      /* Reject the login if the user is not allowed to log in from
+         specified host. */
+      return ssh_xstrdup("");
+    }
+
+
+  /* Check, whether user has passed all required authentications*/
+  if (completed_authentications != NULL &&
+      strlen(completed_authentications) > 0)
+    {
+      SshDlList required = server->config->required_authentications;
+      
+      /* If some authentication method has been passed, and there is
+         no list for required authentications, the user is
+         authenticated. */
+      if (!required)
+        return NULL;
+      
+      /* Go trough the list to see if we find a match for every method
+         needed. */
+      ssh_dllist_rewind(required);
+
+      do {
+        char *current = NULL;
+        
+        if ((current = ssh_dllist_current(required)) == NULL)
+          continue;
+
+        if (strstr(completed_authentications, current) == NULL)
+          goto construct;
+        
+      } while (ssh_dllist_fw(required, 1) == SSH_DLLIST_OK);  
+
+      /* if all were found from completed_authentications, the user is
+         authenticated.*/
+      return NULL;
+    }
+
+  /* Otherwise, construct a list of the authentications that can continue.
+     All supported authentication methods are included in the list. */
+ construct:
+  {
+    SshDlList allowed, required;
+    SshBuffer buffer;
+
+    allowed = server->config->allowed_authentications;
+    required = server->config->required_authentications;
+      
+    ssh_buffer_init(&buffer);
+      
+    if (allowed)
+      {
+        Boolean first = TRUE;
+          
+        ssh_dllist_rewind(allowed);
+          
+        do {
+          char *current = NULL;
+            
+          if ((current = ssh_dllist_current(allowed)) == NULL)
+            continue;
+            
+          if (strstr(completed_authentications, current) == NULL)
+            {
+              if (required)
+                {
+                  Boolean found = FALSE;
+                    
+                  ssh_dllist_rewind(required);
+                    
+                  do {
+                    char *current_req = NULL;
+                  
+                    if ((current_req = ssh_dllist_current(required)) == NULL)
+                      continue;
+                  
+                    if (strcmp(current, current_req) != 0)
+                      {
+                        found = TRUE;
+                        break;
+                      }
+                  
+                  
+                  } while (ssh_dllist_fw(required, 1) == SSH_DLLIST_OK);
+
+                  if (!found)
+                    continue;
+                }
+                
+              if (!first)
+                {
+                  ssh_buffer_append(&buffer, (unsigned char *)",", 1);
+                }
+                
+              ssh_buffer_append(&buffer, (unsigned char *)current,
+                                strlen(current));
+
+              if (first)
+                first = FALSE;
+            }
+            
+        } while (ssh_dllist_fw(allowed, 1) == SSH_DLLIST_OK);  
+
+        ssh_buffer_append(&buffer, (unsigned char *)"\0", 1);
+      }
+    else
+      {    
+        /* If publickey authentication is denied in the configuration
+           file, deny it here too. */
+        if (server->config->pubkey_authentication == FALSE )
+          SSH_DEBUG(3, ("Public key authentication is denied."));
+        else
+          ssh_buffer_append(&buffer, (unsigned char *) SSH_AUTH_PUBKEY ",",
+                            strlen(SSH_AUTH_PUBKEY ","));
+              
+        /* If password authentication is denied in the configuration
+           file, deny it here too. */
+        if (config->password_authentication == FALSE )
+          SSH_DEBUG(3, ("Password authentication is denied."));
+        else
+          ssh_buffer_append(&buffer, (unsigned char *) SSH_AUTH_PASSWD ",\0",
+                            strlen(SSH_AUTH_PASSWD ",") + 1);
+          
+      }
+    cp = ssh_xstrdup(ssh_buffer_ptr(&buffer));
+    ssh_buffer_uninit(&buffer);
+  }
+  
+  SSH_DEBUG(2, ("output: %s", cp));
+
+  return cp;
+}
+
+/* Forward declaration. */
+void ssh_login_grace_time_exceeded(void *context);
+
+/* This is called, when we have an authenticated user ready to continue. */
 
 void client_authenticated(const char *user, void *context)
 {
   SshServerConnection connection = (SshServerConnection) context;
   SshCommon common = connection->server->common;
+
+  /* We unregister the (possible) grace time callback. */
+  ssh_cancel_timeouts(ssh_login_grace_time_exceeded, SSH_ALL_CONTEXTS);
   
   ssh_log_event(common->config->log_facility,
                 SSH_LOG_NOTICE,
@@ -278,8 +468,58 @@ void client_authenticated(const char *user, void *context)
                 user, common->remote_host);
 }
 
-/* This function is called whenever we receive a new connection. */
 
+/* Callback to handle the closing of connections in the "mother"
+   process */
+void child_returned(pid_t pid, int status, void *context)
+{
+  SshServerData data = (SshServerData) context;
+
+  SSH_DEBUG(2, ("Child with pid '%d' returned with status '%d'.", \
+                pid, status));
+
+  if (data->config->max_connections)
+    {
+      data->connections--;
+      
+      SSH_DEBUG(4, ("%d connections now open. (max %d)", \
+                    data->connections, data->config->max_connections));
+    }
+}
+
+/* This callback gets called, if LoginGraceTime is exceeded. */
+void ssh_login_grace_time_exceeded(void *context)
+{
+  SshServerConnection connection = (SshServerConnection) context;
+  char s[] = "LoginGraceTime exceeded.";
+  
+  ssh_log_event(connection->server->config->log_facility,
+                SSH_LOG_WARNING,
+                "%s", s);
+  SSH_DEBUG(0, ("%s", s));
+
+  /* We send disconnect, and exit. If LoginGraceTime is exceeded,
+     there might be some kind of DoS-attack going on. */
+  ssh_conn_send_disconnect(connection->server->common->conn,
+                           SSH_DISCONNECT_HOST_AUTHENTICATION_FAILED,
+                           "Login grace time exceeded.");
+
+  ssh_server_destroy(connection->server);
+
+  exit(0);
+}
+
+/* This callback is called, when a stream needs to be destroyed 
+   with a small callback. */
+void destroy_stream_callback(void *context)
+{
+  SshStream stream = (SshStream)context;
+
+  ssh_stream_destroy(stream);
+  return;
+}
+
+/* This function is called whenever we receive a new connection. */
 void new_connection_callback(SshIpError error, SshStream stream,
                              void *context)
 {
@@ -307,6 +547,61 @@ void new_connection_callback(SshIpError error, SshStream stream,
                 "connection from \"%s\"", buf);
   
   SSH_DEBUG(2, ("new_connection_callback"));
+
+  /* check for MaxConnections */
+
+  if (data->config->max_connections)
+    {
+      if (data->connections >= data->config->max_connections)
+        {
+          SshBuffer *buffer;
+
+          char error[] = "Too many connections.";
+          char lang[] = "en";
+          
+          buffer = ssh_buffer_allocate();
+          
+          /* Send disconnect, SSH_DISCONNECT_BY_APPLICATION */
+          /* Construct the packet. */
+          ssh_encode_buffer(buffer,
+                            /* SSH_MSG_DISCONNECT */
+                            SSH_FORMAT_CHAR,
+                            (unsigned int) SSH_MSG_DISCONNECT,
+                            /* uint32 reason code */
+                            SSH_FORMAT_UINT32, (SshUInt32)
+                            SSH_DISCONNECT_BY_APPLICATION,
+                            /* string description */
+                            SSH_FORMAT_UINT32_STR, error, strlen(error),
+                            /* string language tag */
+                            SSH_FORMAT_UINT32_STR, lang, strlen(lang),
+                            SSH_FORMAT_END);
+
+          ssh_stream_write(stream, ssh_buffer_ptr(buffer),
+                           ssh_buffer_len(buffer));
+          /* We destroy the stream with a little timeout in order
+             to give some time to the protocol to send the disconnect
+             message.  If the message can't be sent in this time window,
+             it's obvious that we are under some kind of DoS attack
+             and it's OK just to destroy the stream. */
+          ssh_register_timeout(0L, 20000L, 
+                               destroy_stream_callback, (void *)stream);
+
+          ssh_log_event(data->config->log_facility, SSH_LOG_WARNING,
+                        "Refusing connection from \"%s\". Too many " \
+                        "open connections (max %d, now open %d).",
+                        buf, data->config->max_connections,
+                        data->connections);
+
+          ssh_buffer_free(buffer);
+          /* return from this callback. */
+          return;
+        }
+    }
+
+  /* Set socket to nodelay mode if configuration suggests this. */
+  ssh_socket_set_nodelay(stream, data->config->no_delay);
+  /* Set socket to keepalive mode if configuration suggests this. */
+  ssh_socket_set_keepalive(stream, data->config->keep_alive);
 
   /* Fork to execute the new child, unless in debug mode. */
   if (data->debug)
@@ -355,14 +650,20 @@ void new_connection_callback(SshIpError error, SshStream stream,
       /* Create a context structure for the connection. */
       c = ssh_xcalloc(1, sizeof(*c));
       c->shared = data;
+      SSH_TRACE(2, ("Wrapping stream with ssh_server_wrap..."));
       c->server = ssh_server_wrap(stream, data->config, data->random_state,
                                   data->private_server_key, server_disconnect,
                                   server_debug,
                                   (data->config->ssh1compatibility &&
                                    data->config->ssh1_path != NULL) ?
                                   ssh_server_version_check : NULL,
+                                  auth_policy_proc,
                                   client_authenticated,
                                   (void *)c);
+      SSH_TRACE(2, ("done."));
+      if (data->config->login_grace_time > 0)
+        ssh_register_timeout((long)data->config->login_grace_time, 0L,
+                             ssh_login_grace_time_exceeded, c);
     }
   else
     {
@@ -384,6 +685,21 @@ void new_connection_callback(SshIpError error, SshStream stream,
 
       /* Update the random seed file on disk. */
       ssh_randseed_update(data->user, data->random_state, data->config);
+
+      if (data->config->max_connections)
+        {
+          data->connections++;
+
+          SSH_DEBUG(4, ("Registering sigchld-handler for child '%d'.", \
+                        ret));
+
+          SSH_DEBUG(4, ("%d connections now open. (max %d)", \
+                        data->connections, data->config->max_connections));
+                        
+          ssh_sigchld_register(ret, child_returned,
+                               data);
+        }
+      
     }
 
   ssh_debug("new_connection_callback returning");
@@ -570,7 +886,7 @@ void sighup_handler(int signal, void *context)
 
 int main(int argc, char **argv)
 {
-  int i;
+  int i = 0;
   SshServerData data;
   SshUser user;
   char config_fn[1024];
@@ -586,20 +902,21 @@ int main(int argc, char **argv)
   /* Initializations */
   restart = FALSE;
   
-#if HAVE_OSF1_C2_SECURITY
-  /* this is still very heavily under construction. */
-  tcbc2_initialize_security(argc, argv);
-#endif /* HAVE_OSF1_C2_SECURITY */
-
 #if HAVE_SCO_ETC_SHADOW
   set_auth_parameters(argc, argv);
 #endif /* HAVE_SCO_ETC_SHADOW */
+
+#if HAVE_SIA
+  initialize_sia(argc, argv);
+#endif /* HAVE_SIA */
 
   data = ssh_xcalloc(1, sizeof(*data));
   user = ssh_user_initialize(NULL, TRUE);
   
   data->ssh_fatal_called = FALSE;
 
+  data->connections = 0;
+  
   /* Create config context. */
   data->config = ssh_server_create_config();
 
@@ -629,8 +946,9 @@ int main(int argc, char **argv)
   ssh_event_loop_initialize();
   
   /* Save command line options for ssh1 compatibility code. */
-  data->config->ssh1_args = argv;
-
+  data->config->ssh1_argv = argv;
+  data->config->ssh1_argc = argc;
+  
   /* Save information about current user. */
   data->user = user;
   
@@ -658,7 +976,7 @@ int main(int argc, char **argv)
       else
         {
           if ((conf_dir = ssh_userdir(user, data->config, TRUE)) == NULL)
-            ssh_fatal("ssh_server_load_host_key: no ssh2 user directory");
+            ssh_fatal("no ssh2 user directory");
         }
 
       snprintf(config_fn, sizeof(config_fn), "%s/%s",
@@ -801,11 +1119,14 @@ int main(int argc, char **argv)
   data->random_state = ssh_randseed_open(user, data->config);
 
 #if 0
-  /* read the server key (if needed) */ 
+  /* generate the server key (if needed) */ 
   data->private_server_key = generate_server_key(data->config, 
                                                  data->random_state);
 #endif /* 0 */
- 
+
+  /* Finalize the initialization. */
+  ssh_config_init_finalize(data->config);
+
   ssh_debug("Becoming server.");
   
   /* Check if we are being called from inetd. */

@@ -41,7 +41,7 @@
       */
 
 /*
- * $Id: genpkcs.c,v 1.40 1999/01/18 14:02:52 vsuontam Exp $
+ * $Id: genpkcs.c,v 1.46 1999/04/29 13:38:10 huima Exp $
  * $Log: genpkcs.c,v $
  * $EndLog$
  */
@@ -50,7 +50,7 @@
 #include "sshcrypt.h"
 #include "sshcrypti.h"
 #include "sshbuffer.h"
-#include "bufaux.h"
+#include "sshbufaux.h"
 #include "md5.h"
 #include "sha.h"
 #include "sshgetput.h"
@@ -680,6 +680,19 @@ struct SshPrivateKeyRec
 
 /* Definitions of schemes. Those who wish to add more algorithms should
    study style used here. */
+
+#if 0
+const SshPkSignature ssh_device_signature_schemes[] =
+{
+  { "pkcs11", NULL,
+    NULL,
+    ssh_pkcs11_private_key_max_signature_input_len, 
+    ssh_pkcs11_private_key_max_signature_output_len,
+    ssh_pkcs11_public_key_verify,
+    ssh_pkcs11_private_key_sign },
+  { NULL }
+};
+#endif
 
 
 /* Table of all supported signature schemes for dl-modp keys. */
@@ -1820,8 +1833,9 @@ ssh_pk_group_export_randomizers(SshPkGroup group,
   ssh_buffer_init(&buffer);
 
   ssh_encode_buffer(&buffer,
-                    SSH_FORMAT_UINT32, SSH_PK_GROUP_RANDOMIZER_MAGIC,
-                    SSH_FORMAT_UINT32, 0,
+                    SSH_FORMAT_UINT32,
+                    (SshUInt32) SSH_PK_GROUP_RANDOMIZER_MAGIC,
+                    SSH_FORMAT_UINT32, (SshUInt32) 0,
                     SSH_FORMAT_END);
 
   while (1)
@@ -1856,7 +1870,7 @@ ssh_pk_group_import_randomizers(SshPkGroup group,
                                 size_t buf_length)
 {
   SshBuffer buffer;
-  size_t total_length, length;
+  SshInt32 total_length, length;
   SshUInt32 magic;
   
   ssh_buffer_init(&buffer);
@@ -1927,8 +1941,8 @@ ssh_pk_group_export(SshPkGroup group, unsigned char **buf,
   name = ssh_pk_group_name(group);
   
   ssh_encode_buffer(&buffer,
-                    SSH_FORMAT_UINT32, SSH_PK_GROUP_MAGIC,
-                    SSH_FORMAT_UINT32, 0,
+                    SSH_FORMAT_UINT32, (SshUInt32) SSH_PK_GROUP_MAGIC,
+                    SSH_FORMAT_UINT32, (SshUInt32) 0,
                     SSH_FORMAT_UINT32_STR, name, strlen(name),
                     SSH_FORMAT_END);
 
@@ -1964,8 +1978,8 @@ ssh_pk_group_import(unsigned char *buf, size_t buf_length,
                     SshPkGroup *group)
 {
   SshBuffer buffer;
-  unsigned int magic;
-  size_t total_length, key_type_len, length;
+  SshUInt32 magic, total_length, length;
+  size_t key_type_len;
   char *key_type, *name;
   const SshPkAction *action;
   void *scheme;
@@ -2938,7 +2952,7 @@ ssh_public_key_import(const unsigned char *buf,
                       SshPublicKey *key)
 {
   SshBuffer buffer;
-  unsigned int pk_magic, pk_length, length;
+  SshUInt32 pk_magic, pk_length, length;
   char *key_type;
   char *name;
   const SshPkAction *action;
@@ -3117,8 +3131,8 @@ ssh_public_key_export(SshPublicKey key,
   name = ssh_public_key_name(key);
   
   ssh_encode_buffer(&buffer,
-                    SSH_FORMAT_UINT32, SSH_PUBLIC_KEY_MAGIC,
-                    SSH_FORMAT_UINT32, 0,
+                    SSH_FORMAT_UINT32, (SshUInt32) SSH_PUBLIC_KEY_MAGIC,
+                    SSH_FORMAT_UINT32, (SshUInt32) 0,
                     SSH_FORMAT_UINT32_STR, name, strlen(name),
                     SSH_FORMAT_END);
   ssh_xfree(name);
@@ -3134,6 +3148,53 @@ ssh_public_key_export(SshPublicKey key,
                     SSH_FORMAT_UINT32_STR, temp_buf, temp_buf_len,
                     SSH_FORMAT_END);
 
+  ssh_xfree(temp_buf);
+
+  /* Get the buffer information. */
+  *length_return = ssh_buffer_len(&buffer);
+  *buf = ssh_xmalloc(*length_return);
+  memcpy(*buf, ssh_buffer_ptr(&buffer), *length_return);
+
+  /* Set total length. */
+  SSH_PUT_32BIT(*buf + 4, *length_return);
+
+  /* Free buffer. */
+  ssh_buffer_uninit(&buffer);
+
+  return SSH_CRYPTO_OK;
+}
+
+DLLEXPORT SshCryptoStatus DLLCALLCONV
+ssh_public_key_export_canonical(SshPublicKey key,
+                                unsigned char **buf,
+                                size_t *length_return)
+{
+  SshBuffer buffer;
+  unsigned char *temp_buf;
+  size_t temp_buf_len;
+  
+  /* Encoding of the public key, in SSH format. */
+
+  if (key == NULL)
+    return SSH_CRYPTO_OPERATION_FAILED;
+  if (key->type == NULL)
+    return SSH_CRYPTO_OPERATION_FAILED;
+
+  if ((*key->type->public_key_export)(key->context,
+                                      &temp_buf, &temp_buf_len) == FALSE)
+    return SSH_CRYPTO_OPERATION_FAILED;
+  
+  ssh_buffer_init(&buffer);
+
+  /* Build the blob. */
+  ssh_encode_buffer(&buffer,
+                    SSH_FORMAT_UINT32, (SshUInt32) SSH_PUBLIC_KEY_MAGIC,
+                    SSH_FORMAT_UINT32, (SshUInt32) 0,
+                    SSH_FORMAT_UINT32_STR, key->type->name,
+                    strlen(key->type->name),
+                    SSH_FORMAT_UINT32_STR, temp_buf, temp_buf_len,
+                    SSH_FORMAT_END);
+  
   ssh_xfree(temp_buf);
 
   /* Get the buffer information. */
@@ -3230,7 +3291,7 @@ ssh_private_key_import_internal(const unsigned char *buf,
                                 Boolean expand_key)
 {
   SshBuffer buffer;
-  unsigned int pk_magic, pk_length, length, tmp_length;
+  SshUInt32 pk_magic, pk_length, length, tmp_length;
   char *key_type, *cipher_name, *name;
   unsigned char *tmp_buf;
   size_t tmp_buf_length;
@@ -3533,8 +3594,8 @@ ssh_private_key_export_internal(SshPrivateKey key,
   name = ssh_private_key_name(key);
   
   ssh_encode_buffer(&buffer,
-                    SSH_FORMAT_UINT32, SSH_PRIVATE_KEY_MAGIC,
-                    SSH_FORMAT_UINT32, 0,
+                    SSH_FORMAT_UINT32, (SshUInt32) SSH_PRIVATE_KEY_MAGIC,
+                    SSH_FORMAT_UINT32, (SshUInt32) 0,
                     SSH_FORMAT_UINT32_STR,
                     name, strlen(name),
                     SSH_FORMAT_UINT32_STR,
@@ -3868,6 +3929,30 @@ ssh_private_key_sign(SshPrivateKey key,
 
   return SSH_CRYPTO_OPERATION_FAILED;
 }
+
+
+#if 0
+DLLEXPORT SshCryptoStatus DLLCALLCONV
+ssh_private_key_sign(SshPrivateKey key,
+                     const unsigned char *data,
+                     size_t data_len,
+                     unsigned char **signature_buffer,
+                     size_t *ssh_buffer_length,
+                     SshRandomState state)
+{
+  if (key->signature == NULL)
+    return SSH_CRYPTO_UNSUPPORTED;
+
+  if ((*key->signature->private_key_sign)(key->context,
+                                          TRUE, data, data_len,
+                                          signature_buffer, ssh_buffer_length,
+                                          state,
+                                          key->signature->hash_def))
+    return SSH_CRYPTO_OK;
+
+  return SSH_CRYPTO_OPERATION_FAILED;
+}
+#endif
 
 
 

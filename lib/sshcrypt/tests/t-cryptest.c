@@ -15,16 +15,16 @@
   */
 
 /*
- * $Id: t-cryptest.c,v 1.5 1998/10/07 11:56:30 tri Exp $
+ * $Id: t-cryptest.c,v 1.7 1999/04/29 13:38:22 huima Exp $
  * $Log: t-cryptest.c,v $
  * $EndLog$
  */
 
 #include "sshincludes.h"
 #include "sshcrypt.h"
-#include "psystem.h"
+#include "sshpsystem.h"
 #include "timeit.h"
-#include "gmp.h"
+#include "sshmp.h" /* was "gmp.h" */
 
 #include "testsrcpath.h"
 
@@ -166,7 +166,7 @@ SSH_PSYSTEM_HANDLER(timing_info)
       switch (aptype)
         {
         case TCR_LOOPS:
-          t->loops = mpz_get_ui((MP_INT*)data);
+          t->loops = ssh_mp_get_ui((SshInt*)data);
           return TRUE;
         default:
           break;

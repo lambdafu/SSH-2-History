@@ -10,7 +10,7 @@ Copyright (c) 1997 SSH Communications Security, Finland
 */
 
 /*
- * $Id: sshunixptystream.h,v 1.2 1998/05/12 21:47:16 ylo Exp $
+ * $Id: sshunixptystream.h,v 1.3 1999/02/16 12:52:13 sjl Exp $
  * $Log: sshunixptystream.h,v $
  * $EndLog$
  */
@@ -42,8 +42,8 @@ typedef enum {
    The uid and gid are only used for setting ownership of the pty; this
    does not switch to be the given user. */
 SshPtyStatus ssh_pty_allocate_and_fork(uid_t owner_uid, gid_t owner_gid,
-				       char *namebuf,
-				       SshStream *master_return);
+                                       char *namebuf,
+                                       SshStream *master_return);
 
 /* Retrieves the name of the pty.  Returns TRUE on success, FALSE if the stream
    is not a pty stream.  This can be used on both parent and child side. */
@@ -63,10 +63,15 @@ int ssh_pty_get_exit_status(SshStream stream);
 /* Changes window size on the pty.  This function can only be used on the
    parent side. */
 void ssh_pty_change_window_size(SshStream stream,
-				unsigned int width_chars,
-				unsigned int height_chars,
-				unsigned int width_pixels,
-				unsigned int height_pixels);
+                                unsigned int width_chars,
+                                unsigned int height_chars,
+                                unsigned int width_pixels,
+                                unsigned int height_pixels);
+
+/* Returns the file descriptor for the pty. This should be used only
+   for things that don't change this stream, and care should be taken
+   that nothing is destroyed.*/
+int ssh_pty_get_fd(SshStream stream);
 
 /* Returns true if the pty is in a mode with C-S/C-Q flow control enabled.
    This can be used to determine whether a client can perform local flow

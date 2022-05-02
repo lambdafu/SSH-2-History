@@ -44,10 +44,10 @@ typedef struct SshFileAttributesRec {
   gid_t gid;
 
   /* Time of last modification. */
-  time_t mtime;
+  SshTime mtime;
 
   /* Time of last access. */
-  time_t atime;
+  SshTime atime;
   
   /* Permissions of the file.  This is in unix format. */
   unsigned long permissions;

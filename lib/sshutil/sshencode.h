@@ -76,17 +76,20 @@ typedef enum {
   SSH_FORMAT_UINT32_STR,        /* char *, size_t */
 
   /* A string with uint32-coded lenght.  Otherwise identical to
-     SSH_FORMAT_UINT32_STR. */
+     SSH_FORMAT_VLINT32_STR_NOCOPY. */
   SSH_FORMAT_UINT32_STR_NOCOPY, /* char *, size_t */
 
   /* A vlint32-coded integer value.  For encoding, this has a single
      "unsigned long" argument (the value), and for decoding an
      "unsigned long *" argument, where the value will be stored.  The argument
      may be NULL in which case the value is not stored. */
-  SSH_FORMAT_VLINT32,           /* unsigned long */
+  SSH_FORMAT_VLINT32,           /* SshUInt32 */
 
   /* An 32-bit MSB first integer value.  Otherwise like SSH_FORMAT_VLINT32. */
-  SSH_FORMAT_UINT32,            /* unsigned long */
+  SSH_FORMAT_UINT32,            /* SshUInt32, note that if you encode constant
+                                   integer, you still must use (SshUInt32) cast
+                                   before it. Also enums must be casted to
+                                   SshUInt32 before encoding. */
 
   /* A boolean value.  For encoding, this has a single "Boolean" argument.
      For decoding, this has a "Boolean *" argument, where the value will
@@ -94,12 +97,12 @@ typedef enum {
      stored. */
   SSH_FORMAT_BOOLEAN,           /* Boolean */
 
-  /* A multiple-precision integer value.  The argument is of type "MP_INT *".
-     When decoding, the MP_INT must already have been initialized.  The
+  /* A multiple-precision integer value.  The argument is of type "SshInt *".
+     When decoding, the SshInt must already have been initialized.  The
      value may also be NULL when decoding, in which case the value is not
      stored.  The format is 32-bit MSB first number of bits, followed by
      (bits+7)/8 bytes of data, MSB first (unsigned only). */
-  SSH_FORMAT_MP_INT,            /* MP_INT * (both decode / encode) */
+  SSH_FORMAT_MP_INT,            /* SshInt * (both decode / encode) */
 
   /* A single one-byte character.  The argument is of type "unsigned int"
      when encoding, and of type "unsigned int *" when decoding.  The value
@@ -129,7 +132,7 @@ typedef enum {
      "SshUInt64" argument (the value), and for decoding an
      "SshUInt64 *" argument, where the value will be stored.  The argument
      may be NULL in which case the value is not stored. */
-  SSH_FORMAT_UINT64,
+  SSH_FORMAT_UINT64,            /* SshUInt64 */
   
   /* Marks end of the argument list. */
   SSH_FORMAT_END = 0x0d0e0a0d

@@ -17,7 +17,7 @@ encryption, integrity, server host authentication, and compression.
 */
 
 /*
- * $Id: sshtrans.c,v 1.12 1998/07/11 12:36:53 tri Exp $
+ * $Id: sshtrans.c,v 1.13 1999/04/16 14:41:23 sjl Exp $
  * $Log: sshtrans.c,v $
  * $EndLog$
  */
@@ -29,9 +29,9 @@ encryption, integrity, server host authentication, and compression.
 #include "namelist.h"
 #include "sshcipherlist.h"
 
-#define DEFAULT_CIPHERS		"3des-cbc,idea-cbc,blowfish-cbc,none"
-#define DEFAULT_MACS		"hmac-sha,hmac-md5,sha-8,md5-8,sha,none"
-#define DEFAULT_COMPRESSIONS	"none,zlib"
+#define DEFAULT_CIPHERS         "3des-cbc,idea-cbc,blowfish-cbc,none"
+#define DEFAULT_MACS            "hmac-sha,hmac-md5,sha-8,md5-8,sha,none"
+#define DEFAULT_COMPRESSIONS    "none,zlib"
 #define DEFAULT_KEXS            "diffie-hellman-group1-sha1,"\
                                 "double-encrypting-sha1"
 
@@ -82,15 +82,15 @@ void ssh_transport_destroy_params(SshTransportParams params)
  * a SshStream object representing the transport layer. */
 
 SshStream ssh_transport_client_wrap(SshStream stream,
-				    SshRandomState random_state,
-				    const char *application_version,
-				    const char *service,
-				    SshTransportParams params,
-				    const char *server_host_name,
-				    SshKeyCheckCallback key_check,
-				    void *context,
-				    SshVersionCallback version_callback,
-				    void *version_context)
+                                    SshRandomState random_state,
+                                    const char *application_version,
+                                    const char *service,
+                                    SshTransportParams params,
+                                    const char *server_host_name,
+                                    SshKeyCheckCallback key_check,
+                                    void *context,
+                                    SshVersionCallback version_callback,
+                                    void *version_context)
 {
   SshTransportCommon tr;
 
@@ -98,8 +98,8 @@ SshStream ssh_transport_client_wrap(SshStream stream,
     params = ssh_transport_create_params();
 
   tr = ssh_tr_create(stream, FALSE, TRUE, version_callback != NULL,
-		     application_version,
-		     random_state, params);
+                     application_version,
+                     random_state, params);
   tr->version_callback = version_callback;
   tr->version_context = version_context;
 
@@ -113,15 +113,15 @@ SshStream ssh_transport_client_wrap(SshStream stream,
    a SshStream object representing the transport layer. */
 
 SshStream ssh_transport_server_wrap(SshStream stream,
-				    SshRandomState random_state,
-				    const char *application_version,
-				    SshTransportParams params,
-				    SshPrivateKey private_host_key,
-				    SshPrivateKey private_server_key,
-				    const unsigned char *public_host_key_blob,
-				    unsigned int public_host_key_blob_len,
-				    SshVersionCallback version_callback,
-				    void *version_context)
+                                    SshRandomState random_state,
+                                    const char *application_version,
+                                    SshTransportParams params,
+                                    SshPrivateKey private_host_key,
+                                    SshPrivateKey private_server_key,
+                                    const unsigned char *public_host_key_blob,
+                                    unsigned int public_host_key_blob_len,
+                                    SshVersionCallback version_callback,
+                                    void *version_context)
 {
   SshTransportCommon tr;
 
@@ -129,13 +129,13 @@ SshStream ssh_transport_server_wrap(SshStream stream,
     params = ssh_transport_create_params();
 
   tr = ssh_tr_create(stream, TRUE, TRUE, version_callback != NULL,
-		     application_version,
-		     random_state, params);
+                     application_version,
+                     random_state, params);
   tr->version_callback = version_callback;
   tr->version_context = version_context;
 
   ssh_tr_server_init_kex(tr, private_host_key, private_server_key,
-			 public_host_key_blob, public_host_key_blob_len);
+                         public_host_key_blob, public_host_key_blob_len);
   
   return ssh_tr_create_final(tr);
 }
@@ -143,7 +143,7 @@ SshStream ssh_transport_server_wrap(SshStream stream,
 /* Returns statistics information about the transport layer object. */
 
 void ssh_transport_get_statistics(SshStream stream,
-				  SshTransportStatistics *stats)
+                                  SshTransportStatistics *stats)
 {
   SshTransportCommon tr;
 
@@ -164,4 +164,31 @@ void ssh_transport_get_statistics(SshStream stream,
   stats->uncompressed_outgoing_bytes = tr->uncompressed_outgoing_bytes;
   stats->incoming_packets = tr->incoming_sequence_number;
   stats->outgoing_packets = tr->outgoing_sequence_number;
+}
+
+/* Return application level compatibility flags. Note that this must
+   not be called if tr has become invalid for some reason. The return
+   struct should be freed by the caller, when it is no longer
+   needed. */
+void ssh_transport_get_compatibility_flags(SshStream stream,
+                                           SshTransportCompat *compat_flags)
+{
+  SshTransportCommon tr;
+  SshTransportCompat rec;
+  
+  /* Verify that this is a transport stream. */
+  if (ssh_stream_get_methods(stream) != &ssh_tr_methods)
+    {
+      memset(compat_flags, 0, sizeof(*compat_flags));
+      return;
+    }
+
+  /* Get the real object. */
+  tr = (SshTransportCommon)ssh_stream_get_context(stream);
+
+  rec = ssh_xcalloc(1, sizeof(*rec));
+  rec->publickey_draft_incompatility =
+    &(tr->ssh_old_publickey_bug_compat);
+
+  *compat_flags = rec;
 }

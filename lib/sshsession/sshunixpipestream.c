@@ -5,7 +5,7 @@
   Authors:
         Tatu Ylonen <ylo@ssh.fi>
         Sami Lehtinen <sjl@ssh.fi>
-	
+        
   Copyright (C) 1997-1998 SSH Communications Security, Espoo, Finland
   All rights reserved
 
@@ -16,7 +16,7 @@ and return streams for them in the parent.
 */
 
 /*
- * $Id: sshunixpipestream.c,v 1.3 1998/07/23 12:07:47 sjl Exp $
+ * $Id: sshunixpipestream.c,v 1.4 1999/04/09 02:06:52 sjl Exp $
  * $Log: sshunixpipestream.c,v $
  * $EndLog$
  */
@@ -86,7 +86,7 @@ void ssh_pipe_sigchld_handler(pid_t pid, int status, void *context)
                        to be the parent's stderr. */
 
 SshPipeStatus ssh_pipe_create_and_fork(SshStream *stdio_return,
-				       SshStream *stderr_return)
+                                       SshStream *stderr_return)
 {
   int pin[2], pout[2], perr[2];
   pid_t pid;
@@ -123,10 +123,10 @@ SshPipeStatus ssh_pipe_create_and_fork(SshStream *stdio_return,
       close(pout[0]);
       close(pout[1]);
       if (stderr_return != NULL)
-	{
-	  close(perr[0]);
-	  close(perr[1]);
-	}
+        {
+          close(perr[0]);
+          close(perr[1]);
+        }
       return SSH_PIPE_ERROR;
     }
 
@@ -134,29 +134,30 @@ SshPipeStatus ssh_pipe_create_and_fork(SshStream *stdio_return,
      the child. */
   if (pid == 0)
     {
+      /* Redirect stdin. */
       close(pin[1]);
       if (dup2(pin[0], 0) < 0)
-	perror("dup2 stdin");
+        perror("dup2 stdin");
       close(pin[0]);
       
       /* Redirect stdout. */
       close(pout[0]);
       if (dup2(pout[1], 1) < 0)
-	perror("dup2 stdout");
+        perror("dup2 stdout");
       close(pout[1]);
 
       if (stderr_return != NULL)
-	{
-	  /* Redirect stderr. */
-	  close(perr[0]);
-	  if (dup2(perr[1], 2) < 0)
-	    perror("dup2 stderr");
-	  close(perr[1]);
-	}
+        {
+          /* Redirect stderr. */
+          close(perr[0]);
+          if (dup2(perr[1], 2) < 0)
+            perror("dup2 stderr");
+          close(perr[1]);
+        }
 
       *stdio_return = NULL;
       if (stderr_return != NULL)
-	*stderr_return = NULL;
+        *stderr_return = NULL;
       return SSH_PIPE_CHILD_OK;
     }
 
@@ -243,13 +244,13 @@ int ssh_pipe_stream_read(void *context, unsigned char *buf, size_t size)
   else
     if (len == 0 && !pipes->status_returned)
       {
-	/* We got real EOF, but the SIGCHLD handler hasn't been called yet.
-	   Do not return EOF quite yet; we fake it to no data available.
-	   When SIGCHLD is delivered, the callback will be called
-	   and it will call this again; at that time we'll return EOF.
-	   This is to ensure that a valid exit status is available after
-	   we return EOF. */
-	len = -1;
+        /* We got real EOF, but the SIGCHLD handler hasn't been called yet.
+           Do not return EOF quite yet; we fake it to no data available.
+           When SIGCHLD is delivered, the callback will be called
+           and it will call this again; at that time we'll return EOF.
+           This is to ensure that a valid exit status is available after
+           we return EOF. */
+        len = -1;
       }
   return len;
 }
@@ -257,7 +258,7 @@ int ssh_pipe_stream_read(void *context, unsigned char *buf, size_t size)
 /* Implements write to the pipe stream. */
 
 int ssh_pipe_stream_write(void *context, const unsigned char *buf,
-			  size_t size)
+                          size_t size)
 {
   SshPipeStream pipes = (SshPipeStream)context;
   
@@ -277,7 +278,7 @@ void ssh_pipe_stream_output_eof(void *context)
    underlying stdio stream. */
 
 void ssh_pipe_stream_set_callback(void *context, SshStreamCallback callback,
-				 void *callback_context)
+                                 void *callback_context)
 {
   SshPipeStream pipes = (SshPipeStream)context;
 

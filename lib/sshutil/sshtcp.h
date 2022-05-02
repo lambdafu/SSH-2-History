@@ -11,7 +11,7 @@ Interface to sockets.
 */
 
 /*
- * $Id: sshtcp.h,v 1.16 1998/11/26 13:46:55 sjl Exp $
+ * $Id: sshtcp.h,v 1.18 1999/04/28 13:20:03 tri Exp $
  * $Log: sshtcp.h,v $
  * $EndLog$
  */
@@ -165,6 +165,21 @@ typedef void (*SshLookupCallback)(SshIpError error,
                                   const char *result,
                                   void *context);
 
+
+
+/* Looks up all ip-addresses of the host, returning them as a
+   comma-separated list. The host name may already be an ip address,
+   in which case it is returned directly. This is an simplification
+   of function ssh_tcp_get_host_addrs_by_name for situations when
+   the operation may block. 
+
+   The function returns NULL if the name can not be resolved. When the
+   return value is non null, it is a pointer to a string allocated by
+   this function, and must be freed by the caller when no longer
+   needed. */
+DLLEXPORT char * DLLCALLCONV
+ssh_tcp_get_host_addrs_by_name_sync(const char *name);
+
 /* Looks up all ip-addresses of the host, returning them as a comma-separated
    list when calling the callback.  The host name may already be an ip
    address, in which case it is returned directly. */
@@ -172,6 +187,19 @@ DLLEXPORT void DLLCALLCONV
 ssh_tcp_get_host_addrs_by_name(const char *name, 
                                SshLookupCallback callback,
                                void *context);
+
+/* Looks up the name of the host by its ip-address.  Verifies that the
+   address returned by the name servers also has the original ip
+   address. This is an simplification of function
+   ssh_tcp_get_host_by_addr for situations when the operation may
+   block.
+
+   Function returns NULL, if the reverse lookup fails for some reason,
+   or pointer to dynamically allocated memory containing the host
+   name.  The memory should be deallocated by the caller when no
+   longer needed.  */
+DLLEXPORT char * DLLCALLCONV
+ssh_tcp_get_host_by_addr_sync(const char *addr);
 
 /* Looks up the name of the host by its ip-address.  Verifies that the
    address returned by the name servers also has the original ip address.
@@ -201,6 +229,11 @@ ssh_tcp_get_service_by_port(unsigned int port, const char *protocol,
    success. */
 DLLEXPORT Boolean DLLCALLCONV
 ssh_socket_set_nodelay(SshStream stream, Boolean on);
+
+/* Sets/resets TCP options SO_KEEPALIVE for the socket.  This returns TRUE on
+   success. */
+DLLEXPORT Boolean DLLCALLCONV
+ssh_socket_set_keepalive(SshStream stream, Boolean on);
 
 /* Compares two port number addresses, and returns <0 if port1 is smaller,
    0 if they denote the same number (though possibly written differently),

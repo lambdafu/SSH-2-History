@@ -13,17 +13,18 @@ Copyright (c) 1997 SSH Communications Security, Finland
 #define SSHTTY_H
 
 
-/* Returns the user's terminal to normal mode if it had been put in raw 
-   mode. */
-void ssh_leave_raw_mode(void);
+/* Returns the terminal to normal mode if it had been put in raw 
+   mode.  If fd is negative, assume stdin. */
+void ssh_leave_raw_mode(int fd);
 
-/* Puts the user\'s terminal in raw mode. */
-void ssh_enter_raw_mode(void);
+/* Puts the terminal in raw mode.  If fd is negative, assume stdin. */
+void ssh_enter_raw_mode(int fd);
 
-/* Puts stdin terminal in non-blocking mode. */
-void ssh_leave_non_blocking(void);
+/* Puts stdin terminal in non-blocking mode.  If fd is negative, 
+   assume stdin.*/
+void ssh_leave_non_blocking(int fd);
 
-/* Restores stdin to blocking mode. */
-void ssh_enter_non_blocking(void);
+/* Restores stdin to blocking mode.  If fd is negative, assume stdin. */
+void ssh_enter_non_blocking(int fd);
 
 #endif /* !SSHTTY_H */

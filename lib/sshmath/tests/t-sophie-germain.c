@@ -14,13 +14,13 @@
   */
 
 /*
- * $Id: t-sophie-germain.c,v 1.3 1998/11/06 13:47:24 tmo Exp $
+ * $Id: t-sophie-germain.c,v 1.4 1999/04/29 13:38:31 huima Exp $
  * $Log: t-sophie-germain.c,v $
  * $EndLog$
  */
 
 #include "sshincludes.h"
-#include "gmp.h"
+#include "sshmp.h" /* was "gmp.h" */
 #include "sieve.h"
 
 /* Idea here is to find:
@@ -57,17 +57,17 @@
      (c + sk/2)*2 + 1
 
    */
-void find_safe_prime(unsigned int sieve_size, MP_INT *input, MP_INT *add,
-                     MP_INT *prime)
+void find_safe_prime(unsigned int sieve_size, SshInt *input, SshInt *add,
+                     SshInt *prime)
 {
   unsigned long *table, *add_table, *primes;
   unsigned int len, t, p, i, j;
-  MP_INT v, s, ret, aux;
+  SshInt v, s, ret, aux;
   SshSieve sieve;
   Boolean rv;
 
-  if ((mpz_get_ui(input) & 0x1) == 0x0)
-    mpz_add_ui(input, input, 1);
+  if ((ssh_mp_get_ui(input) & 0x1) == 0x0)
+    ssh_mp_add_ui(input, input, 1);
 
   ssh_sieve_allocate_ui(&sieve, sieve_size, 1000000);
   for (len = 0, p = 2; p; p = ssh_sieve_next_prime(p, &sieve), len++)
@@ -80,17 +80,17 @@ void find_safe_prime(unsigned int sieve_size, MP_INT *input, MP_INT *add,
       exit(1);
     }
   
-  mpz_init(&v);
-  mpz_init(&s);
-  mpz_init(&ret);
-  mpz_init(&aux);
+  ssh_mp_init(&v);
+  ssh_mp_init(&s);
+  ssh_mp_init(&ret);
+  ssh_mp_init(&aux);
   /* Compute v = (input - 1)/2 */
-  mpz_sub_ui(&v, input, 1);
-  mpz_div_ui(&v, &v, 2);
+  ssh_mp_sub_ui(&v, input, 1);
+  ssh_mp_div_ui(&v, &v, 2);
 
   /* Compute add */
-  mpz_set(&s, add);
-  mpz_div_ui(&s, &s, 2);
+  ssh_mp_set(&s, add);
+  ssh_mp_div_ui(&s, &s, 2);
 
   printf("Initializing tables.\n");
   
@@ -100,10 +100,10 @@ void find_safe_prime(unsigned int sieve_size, MP_INT *input, MP_INT *add,
   for (i = 0, p = 2; i < len ; i++,
          p = ssh_sieve_next_prime(p, &sieve))
     {
-      mpz_mod_ui(&aux, &v, p);
-      table[i] = mpz_get_ui(&aux);
-      mpz_mod_ui(&aux, &s, p);
-      add_table[i] = mpz_get_ui(&aux);
+      ssh_mp_mod_ui2(&aux, &v, p);
+      table[i] = ssh_mp_get_ui(&aux);
+      ssh_mp_mod_ui2(&aux, &s, p);
+      add_table[i] = ssh_mp_get_ui(&aux);
       primes[i] = p;
     }
 
@@ -152,30 +152,30 @@ void find_safe_prime(unsigned int sieve_size, MP_INT *input, MP_INT *add,
          c = (n + 2sk - 1)/2 = (n - 1)/2 + sk
          
          */
-      mpz_mul_ui(&s, add, i);
-      mpz_add(&v, input, &s);
-      mpz_set(&ret, &v);
+      ssh_mp_mul_ui(&s, add, i);
+      ssh_mp_add(&v, input, &s);
+      ssh_mp_set(&ret, &v);
       
       ssh_mp_powm_ui(&aux, 2, &ret, &ret);
-      if (mpz_cmp_ui(&aux, 2) == 0)
+      if (ssh_mp_cmp_ui(&aux, 2) == 0)
         {
           printf("1");
           fflush(stdout);
-          mpz_sub_ui(&v, &v, 1);
-          mpz_div_ui(&v, &v, 2);
+          ssh_mp_sub_ui(&v, &v, 1);
+          ssh_mp_div_ui(&v, &v, 2);
 
-          if (mpz_get_ui(&v) & 1)
+          if (ssh_mp_get_ui(&v) & 1)
             {
               ssh_mp_powm_ui(&aux, 2, &v, &v);
-              if (mpz_cmp_ui(&aux, 2) == 0)
+              if (ssh_mp_cmp_ui(&aux, 2) == 0)
                 {
                   printf("2");
                   fflush(stdout);
-                  if (mpz_probab_prime_p(&ret, 20))
+                  if (ssh_mp_is_probable_prime(&ret, 20))
                     {
                       printf("3");
                       fflush(stdout);
-                      if (mpz_probab_prime_p(&v, 20))
+                      if (ssh_mp_is_probable_prime(&v, 20))
                         break;
                     }
                 }
@@ -189,32 +189,32 @@ void find_safe_prime(unsigned int sieve_size, MP_INT *input, MP_INT *add,
 
   printf("\nThe i is: %d\n", i);
   printf("Safe prime: \n");
-  mpz_out_str(NULL, 10, &ret);
-  mpz_set(prime, &ret);
+  ssh_mp_out_str(NULL, 10, &ret);
+  ssh_mp_set(prime, &ret);
   printf("\nIt's orders large prime divisor:\n");
-  mpz_out_str(NULL, 10, &v);
+  ssh_mp_out_str(NULL, 10, &v);
   printf("\n");
 
-  mpz_clear(&v);
-  mpz_clear(&s);
-  mpz_clear(&ret);
-  mpz_clear(&aux);
+  ssh_mp_clear(&v);
+  ssh_mp_clear(&s);
+  ssh_mp_clear(&ret);
+  ssh_mp_clear(&aux);
 }
 
 int main(int ac, char *av[])
 {
-  MP_INT input, add, prime;
+  SshInt input, add, prime;
   unsigned int sieve_size;
 
-  mpz_init(&input);
-  mpz_init(&add);
-  mpz_init(&prime);
+  ssh_mp_init(&input);
+  ssh_mp_init(&add);
+  ssh_mp_init(&prime);
 
   if (ac == 1)
     {
       sieve_size = 20000;
-      mpz_set_str(&input, "1", 0);
-      mpz_set_str(&add, "2", 0);
+      ssh_mp_set_str(&input, "1", 0);
+      ssh_mp_set_str(&add, "2", 0);
     }
   else if (ac < 4)
     {
@@ -225,21 +225,21 @@ int main(int ac, char *av[])
   else
     {
       sieve_size = atoi(av[1]);
-      mpz_set_str(&input, av[2], 0);
-      mpz_set_str(&add, av[3], 0);
+      ssh_mp_set_str(&input, av[2], 0);
+      ssh_mp_set_str(&add, av[3], 0);
     }
   
   find_safe_prime(sieve_size, &input, &add, &prime);
 
   if (ac == 1)
     {
-      if (mpz_cmp_ui(&prime, 39983) == 0)
+      if (ssh_mp_cmp_ui(&prime, 39983) == 0)
         printf("OK\n");
       else
         printf("Find_safe_prime returned wrong number, it should have returned 39983\n");
     }
-  mpz_clear(&prime);
-  mpz_clear(&input);
-  mpz_clear(&add);
+  ssh_mp_clear(&prime);
+  ssh_mp_clear(&input);
+  ssh_mp_clear(&add);
   exit(0);
 }

@@ -87,26 +87,26 @@ void test_source_callback(SshStreamNotification op, void *context)
       cp = ssh_buffer_ptr(&data_source);
       len = ssh_stream_write(source_stream, cp + source_offset, len);
       if (len <= 0)
-	return;
+        return;
       source_offset += len;
    }
 
   if (expect == EXPECT_CHANNEL_DESTROY)
     {
       if (source_offset > ssh_buffer_len(&data_source) / 2)
-	{
-	  if (source_channel_id != -1)
-	    ssh_conn_channel_close(test_c1, source_channel_id);
-	  source_channel_id = -1;
-	  return;
-	}
+        {
+          if (source_channel_id != -1)
+            ssh_conn_channel_close(test_c1, source_channel_id);
+          source_channel_id = -1;
+          return;
+        }
     }
   
   if (source_offset == ssh_buffer_len(&data_source))
     {
       ssh_stream_output_eof(source_stream);
       if (source_channel_id != -1)
-	ssh_conn_channel_close(test_c1, source_channel_id);
+        ssh_conn_channel_close(test_c1, source_channel_id);
       source_channel_id = -1;
     }
 }
@@ -126,12 +126,12 @@ void test_target_callback(SshStreamNotification op, void *context)
     {
       len = ssh_stream_read(target_stream, buf, sizeof(buf));
       if (len < 0)
-	return;
+        return;
       if (len == 0)
-	{
-	  target_eof_received = TRUE;
-	  return;
-	}
+        {
+          target_eof_received = TRUE;
+          return;
+        }
       ssh_buffer_append(&data_received, buf, len);
     }
 }
@@ -153,8 +153,8 @@ void test_debug(int type, const char *msg, void *context)
 }
 
 void test_special(SshCrossPacketType type,
-		  const unsigned char *data, size_t len,
-		  void *context)
+                  const unsigned char *data, size_t len,
+                  void *context)
 {
   if (expect != EXPECT_AUTHENTICATED)
     ssh_fatal("test_special: expected AUTHENTICATED");
@@ -168,9 +168,9 @@ void test_special(SshCrossPacketType type,
 }
 
 void test_channel_request_cb(Boolean success,
-			     const unsigned char *data,
-			     size_t len,
-			     void *context)
+                             const unsigned char *data,
+                             size_t len,
+                             void *context)
 {
   if (context != (void *)20)
     ssh_fatal("test_channel_request_cb: bad context");
@@ -179,12 +179,12 @@ void test_channel_request_cb(Boolean success,
   if (expect == EXPECT_CHANNEL_REQUEST)
     {
       if (!success)
-	ssh_fatal("test_channel_request_cb: REQUEST and !success");
+        ssh_fatal("test_channel_request_cb: REQUEST and !success");
     }
   else
     {
       if (success)
-	ssh_fatal("test_channel_request_cb: REQUEST_FAILURE and success");
+        ssh_fatal("test_channel_request_cb: REQUEST_FAILURE and success");
     }
   request_done = TRUE;
   test_source_callback(SSH_STREAM_CAN_OUTPUT, (void *)30);
@@ -192,7 +192,7 @@ void test_channel_request_cb(Boolean success,
 }
 
 Boolean test_channel_request(const char *type, const unsigned char *data,
-			     size_t len, void *context)
+                             size_t len, void *context)
 {
   if (expect != EXPECT_CHANNEL_REQUEST &&
       expect != EXPECT_CHANNEL_REQUEST_FAILURE)
@@ -200,24 +200,24 @@ Boolean test_channel_request(const char *type, const unsigned char *data,
   if ((int)context == 0)
     {
       if (strcmp(type, "testrequest1") != 0)
-	ssh_fatal("test_channel_request: unexpected channel req type 1");
+        ssh_fatal("test_channel_request: unexpected channel req type 1");
       if (len != 4 || memcmp(data, "REQ1", 4) != 0)
-	ssh_fatal("test_channel_request: bad data 1");
+        ssh_fatal("test_channel_request: bad data 1");
       if (expect == EXPECT_CHANNEL_REQUEST)
-	return TRUE;
+        return TRUE;
       else
-	return FALSE;
+        return FALSE;
     }
   else
     { /* Send back another channel request. We are c2. */
       if (strcmp(type, "testrequest0") != 0)
-	ssh_fatal("test_channel_request: unexpected channel req type 0");
+        ssh_fatal("test_channel_request: unexpected channel req type 0");
       if (len != 4 || memcmp(data, "REQ0", 4) != 0)
-	ssh_fatal("test_channel_request: bad data 0");
+        ssh_fatal("test_channel_request: bad data 0");
       ssh_conn_send_channel_request(test_c2, target_channel_id,
-				    "testrequest1", "REQ1", 4,
-				    test_channel_request_cb,
-				    (void *)20);
+                                    "testrequest1", "REQ1", 4,
+                                    test_channel_request_cb,
+                                    (void *)20);
       return TRUE;
     }
 }
@@ -237,25 +237,25 @@ void test_channel_destroy(void *context)
   if (channel_destroy_count == 2)
     {
       if (expect == EXPECT_CHANNEL_OPEN ||
-	  expect == EXPECT_CHANNEL_REQUEST ||
-	  expect == EXPECT_CHANNEL_REQUEST_FAILURE)
-	{
-	  if (context == (void *)1)
-	    {
-	      if (!target_eof_received)
-		ssh_fatal("test_channel_destroy: !target_eof_received");
-	      if (ssh_buffer_len(&data_received) != ssh_buffer_len(&data_source))
-		ssh_fatal("test_channel_destroy: not all data received");
-	      if (memcmp(ssh_buffer_ptr(&data_source), ssh_buffer_ptr(&data_received),
-			 ssh_buffer_len(&data_source)) != 0)
-		ssh_fatal("test_channel_destroy: received data differs");
-	    }
-	  else
-	    {
-	      if (source_offset != ssh_buffer_len(&data_source))
-		ssh_fatal("test_channel_destroy: some data not sent");
-	    }
-	}
+          expect == EXPECT_CHANNEL_REQUEST ||
+          expect == EXPECT_CHANNEL_REQUEST_FAILURE)
+        {
+          if (context == (void *)1)
+            {
+              if (!target_eof_received)
+                ssh_fatal("test_channel_destroy: !target_eof_received");
+              if (ssh_buffer_len(&data_received) != ssh_buffer_len(&data_source))
+                ssh_fatal("test_channel_destroy: not all data received");
+              if (memcmp(ssh_buffer_ptr(&data_source), ssh_buffer_ptr(&data_received),
+                         ssh_buffer_len(&data_source)) != 0)
+                ssh_fatal("test_channel_destroy: received data differs");
+            }
+          else
+            {
+              if (source_offset != ssh_buffer_len(&data_source))
+                ssh_fatal("test_channel_destroy: some data not sent");
+            }
+        }
       test_ok = TRUE;
     }
 
@@ -272,8 +272,8 @@ void test_channel_destroy(void *context)
 }
 
 Boolean test_global_request(const char *type,
-			 const unsigned char *data, size_t len,
-			 void *context)
+                         const unsigned char *data, size_t len,
+                         void *context)
 {
   if (expect != EXPECT_GLOBAL &&
       expect != EXPECT_GLOBAL_FAILURE)
@@ -290,10 +290,10 @@ Boolean test_global_request(const char *type,
 }
 
 void test_channel_open(const char *type, int channel_id,
-		       const unsigned char *data, size_t len,
-		       SshConnOpenCompletionProc completion,
-		       void *completion_context,
-		       void *context)
+                       const unsigned char *data, size_t len,
+                       SshConnOpenCompletionProc completion,
+                       void *completion_context,
+                       void *context)
 {
   if (expect != EXPECT_CHANNEL_OPEN &&
       expect != EXPECT_CHANNEL_OPEN_FAILURE &&
@@ -316,17 +316,17 @@ void test_channel_open(const char *type, int channel_id,
       target_channel_id = channel_id;
       target_stream = s2;
       ssh_stream_set_callback(target_stream, test_target_callback,
-			      (void *)40);
+                              (void *)40);
       ssh_stream_output_eof(target_stream);
       (*completion)(SSH_OPEN_OK,
-		    s1, TRUE, FALSE, 5000, "TEST1", 5, test_channel_request,
-		    test_channel_destroy, context, completion_context);
+                    s1, TRUE, FALSE, 5000, "TEST1", 5, test_channel_request,
+                    test_channel_destroy, context, completion_context);
     }
   else
     {
       (*completion)(SSH_OPEN_CONNECT_FAILED,
-		    NULL, FALSE, FALSE, 0, NULL, 0, NULL, NULL, NULL,
-		    completion_context);
+                    NULL, FALSE, FALSE, 0, NULL, 0, NULL, NULL, NULL,
+                    completion_context);
     }
 }
 
@@ -360,9 +360,9 @@ void conn_create(SshConn *c1, SshConn *c2)
   ssh_buffer_init(&buffer);
  
   ssh_cross_encode_packet(&buffer, SSH_CROSS_AUTHENTICATED,
-			  SSH_FORMAT_UINT32_STR, user, strlen(user),
-			  SSH_FORMAT_UINT32_STR, service, strlen(service),
-			  SSH_FORMAT_END);
+                          SSH_FORMAT_UINT32_STR, user, strlen(user),
+                          SSH_FORMAT_UINT32_STR, service, strlen(service),
+                          SSH_FORMAT_END);
 
   len = ssh_stream_write(s1, ssh_buffer_ptr(&buffer), ssh_buffer_len(&buffer));
   if (len != ssh_buffer_len(&buffer))
@@ -373,25 +373,25 @@ void conn_create(SshConn *c1, SshConn *c2)
   ssh_buffer_uninit(&buffer);
 
   *c1 = ssh_conn_wrap(s1, service,
-		      test_requests,
-		      test_opens,
-		      test_disconnect,
-		      test_debug,
-		      test_special,
-		      (void *)0);
+                      test_requests,
+                      test_opens,
+                      test_disconnect,
+                      test_debug,
+                      test_special,
+                      (void *)0);
 
   *c2 = ssh_conn_wrap(s2, service,
-		      test_requests,
-		      test_opens,
-		      test_disconnect,
-		      test_debug,
-		      test_special,
-		      (void *)1);
+                      test_requests,
+                      test_opens,
+                      test_disconnect,
+                      test_debug,
+                      test_special,
+                      (void *)1);
 }
 
 void expect_open_callback(int result, int channel_id,
-			  const unsigned char *data, size_t len,
-			  void *context)
+                          const unsigned char *data, size_t len,
+                          void *context)
 {
   Boolean success = result == SSH_OPEN_OK;
   if (context != (void *)10)
@@ -400,7 +400,7 @@ void expect_open_callback(int result, int channel_id,
   if (!success)
     {
       if (expect != EXPECT_CHANNEL_OPEN_FAILURE)
-	ssh_fatal("expect_open_callback: not expecting open failure");
+        ssh_fatal("expect_open_callback: not expecting open failure");
       test_ok = TRUE;
       return;
     }
@@ -419,8 +419,8 @@ void expect_open_callback(int result, int channel_id,
   if (expect == EXPECT_CHANNEL_REQUEST ||
       expect == EXPECT_CHANNEL_REQUEST_FAILURE)
     ssh_conn_send_channel_request(test_c1, source_channel_id,
-				  "testrequest0", "REQ0", 4,
-				  NULL, NULL);
+                                  "testrequest0", "REQ0", 4,
+                                  NULL, NULL);
 }
 
 void expect_global_callback(Boolean success, void *context)
@@ -431,14 +431,14 @@ void expect_global_callback(Boolean success, void *context)
   if (expect == EXPECT_GLOBAL)
     {
       if (!success)
-	ssh_fatal("expect_global_callback: GLOBAL and !success");
+        ssh_fatal("expect_global_callback: GLOBAL and !success");
       test_ok = TRUE;
       return;
     }
   if (expect == EXPECT_GLOBAL_FAILURE)
     {
       if (success)
-	ssh_fatal("expect_global_callback: GLOBAL_FAILURE and success");
+        ssh_fatal("expect_global_callback: GLOBAL_FAILURE and success");
       test_ok = TRUE;
       return;
     }
@@ -467,8 +467,8 @@ void test_expect(ConnExpect exp)
     case EXPECT_CHANNEL_REQUEST_FAILURE:
     case EXPECT_CHANNEL_DESTROY:
       if (source_stream != NULL || target_stream != NULL)
-	ssh_fatal("test_expect: channel: source 0x%lx target 0x%lx",
-		  (long)source_stream, (long)target_stream);
+        ssh_fatal("test_expect: channel: source 0x%lx target 0x%lx",
+                  (long)source_stream, (long)target_stream);
 
       request_done = FALSE;
       ssh_stream_pair_create(&s1, &s2);
@@ -478,19 +478,19 @@ void test_expect(ConnExpect exp)
       target_eof_received = FALSE;
       channel_destroy_count = 0;
       ssh_stream_set_callback(source_stream, test_source_callback,
-			      (void *)30);
+                              (void *)30);
       ssh_conn_send_channel_open(test_c1, "open0", s2, TRUE, FALSE, 10000,
-				 10000,
-				 "DATA0", (size_t)5,
-				 test_channel_request, test_channel_destroy,
-				 (void *)0,
-				 expect_open_callback, (void *)10);
+                                 10000,
+                                 "DATA0", (size_t)5,
+                                 test_channel_request, test_channel_destroy,
+                                 (void *)0,
+                                 expect_open_callback, (void *)10);
       break;
 
     case EXPECT_GLOBAL:
     case EXPECT_GLOBAL_FAILURE:
       ssh_conn_send_global_request(test_c1, "global0", "GLOBAL0", 7,
-				   expect_global_callback, (void *)20);
+                                   expect_global_callback, (void *)20);
       break;
 
     default:
@@ -507,7 +507,7 @@ void test_expect(ConnExpect exp)
     {
     case EXPECT_CHANNEL_OPEN_FAILURE:
       if (channel_destroy_count != 1)
-	ssh_fatal("test_expect: destroy not called for CHANNEL_OPEN_FAILURE");
+        ssh_fatal("test_expect: destroy not called for CHANNEL_OPEN_FAILURE");
       break;
     default:
       break;
@@ -534,7 +534,7 @@ int main()
   int i, len;
   unsigned char ch;
 
-  srandom(time(NULL));
+  srandom(ssh_time());
 
   ssh_event_loop_initialize();
 

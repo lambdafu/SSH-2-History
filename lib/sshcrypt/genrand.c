@@ -10,7 +10,7 @@ Copyright (C) 1996 SSH Security Communications Oy, Espoo, Finland
 */
 
 /*
- * $Id: genrand.c,v 1.13 1998/10/26 08:01:45 tri Exp $
+ * $Id: genrand.c,v 1.14 1999/05/04 02:19:44 kivinen Exp $
  * $Log: genrand.c,v $
  * $EndLog$
  */
@@ -77,7 +77,7 @@ void ssh_random_acquire_light_environmental_noise(SshRandomState state)
   ssh_random_xor_noise(state,
                        (size_t)(state->state[0] + 256*state->state[1]) % 
                        (SSH_RANDOM_STATE_BYTES / 4),
-                       (SshUInt32)time(NULL));
+                       (SshUInt32)ssh_time());
 #ifdef HAVE_CLOCK
     ssh_random_xor_noise(state, 3, (SshUInt32)clock());
 #endif /* HAVE_CLOCK */

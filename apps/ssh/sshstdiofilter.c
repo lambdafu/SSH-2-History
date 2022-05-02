@@ -49,7 +49,7 @@ void ssh_buffer_consume_middle(SshBuffer *buffer, size_t offset, size_t bytes)
 void ssh_escape_char_help(int esc_char)
 {
   clearerr(stderr);        /* XXX */
-  ssh_leave_raw_mode();
+  ssh_leave_raw_mode(-1);
   fprintf(stderr, "\n");
   fprintf(stderr,
     "  Supported escape sequences:\n");
@@ -79,7 +79,7 @@ void ssh_escape_char_help(int esc_char)
           esc_char, esc_char);
   fprintf(stderr,
     "  (Note that escapes are only recognized immediately after newline.)\n");
-  ssh_enter_raw_mode();
+  ssh_enter_raw_mode(-1);
 }
 
 void ssh_cancel_nonblocking()
@@ -107,7 +107,7 @@ void ssh_set_nonblocking()
 void ssh_escape_char_quit(int esc_char)
 {
   /* Exit non-blocking raw mode. */
-  ssh_leave_raw_mode();
+  ssh_leave_raw_mode(-1);
   ssh_cancel_nonblocking();
 
   /* Display the escape sequence. */
@@ -120,11 +120,11 @@ void ssh_escape_char_quit(int esc_char)
 void ssh_escape_char_background(int esc_char)
 {
   clearerr(stderr);        /* XXX */
-  ssh_leave_raw_mode();
+  ssh_leave_raw_mode(-1);
   ssh_cancel_nonblocking();
   fprintf(stderr, "\nBackgrounding not yet supported.\n");
   ssh_set_nonblocking();
-  ssh_enter_raw_mode();
+  ssh_enter_raw_mode(-1);
 }
 
 void ssh_escape_char_suspend(int esc_char)
@@ -137,7 +137,7 @@ void ssh_escape_char_suspend(int esc_char)
   clearerr(stderr);        /* XXX */
 
   /* Exit non-blocking raw mode. */
-  ssh_leave_raw_mode();
+  ssh_leave_raw_mode(-1);
   ssh_cancel_nonblocking();
 
   /* Print the escape sequence. */
@@ -154,7 +154,7 @@ void ssh_escape_char_suspend(int esc_char)
 
   /* Restore non-blocking raw mode. */
   ssh_set_nonblocking();
-  ssh_enter_raw_mode();
+  ssh_enter_raw_mode(-1);
 
 #ifdef SIGWINCH
   /* Check if the window size has changed. */
@@ -169,11 +169,11 @@ void ssh_escape_char_suspend(int esc_char)
 void ssh_escape_char_list_connections(int esc_char)
 {
   clearerr(stderr);        /* XXX */
-  ssh_leave_raw_mode();
+  ssh_leave_raw_mode(-1);
   ssh_cancel_nonblocking();
   fprintf(stderr, "\nConnection listing not yet supported.\n");
   ssh_set_nonblocking();
-  ssh_enter_raw_mode();
+  ssh_enter_raw_mode(-1);
 }
 
 int ssh_stdio_output_filter(SshBuffer *data,

@@ -45,8 +45,9 @@ void test_functions(int foo, ...)
     {0x00, 0x00, 0x00, 0x05, 0x03, 0xDE, 0xAD, 0xBE, 0xEF};
 
   ssh_buffer_clear(buffer);
-  if (ssh_cross_encode_packet(buffer, 3, SSH_FORMAT_UINT32, 0xDEADBEEF,
-			      SSH_FORMAT_END) != 9)
+  if (ssh_cross_encode_packet(buffer, 3, SSH_FORMAT_UINT32,
+                              (SshUInt32) 0xDEADBEEF,
+                              SSH_FORMAT_END) != 9)
     ssh_fatal("test_functions: ssh_cross_encode_packet error");
   if (memcmp(ssh_buffer_ptr(buffer), test1_str, 9) != 0)
     ssh_fatal("test_functions: ssh_cross_encode_packet data error");
@@ -68,7 +69,7 @@ int up_comparison_type;
 SshBuffer *up_comparison_packet;
 
 void up_received_packet(SshCrossPacketType type, const unsigned char *data,
-			size_t len, void *context)
+                        size_t len, void *context)
 {
   int i;
 
@@ -77,16 +78,16 @@ void up_received_packet(SshCrossPacketType type, const unsigned char *data,
     ssh_fatal("up_received_packet: context != 1");
   if (up_comparison_packet)
     if (ssh_buffer_len(up_comparison_packet) != len ||
-	memcmp(ssh_buffer_ptr(up_comparison_packet), data, len) != 0)
+        memcmp(ssh_buffer_ptr(up_comparison_packet), data, len) != 0)
       {
-	ssh_debug("Expected:");
-	buffer_dump(up_comparison_packet);
-	ssh_debug("Got:");
-	for (i = 0; i < len; i++)
-	  fprintf(stderr, "%02x ", data[i]);
-	fprintf(stderr, "\n");
+        ssh_debug("Expected:");
+        buffer_dump(up_comparison_packet);
+        ssh_debug("Got:");
+        for (i = 0; i < len; i++)
+          fprintf(stderr, "%02x ", data[i]);
+        fprintf(stderr, "\n");
 
-	ssh_fatal("up_received_packet: bad match with up_comparison_packet");
+        ssh_fatal("up_received_packet: bad match with up_comparison_packet");
       }
 }
 
@@ -125,7 +126,7 @@ SshStream up_create()
 
   clear_up_calls();
   up = ssh_cross_up_create(up_received_packet, up_received_eof, up_can_send,
-			   up_destroy, (void *)1);
+                           up_destroy, (void *)1);
   return up;
 }
 
@@ -268,14 +269,14 @@ int down_comparison_type;
 SshBuffer *down_comparison_packet;
 
 void down_received_packet(SshCrossPacketType type, const unsigned char *data,
-			size_t len, void *context)
+                        size_t len, void *context)
 {
   down_received_packet_calls++;
   if (context != (void *)2)
     ssh_fatal("down_received_packet: context != 1");
   if (down_comparison_packet)
     if (ssh_buffer_len(down_comparison_packet) != len ||
-	memcmp(ssh_buffer_ptr(down_comparison_packet), data, len) != 0)
+        memcmp(ssh_buffer_ptr(down_comparison_packet), data, len) != 0)
       ssh_fatal("down_received_packet: bad match with down_comparison_packet");
 }
 
@@ -306,7 +307,7 @@ SshCrossDown down_create(SshStream stream)
 
   clear_down_calls();
   down = ssh_cross_down_create(stream, down_received_packet, down_received_eof,
-			       down_can_send, (void *)2);
+                               down_can_send, (void *)2);
   return down;
 }
 
@@ -389,7 +390,7 @@ void simple_down_tests()
 
   down_comparison_type = 9876;
   ssh_cross_up_send_encode(stream, 9876, SSH_FORMAT_DATA, "a", 1,
-			   SSH_FORMAT_END);
+                           SSH_FORMAT_END);
   ssh_event_loop_run();
   if (down_received_packet_calls != 3)
     ssh_fatal("ssh_down_tests: up_send_encode not received");
@@ -414,7 +415,7 @@ SshCrossDown sc_down;
 Boolean sc_active;
 
 void sc_received_packet(SshCrossPacketType type, const unsigned char *data,
-			size_t len, void *context)
+                        size_t len, void *context)
 {
   if (type == 1)
     return;
@@ -435,7 +436,7 @@ void shortcircuit_tests()
   sc_active = FALSE;
   under = up_create();
   test_down = ssh_cross_down_create(under, sc_received_packet, NULL,
-				    NULL, NULL);
+                                    NULL, NULL);
   test_up = ssh_cross_up_create(NULL, NULL, NULL, NULL, NULL);
   above = down_create(test_up);
 
@@ -487,7 +488,8 @@ int main()
   for (pass = 0; pass < 1000; pass++)
     {
       buffer = ssh_buffer_allocate();
-      test_functions(0, SSH_FORMAT_UINT32, 0xDEADBEEF, SSH_FORMAT_END);
+      test_functions(0, SSH_FORMAT_UINT32, (SshUInt32) 0xDEADBEEF,
+                     SSH_FORMAT_END);
       ssh_buffer_free(buffer);
     }
 

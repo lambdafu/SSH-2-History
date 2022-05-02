@@ -47,18 +47,18 @@ void SSH_PUT_16BIT_LSB_FIRST(unsigned char *cp, SshUInt16 value)
 SshUInt32 SSH_GET_32BIT(const unsigned char *cp)
 { 
   SshUInt32 result;
-  __asm__ ("movl (%1), %0; rolw $8, %0; roll $16, %0; rolw $8, %0;"
-	  : "=&r" (result)
-	  : "r" (cp));
+  __asm__ volatile ("movl (%1), %0; rolw $8, %0; roll $16, %0; rolw $8, %0;"
+          : "=&r" (result)
+          : "r" (cp));
   return result;
 }
 
 SshUInt16 SSH_GET_16BIT(const unsigned char *cp)
 {
   SshUInt16 result;
-  __asm__ ("movw (%1), %0; rolw $8, %0;"
-	  : "=&r" (result)
-	  : "r" (cp));
+  __asm__ volatile ("movw (%1), %0; rolw $8, %0;"
+          : "=&r" (result)
+          : "r" (cp));
   return result;
 }
 
@@ -66,15 +66,15 @@ SshUInt16 SSH_GET_16BIT(const unsigned char *cp)
    as a temporary variable! */ 
 void SSH_PUT_32BIT(unsigned char *cp, SshUInt32 value)
 {
-  __asm__ ("movl %1, %%ecx; rolw $8, %%cx; roll $16, %%ecx; rolw $8, %%cx;"
-	   "movl %%ecx, (%0);"
-	   : : "S" (cp), "a" (value) : "%ecx");
+  __asm__ volatile ("movl %1, %%ecx; rolw $8, %%cx; roll $16, %%ecx; rolw $8, %%cx;"
+           "movl %%ecx, (%0);"
+           : : "S" (cp), "a" (value) : "%ecx");
 }
 
 void SSH_PUT_16BIT(unsigned char *cp, SshUInt16 value)
 {
-  __asm__("movw %1, %%cx; rolw $8, %%cx; movw %%cx, (%0);"
-	  : : "S" (cp), "a" (value) : "%cx");
+  __asm__ volatile ("movw %1, %%cx; rolw $8, %%cx; movw %%cx, (%0);"
+          : : "S" (cp), "a" (value) : "%cx");
 }
 
 #else
@@ -82,15 +82,15 @@ void SSH_PUT_16BIT(unsigned char *cp, SshUInt16 value)
 SshUInt32  SSH_GET_32BIT_LSB_FIRST(const unsigned char *cp)
 {
   return  (((unsigned long)(unsigned char)(cp)[0]) |
-	   (((unsigned long)(unsigned char)(cp)[1]) << 8) | 
-	   (((unsigned long)(unsigned char)(cp)[2]) << 16) | 
-	   (((unsigned long)(unsigned char)(cp)[3]) << 24));
+           (((unsigned long)(unsigned char)(cp)[1]) << 8) | 
+           (((unsigned long)(unsigned char)(cp)[2]) << 16) | 
+           (((unsigned long)(unsigned char)(cp)[3]) << 24));
 }
 
 SshUInt16 SSH_GET_16BIT_LSB_FIRST(const unsigned char *cp)
 {
   return (((unsigned long)(unsigned char)(cp)[0]) |
-	  (((unsigned long)(unsigned char)(cp)[1]) << 8));
+          (((unsigned long)(unsigned char)(cp)[1]) << 8));
 }
 
 void SSH_PUT_32BIT_LSB_FIRST(unsigned char *cp, SshUInt32 value)
@@ -112,15 +112,15 @@ void SSH_PUT_16BIT_LSB_FIRST(unsigned char *cp, SshUInt16 value)
 SshUInt32 SSH_GET_32BIT(const unsigned char *cp)
 { 
   return ((((unsigned long)(unsigned char)(cp)[0]) << 24) | 
-	  (((unsigned long)(unsigned char)(cp)[1]) << 16) | 
-	  (((unsigned long)(unsigned char)(cp)[2]) << 8) | 
-	  ((unsigned long)(unsigned char)(cp)[3]));
+          (((unsigned long)(unsigned char)(cp)[1]) << 16) | 
+          (((unsigned long)(unsigned char)(cp)[2]) << 8) | 
+          ((unsigned long)(unsigned char)(cp)[3]));
 }
 
 SshUInt16 SSH_GET_16BIT(const unsigned char *cp)
 {
   return ((((unsigned long)(unsigned char)(cp)[0]) << 8) | 
-	  ((unsigned long)(unsigned char)(cp)[1]));
+          ((unsigned long)(unsigned char)(cp)[1]));
 }
 
 void SSH_PUT_32BIT(unsigned char *cp, SshUInt32 value)

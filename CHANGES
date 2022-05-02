@@ -1,3 +1,67 @@
+1999-04-29  Sami Lehtinen  <sjl@ssh.fi>
+
+	* Previous by tri: Added NoDelay config parameter. Used to toggle
+	  TCP_NODELAY socket option.
+
+	* Added configuration parameter KeepAlive and LoginGraceTime.
+
+1999-04-26  Sami Lehtinen  <sjl@ssh.fi>
+
+	* Added configure-parameters --disable-tcp-port-forwarding and
+	  --disable-X11-forwarding.
+
+1999-04-23  Sami Lehtinen  <sjl@ssh.fi>
+
+	* ssh-2.0.13.pre1 (ie. pre-release 1).
+
+1999-04-20  Sami Lehtinen  <sjl@ssh.fi>
+
+	* Fixed passing of arguments when executing ssh1 in compatibility
+	  mode. Now uses ssh_getopt.
+
+	* Fixed code in wtmp.c, which caused the compilation to fail on
+	  newer Linux/Glibc 2.x systems. 
+
+1999-04-16  Sami Lehtinen  <sjl@ssh.fi>
+
+	* Fixed a draft incompatibility in public key
+	  authentication. Works with older versions too, because of a
+	  compatibility work-around.
+
+	* "hostbased"-authentication is now working. Uses /etc/hosts.equiv
+	  and /etc/shosts.equiv, plus the user's .rhosts and .shosts
+	  files. Note that you don't have to run ssh2 as suid for this, as
+	  the challenge is signed by ssh-signer2, a small program which is
+	  considered bug-free :), which does run as suid.
+
+	  Read 'man sshd2' for additional configuration parameters etc.
+
+1999-04-09  Sami Lehtinen  <sjl@ssh.fi>
+
+	* Added "CheckMail" configuration parameter.
+
+	* "hostbased"-authentication method is almost done. Needs to be
+ 	  polished a bit still, though.
+
+1999-04-07  Timo J. Rinne  <tri@ssh.fi>
+
+	* Integrated sshpgp library into ssh2.  Now ssh2 is able
+	  to use pgp keys.
+
+1999-02-16  Sami Lehtinen  <sjl@ssh.fi>
+
+	* Added configuration parameter AllowedAuthentications, which
+	  obsoletes {Password,Pubkey}Authentication config-parameters,
+	  and RequiredAuthentications, which is a list of authentication
+	  methods required from users before they are allowed access.
+
+	* Added code to send and parse tty-modes.
+
+	* Fixed a bug in wildcard expansion. It didn't correctly expand
+ 	  paths which started from the root directory. Also fixed a
+	  misfeature, which re-opened the connection, and started the
+	  authentication again after wildcard-expansion. Very annoying.
+
 1999-01-29  Sami Lehtinen  <sjl@ssh.fi>
 
 	* ssh-2.0.12.
@@ -31,7 +95,7 @@
 	* Changed ssh2 so that if we are root, it won't fetch keys and
 	  config from /etc/ssh2, but from $HOME/.ssh2. 
 
-	* Added code to configure to better chack for minor (is a macro in
+	* Added code to configure to better check for minor (is a macro in
 	  atleast Solaris) and S_IFSOCK (isn't defined in SCO). Also added
 	  code to check for broken inet_ntoa, but it doesn't seem to work
 	  as expected. Studies continue.

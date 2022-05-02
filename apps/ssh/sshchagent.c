@@ -221,13 +221,15 @@ void ssh_channel_open_agent_connected(SshStream stream,
   ssh_buffer_init(&buffer);
   ssh_encode_buffer(&buffer,
                     SSH_FORMAT_DATA, "1234", (size_t)4,
-                    SSH_FORMAT_CHAR, SSH_AGENT_FORWARDING_NOTICE,
+                    SSH_FORMAT_CHAR,
+                    (unsigned int) SSH_AGENT_FORWARDING_NOTICE,
                     SSH_FORMAT_UINT32_STR,
                       a->common->server_host_name,
                       strlen(a->common->server_host_name),
                     SSH_FORMAT_UINT32_STR,
                       a->common->remote_ip, strlen(a->common->remote_ip),
-                    SSH_FORMAT_UINT32, atol(a->common->remote_port),
+                    SSH_FORMAT_UINT32,
+                    (SshUInt32) atol(a->common->remote_port),
                     SSH_FORMAT_END);
   cp = ssh_buffer_ptr(&buffer);
   SSH_PUT_32BIT(cp, ssh_buffer_len(&buffer) - 4);

@@ -28,6 +28,9 @@
         Which was used for elementary routines, such as division and
         Montgomery routines. All basic operations I first implemented
         as described in this book.
+
+        For example, the division routines here described can be easily
+        derived from the algorithm 14.20 of this book. 
         
       A Course in Computation Algebraic Number Theory, by Henri Cohen.
       
@@ -42,7 +45,7 @@
       FreeLIP  package by Arjen Lenstra
       BigNum   package by Francois Morain
       BnLib    package by Colin Plumb
-      "BigNum" package by Eric Young
+      BigNum?  package by Eric Young
       Crypto++ package by Wei Dai
 
     as one easily finds out most routines are written to look like GMP
@@ -79,7 +82,7 @@
   */
 
 /*
- * $Id: sshmp.c,v 1.35 1998/11/22 16:54:05 ylo Exp $
+ * $Id: sshmp.c,v 1.48 1999/05/07 04:50:36 mkojo Exp $
  *
  * Revision 1.31  1998/09/16 21:17:33  mkojo
  *      Modified some of the casts.
@@ -199,6 +202,7 @@
 #include "sshmath-types.h"
 #include "sieve.h"
 #include "sshmp.h" 
+#include "sshmp-kernel.h"
 
 /* Some sign manipulation. */
 
@@ -216,2229 +220,6 @@
 #define SSH_MP_XOR_SIGNS(x,y,z) (((x)->sign) = ((y)->sign) ^ ((z)->sign))
 
 /* Some kludges for starters. Write also C versions for later use. */
-
-#ifdef SSHMATH_ASSEMBLER_SUBROUTINES
-/* Note: we give here only the most necessary routines, e.g. not additions
-   etc. Those would speed computation slightly too, but might become
-   burden also. There might be some changes within the library on the
-   assembler interface. Idea is to use C as much as possible. */
-
-#ifdef SSHMATH_I386
-/* Fast trailing zero searching using i386 special instruction. */
-#define SSH_MP_COUNT_TRAILING_ZEROS(count, x)  \
-__asm__("bsfl %1,%0" : \
-        "=r" (count) : "rm" ((SshWord)(x))); \
-
-/* For leading zeros. */
-#define SSH_MP_COUNT_LEADING_ZEROS(count, x) \
-  __asm__("bsrl %1,%0; xorl $31, %0" : \
-          "=r" (count) : "rm" ((SshWord)(x)));
-
-/* Fast multiplication. */
-#define SSH_MP_LONG_MUL(u, v, a, b)      \
-__asm__("mull %3"                 \
-        : "=a" ((SshWord)v), \
-          "=d" ((SshWord)u)  \
-        : "%0" ((SshWord)a), \
-          "rm" ((SshWord)b))
-
-/* Fast division. */
-#define SSH_MP_LONG_DIV(q, r, d1, d0, d)  \
-__asm__("divl %4"                  \
-        : "=a" ((SshWord)q),  \
-          "=d" ((SshWord)r)   \
-        : "%0"  ((SshWord)d0), \
-          "%1"  ((SshWord)d1), \
-          "rm" ((SshWord)d))
-#endif
-     
-/* Prototypes of assembler functions. */
-/* Addition routines. Perform addition of equal length buffers, and
-   addition by 1. */
-SshWord ssh_mpn_add_n(SshWord *ret, SshWord *op1,
-                      SshWord *op2, unsigned int len);
-SshWord ssh_mpn_add_1(SshWord *ret, SshWord *op, unsigned int len);
-
-/* Subtraction routines. Perform subtraction of equal length buffers, and
-   subtraction by 1. */
-SshWord ssh_mpn_sub_n(SshWord *ret,
-                      SshWord *op1, SshWord *op2, unsigned int len);
-SshWord ssh_mpn_sub_1(SshWord *ret,
-                      SshWord *op, unsigned int len);
-
-/* Standard style addition after multiplication by word. */
-SshWord ssh_mpn_addmul(SshWord *ret, SshWord k,
-                       SshWord *op, unsigned int len);
-/* Standard style subtraction after multiplication by word. */
-SshWord ssh_mpn_submul(SshWord *ret, SshWord k,
-                       SshWord *op, unsigned int len);
-/* Fast shift up by 1 bit. */
-SshWord ssh_mpn_shift_up_1(SshWord *ret, unsigned int len);
-/* Specialized routine for squaring all the words in the buffer, and
-   adding to the result at new positions. */
-SshWord ssh_mpn_square_words(SshWord *ret, SshWord *op, unsigned int len);
-/* Montgomery style addition after multiplication by word. */
-SshWord ssh_mpmn_addmul(SshWord *ret, SshWord mp, SshWord *op,
-                        unsigned int len, SshWord carry);
-
-#ifdef WIN32
-/* The Window's kludge. This uses some code that I wrote before for
-   GMP, but today use here. */
-
-  #include "winasmmp.h"
-
-  #define SSH_MP_COUNT_LEADING_ZEROS winasm_count_leading_zeros
-  #define SSH_MP_COUNT_TRAILING_ZEROS winasm_count_trailing_zeros
-  #define SSH_MP_LONG_MUL winasm_umul_ppmm 
-  #define SSH_MP_LONG_DIV winasm_udiv_qrnnd
-
-  #include "winasm.c"
-#endif
-
-
-/* Usually we don't have squaring routine in assembler, but in
-   C language we can achieve better throughput with such a
-   function. However, here we are happy with just multiplication. */
-#define SSH_MP_LONG_SQUARE(u, v, a) SSH_MP_LONG_MUL(u, v, a, a)
- 
-#else /* SSHMATH_ASSEMBLER_SUBROUTINES */
-
-/* Define this additional macro for usage here. */
-#define SSH_MP_LOW_BIT_MASK (((SshWord)1 << (SSH_WORD_BITS/2)) - 1)
-#define SSH_MP_HIGH_OCTET   ((SshWord)0xff << (SSH_WORD_BITS - 8))
-
-/* Table for trailing zero computations. This table could be
-   removed with some extra work in actual computations (using the
-   following table instead). */
-static const unsigned char ssh_mp_trailing_zero_table[256] =
-{
-  8,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-  5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-  6,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-  5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-  7,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-  5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-  6,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
-  5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0
-};
-     
-/* Table for leading zero computations. */
-static const unsigned char ssh_mp_leading_zero_table[256] =
-{
-  0,1,2,2,3,3,3,3,4,4,4,4,4,4,4,4,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
-  6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,
-  7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-  7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,7,
-  8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,
-  8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,
-  8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,
-  8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8,8
-};
-
-/* Compute trailing zeros with the table based approach. These will
-   probably be move to some main header file of this library later,
-   so that I don't have to duplicate all the code. */
-#define SSH_MP_COUNT_TRAILING_ZEROS(count, x)                 \
-{                                                             \
-  SshWord __x = (x); int __count;                             \
-  for (__count = 0; !(__x & 0xff); __x >>= 8, __count += 8)   \
-    ;                                                         \
-  (count) = __count + ssh_mp_trailing_zero_table[__x & 0xff]; \
-}
-
-/* Compute leading zeros. */
-#define SSH_MP_COUNT_LEADING_ZEROS(count, x)                             \
-{                                                                        \
-  SshWord __x = (x); int __count;                                        \
-  for (__count = 8; !(__x & SSH_MP_HIGH_OCTET); __x <<= 8, __count += 8) \
-    ;                                                                    \
-  (count) = __count -                                                    \
-    ssh_mp_leading_zero_table[(__x >> (SSH_WORD_BITS - 8)) & 0xff];      \
-}
-
-/* Standard method of multiplication. One could try to use
-   Karatsuba ideas here also. If assembler version exist one should
-   use it rather. */
-#define SSH_MP_LONG_MUL(u, v, a, b)                      \
-{                                                        \
-  SshWord __a = (a), __b = (b), __al, __ah, __bl, __bh;  \
-  SshWord __rl, __rh;                                    \
-                                                         \
-  /* Break the inputs into halves. */                    \
-  __al = (__a) & SSH_MP_LOW_BIT_MASK;                    \
-  __bl = (__b) & SSH_MP_LOW_BIT_MASK;                    \
-  __ah = ((__a) >> (SSH_WORD_BITS/2)) & SSH_MP_LOW_BIT_MASK; \
-  __bh = ((__b) >> (SSH_WORD_BITS/2)) & SSH_MP_LOW_BIT_MASK; \
-                                                         \
-  /* Multiplication of parts. */                         \
-  __rl = __al * __bl;                                    \
-  __rh = __ah * __bh;                                    \
-  __al *= __bh;                                          \
-  __ah *= __bl;                                          \
-                                                         \
-  /* Add together middle parts.       */                 \
-  __al += __ah;                                          \
-  /* Now we create parts for following addition.         \
-     I.e. we take halves of 'al' and position them correctly. */  \
-  __bh = ((__al & SSH_MP_LOW_BIT_MASK) << (SSH_WORD_BITS/2)); \
-  __bl = ((__al >> (SSH_WORD_BITS/2)) & SSH_MP_LOW_BIT_MASK); \
-                                                         \
-  /* Perform the final addition.                     */  \
-  __rl += __bh;                                          \
-  __rh += __bl;                                          \
-                                                         \
-  /* Handle carry, and add it to the high word.      */  \
-  if (__al < __ah)                                       \
-    __rh += ((SshWord)1 << (SSH_WORD_BITS/2));           \
-  if (__rl < __bh)                                       \
-    __rh++;                                              \
-                                                         \
-  /* Finished.    */                                     \
-  (v) = __rl;                                            \
-  (u) = __rh;                                            \
-}
-
-#if 1
-/* Standard method of multiplication. One could try to use
-   Karatsuba ideas here also. If assembler version exist one should
-   use it rather.
-
-   This amounts to negligible savings, I'm afraid. 
-   */
-#define SSH_MP_LONG_SQUARE(u, v, a)                      \
-{                                                        \
-  SshWord __a = (a), __al, __ah, __bl, __bh;             \
-  SshWord __rl, __rh;                                    \
-                                                         \
-  /* Break the input into halves. */                     \
-  __al = (__a) & SSH_MP_LOW_BIT_MASK;                    \
-  __ah = ((__a) >> (SSH_WORD_BITS/2)) & SSH_MP_LOW_BIT_MASK; \
-                                                         \
-  /* We get around with only 3 multiplications. */       \
-  __rl = __al * __al;                                    \
-  __rh = __ah * __ah;                                    \
-  __al *= __ah;                                          \
-                                                         \
-  /* Fix the high carry, add to the correct position. */ \
-  if (__al & ((SshWord)1 << (SSH_WORD_BITS - 1)))        \
-    __rh += ((SshWord)1 << (SSH_WORD_BITS/2));           \
-  /* Perform the multiplication by 2. */                 \
-  __al <<= 1;                                            \
-                                                         \
-  /* Glue together the parts. */                         \
-  __bh = ((__al & SSH_MP_LOW_BIT_MASK) << (SSH_WORD_BITS/2)); \
-  __bl = ((__al >> (SSH_WORD_BITS/2)) & SSH_MP_LOW_BIT_MASK); \
-                                                         \
-  /* Add finally together to get the result. */          \
-  __rl += __bh;                                          \
-  __rh += __bl;                                          \
-                                                         \
-  /* Final carry correction. */                          \
-  if (__rl < __bh)                                       \
-    __rh++;                                              \
-                                                         \
-  /* Finished. */                                        \
-  (v) = __rl;                                            \
-  (u) = __rh;                                            \
-}
-#else
-/* In case you don't like to do squaring with special macro. */
-#define SSH_MP_LONG_SQUARE(u, v, a) SSH_MP_LONG_MUL(u, v, a, a)
-#endif
-
-#if 0
-/* This macro (older version though) has gained a lot of fame, because
-   it is very close to the one in GMP by Torbjorn Granlund and in
-   BnLib by Colin Plumb.
-
-   Where has this code come from? Basically this is derivation of the
-   algorithm D by Knuth (in Seminumerical Algorithms section
-   4.3.1). This has been optimized for the task. The correction phase
-   with the tests can be done in another way, but that would (as far
-   as I can see) demand also few instructions more (basically that
-   would slow down the code).
-
-   The input should be given so that (d1*b + d0) / d < b. I.e. the
-   quotient is in between b - 1 and 0. This restriction is
-   taken care in the code that follows.
-   */
-#define SSH_MP_LONG_DIV(q, r, d1, d0, d)                     \
-{                                                            \
-  SshWord __d1, __d0, __q1, __q0, __rr, __m;                 \
-  /* Break the divisor into two.                       */    \
-  __d1 = ((d) >> (SSH_WORD_BITS/2)) & SSH_MP_LOW_BIT_MASK;   \
-  __d0 = (d) & SSH_MP_LOW_BIT_MASK;                          \
-                                                             \
-  /* Compute the first case, a la Knuth.               */    \
-  __q1 = (d1) / __d1;                                        \
-  __rr = (d1) %__d1;                                         \
-  __m  = __q1 * __d0;                                        \
-                                                             \
-  /* Build up rr = rb + d0.                            */    \
-  __rr = (__rr  << (SSH_WORD_BITS/2)) |                      \
-           (((d0) >> (SSH_WORD_BITS/2)) & SSH_MP_LOW_BIT_MASK); \
-                                                             \
-  /* Error correction. At this point it is well-known that   \
-     q is only upto 2 too large, we want correct that.  */   \
-  if (__rr < __m)                                            \
-    {                                                        \
-      __q1--;                                                \
-      __rr += (d);                                           \
-                                                             \
-      /* rr = rb + d0 - d, and now by Knuth we are interested\
-         in r + v1 < b, it holds that if rr >= d then        \
-         r + v1 < b. */                                      \
-      if (__rr >= (d) && __rr < __m)                         \
-        {                                                    \
-          __q1--;                                            \
-          __rr += (d);                                       \
-        }                                                    \
-    }                                                        \
-  /* Finish up the remainder of the first division.     */   \
-  __rr -= __m;                                               \
-                                                             \
-  /* Second case a la Knuth. This is equivalent to the       \
-     previous case, now we are working from the              \
-     remainder. */                                           \
-  __q0 = __rr / __d1;                                        \
-  __rr = __rr % __d1;                                        \
-  __m  = __q0 * __d0;                                        \
-  __rr = (__rr << (SSH_WORD_BITS/2)) |                       \
-           ((d0) & SSH_MP_LOW_BIT_MASK);                     \
-  if (__rr < __m)                                            \
-    {                                                        \
-      __q0--;                                                \
-      __rr += (d);                                           \
-      if (__rr >= (d) && __rr < __m)                         \
-        {                                                    \
-          __q0--;                                            \
-          __rr += (d);                                       \
-        }                                                    \
-    }                                                        \
-  __rr -= __m;                                               \
-                                                             \
-  /* Finish up the division by building up the quotient,     \
-     and the remainder. */                                   \
-  (q) = (__q1 << (SSH_WORD_BITS/2)) | __q0;                  \
-  (r) = __rr;                                                \
-}
-#elif 1
-
-/* This implements heuristic improvement, it simply computes the
-   remainder part with multiplication. In Alpha this seems to be
-   somewhat faster.
-
-   In general this is faster than the above if the machine has
-   faster multiplication than division and the compiler doesn't
-   really care about speeding things up (e.g. it is not very smart).
-
-   This should be default, because usually division is slower
-   than multiplication and some compilers just don't optimize
-   the divisions (or can't optimize them due hardware).  */
-#define SSH_MP_LONG_DIV(q, r, d1, d0, d)                     \
-{                                                            \
-  SshWord __d1, __d0, __q1, __q0, __rr, __m;                 \
-  /* Break the divisor into two.                       */    \
-  __d1 = ((d) >> (SSH_WORD_BITS/2)) & SSH_MP_LOW_BIT_MASK;   \
-  __d0 = (d) & SSH_MP_LOW_BIT_MASK;                          \
-                                                             \
-  /* Compute the first case, a la Knuth.               */    \
-  __q1 = (d1) / __d1;                                        \
-  /* Here we use multiplication to simply reduce number      \
-     of divisions needed. */                                 \
-  __rr = (d1) - __q1 *__d1;                                  \
-  __m  = __q1 * __d0;                                        \
-  __rr = (__rr  << (SSH_WORD_BITS/2)) |                      \
-         (((d0) >> (SSH_WORD_BITS/2)) & SSH_MP_LOW_BIT_MASK); \
-  if (__rr < __m)                                            \
-    {                                                        \
-      __q1--;                                                \
-      __rr += (d);                                           \
-      if (__rr >= (d) && __rr < __m)                         \
-        {                                                    \
-          __q1--;                                            \
-          __rr += (d);                                       \
-        }                                                    \
-    }                                                        \
-  __rr -= __m;                                               \
-                                                             \
-  /* Second case a la Knuth. This is equivalent to the       \
-     previous case, now we are working from the              \
-     remainder. */                                           \
-  __q0 = __rr / __d1;                                        \
-  __rr = __rr - __q0 * __d1;                                 \
-  __m  = __q0 * __d0;                                        \
-  __rr = (__rr << (SSH_WORD_BITS/2)) |                       \
-           ((d0) & SSH_MP_LOW_BIT_MASK);                     \
-  if (__rr < __m)                                            \
-    {                                                        \
-      __q0--;                                                \
-      __rr += (d);                                           \
-      if (__rr >= (d) && __rr < __m)                         \
-        {                                                    \
-          __q0--;                                            \
-          __rr += (d);                                       \
-        }                                                    \
-    }                                                        \
-  __rr -= __m;                                               \
-                                                             \
-  /* Finish up the division by building up the quotient,     \
-     and the remainder. */                                   \
-  (q) = (__q1 << (SSH_WORD_BITS/2)) | __q0;                  \
-  (r) = __rr;                                                \
-}
-
-#elif 0
-
-/* This implements "another" heuristic improvement. Sadly, this
-   doesn't work on Alpha where this would have been interesting.
-
-   On 32-bit processors with fast double arithmetic you could
-   probably get away with this. It takes some time to convert
-   into double etc. but over all this has some chance of being
-   faster on some platforms.
-
-   XXX Haven't yet tested this one. 
-   */
-
-#define SSH_MP_LONG_DIV(q, r, d1, d0, d)                     \
-{                                                            \
-  SshWord __d1, __d0, __q1, __q0, __rr, __m;                 \
-  double  __d;                                               \
-  /* Break the divisor into two.                       */    \
-  __d1 = ((d) >> (SSH_WORD_BITS/2)) & SSH_MP_LOW_BIT_MASK;   \
-  __d0 = (d) & SSH_MP_LOW_BIT_MASK;                          \
-                                                             \
-  /* Compute the first case, a la Knuth.               */    \
-                                                             \
-  /* Instead of using integer division, we try to get by     \
-     with floating division. It should work a ok when        \
-     word size is less than 32-bits. E.g. 32 bits can be     \
-     extracted directly from the double. For 64 bit          \
-     machines this sadly doesn't work. And yet more sadly    \
-     long double isn't always 80 bits, thus we couldn't      \
-     try that either. */                                     \
-  __d = 1.0/(double)__d1;                                    \
-  __q1 = (SshWord) \
-         (((d1) & (SSH_MP_LOW_BIT_MASK << SSH_WORD_BITS/2)) * __d + \
-          ((d1) & (SSH_MP_LOW_BIT_MASK)) * __d); \
-  __rr = (d1) - __q1 *__d1;                                  \
-  __m  = __q1 * __d0;                                        \
-  __rr = (__rr  << (SSH_WORD_BITS/2)) |                      \
-         (((d0) >> (SSH_WORD_BITS/2)) & SSH_MP_LOW_BIT_MASK); \
-  if (__rr < __m)                                            \
-    {                                                        \
-      __q1--;                                                \
-      __rr += (d);                                           \
-      if (__rr >= (d) && __rr < __m)                         \
-        {                                                    \
-          __q1--;                                            \
-          __rr += (d);                                       \
-        }                                                    \
-    }                                                        \
-  __rr -= __m;                                               \
-                                                             \
-  /* Second case a la Knuth. This is equivalent to the       \
-     previous case, now we are working from the              \
-     remainder. */                                           \
-  __q1 = (SshWord) \
-         ((__rr & (SSH_MP_LOW_BIT_MASK << SSH_WORD_BITS/2)) * __d + \
-          (__rr & (SSH_MP_LOW_BIT_MASK)) * __d); \
-  __rr = __rr - __q0 * __d1;                                 \
-  __m  = __q0 * __d0;                                        \
-  __rr = (__rr << (SSH_WORD_BITS/2)) |                       \
-           ((d0) & SSH_MP_LOW_BIT_MASK);                     \
-  if (__rr < __m)                                            \
-    {                                                        \
-      __q0--;                                                \
-      __rr += (d);                                           \
-      if (__rr >= (d) && __rr < __m)                         \
-        {                                                    \
-          __q0--;                                            \
-          __rr += (d);                                       \
-        }                                                    \
-    }                                                        \
-  __rr -= __m;                                               \
-                                                             \
-  /* Finish up the division by building up the quotient,     \
-     and the remainder. */                                   \
-  (q) = (__q1 << (SSH_WORD_BITS/2)) | __q0;                  \
-  (r) = __rr;                                                \
-}
-#endif
-
-#endif /* SSHMATH_ASSEMBLER_SUBROUTINES */
-
-/* Routines for handling unsigned integers. These could be written
-   in assembler, if more speed would be required. However, insignificant
-   things should not be optimized. */
-
-#ifndef SSHMATH_FAST_MEM_ROUTINES
-/* C versions. */
-void ssh_mpn_memcopy(SshWord *d, SshWord *s, unsigned int len)
-{
-  int i, j;
-  /* Run the buffers two words at a time if possible. This should
-     lower the overhead. */
-  for (j = 0, i = len >> 1; i; j += 2, i--)
-    {
-      d[j    ] = s[j    ];
-      d[j + 1] = s[j + 1];
-    }
-  if (len & 0x1)
-    d[j] = s[j];
-}
- 
-void ssh_mpn_memzero(SshWord *d, unsigned int len)
-{
-  int i, j;
-  /* Run the buffers two words at a time if possible. This should
-     lower the overhead. */
-  for (j = 0, i = len >> 1; i; j += 2, i--)
-    {
-      d[j    ] = 0;
-      d[j + 1] = 0;
-    }
-  if (len & 0x1)
-    d[j] = 0;
-}
-#else /* SSHMATH_FAST_MEM_ROUTINES */
-
-/* Wrappers for memory copy. */
-
-void ssh_mpn_memcopy(SshWord *d, SshWord *s, unsigned int len)
-{
-  memcpy(d, s, len * sizeof(SshWord));
-}
-
-void ssh_mpn_memzero(SshWord *d, unsigned int len)
-{
-  memset(d, 0, len * sizeof(SshWord));
-}
-#endif /* SSHMATH_FAST_MEM_ROUTINES */
-
-/************* Basic arithmetical operations. *****************/
-
-/* Following routines are the core of basic operation, these do not check
-   for anything and need an upper layer which implements nice application
-   interface. */
-
-/* Some bit level operations. */
-
-/* Shifting, that is dividing and multiplying with 2^n's.*/
-
-int ssh_mpn_shift_up_bits(SshWord *op, unsigned int ssh_mp_n,
-                          unsigned int bits)
-{
-  unsigned int i;
-  /* Nothing to do if zero integer. */
-  if (!ssh_mp_n)
-    return 0;
-
-  /* We need a simple macro to make life easier. I.e. other wise
-     we would have to dublicate it for all the cases. */
-  
-#define UP_SHIFT_MACRO(__bits__)                  \
-  for (i = ssh_mp_n - 1; i; i--)                  \
-    op[i] = (op[i] << (__bits__)) | (op[i - 1] >> \
-            (SSH_WORD_BITS - __bits__));          \
-  op[0] <<= __bits__;
-
-  /* It is not of course necessarily best to do things this way,
-     but in princible the shifting with just some variable is
-     slower than by fixed value. At least this is so in Intel
-     Pentiums. */
-  switch (bits)
-    {
-    case 0:
-      break;
-    case 1:
-      UP_SHIFT_MACRO(1);
-      break;
-    case 2:
-      UP_SHIFT_MACRO(2);
-      break;
-    case 3:
-      UP_SHIFT_MACRO(3);
-      break;
-    default:
-      UP_SHIFT_MACRO(bits);
-      break;
-    }
-#undef UP_SHIFT_MACRO
-
-  if (op[ssh_mp_n - 1])
-    ssh_mp_n++;
-  return ssh_mp_n;
-}
-
-int ssh_mpn_shift_down_bits(SshWord *op, SshWord ssh_mp_n,
-                            SshWord bits)
-{
-  unsigned int i;
-  
-  /* Nothing to do if zero integer. */
-  if (!ssh_mp_n)
-    return 0;
-
-  /* We need a simple macro to make life easier. I.e. other wise
-     we would have to dublicate it for all the cases. */
-
-#define DOWN_SHIFT_MACRO(__bits__)                \
-  for (i = 0; i < ssh_mp_n - 1; i++)              \
-    op[i] = (op[i] >> (__bits__)) | (op[i + 1] << \
-            (SSH_WORD_BITS - __bits__));          \
-    op[ssh_mp_n - 1] >>= __bits__;
-  
-  /* It is not of course necessarily best to do things this way,
-     but in princible the shifting with just some variable is
-     slower than by fixed value. At least this is so in Intel
-     Pentiums. */
-  switch (bits)
-    {
-    case 0:
-      break;
-    case 1:
-      DOWN_SHIFT_MACRO(1);
-      break;
-    case 2:
-      DOWN_SHIFT_MACRO(2);
-      break;
-    case 3:
-      DOWN_SHIFT_MACRO(3);
-      break;
-    default:
-      DOWN_SHIFT_MACRO(bits);
-      break;
-    }
-#undef DOWN_SHIFT_MACRO
-  if (op[ssh_mp_n - 1])
-    ssh_mp_n--;
-  return ssh_mp_n;
-}
-
-/* Compute the size of the input word array in base 2. Fast. */
-unsigned int ssh_mpn_size_in_bits(SshWord *op, unsigned int op_n)
-{
-  SshWord t;
-  unsigned int r;
-  
-  if (op_n == 0)
-    return 0;
-
-  t = op[op_n - 1];
-  r = 0;
-  SSH_MP_COUNT_LEADING_ZEROS(r, t);
-  
-  return op_n * SSH_WORD_BITS - r;
-}
-
-/* Comparison of integers routines. */
-
-/* Comparison of unsigned integer with an large integer. */
-int ssh_mpn_cmp_ui(SshWord *op, unsigned int op_n, SshWord u)
-{
-  /* First check if values are both zero. */
-  if (op_n == 0 && u == 0)
-    return 0;
-
-  /* If large integer is zero. */
-  if (op_n == 0)
-    return -1;
-
-  /* If integer is zero. */
-  if (u == 0)
-    return 1;
-
-  /* If large integer is larger than just one integer. */
-  if (op_n > 1)
-    return 1;
-
-  /* If both are of roughly equal size. */
-  if (op[0] > u)
-    return 1;
-  if (op[0] < u)
-    return -1;
-
-  /* Must be equal then. */
-  return 0;
-}
-
-/* General compare with two large natural integers given as arrays. This
-   should be written so that it is usually faster than running through
-   all words of an integer array. */
-int ssh_mpn_cmp(SshWord *op1, unsigned int op1_n,
-                SshWord *op2, unsigned int op2_n)
-{
-  unsigned int i;
-
-  /* Both might be zero? */
-  if (op1_n == 0 && op2_n == 0)
-    return 0;
-
-  /* We may check just their sizes, because they are supposed to be
-     kept updated. */
-  if (op1_n > op2_n)
-    return 1;
-  if (op1_n < op2_n)
-    return -1;
-
-  /* Check whether the words are equal and if not which is larger. */
-  for (i = op2_n; i; i--)
-    {
-      if (op1[i - 1] != op2[i - 1])
-        {
-          if (op1[i - 1] > op2[i - 1])
-            return 1;
-          return -1;
-        }
-    }
-
-  /* Must be totally equal. Sadly in this case we have runned the loop
-     in full, no other way I guess. */
-  return 0;
-}
-
-/* We assume that op1_n > op2_n and that ret_n >= op1_n. */
-
-SshWord ssh_mpn_add(SshWord *ret,
-                    SshWord *op1, unsigned int op1_n,
-                    SshWord *op2, unsigned int op2_n)
-{
-  SshWord c;
-#ifndef SSHMATH_ASSEMBLER_SUBROUTINES
-  unsigned int i;
-  SshWord t, k;
-#endif
-
-  /* Addition in two phases. First we add the buffers up to the
-     smallest. This ensures simplicity in the inner loop. */
-
-#ifdef SSHMATH_ASSEMBLER_SUBROUTINES
-  /* Assembler routine for fast unsigned addition of two
-     buffers of equal length. */
-  c = ssh_mpn_add_n(ret, op1, op2, op2_n);
-  if (op2_n < op1_n)
-    {
-      /* Check the carry and act accordingly. */
-      if (c)
-        c = ssh_mpn_add_1(ret + op2_n, op1 + op2_n, op1_n - op2_n);
-      else
-        ssh_mpn_memcopy(ret + op2_n, op1 + op2_n, op1_n - op2_n);
-    }
-#else /* SSHMATH_ASSEMBLER_SUBROUTINES */
-  
-  /* Add two buffers of equal length. */
-  for (i = 0, c = 0; i < op2_n; i++)
-    {
-      /* Do the standard addition procedure. We assume that the word
-         size is correct, and no additional bits are available for
-         the word. This assumption is used throughout this code. */
-      k = op1[i] + c;
-      if (k < c)
-        c = 1;
-      else
-        c = 0;
-      t = k + op2[i];
-      if (t < k)
-        c++;
-      ret[i] = t;
-    }
-  /* Check the carry and act accordingly. */
-  if (c)
-    {
-      /* Add carries. */
-      for (; i < op1_n; i++)
-        {
-          /* Simpler addition sequence, we can bail out if the carrying
-             ends. */
-          k = op1[i];
-          t = k + 1;
-          ret[i] = t;
-          if (t > k)
-            {
-              c = 0;
-              i++;
-              break;
-            }
-        }
-    }
-  for (; i < op1_n; i++)
-    ret[i] = op1[i];
-#endif /* SSHMATH_ASSEMBLER_SUBROUTINES */
-  return c;
-}
-
-/* We assume that op1_n > op2_n and op1 > op2 in absolute value. */
-
-SshWord ssh_mpn_sub(SshWord *ret,
-                    SshWord *op1, unsigned int op1_n,
-                    SshWord *op2, unsigned int op2_n)
-{
-  SshWord c;
-#ifndef SSHMATH_ASSEMBLER_SUBROUTINES
-  unsigned int i;
-  SshWord t, k, j;
-#endif
-
-  /* Subtraction in two phases. */
-  
-#ifdef SSHMATH_ASSEMBLER_SUBROUTINES
-  /* Assembler subtraction with buffers of equal length. */
-  c = ssh_mpn_sub_n(ret, op1, op2, op2_n);
-  if (op2_n < op1_n)
-    {
-      /* Handle the issue of carry. */
-      if (c)
-        c = ssh_mpn_sub_1(ret + op2_n, op1 + op2_n, op1_n - op2_n);
-      else
-        ssh_mpn_memcopy(ret + op2_n, op1 + op2_n, op1_n - op2_n);
-  } 
-#else /* SSHMATH_ASSEMBLER_SUBROUTINES */
-
-  /* Subtraction with buffers of equal length. */
-  for (i = 0, c = 0; i < op2_n; i++)
-    {
-      /* Standard subtraction. Assumes same things as addition. */
-      k = op1[i];
-      j = op2[i] + c;
-      if (j < c)
-        c = 1;
-      else
-        c = 0;
-      t = k - j;
-      if (t > k)
-        c++;
-      ret[i] = t;
-    }
-  if (c)
-    {
-      /* Subtract carries. */
-      for (; i < op1_n; i++)
-        {
-          /* Note the bail out similarity to addition. */
-          k = op1[i];
-          t = k - 1;
-          ret[i] = t;
-          if (t < k)
-            {
-              c = 0;
-              i++;
-              break;
-            }
-        }
-    }
-  for (; i < op1_n; i++)
-    ret[i] = op1[i];
-#endif
-  
-  return c;
-}
-
-/* The school multiplication method. */
-
-void ssh_mpn_mul(SshWord *ret, unsigned int ret_n,
-                 SshWord *op1, unsigned int op1_n,
-                 SshWord *op2, unsigned int op2_n)
-{
-  unsigned int i;
-  SshWord c;
-#ifndef SSHMATH_ASSEMBLER_SUBROUTINES
-  unsigned int j;
-  SshWord k, n1, n2, t1, t2;
-  SshWord *tmp;
-#endif
-
-  /* Loop through the multiplier. We assume usually that the multiplier
-     is shorter, thus there will probably exists slightly less
-     overhead. */
-  for (i = 0; i < op1_n; i++)
-    {
-#ifdef SSHMATH_ASSEMBLER_SUBROUTINES
-      /* Assembler addmul, standard way to doing it. */
-      c = ssh_mpn_addmul(ret + i, op1[i], op2, op2_n);
-#else /* SSHMATH_ASSEMBLER_SUBROUTINES */
-      for (j = 0, c = 0, tmp = ret + i, k = op1[i]; j < op2_n; j++)
-        {
-          /* For each pair of words multiply and add to the
-             return array. Handle the carries with an extra carry word. */
-          SSH_MP_LONG_MUL(n2, n1, k, op2[j]);
-          t1 = tmp[j] + n1;
-          t2 = n2;
-          if (t1 < n1)
-            t2++;
-          t1 += c;
-          if (t1 < c)
-            t2++;
-          tmp[j] = t1;
-          c = t2;
-        }
-#endif /* SSHMATH_ASSEMBLER_SUBROUTINES */
-      /* Set the carry word on top. */
-      ret[i + op2_n] = c;
-    }
-}
-
-/* Faster version for specific multiplication by just single digit. This case
-   cannot be speeded up asymptotically. */
-
-void ssh_mpn_mul_ui(SshWord *ret, unsigned int ret_n,
-                    SshWord *op,  unsigned int op_n,
-                    SshWord u)
-{
-  unsigned int i;
-  SshWord c, n1, n2, t1, t2;
-
-  /* XXX Make use of the assembler version. */
-  for (i = 0, c = 0; i < op_n; i++)
-    {
-      /* Simplied from above. */
-      SSH_MP_LONG_MUL(n2, n1, u, op[i]);
-      t1 = n1 + c;
-      t2 = n2;
-      if (t1 < c)
-        t2++;
-      ret[i] = t1;
-      c = t2;
-    }
-  /* Set the carry. */
-  if (c)
-    ret[i] = c;
-}
-
-/* Rather quick squaring. However, we need even faster!
-
-   Note:
-
-     (a b c d)^2 =
-
-     aa ab ac ad
-        ba bb bc bd
-           ca cb cc cd
-              da db dc dd
-
-     we get an algorithm:
-
-     for i = 0 to op_n
-       ret[i*2] += op[i]*op[i]
-       for j = i + 1 to op_n
-         ret[j + i] += 2*op[j]*op[i]
-
-     which outputs:
-         
-     aa
-     ab*2 
-     ac*2 bb
-     ad*2 bc*2
-     bd*2 cc
-     cd*2
-     dd
-
-   This squaring is given in HAC. Rather odd, it is not best way to
-   do this? Or is it...
- */
-
-#if 0
-/* This squaring is older and slower (hopefully). Don't use but for
-   testing, and timing. This implementation might be removed later. */
-void ssh_mpn_square(SshWord *ret, unsigned int ret_n,
-                    SshWord *op,  unsigned int op_n)
-{
-  unsigned int i, j;
-  SshWord c1, c2, n1, n2, n3, t, k, high_carry;
-
-  for (i = 0, high_carry = 0; i < op_n; i++)
-    {
-#ifdef SSHMATH_ASSEMBLER_SUBROUTINES
-      high_carry = ssh_mpn_addsq(ret + i * 2, op + i, op_n - (i + 1),
-                             high_carry);
-#else /* SSHMATH_ASSEMBLER_SUBROUTINES */
-
-      /* Initial multiplication in loop. */
-      k = op[i];
-      SSH_MP_LONG_MUL(n2, n1, k, k);
-      t = ret[i * 2];
-      n1 += t;
-      if (n1 < t)
-        n2++;
-
-      /* Set */
-      ret[i * 2] = n1;
-      c1 = n2;
-      c2 = 0;
-
-      for (j = i + 1; j < op_n; j++)
-        {
-          SSH_MP_LONG_MUL(n2, n1, op[j], k);
-          /* Shift up by 1. I.e. Multiply by 2. On some processors
-             this might become very slow, so XXX. */
-          n3 = n2 >> (SSH_WORD_BITS - 1);
-          n2 = (n2 << 1) | (n1 >> (SSH_WORD_BITS - 1));
-          n1 <<= 1;
-
-          /* Add with ret. */
-          t = ret[i + j];
-          n1 += t;
-          /* Handle carry. We can accumulate the carry to c2, because
-             c2 is generally very small. In fact, this seems to be
-             a bit nicer than by the more direct way. */
-          if (n1 < t)
-            c2++;
-
-          /* Add with carry. */
-          n1 += c1;
-          if (n1 < c1)
-            c2++;
-
-          /* Handle the "excess" values. */
-          n2 += c2;
-          if (n2 < c2)
-            n3++;
-
-          /* Set for the following round. */
-          ret[i + j] = n1;
-          c1 = n2;
-          c2 = n3;
-        }
-
-      c1 += high_carry;
-      if (c1 < high_carry)
-        c2++;
-      
-      ret[i + op_n]     = c1;
-      ret[i + op_n + 1] = c2;
-
-      high_carry = c2;
-#endif /* SSHMATH_ASSEMBLER_SUBROUTINES */
-    }
-}
-#else
-
-/* This squaring routine is much faster than the above one. Using the
-   straight-forward idea, without so much excessive shifting.
-
-   Above one interleaves everything, however, it will be faster to
-   compute it uninterleaved as is usually the case. (However, I was
-   rather happy to notice this one night.)
-
-   Following snipnet will do the job:
-
-   for i = 0 to op_n - 1
-     for j = i + 1 to op_n - 1
-       ret[j + i] += op[j] * op[i]
-
-   ret = ret*2
-
-   for i = 0 to op_n - 1
-     ret[i*2] += op[i]*op[i]
-
-   Notice the elegance of this approach. It is easy to see that the first
-   part does op_n*(op_n - 1)/2 operations. That is less than half of
-   the standard school multiplication. Then the multiplication by two
-   is insignificant, and can be performed quickly. The last step
-   takes op_n operations, that is the full computation takes
-   op_n*(op_n + 1)/2 multiplications, 1 shift, lots of additions. The
-   version above takes op_n*(op_n + 1)/2 multiplications, op_n*(op_n - 1)/2
-   shifts and lots of additions.
-
-   And infact, this way the computation is clearly faster.
-   */
-
-void ssh_mpn_square(SshWord *ret, int ret_n,
-                    SshWord *op,  int op_n)
-{
-  unsigned int i;
-  SshWord c;
-#ifndef SSHMATH_ASSEMBLER_SUBROUTINES
-  unsigned int j;
-  SshWord k, t1, t2, n1, n2;
-#endif
-  
-  /* First do the almost ordinary looking multiplication phase. */
-  for (i = 0; i < op_n; i++)
-  {
-#ifdef SSHMATH_ASSEMBLER_SUBROUTINES
-    /* Handle multiplication (and addition) with just one
-       call to assembler routine. This is same what is used in
-       multiplication. Makes this interface very nice. */
-    c = ssh_mpn_addmul(ret + 2*i + 1, op[i], op + i + 1, op_n - i - 1);
-#else /* SSHMATH_ASSEMBLER_SUBROUTINES */
-      for (j = i + 1, k = op[i], c = 0; j < op_n; j++)
-        {
-          /* Same routine as the one given above. */
-          SSH_MP_LONG_MUL(n2, n1, k, op[j]);
-          t1 = ret[j + i] + n1;
-          t2 = n2;
-          if (t1 < n1)
-            t2++;
-          t1 += c;
-          if (t1 < c)
-            t2++;
-          ret[j + i] = t1;
-          c = t2;
-        }
-#endif
-      /* Handle the carry as usual. */
-      ret[i + op_n] = c;
-    }
- 
-  /* Now shift up by 1 bit. */
-#ifdef SSHMATH_ASSEMBLER_SUBROUTINES
-  /* Assembler shifter for just one bit. Not very useful? I have not
-     ran any tests for this one, but do assume that it makes everything
-     worthwhile. */
-  ssh_mpn_shift_up_1(ret, op_n*2);
-#else /* SSHMATH_ASSEMBLER_SUBROUTINES */
-  /* Shifting in C. Possibly a bit slow. */
-  for (i = op_n * 2; i; i--)
-    ret[i] = (ret[i] << 1) | (ret[i - 1] >> (SSH_WORD_BITS - 1));
-  ret[0] <<= 1;
-#endif
-   
-  /* Last, but not least, add the squared values. Here we are in a bit
-     of a trouble. The assembler version is a lot faster. */
-#ifdef SSHMATH_ASSEMBLER_SUBROUTINES
-  /* Square words quickly with assembler. Handles also the difficult
-     addition procedure. */
-  ssh_mpn_square_words(ret, op, op_n);
-#else /* SSHMATH_ASSEMBLER_SUBROUTINES */
-  for (i = 0, c = 0; i < op_n; i++)
-    {
-      k = op[i];
-      /* Use the square macro, which is slightly faster (possibly)
-         than the multiply macro. */
-      SSH_MP_LONG_SQUARE(n2, n1, k);
-
-      /* Start the complicated addition sequence. As you might have
-         noted we need to do rather much of comparing. */
-      t1 = ret[i*2] + n1;
-      t2 = n2;
-      if (t1 < n1)
-        t2++;
-      t1 = t1 + c;
-      if (t1 < c)
-        t2++;
-      ret[i*2] = t1;
-      
-      /* Add to the following word. */ 
-      k = ret[i*2 + 1];
-      c = 0;
-      t2 += k;
-      if (t2 < k)
-        c++;
-      ret[i*2 + 1] = t2;
-    }
-  /* Handle the addition of the carry and the top word thus far. */
-  k = ret[op_n * 2] + c;
-  if (k < c)
-    c = 1;
-  else
-    c = 0;
-
-  /* Set the highest words correctly. */
-  ret[op_n * 2] = k;
-  ret[op_n * 2 + 1] = c;
-#endif /* SSHMATH_ASSEMBLER_SUBROUTINES */
-}
-
-#endif
-
-/* Standard Karatsuba multiplying and non-standard squaring. 
-
-   Following formulas are used in following:
-
-   Multiplication with Karatsuba's idea:
-
-   Let
-
-     u = u0 + u1*b
-     v = v0 + v1*b
-     b is the word size (e.g. 2^32)
-
-   Karatsuba multiplication algorithm:
-     
-     u * v = (b^2 + b) * u1 * v1 + b*(u1 - u0)*(v0 - v1) + (b + 1) * v0 * u0
-
-   Squaring algorithm 1 (due to Markku-Juhani Saarinen):
-
-   Let
-
-     x = (u1 + u0)^2
-     y = (u1 - u0)^2
-     z = u1^2
-
-   then
-     
-     u^2 = z*b^2 + ((x - y)*b + (x + y))/2 - z
-
-   Squaring algorithm 2 (due to Colin Plumb):
-
-     (u*b + v)^2 = u^2*(b^2 + b) + v^2 * (b + 1) - (u - v)^2 * b
-
-   Saarinen's method uses 3 squaring's, 4 additions and 3
-   subtractions. 
-   
-   Plumb's method uses 3 squaring's, 3 additions and 2 subtractions. 
-
-   Both can be reasonably efficiently implemented. Note that squaring
-   such as (u - v)^2 forgets the sign of the u - v computation, which
-   makes implementation nicer.
-     
-   */
-
-/* A threshold for estimating when these divide and conquer methods should be
-   used. A nice configuration system would allow searching (with binary
-   search etc.) the best possible thresholds for your system.
-   */
-   
-#define SSH_MPN_MUL_KARATSUBA_THRESHOLD 28
-#define SSH_MPN_SQUARE_KARATSUBA_THRESHOLD 60
-
-#if 0
-/* Some test code, to be removed. */
-void ssh_mpn_print(char *str, SshWord *op, int op_n)
-{
-  SshInt t;
-  char *buf;
-  int i;
-  
-  t.v = op;
-  t.n = op_n;
-  t.m = op_n;
-  t.sign = 0;
-
-  buf = ssh_mp_get_str(NULL, 10, &t);
-  printf("%s %s\n", str, buf);
-  ssh_xfree(buf);
-
-  printf("in hex = ");
-  for (i = op_n; i; i--)
-#if SIZEOF_LONG==4
-    printf("%08lx ", op[i - 1]);
-#else
-    printf("%16lx ", op[i - 1]);
-#endif /* SIZEOF_LONG==4 */
-  printf("\n");
-}
-#endif
-
-#if 1
-
-/* Compute the needed memory for the Karatsuba squaring. */
-unsigned int ssh_mpn_square_karatsuba_needed_memory(unsigned int op_n)
-{
-  unsigned int work_n, div_n;
-  
-  /* If smaller than the threshold. */
-  if (op_n < SSH_MPN_SQUARE_KARATSUBA_THRESHOLD)
-    return 0;
-
-  /* Select nearly optimal sizes. */
-  div_n = op_n/2;
-  work_n = ((div_n + 1) * 2 + 1)*4;
-
-  /* Compute recursively the amount of memory needed! */
-  work_n += ssh_mpn_square_karatsuba_needed_memory(div_n);
-  work_n += ssh_mpn_square_karatsuba_needed_memory(op_n - div_n);
-  work_n += ssh_mpn_square_karatsuba_needed_memory(op_n - div_n);
-
-  return work_n;
-}
-
-/* This is the algorithm of Plumb's. As one can see this falls in place
-   quite nicely. */
-
-/* Original idea was to do all this in data recursion rather than the
-   more easier code recursion. But that would mean some allocation,
-   and might not be too much faster. 
-   */
-void ssh_mpn_square_karatsuba(SshWord *ret, unsigned int ret_n,
-                              SshWord *op,  unsigned int op_n,
-                              SshWord *work_space,
-                              unsigned int work_space_n)
-{
-  if (op_n < SSH_MPN_SQUARE_KARATSUBA_THRESHOLD)
-    {
-      /* If the compiler is smart it probably will inline this function
-         here. */
-      ssh_mpn_square(ret, ret_n, op, op_n);
-    }
-  else
-    {
-      SshWord *u0, *u1, *x, *y, *z, *t, *work;
-      unsigned int u0_n, u1_n, x_n, y_n, z_n, work_n, div_n, t_n;
-      Boolean work_allocated;
-      
-      /* (u*b + v)^2 = u^2*(b^2 + b) + v^2 * (b + 1) - (u - v)^2 * b
-
-         x = u1^2
-         y = u0^2
-         t = u1 - u0
-         z = t^2
-       */
-      
-      /* Select nearly optimal sizes. */
-      div_n = op_n / 2;
-
-      /* Compute divided parts. */
-      u1 = op + div_n;
-      u1_n = op_n - div_n;
-      u0 = op;
-      u0_n = div_n;
-
-      /* Compute lengths for partial values. */
-      x_n = (div_n + 1) * 2 + 1;
-      y_n = (div_n + 1) * 2 + 1;
-      z_n = (div_n + 1) * 2 + 1;
-      t_n = (div_n + 1) * 2 + 1;
-      work_n = x_n + y_n + z_n + t_n;
-
-      /* Allocate working space. */
-      if (work_space == NULL || work_space_n < work_n)
-        {
-          work_allocated = TRUE;
-          work           = ssh_xmalloc(work_n * sizeof(SshWord));
-        }
-      else
-        {
-          work_allocated = FALSE;
-          work           = work_space;
-          /* Advance the working space. */
-          work_space    += work_n;
-          work_space_n  -= work_n;
-        }
-
-      x = work;
-      y = x + x_n;
-      z = y + y_n;
-      t = z + z_n;
-
-      /* Compute x = u1^2 */
-      x_n = u1_n * 2 + 1;
-      ssh_mpn_memzero(x, x_n);
-      ssh_mpn_square_karatsuba(x, x_n, u1, u1_n,
-                               work_space, work_space_n);
-      /* Check size. */
-      while (x_n && x[x_n - 1] == 0)
-        x_n--;
-      
-      /* Compute y = u0^2 */
-      y_n = u0_n * 2 + 1;
-      ssh_mpn_memzero(y, y_n);
-      ssh_mpn_square_karatsuba(y, y_n, u0, u0_n,
-                               work_space, work_space_n);
-      /* Check size. */
-      while (y_n && y[y_n - 1] == 0)
-        y_n--;
-      
-      /* Compute t = u1 - u0. Note that we do not need to remember the
-         sign of this computation.
-
-         It should be reasonably rare occurance that u1 < u0, but
-         there is really no need to try to avoid it by selecting the
-         division point "better".
-         */
-      t_n = u1_n;
-      ssh_mpn_memzero(t, t_n);
-      if (ssh_mpn_cmp(u1, u1_n, u0, u0_n) >= 0)
-        ssh_mpn_sub(t, u1, u1_n, u0, u0_n);
-      else
-        ssh_mpn_sub(t, u0, u0_n, u1, u1_n);
-      /* Check size. */
-      while (t_n && t[t_n - 1] == 0)
-        t_n--;
-      
-      /* Compute z = u1^2 */
-      z_n = t_n * 2 + 1;
-      ssh_mpn_memzero(z, z_n);
-      ssh_mpn_square_karatsuba(z, z_n, t, t_n,
-                               work_space, work_space_n);
-      /* Check size. */
-      while (z_n && z[z_n - 1] == 0)
-        z_n--;
-
-      /* (u1*b + u0)^2 = u1^2*(b^2 + b) + u0^2 * (b + 1) - (u1 - u0)^2 * b
-
-         x = u1^2
-         y = u0^2
-         t = u1 - u0
-         z = t^2
-       */
-
-      /* Copy the x up there. */
-      ssh_mpn_memcopy(ret + div_n * 2, x, x_n);
-      ssh_mpn_add(ret + div_n, ret + div_n, ret_n - div_n,
-              x, x_n);
-      ssh_mpn_add(ret + div_n, ret + div_n, ret_n - div_n,
-              y, y_n);
-      ssh_mpn_add(ret, ret, ret_n,
-              y, y_n);
-
-      /* Subtract last to be assured that we cannot get negative. */
-      ssh_mpn_sub(ret + div_n, ret + div_n, ret_n - div_n,
-              z, z_n);
-
-      /* Finished. */
-      if (work_allocated == TRUE)
-        ssh_xfree(work); 
-    }
-}
-
-#else 
-
-/* Compute amount of memory needed for the Karatsuba squaring to
-   work. This is recursive, but could be written out probably as
-   a simple formula. */
-unsigned int ssh_mpn_square_karatsuba_needed_memory(unsigned int op_n)
-{
-  unsigned int work_n, div_n;
-  
-  /* If smaller than the threshold. */
-  if (op_n < SSH_MPN_SQUARE_KARATSUBA_THRESHOLD)
-    return 0;
-
-  /* Select nearly optimal sizes. */
-  div_n = op_n/2;
-  work_n = ((div_n + 1) * 2 + 1)*4;
-
-  /* Compute recursively the amount of memory needed! */
-  work_n += ssh_mpn_square_karatsuba_needed_memory((op_n - div_n) + 1);
-  work_n += ssh_mpn_square_karatsuba_needed_memory(op_n - div_n);
-  work_n += ssh_mpn_square_karatsuba_needed_memory(op_n - div_n);
-
-  return work_n;
-}
-
-/* This is the algorithm due to Saarinen. */
-void ssh_mpn_square_karatsuba(SshWord *ret, unsigned int ret_n,
-                              SshWord *op,  unsigned int op_n,
-                              SshWord *work_space, unsigned int work_space_n)
-{
-  if (op_n < SSH_MPN_SQUARE_KARATSUBA_THRESHOLD)
-    {
-      /* Lets call the school squaring algorithm. */
-      ssh_mpn_square(ret, ret_n, op, op_n);
-    }
-  else
-    {
-      SshWord *u0, *u1, *x, *y, *z, *t, *work, c;
-      unsigned int u0_n, u1_n, x_n, y_n, z_n, work_n, div_n, t_n;
-      Boolean work_allocated;
-      
-      /* Select nearly optimal sizes. */
-      div_n = op_n / 2;
-
-      /* Compute divided parts. */
-      u1 = op + div_n;
-      u1_n = op_n - div_n;
-      u0 = op;
-      u0_n = div_n;
-
-      /* Compute lengths for partial values. */
-      x_n = (div_n + 1) * 2 + 1;
-      y_n = (div_n + 1) * 2 + 1;
-      z_n = (div_n + 1) * 2 + 1;
-      t_n = (div_n + 1) * 2 + 1;
-      work_n = x_n + y_n + z_n + t_n;
-
-      /* Allocate working space. */
-      if (work_space == NULL || work_space_n < work_n)
-        {
-          work_allocated = TRUE;
-          work           = ssh_xmalloc(work_n * sizeof(SshWord));
-        }
-      else
-        {
-          work_allocated = FALSE;
-          work           = work_space;
-          work_space    += work_n;
-          work_space_n  -= work_n;
-        }
-
-      x = work;
-      y = x + x_n;
-      z = y + y_n;
-      t = z + z_n;
-
-      /* Compute x = (u1 + u0)^2 */
-      t_n = u1_n;
-      ssh_mpn_memzero(t, t_n);
-      c = ssh_mpn_add(t, u1, u1_n, u0, u0_n);
-      if (c)
-        {
-          t[t_n] = 1;
-          t_n++;
-        }
-      else
-        /* Check size. */
-        while (t_n && t[t_n - 1] == 0)
-          t_n--;
-
-      x_n = t_n * 2 + 1;
-      ssh_mpn_memzero(x, x_n);
-      ssh_mpn_square_karatsuba(x, x_n, t, t_n,
-                               work_space, work_space_n);
-      
-      /* Compute y = (u1 - u0)^2 */
-      t_n = u1_n;
-      ssh_mpn_memzero(t, u1_n);
-      if (ssh_mpn_cmp(u1, u1_n, u0, u0_n) >= 0)
-        ssh_mpn_sub(t, u1, u1_n, u0, u0_n);
-      else
-        ssh_mpn_sub(t, u0, u0_n, u1, u1_n);
-      /* Check size. */
-      while (t_n && t[t_n - 1] == 0)
-        t_n--;
-
-      y_n = t_n * 2 + 1;
-      ssh_mpn_memzero(y, y_n);
-      ssh_mpn_square_karatsuba(y, y_n, t, t_n,
-                               work_space, work_space_n);
-      
-      /* Compute z = u1^2 */
-      z_n = u1_n * 2 + 1;
-      ssh_mpn_memzero(z, z_n);
-      ssh_mpn_square_karatsuba(z, z_n, u1, u1_n,
-                               work_space, work_space_n);
-
-      /* Add things up. Clean this! XXX */
-     
-      /* u^2 = z*b^2 + ((x - y)/2)*b + ((x + y)/2 - z) */
-
-      /* Check sizes. */
-      while (x_n && x[x_n - 1] == 0)
-        x_n--;
-      while (y_n && y[y_n - 1] == 0)
-        y_n--;
-      while (z_n && z[z_n - 1] == 0)
-        z_n--;
-
-      /* Compute t = (x + y)/2 and x = (x - y)/2. */
-      t_n = x_n;
-      c = ssh_mpn_add(t, x, x_n, y, y_n);
-      ssh_mpn_sub(x, x, x_n, y, y_n);
-
-      /* Handle possible carry. And correct sizes. */
-      if (c)
-        {
-          t[t_n] = 1;
-          t_n++;
-        }
-      else
-        while (t_n && t[t_n - 1] == 0)
-          t_n--;
-      
-      while (x_n && x[x_n - 1] == 0)
-        x_n--;
-
-      /* u^2 = z*b^2 + x*b + (t - z) */
-
-      /* Shift down, that is divide by 2. */
-      ssh_mpn_memcopy(ret + div_n, x, x_n);
-      ssh_mpn_add(ret, ret, div_n + x_n, t, t_n);
-
-      /* Correct the size. */
-      t_n = div_n + x_n + 1;
-      while (t_n && ret[t_n - 1] == 0)
-        t_n--;
-
-      /* Divide by 2. */
-      ssh_mpn_shift_down_bits(ret, t_n, 1);
-
-      /* Compute the rest. */
-      
-      /* Add and subtract z. */
-      ssh_mpn_add(ret + div_n * 2, ret + div_n * 2, ret_n - div_n * 2,
-              z, z_n);
-      ssh_mpn_sub(ret, ret, ret_n, z, z_n);
-
-      /* Finished. */
-      if (work_allocated == TRUE)
-        ssh_xfree(work); 
-    }
-}
-
-#endif
-
-/* Compute the needed memory for the Karatsuba multiplication. */
-unsigned int ssh_mpn_mul_karatsuba_needed_memory(unsigned int op1_n,
-                                                 unsigned int op2_n)
-{
-  unsigned int u0_n, u1_n, v0_n, v1_n, work_n, div_n, uv1_n, uv0_n,
-    um_n, vm_n, vum_n;
-  
-  /* Check for threshold. */
-  if (op1_n < SSH_MPN_MUL_KARATSUBA_THRESHOLD ||
-      op2_n < SSH_MPN_MUL_KARATSUBA_THRESHOLD)
-    return 0;
-
-  if (op1_n < op2_n)
-    div_n = op1_n / 2;
-  else
-    div_n = op2_n / 2;
-
-  /* Compute sizes and positions to make things much clearer later.
-     Compiler will interleave these if it is any good? */
-  u0_n = div_n;
-  u1_n = op1_n - div_n;
-  v0_n = div_n;
-  v1_n = op2_n - div_n;
-  
-  /* We need some working space. */
-  uv1_n = u1_n + v1_n + 1;
-  uv0_n = u0_n + u0_n + 1;
-  um_n  = u1_n + 1;
-  vm_n  = v1_n + 1;
-  vum_n = um_n + vm_n + 1;
-  
-  /* Add up all sizes. */
-  work_n = uv1_n + uv0_n + um_n + vm_n + vum_n;
-
-  /* Compute the recursive effect! */
-  work_n += ssh_mpn_mul_karatsuba_needed_memory(u1_n, v1_n);
-  work_n += ssh_mpn_mul_karatsuba_needed_memory(u0_n, v0_n);
-  work_n += ssh_mpn_mul_karatsuba_needed_memory(um_n, vm_n);
-
-  /* Return the amount of memory used in total. */
-  return work_n;
-}
-
-/* Karatsuba multiplication. This is basically a recursive function, which
-   divides each input into two and calls itself until ready for
-   school multiplication. */
-void ssh_mpn_mul_karatsuba(SshWord *ret, unsigned int ret_n,
-                           SshWord *op1, unsigned int op1_n,
-                           SshWord *op2, unsigned int op2_n,
-                           SshWord *work_space, unsigned int work_space_n)
-{
-  if (op1_n < SSH_MPN_MUL_KARATSUBA_THRESHOLD ||
-      op2_n < SSH_MPN_MUL_KARATSUBA_THRESHOLD)
-    {
-      /* Call ssh_mpn_mul in such a way that the faster loop runs longer. */
-      if (op1_n < op2_n)
-        ssh_mpn_mul(ret, ret_n, op1, op1_n,
-                op2, op2_n);
-      else
-        ssh_mpn_mul(ret, ret_n, op2, op2_n,
-                op1, op1_n);
-    }
-  else
-    {
-      SshWord *u0, *u1, *v0, *v1, *work;
-      unsigned int u0_n, u1_n, v0_n, v1_n, work_n, div_n, uv1_n, uv0_n,
-        um_n, vm_n, vum_n;
-      SshWord *uv1, *uv0, *um, *vm, *vum;
-      Boolean vm_sign = FALSE, um_sign = FALSE, vum_sign, work_allocated;
-      
-      /*
-        Let
-
-        u = u0 + u1*b
-        v = v0 + v1*b
-        b is the word size (e.g. 2^32)
-        
-        Karatsuba multiplication algorithm:
-        
-        u * v = (b^2 + b) * u1 * v1 + b*(u1 - u0)*(v0 - v1) + (b + 1) * v0 * u0
-
-     */
-
-      if (op1_n < op2_n)
-        div_n = op1_n / 2;
-      else
-        div_n = op2_n / 2;
-
-      /* Compute sizes and positions to make things much clearer later.
-         Compiler will interleave these if it is any good? */
-      u0   = op1;
-      v0   = op2;
-      u1   = op1 + div_n;
-      v1   = op2 + div_n;
-      u0_n = div_n;
-      u1_n = op1_n - div_n;
-      v0_n = div_n;
-      v1_n = op2_n - div_n;
-
-      /* We need some working space. */
-      uv1_n = u1_n + v1_n + 1;
-      uv0_n = u0_n + v0_n + 1;
-      um_n  = u1_n + 1;
-      vm_n  = v1_n + 1;
-      vm_sign = FALSE;
-      vum_n = um_n + vm_n + 1;
-
-      /* Add up all sizes. */
-      work_n = uv1_n + uv0_n + vum_n + vm_n + um_n;
-
-      /* Allocate space with ssh_xmalloc which should be fast enough. */
-      if (work_space == NULL || work_space_n < work_n)
-        {
-          work_allocated = TRUE;
-          work           = ssh_xmalloc(sizeof(SshWord) * work_n);
-        }
-      else
-        {
-          work_allocated = FALSE;
-          work           = work_space;
-          work_space    += work_n;
-          work_space_n  -= work_n;
-        }
-
-      /* Divide amongst the intermediate variables. */
-      uv1 = work;
-      uv0 = uv1 + uv1_n;
-      um  = uv0 + uv0_n;
-      vm  = um  + um_n;
-      vum = vm  + vm_n;
-      
-      /* Compute u1 * v1 */
-      ssh_mpn_memzero(uv1, uv1_n);
-      ssh_mpn_mul_karatsuba(uv1, uv1_n, u1, u1_n, v1, v1_n,
-                            work_space, work_space_n);
-
-      /* Compute u0 * v0 */
-      ssh_mpn_memzero(uv0, uv0_n);
-      ssh_mpn_mul_karatsuba(uv0, uv0_n, u0, u0_n, v0, v0_n,
-                            work_space, work_space_n);
-      
-      /* Compute (u1 - u0) * (v0 - v1) */
-      if (ssh_mpn_cmp(u1, u1_n, u0, u0_n) >= 0)
-        {
-          ssh_mpn_sub(um, u1, u1_n, u0, u0_n);
-          um_n = u1_n;
-          um_sign = FALSE;
-        }
-      else
-        {
-          ssh_mpn_sub(um, u0, u0_n, u1, u1_n);
-          um_n = u0_n;
-          um_sign = TRUE;
-        }
-
-      /* Check size. */
-      while (um_n && um[um_n - 1] == 0)
-        um_n--;
-      
-      if (ssh_mpn_cmp(v0, v0_n, v1, v1_n) >= 0)
-        {
-          ssh_mpn_sub(vm, v0, v0_n, v1, v1_n);
-          vm_n = v0_n;
-          vm_sign = FALSE;
-        }
-      else
-        {
-          ssh_mpn_sub(vm, v1, v1_n, v0, v0_n);
-          vm_n = v1_n;
-          vm_sign = TRUE;
-        }
-      
-      /* Check size. */
-      while (vm_n && vm[vm_n - 1] == 0)
-        vm_n--;
-      
-      /* Multiply. */
-      vum_n = um_n + vm_n + 1;
-      ssh_mpn_memzero(vum, vum_n);
-      ssh_mpn_mul_karatsuba(vum, vum_n, um, um_n, vm, vm_n,
-                            work_space, work_space_n);
-      vum_sign = um_sign ^ vm_sign;
-
-      /* Check size. */
-      while (vum_n && vum[vum_n - 1] == 0)
-        vum_n--;
-      
-      /*
-        u * v = (b^2 + b) * u1 * v1 + b*(u1 - u0)*(v0 - v1) + (b + 1) * v0 * u0
-        */
-
-      /* Add up. */
-      
-      ssh_mpn_memcopy(ret + div_n * 2, uv1, uv1_n);
-      ssh_mpn_add(ret + div_n, ret + div_n, ret_n - div_n,
-              uv0, uv0_n);
-      ssh_mpn_add(ret + div_n, ret + div_n, ret_n - div_n,
-              uv1, uv1_n);
-      ssh_mpn_add(ret, ret, ret_n, uv0, uv0_n);
-
-      /* The middle place with either subtraction or addition. */
-      if (vum_sign)
-        ssh_mpn_sub(ret + div_n, ret + div_n, ret_n - div_n,
-                vum, vum_n);
-      else
-        ssh_mpn_add(ret + div_n, ret + div_n, ret_n - div_n,
-                vum, vum_n);
-
-      /* Finished. */
-      if (work_allocated == TRUE)
-        ssh_xfree(work);
-    }
-}
-
-/* Compute the number of leading zero bits. This is useful with
-   division, especially when needing normalization. */
-unsigned int ssh_mpn_leading_zeros(SshWord *d, unsigned int d_n)
-{
-  SshWord r, v;
-
-  /* Quick check. */
-  v = d[d_n - 1];
-  if (v & ((SshWord)1 << (SSH_WORD_BITS - 1)))
-    return 0;
-
-  r = 0;
-  SSH_MP_COUNT_LEADING_ZEROS(r, v);
-  return r;
-}
-
-/* Basic division of an large integer. Returns quotient in q and
-   remainder in r. r should be set to the dividend when called.
-   This algorithm is derived from HAC. */
-void ssh_mpn_div(SshWord *q, unsigned int q_n,
-                 SshWord *r, unsigned int r_n,
-                 SshWord *d, unsigned int d_n)
-{
-  unsigned int i;
-  SshWord div, divl, rem, quot, c2, c1, c, rh, rl, rll;
-#ifndef SSHMATH_ASSEMBLER_SUBROUTINES
-  unsigned int j;
-  SshWord *tmp, k, t;
-#endif
-
-  /* We'd like to have optimized cases for all lengths of divisor, but
-     that's impossible. Instead we have separated the trivial cases,
-     and we'll do most of the work in the default case. */
-  switch (d_n)
-    {
-    case 0:
-      /* Divide by zero. */
-      ssh_fatal("ssh_mpn_div: divide by zero.");
-      break;
-
-      /* This should be very fast, one could even check for some
-         special divisors. Same algorithm is basically used later
-         in some functions. */
-    case 1:
-      div = d[0];
-      rem = 0;
-      for (i = r_n; i; i--)
-        SSH_MP_LONG_DIV(q[i - 1], rem, rem, r[i - 1], div);
-      r[0] = rem;
-      break;
-
-      /* Other small cases? 2, 3, 4, ... would these speed things up
-         in some particular cases? Probably, considering that some of
-         our applications use integers of size 200 bits, and 64*4 >
-         200. */
-      
-      /* General case, with very large divisors. */
-    default:
-      
-      /* Reduce n such that n < d_n*b^(n_n - d_n). This step should be
-         performed only once if everything goes nicely. Notice that
-         this step also ensures that our macro for division
-         will work. */
-
-      if (ssh_mpn_cmp(r + (r_n - d_n), d_n, d, d_n) >= 0)
-        {
-          ssh_mpn_sub(r + (r_n - d_n), r + (r_n - d_n), d_n, d, d_n);
-          q[r_n - d_n] = 1;
-        }
-
-      /* Main loop of division code. */
-      for (i = r_n, div = d[d_n - 1], divl = d[d_n - 2]; i > d_n; i--)
-        {
-          rh = r[i - 1];
-          rl = r[i - 2];
-
-          /* This test makes it possible to use this loop for division
-             of less than 3 word numbers. Otherwise we'd need to write
-             special case routine. Which would be faster though. */
-            
-          if (i >= 3)
-            rll = r[i - 3];
-          else
-            rll = 0;
-          
-          if (rh == div)
-            quot = -1;
-          else
-            {
-              /* Idea here is to compute:
-
-                 quot = (xh*b + xl) / yh
-                 rem  = (xh*b + xl) % yh
-
-                 then
-
-                 c = quot * yl
-
-                 now we can check if
-
-                 quot * (yh*b + yl) > xh*b^2 + xl*b + xll
-
-                 by checking when
-
-                 quot*yl + quot * yh*b > xh*b^2 + xl*b + xll
-
-                 <=>
-
-                 c + xh*b^2 + xl*b - rem*b > xh*b^2 + xl*b + xll
-
-                 <=>
-
-                 c - rem*b > xll
-
-                 Now we can easily work with only one division and
-                 one multiplication to get the quot correct.
-                 
-                 */
-
-              SSH_MP_LONG_DIV(quot, rem, rh, rl, div);
-              SSH_MP_LONG_MUL(c2, c1, quot, divl);
-
-              /* Now reduce quot, until it is correct. This loop is
-                 correct, because c - rem*b > xll iff c2 > rem or
-                 c2 == rem and c1 > n[i - 2], otherwise c - rem*b is equal
-                 or less than xll.
-
-                 The reduction of c and rem can be performed without slow
-                 arithmetic because
-
-                 c = quot*yh
-
-                 that is
-
-                 c = (quot - 1)*yl =  quot * yl - yl
-
-                 and
-
-                 rem = (xh*b + xl) % yh
-
-                 thus
-
-                 rem = xh*b + xl - quot*yh
-
-                 now 
-
-                     rem = xh*b + xl - (quot - 1)*yh
-                 <=> rem = xh*b + xl - quot*yh + yh
-                 <=> rem = rem + yh
-
-                 which is what we are after.
-                 */
-
-              while (c2 > rem || (c2 == rem && c1 > rll))
-                {
-                  quot--;
-
-                  rem += div;
-                  if (rem < div)
-                    break;
-
-                  if (c1 < divl)
-                    c2--;
-                  c1 -= divl;
-                }
-            }
-#ifdef SSHMATH_ASSEMBLER_SUBROUTINES
-          c = ssh_mpn_submul(r + i - d_n - 1, quot, d, d_n);
-#else /* SSHMATH_ASSEMBLER_SUBROUTINES */
-          
-          /* Now we have a "quot" which is almost correct (possibly 1
-             too large). And can thus compute quickly a suitable
-             multiple of d such that we can reduce the dividend.  */
-
-          for (j = 0, c = 0, tmp = r + i - d_n - 1; j < d_n; j++)
-            {
-              SSH_MP_LONG_MUL(c2, c1, d[j], quot);
-
-              /* We use here the carry along the way. That is we don't need
-                 to loop at all, but just to keep track of the carry
-                 until the end of the run. */
-              c1 += c;
-              if (c1 < c)
-                c2++;
-              c = c2;
-
-              /* Now compute the actual word to place in appropriate place. */
-              k = tmp[j];
-              t = k - c1;
-              if (t > k)
-                c++;
-              tmp[j] = t;
-            }
-#endif /* SSHMATH_ASSEMBLER_SUBROUTINES */
-
-          /* Add if negative to make positive. E.g. this is the
-             final correction phase, after the "quot" must be correct. */
-          if (rh < c)
-            {
-              ssh_mpn_add(r + (i - d_n - 1), r + (i - d_n - 1), d_n, d, d_n);
-              quot--;
-            }
-          
-          q[i - d_n - 1] = quot;
-        }
-      break;
-    }
-}
-
-/* Simple proof for the following algorithm (we have used it before already). 
-
-   input: k of n words
-
-   Computation:
-     q * d + r = k
-   where r is a one word remainder.
-
-   Now, k - q*d = r and given division of 2 word by 1 word we can compute
-
-       div(q_0, r_0, 0, k_n-1, d)
-   <=> k_n-1 = q_0*d + r_0
-
-   then
-   
-       div(q_1, r_1, r_0, k_n-2, d)
-   <=> r_0*b + k_n-2 = q_1*d + r_1
-
-   and thus
-
-       (k_n-1 - q_0*d)*b + k_n-2 = q_1*d + r_1
-   <=> k_n-1*b + k_n-2 = (q_0*b + q_1)*d + r_1
-
-   now by induction this holds until the end. That is, we get the
-   remainder as r_n-1 and quotients in (wrong) order q_0...q_n-1.
- */
-
-/* Note, the 'r' here is not altered, although it basically would
-   contain the remainder if computed in above way. */
-SshWord ssh_mpn_div_ui(SshWord *q, unsigned int q_n,
-                       SshWord *r, unsigned int r_n,
-                       SshWord d)
-{
-  unsigned int i;
-  SshWord rem;
-  
-  rem = 0;
-  for (i = r_n; i; i--)
-    SSH_MP_LONG_DIV(q[i - 1], rem, rem, r[i - 1], d);
-  return rem;
-}
-
-/* This works as the one above. */
-SshWord ssh_mpn_mod_ui(SshWord *r, unsigned int r_n,
-                       SshWord d)
-{
-  unsigned int i;
-  SshWord rem, t;
-  
-  rem = 0;
-  for (i = r_n; i; i--)
-    SSH_MP_LONG_DIV(t, rem, rem, r[i - 1], d);
-  return rem;  
-}
-
-/* Computation of the remainder in a way that ignores the quotient altogether.
-   Makes allocation easier for the ssh_mp_mod. Might be a bit faster than
-   the ssh_mpn_div however, main point is to reduce allocation. */
-void ssh_mpn_mod(SshWord *r, unsigned int r_n,
-                 SshWord *d, unsigned int d_n)
-{
-  unsigned int i;
-  SshWord div, divl, rem, quot, c2, c1, c, t, rh, rl, rll;
-#ifndef SSHMATH_ASSEMBLER_SUBROUTINES
-  unsigned int j;
-  SshWord *tmp, k;
-#endif
-
-  /* We'd like to have optimized cases for all lengths of divisor. */
-  switch (d_n)
-    {
-    case 0:
-      /* Divide by zero. */
-      ssh_fatal("ssh_mpn_mod: divide by zero.");
-      break;
-
-      /* This should be very fast, one could even check for some
-         special divisors. */
-    case 1:
-      div = d[0];
-      rem = 0;
-      for (i = r_n; i; i--)
-        SSH_MP_LONG_DIV(t, rem, rem, r[i - 1], div);
-      r[0] = rem;
-      break;
-
-      /* Other small cases? 2, 3, 4, ... would these speed things
-         up in some particular cases. */
-      
-      /* General case, with very large divisors. */
-    default:
-      /* Reduce n such that n < d_n*b^(n_n - d_n). This step should be
-         performed only once if everything goes nicely. */
-
-      if (ssh_mpn_cmp(r + (r_n - d_n), d_n, d, d_n) >= 0)
-        ssh_mpn_sub(r + (r_n - d_n), r + (r_n - d_n), d_n, d, d_n);
-
-      for (i = r_n, div = d[d_n - 1], divl = d[d_n - 2]; i > d_n; i--)
-        {
-          rh = r[i - 1];
-          rl = r[i - 2];
-            
-          if (i >= 3)
-            rll = r[i - 3];
-          else
-            rll = 0;
-          
-          if (rh == div)
-            quot = -1;
-          else
-            {
-              /* See ssh_mpn_div for further comments. */
-                 
-              SSH_MP_LONG_DIV(quot, rem, rh, rl, div);
-              SSH_MP_LONG_MUL(c2, c1,  quot, divl);
-              
-              while (c2 > rem || (c2 == rem && c1 > rll))
-                {
-                  quot--;
-                  
-                  rem += div;
-                  if (rem < div)
-                    break;
-
-                  if (c1 < divl)
-                    c2--;
-                  c1 -= divl;
-                }
-            }
-
-#ifdef SSHMATH_ASSEMBLER_SUBROUTINES
-          c = ssh_mpn_submul(r + i - d_n - 1, quot, d, d_n);
-#else /* SSHMATH_ASSEMBLER_SUBROUTINES */
-          
-          /* Use assembler subroutine here if possible. */
-          
-          for (j = 0, c = 0, tmp = r + i - d_n - 1; j < d_n; j++)
-            {
-              SSH_MP_LONG_MUL(c2, c1, d[j], quot);
-
-              c1 += c;
-              if (c1 < c)
-                c2++;
-              c = c2;
-
-              /* Now compute the actual word to place in appropriate place. */
-              k = tmp[j];
-              t = k - c1;
-              if (t > k)
-                c++;
-              tmp[j] = t;
-            }
-#endif /* SSHMATH_ASSEMBLER_SUBROUTINES */
-
-          /* Add if negative to make positive. */
-          if (rh < c)
-            ssh_mpn_add(r + (i - d_n - 1), r + (i - d_n - 1), d_n, d, d_n);
-        }
-      break;
-    }
-}
-
-#if 0
-
-/* These functions are not yet written, due they are of lesser importance.
-   However, they are important in many applications, and should probably
-   be included to future versions. */
-
-/* XXX We implement these as special functions because we are after optimal
-   speed. */
-
-int ssh_mpn_mod_fermat(SshWord *r,
-                       SshWord *op, int op_n,
-                       SshWord n)
-{
-}
-
-int ssh_mpn_mod_mersenne(SshWord *r,
-                         SshWord *op, int op_n,
-                         SshWord n)
-{
-}
-
-int ssh_mpn_mod_special(SshWord *r,
-                        SshWord *op, int op_n,
-                        SshWord n, SshWord c,
-                        Boolean sign)
-{
-}
-
-/* The standard binary GCD. XXX */
-void ssh_mpn_gcd(SshWord *gcd, unsigned int gcd_n,
-                 SshWord *x,   unsigned int x_n,
-                 SshWord *y,   unsigned int y_n)
-{
-  unsigned int g;
-  /* Divide with two if both are even. */
-
-  g = 0;
-  while ((x[0] & 0x1) == 0 && (y[0] & 0x1) == 0)
-    {
-      ssh_mpn_shift_down_bits(x, x_n, 1);
-      ssh_mpn_shift_down_bits(y, y_n, 1);
-      g++;
-    }
-  
-  while (ssh_mpn_cmp_ui(x, x_n, 0) != 0)
-    {
-      if (!(x[0] & 0x1))
-        ssh_mpn_shift_down_bits(x, x_n, 1);
-      if (!(y[0] & 0x1))
-        ssh_mpn_shift_down_bits(y, y_n, 1);
-
-      /* We want to compute:
-
-         t = |x - y|/2
-
-         and then set
-
-         x = t
-
-         or
-
-         y = t, depending which is larger. */
-         
-      if (ssh_mpn_cmp(x, x_n, y, y_n) >= 0)
-        {
-          /* This was easy. */
-          ssh_mpn_sub(x, x, x_n, y, y_n);
-          ssh_mpn_shift_down_bits(x, x_n, 1);
-        }
-      else
-        {
-          /* Now the other way around. */
-          ssh_mpn_sub(y, y, y_n, x, x_n);
-          ssh_mpn_shift_down_bits(y, y_n, 1);
-        }
-    }
-  
-  /* Result is in y. Shift it up a bit. */
-  while (g)
-    {
-      ssh_mpn_shift_up_bits(y, y_n, 1);
-      g--;
-    }
-
-  /* Set to ret. */
-  ssh_mpn_memcopy(gcd, y, y_n);
-}
-
-/* Fast inversion... */
-void ssh_mpn_invert()
-{
-}
-
-#endif
 
 /********** Routines for handling variable length integers *****/
 
@@ -2471,7 +252,7 @@ void ssh_mp_realloc(SshInt *op, unsigned int new_size)
 
       /* Allocate, copy and clear the rest. */
       nv = ssh_xmalloc((size_t)new_size * sizeof(SshWord));
-      ssh_mpn_memcopy(nv, op->v, op->n);
+      ssh_mpk_memcopy(nv, op->v, op->n);
 
       /* Free the old one. */
       ssh_xfree(op->v);
@@ -2543,7 +324,7 @@ void ssh_mp_set(SshInt *ret, const SshInt *op)
   ssh_mp_realloc(ret, op->n);
 
   /* Copy */
-  ssh_mpn_memcopy(ret->v, op->v, op->n);
+  ssh_mpk_memcopy(ret->v, op->v, op->n);
   ret->n = op->n;
   SSH_MP_COPY_SIGN(ret, op);
 }
@@ -2680,7 +461,7 @@ void ssh_mp_mul_2exp(SshInt *ret, const SshInt *op, unsigned int bits)
 
   /* Set the possible highest word to zero. */
   ret->v[k + ret->n] = 0;
-  ssh_mpn_shift_up_bits(ret->v + k, ret->n + 1, bits);
+  ssh_mpk_shift_up_bits(ret->v + k, ret->n + 1, bits);
 
   /* Compute the correct size. */
   ret->n = ret->n + k + 1;
@@ -2727,7 +508,7 @@ void ssh_mp_div_2exp(SshInt *ret, const SshInt *op, unsigned int bits)
     for (i = 0; i < ret->n - k; i++)
       ret->v[i] = ret->v[i + k];
 
-  ssh_mpn_shift_down_bits(ret->v, ret->n - k, bits);
+  ssh_mpk_shift_down_bits(ret->v, ret->n - k, bits);
 
   /* Compute new size. */
   ret->n = ret->n - k;
@@ -2777,9 +558,10 @@ void ssh_mp_mod_2exp(SshInt *ret, const SshInt *op, unsigned int bits)
     SSH_MP_NO_SIGN(ret);
 }
 
-/* Comparison function which use directly the ssh_mpn_* functions. */
+/* Comparison function which use directly the ssh_mpk_* functions. */
 int ssh_mp_cmp(const SshInt *op1, const SshInt *op2)
 {
+  int rv;
   /* Handle signs. */
   if (SSH_MP_GET_SIGN(op1) || SSH_MP_GET_SIGN(op2))
     {
@@ -2788,18 +570,23 @@ int ssh_mp_cmp(const SshInt *op1, const SshInt *op2)
       if (!SSH_MP_GET_SIGN(op1) && SSH_MP_GET_SIGN(op2))
         return 1;
     }
-  return ssh_mpn_cmp(op1->v, op1->n, op2->v, op2->n);
+  rv = ssh_mpk_cmp(op1->v, op1->n, op2->v, op2->n);
+  if (SSH_MP_GET_SIGN(op1) || SSH_MP_GET_SIGN(op2))
+    rv = -rv;
+  return rv;
 }
 
 int ssh_mp_cmp_ui(const SshInt *op, SshWord u)
 {
   if (SSH_MP_GET_SIGN(op))
     return -1;
-  return ssh_mpn_cmp_ui(op->v, op->n, u);
+  return ssh_mpk_cmp_ui(op->v, op->n, u);
 }
 
 int ssh_mp_cmp_si(const SshInt *op, SignedSshWord s)
 {
+  int rv;
+  SshWord sw;
   if (SSH_MP_GET_SIGN(op) || (s < 0))
     {
       if (SSH_MP_GET_SIGN(op) && (s >= 0))
@@ -2808,9 +595,14 @@ int ssh_mp_cmp_si(const SshInt *op, SignedSshWord s)
         return 1;
       /* Make s positive. */
       if (s < 0)
-        s = -s;
+        sw = (SshWord)(-s);
     }
-  return ssh_mpn_cmp_ui(op->v, op->n, (SshWord)s);
+  else
+    sw = (SshWord)s;
+  rv = ssh_mpk_cmp_ui(op->v, op->n, sw);
+  if (SSH_MP_GET_SIGN(op) && (s < 0))
+    rv = -rv;
+  return rv;
 }
 
 /* Addition routine which handles signs. */
@@ -2830,8 +622,7 @@ void ssh_mp_add(SshInt *ret, const SshInt *op1, const SshInt *op2)
       ssh_mp_set(ret, op1);
       return;
     }
-    
-  
+      
   /* Make op1 > op2 in absolute value. Also enlarge ret so that the
      result fits into it. */
 
@@ -2853,7 +644,7 @@ void ssh_mp_add(SshInt *ret, const SshInt *op1, const SshInt *op2)
   switch ((SSH_MP_GET_SIGN(op1) << 1) + SSH_MP_GET_SIGN(op2))
     {
     case 0:
-      c = ssh_mpn_add(ret->v, op1->v, op1->n, op2->v, op2->n);
+      c = ssh_mpk_add(ret->v, op1->v, op1->n, op2->v, op2->n);
       if (c)
         {
           ret->v[op1->n] = c;
@@ -2864,33 +655,33 @@ void ssh_mp_add(SshInt *ret, const SshInt *op1, const SshInt *op2)
       SSH_MP_NO_SIGN(ret);
       break;
     case 1:
-      if (ssh_mpn_cmp(op1->v, op1->n, op2->v, op2->n) >= 0)
+      if (ssh_mpk_cmp(op1->v, op1->n, op2->v, op2->n) >= 0)
         {
-          ssh_mpn_sub(ret->v, op1->v, op1->n, op2->v, op2->n);
+          ssh_mpk_sub(ret->v, op1->v, op1->n, op2->v, op2->n);
           SSH_MP_NO_SIGN(ret);
         }
       else
         {
-          ssh_mpn_sub(ret->v, op2->v, op2->n, op1->v, op1->n);
+          ssh_mpk_sub(ret->v, op2->v, op2->n, op1->v, op1->n);
           SSH_MP_SET_SIGN(ret);
         }
       ret->n = op1->n;
       break;
     case 2:
-      if (ssh_mpn_cmp(op1->v, op1->n, op2->v, op2->n) >= 0)
+      if (ssh_mpk_cmp(op1->v, op1->n, op2->v, op2->n) >= 0)
         {
-          ssh_mpn_sub(ret->v, op1->v, op1->n, op2->v, op2->n);
+          ssh_mpk_sub(ret->v, op1->v, op1->n, op2->v, op2->n);
           SSH_MP_SET_SIGN(ret);
         }
       else
         {
-          ssh_mpn_sub(ret->v, op2->v, op2->n, op1->v, op1->n);
+          ssh_mpk_sub(ret->v, op2->v, op2->n, op1->v, op1->n);
           SSH_MP_NO_SIGN(ret);
         }
       ret->n = op1->n;
       break;
     case 3:
-      c = ssh_mpn_add(ret->v, op1->v, op1->n, op2->v, op2->n);
+      c = ssh_mpk_add(ret->v, op1->v, op1->n, op2->v, op2->n);
       if (c)
         {
           ret->v[op1->n] = c;
@@ -2956,7 +747,7 @@ void ssh_mp_sub(SshInt *ret, const SshInt *op1, const SshInt *op2)
   switch (signs)
     {
     case 0:
-      c = ssh_mpn_add(ret->v, op1->v, op1->n, op2->v, op2->n);
+      c = ssh_mpk_add(ret->v, op1->v, op1->n, op2->v, op2->n);
       if (c)
         {
           ret->v[op1->n] = c;
@@ -2968,33 +759,33 @@ void ssh_mp_sub(SshInt *ret, const SshInt *op1, const SshInt *op2)
       SSH_MP_NO_SIGN(ret);
       break;
     case 1:
-      if (ssh_mpn_cmp(op1->v, op1->n, op2->v, op2->n) >= 0)
+      if (ssh_mpk_cmp(op1->v, op1->n, op2->v, op2->n) >= 0)
         {
-          ssh_mpn_sub(ret->v, op1->v, op1->n, op2->v, op2->n);
+          ssh_mpk_sub(ret->v, op1->v, op1->n, op2->v, op2->n);
           SSH_MP_NO_SIGN(ret);
         }
       else
         {
-          ssh_mpn_sub(ret->v, op2->v, op2->n, op1->v, op1->n);
+          ssh_mpk_sub(ret->v, op2->v, op2->n, op1->v, op1->n);
           SSH_MP_SET_SIGN(ret);
         }
       ret->n = op1->n;
       break;
     case 2:
-      if (ssh_mpn_cmp(op1->v, op1->n, op2->v, op2->n) >= 0)
+      if (ssh_mpk_cmp(op1->v, op1->n, op2->v, op2->n) >= 0)
         {
-          ssh_mpn_sub(ret->v, op1->v, op1->n, op2->v, op2->n);
+          ssh_mpk_sub(ret->v, op1->v, op1->n, op2->v, op2->n);
           SSH_MP_SET_SIGN(ret);
         }
       else
         {
-          ssh_mpn_sub(ret->v, op2->v, op2->n, op1->v, op1->n);
+          ssh_mpk_sub(ret->v, op2->v, op2->n, op1->v, op1->n);
           SSH_MP_NO_SIGN(ret);
         }
       ret->n = op1->n;
       break;
     case 3:
-      c = ssh_mpn_add(ret->v, op1->v, op1->n, op2->v, op2->n);
+      c = ssh_mpk_add(ret->v, op1->v, op1->n, op2->v, op2->n);
       if (c)
         {
           ret->v[op1->n] = c;
@@ -3032,7 +823,7 @@ void ssh_mp_add_ui(SshInt *ret, const SshInt *op, SshWord u)
   switch (SSH_MP_GET_SIGN(op))
     {
     case 0:
-      c = ssh_mpn_add(ret->v, op->v, op->n, &u, 1);
+      c = ssh_mpk_add(ret->v, op->v, op->n, &u, 1);
       if (c)
         {
           ret->v[op->n] = c;
@@ -3043,14 +834,14 @@ void ssh_mp_add_ui(SshInt *ret, const SshInt *op, SshWord u)
       SSH_MP_NO_SIGN(ret);
       break;
     case 1:
-      if (ssh_mpn_cmp_ui(op->v, op->n, u) > 0)
+      if (ssh_mpk_cmp_ui(op->v, op->n, u) > 0)
         {
-          ssh_mpn_sub(ret->v, op->v, op->n, &u, 1);
+          ssh_mpk_sub(ret->v, op->v, op->n, &u, 1);
           SSH_MP_SET_SIGN(ret);
         }
       else
         {
-          ssh_mpn_sub(ret->v, &u, 1, op->v, op->n);
+          ssh_mpk_sub(ret->v, &u, 1, op->v, op->n);
           SSH_MP_NO_SIGN(ret);
         }
       ret->n = op->n;
@@ -3081,20 +872,20 @@ void ssh_mp_sub_ui(SshInt *ret, const SshInt *op, SshWord u)
   switch (SSH_MP_GET_SIGN(op))
     {
     case 0:
-      if (ssh_mpn_cmp_ui(op->v, op->n, u) > 0)
+      if (ssh_mpk_cmp_ui(op->v, op->n, u) > 0)
         {
-          ssh_mpn_sub(ret->v, op->v, op->n, &u, 1);
+          ssh_mpk_sub(ret->v, op->v, op->n, &u, 1);
           SSH_MP_NO_SIGN(ret);
         }
       else
         {
-          ssh_mpn_sub(ret->v, &u, 1, op->v, op->n);
+          ssh_mpk_sub(ret->v, &u, 1, op->v, op->n);
           SSH_MP_SET_SIGN(ret);
         }
       ret->n = op->n;
       break;
     case 1:
-      c = ssh_mpn_add(ret->v, op->v, op->n, &u, 1);
+      c = ssh_mpk_add(ret->v, op->v, op->n, &u, 1);
       if (c)
         {
           ret->v[op->n] = c;
@@ -3137,10 +928,10 @@ void ssh_mp_mul(SshInt *ret, const SshInt *op1, const SshInt *op2)
   else
     temp = ret->v;
 
-  ssh_mpn_memzero(temp, temp_n);
+  ssh_mpk_memzero(temp, temp_n);
   
   /* Do the multiplication. */
-  ssh_mpn_mul_karatsuba(temp, temp_n, op1->v, op1->n, op2->v, op2->n,
+  ssh_mpk_mul_karatsuba(temp, temp_n, op1->v, op1->n, op2->v, op2->n,
                         NULL, 0);
   
   /* Check the exact length of the result. */
@@ -3154,7 +945,7 @@ void ssh_mp_mul(SshInt *ret, const SshInt *op1, const SshInt *op2)
   /* Finish by copying result to ret. */
   if (ret->v != temp)
     {
-      ssh_mpn_memcopy(ret->v, temp, temp_n);
+      ssh_mpk_memcopy(ret->v, temp, temp_n);
       ssh_xfree(temp);
     }
   
@@ -3184,10 +975,10 @@ void ssh_mp_square(SshInt *ret, const SshInt *op)
   else
     temp = ret->v;
 
-  ssh_mpn_memzero(temp, temp_n);
+  ssh_mpk_memzero(temp, temp_n);
   
   /* Do the multiplication. */
-  ssh_mpn_square_karatsuba(temp, temp_n, op->v, op->n,
+  ssh_mpk_square_karatsuba(temp, temp_n, op->v, op->n,
                            NULL, 0);
 
   /* Check the exact length of the result. */
@@ -3201,7 +992,7 @@ void ssh_mp_square(SshInt *ret, const SshInt *op)
   /* Finish by copying result to ret. */
   if (ret->v != temp)
     {
-      ssh_mpn_memcopy(ret->v, temp, temp_n);
+      ssh_mpk_memcopy(ret->v, temp, temp_n);
       ssh_xfree(temp);
     }
   
@@ -3225,7 +1016,7 @@ void ssh_mp_div(SshInt *q, SshInt *r, const SshInt *op1, const SshInt *op2)
 
   if (op1->n == op2->n)
     {
-      if (ssh_mpn_cmp(op1->v, op1->n, op2->v, op2->n) < 0)
+      if (ssh_mpk_cmp(op1->v, op1->n, op2->v, op2->n) < 0)
         {
           ssh_mp_set_ui(q, 0);
           ssh_mp_set(r, op1);
@@ -3246,34 +1037,34 @@ void ssh_mp_div(SshInt *q, SshInt *r, const SshInt *op1, const SshInt *op2)
   div  = quot + quot_n; 
 
   /* Clear and copy. */
-  ssh_mpn_memzero(quot, quot_n);
-  ssh_mpn_memcopy(rem, op1->v, op1->n);
+  ssh_mpk_memzero(quot, quot_n);
+  ssh_mpk_memcopy(rem, op1->v, op1->n);
   rem[op1->n] = 0;
 
   /* Normalize, this can be optimized. XXX */
-  ssh_mpn_memcopy(div, op2->v, op2->n);
+  ssh_mpk_memcopy(div, op2->v, op2->n);
 
-  bits = ssh_mpn_leading_zeros(div, op2->n);
-  ssh_mpn_shift_up_bits(div, op2->n, bits);
-  ssh_mpn_shift_up_bits(rem, rem_n, bits);
+  bits = ssh_mpk_leading_zeros(div, op2->n);
+  ssh_mpk_shift_up_bits(div, op2->n, bits);
+  ssh_mpk_shift_up_bits(rem, rem_n, bits);
 
   /* Certify the length. */
   if (rem[rem_n - 1] == 0)
     rem_n--;
 
   /* Do the division iteration. */
-  ssh_mpn_div(quot, quot_n, rem, rem_n, div, op2->n);
+  ssh_mpk_div(quot, quot_n, rem, rem_n, div, op2->n);
 
   /* Quotient is immediately correct. However, remainder must be
      denormalized. */
-  ssh_mpn_shift_down_bits(rem, op2->n, bits);
+  ssh_mpk_shift_down_bits(rem, op2->n, bits);
 
   /* Now set the quotient. */
-  ssh_mpn_memcopy(q->v, quot, quot_n);
+  ssh_mpk_memcopy(q->v, quot, quot_n);
   q->n = quot_n;
   
   /* Set the remainder. */
-  ssh_mpn_memcopy(r->v, rem, op2->n);
+  ssh_mpk_memcopy(r->v, rem, op2->n);
   r->n = op2->n;
 
   /* Figure out quotient sign. */
@@ -3328,7 +1119,7 @@ void ssh_mp_mod(SshInt *r, const SshInt *op1, const SshInt *op2)
 
   if (op1->n == op2->n)
     {
-      if (ssh_mpn_cmp(op1->v, op1->n, op2->v, op2->n) < 0)
+      if (ssh_mpk_cmp(op1->v, op1->n, op2->v, op2->n) < 0)
         {
           if (SSH_MP_GET_SIGN(op1))
             {
@@ -3351,46 +1142,47 @@ void ssh_mp_mod(SshInt *r, const SshInt *op1, const SshInt *op2)
   div  = rem + rem_n; 
 
   /* Clear and copy. */
-  ssh_mpn_memcopy(rem, op1->v, op1->n);
+  ssh_mpk_memcopy(rem, op1->v, op1->n);
   rem[op1->n] = 0;
 
   /* Normalize, this can be optimized. XXX */
-  ssh_mpn_memcopy(div, op2->v, op2->n);
+  ssh_mpk_memcopy(div, op2->v, op2->n);
 
-  bits = ssh_mpn_leading_zeros(div, op2->n);
-  ssh_mpn_shift_up_bits(div, op2->n, bits);
-  ssh_mpn_shift_up_bits(rem, rem_n, bits);
+  bits = ssh_mpk_leading_zeros(div, op2->n);
+  ssh_mpk_shift_up_bits(div, op2->n, bits);
+  ssh_mpk_shift_up_bits(rem, rem_n, bits);
 
   /* Certify the length. */
   if (rem[rem_n - 1] == 0)
     rem_n--;
 
   /* Do the division iteration. */
-  ssh_mpn_mod(rem, rem_n, div, op2->n);
+  ssh_mpk_mod(rem, rem_n, div, op2->n);
 
   /* Quotient is immediately correct. However, remainder must be
      denormalized. */
-  ssh_mpn_shift_down_bits(rem, op2->n, bits);
+  ssh_mpk_shift_down_bits(rem, op2->n, bits);
 
-  /* Set the remainder. */
-  ssh_mpn_memcopy(r->v, rem, op2->n);
-  ssh_xfree(rem);
-  
   /* Check sizes. */
-  r->n = op2->n;
-  while (r->n && r->v[r->n - 1] == 0)
-    r->n--;
+  rem_n = op2->n;
+  while (rem_n && rem[rem_n - 1] == 0)
+    rem_n--;
   
   /* Handle possible negative input here. */
   if (SSH_MP_GET_SIGN(op1))
     {
-      ssh_mpn_sub(r->v, op2->v, op2->n, r->v, r->n);
+      ssh_mpk_sub(rem, op2->v, op2->n, rem, rem_n);
 
       /* Check size again. */
-      r->n = op2->n;
-      while (r->n && r->v[r->n - 1] == 0)
-        r->n--;
+      rem_n = op2->n;
+      while (rem_n && rem[rem_n - 1] == 0)
+        rem_n--;
     }
+
+  /* Set the remainder. */
+  r->n = rem_n;
+  ssh_mpk_memcopy(r->v, rem, rem_n);
+  ssh_xfree(rem);
 
   /* Remainder has no sign (it is always positive). */
   SSH_MP_NO_SIGN(r);
@@ -3417,15 +1209,15 @@ void ssh_mp_mul_ui(SshInt *ret, const SshInt *op, SshWord u)
   else
     temp = ssh_xmalloc(sizeof(SshWord) * temp_n);
 
-  ssh_mpn_memzero(temp, temp_n);
+  ssh_mpk_memzero(temp, temp_n);
 
   /* Multiply. */
-  ssh_mpn_mul_ui(temp, temp_n, op->v, op->n, u);
+  ssh_mpk_mul_ui(temp, op->v, op->n, u);
 
   /* Finish the management. */
   if (temp != ret->v)
     {
-      ssh_mpn_memcopy(ret->v, temp, temp_n);
+      ssh_mpk_memcopy(ret->v, temp, temp_n);
       ssh_xfree(temp);
     }
 
@@ -3463,7 +1255,7 @@ SshWord ssh_mp_div_ui(SshInt *q, const SshInt *op, SshWord u)
   /* Figure out the normalization of 'u'. */
   t = u;
   r = 0;
-  SSH_MP_COUNT_LEADING_ZEROS(r, t);
+  SSH_MPK_COUNT_LEADING_ZEROS(r, t);
   t <<= r;
 
   /* Enlarge integers. */
@@ -3477,12 +1269,12 @@ SshWord ssh_mp_div_ui(SshInt *q, const SshInt *op, SshWord u)
 
   /* Normalize. */
   norm = ssh_xmalloc(sizeof(SshWord) * (op->n + 1));
-  ssh_mpn_memcopy(norm, op->v, op->n);
+  ssh_mpk_memcopy(norm, op->v, op->n);
   norm[op->n] = 0;
   
-  ssh_mpn_shift_up_bits(norm, op->n + 1, r);
+  ssh_mpk_shift_up_bits(norm, op->n + 1, r);
   
-  rem = ssh_mpn_div_ui(temp, temp_n, norm, op->n + 1, t);
+  rem = ssh_mpk_div_ui(temp, temp_n, norm, op->n + 1, t);
 
   ssh_xfree(norm);
   
@@ -3492,7 +1284,7 @@ SshWord ssh_mp_div_ui(SshInt *q, const SshInt *op, SshWord u)
   /* Quotient is correct. */
   if (temp != q->v)
     {
-      ssh_mpn_memcopy(q->v, temp, temp_n);
+      ssh_mpk_memcopy(q->v, temp, temp_n);
       ssh_xfree(temp);
     }
 
@@ -3522,16 +1314,16 @@ SshWord ssh_mp_mod_ui(const SshInt *op, SshWord u)
   /* Handle the normalization of 'u'. */
   t = u;
   r = 0;
-  SSH_MP_COUNT_LEADING_ZEROS(r, t);
+  SSH_MPK_COUNT_LEADING_ZEROS(r, t);
   t <<= r;
 
   /* Allocate and normalize. */
   norm = ssh_xmalloc(sizeof(SshWord) * (op->n + 1));
-  ssh_mpn_memcopy(norm, op->v, op->n);
+  ssh_mpk_memcopy(norm, op->v, op->n);
   norm[op->n] = 0;
   
-  ssh_mpn_shift_up_bits(norm, op->n + 1, r);
-  rem = ssh_mpn_mod_ui(norm, op->n + 1, t);
+  ssh_mpk_shift_up_bits(norm, op->n + 1, r);
+  rem = ssh_mpk_mod_ui(norm, op->n + 1, t);
   ssh_xfree(norm);
   
   /* Correct remainder. */
@@ -3549,7 +1341,7 @@ SshWord ssh_mp_mod_ui2(SshInt *ret, const SshInt *op, SshWord u)
   return t;
 }
      
-#if 1
+#if 0
 /* Useful but messy dump function for integers. Can be used for
    debugging, but probably will be removed later. */
 void ssh_mp_dump(const SshInt *op)
@@ -3686,7 +1478,7 @@ unsigned int ssh_mp_get_size(const SshInt *op, SshWord base)
       return 0;
     case 2:
       /* Exact bit size quickly. */
-      return ssh_mpn_size_in_bits(op->v, op->n);
+      return ssh_mpk_size_in_bits(op->v, op->n);
     default:
       /* XXX Use division to divide to the base. Clearly this is slow, but
          this will be used only rarely. */
@@ -3714,7 +1506,7 @@ const unsigned char ssh_mp_char_to_int[128] =
   255, 255, 255, 255, 255, 255, 255, 255,
   255, 255, 255, 255, 255, 255, 255, 255, 
   255, 255, 255, 255, 255, 255, 255, 255,
-  255, 255, 255,  62, 255, 255, 255,  63, 
+  255, 255, 255, 255, 255, 255, 255, 255, 
     0,   1,   2,   3,   4,   5,   6,   7,
     8,   9, 255, 255, 255, 255, 255, 255, 
   255,  10,  11,  12,  13,  14,  15, 255,
@@ -4152,7 +1944,7 @@ void ssh_mp_rand_w(SshInt *op, unsigned int bits, unsigned int weigth)
 
       /* Convert k to comparable value. */
 
-      SSH_MP_LONG_MUL(n1, n0, k, (SshWord)bits);
+      SSH_MPK_LONG_MUL(n1, n0, k, (SshWord)bits);
       if (n1 <= (SshWord)weigth)
         ssh_mp_set_bit(op, i);
     }
@@ -4181,7 +1973,7 @@ void ssh_mp_pow(SshInt *ret, const SshInt *g, const SshInt *e)
   ssh_mp_set(&temp, g);
 
   /* Compute the size of the exponent. */
-  bits = ssh_mpn_size_in_bits(e->v, e->n);
+  bits = ssh_mpk_size_in_bits(e->v, e->n);
   
   for (i = bits - 1; i; i--)
     {
@@ -4456,7 +2248,7 @@ void ssh_mp_sqrt(SshInt *sqrt_out, const SshInt *op)
   ssh_mp_init(&t);
 
   /* Find a nice estimate for n. */
-  bits = ssh_mpn_size_in_bits(op->v, op->n);
+  bits = ssh_mpk_size_in_bits(op->v, op->n);
 
   /* This should be fairly correct estimate. */
   ssh_mp_set_bit(&x, (bits + 2)/2);
@@ -4486,238 +2278,6 @@ void ssh_mp_sqrt(SshInt *sqrt_out, const SshInt *op)
 
 /* Montgomery routines. */
 
-/* Montgomery representation routines. */
-
-/* Compute x*R^-1 (mod M), that is reduce in Montgomery representation.
-   This algorithm is basically from HAC. */
-void ssh_mpmn_reduce(SshWord *ret, unsigned int ret_n,
-                     SshWord *op,  unsigned int op_n,
-                     SshWord mp,
-                     SshWord *m,   unsigned int m_n)
-{
-  unsigned int i;
-  SshWord high_carry;
-#ifndef SSHMATH_ASSEMBLER_SUBROUTINES
-  unsigned int j;
-  SshWord t, u, a2, a1, c;
-#endif
-  
-  ssh_mpn_memcopy(ret, op, op_n);
-  
-  for (high_carry = 0, i = 0; i < m_n; i++)
-    {
-#ifdef SSHMATH_ASSEMBLER_SUBROUTINES
-      high_carry = ssh_mpmn_addmul(ret + i, mp, m, m_n, high_carry);
-#else
-      SSH_MP_LONG_MUL(t, u, ret[i], mp);
-      for (j = 0, c = 0; j < m_n; j++)
-        {
-          SSH_MP_LONG_MUL(a2, a1, u, m[j]);
-
-          /* Add the carry. */
-          a1 += c;
-          if (a1 < c)
-            a2++;
-          c = a2;
-
-          /* Add to the result. */
-          t = ret[j + i] + a1;
-          if (t < a1)
-            c++;
-          ret[j + i] = t;
-        }
-      c = c + high_carry;
-      if (c < high_carry)
-        high_carry = 1;
-      else
-        high_carry = 0;
-      t = ret[j + i] + c;
-      if (t < c)
-        high_carry++;
-      ret[j + i] = t;
-#endif
-    }
-
-  /* Remove this shift down later. */
-  for (i = 0; i < m_n; i++)
-    ret[i] = ret[i + m_n];
-  
-  if (high_carry)
-    {
-      ret[m_n] = high_carry;
-      ret_n = m_n + 1;
-    }
-  else
-    {
-      ret_n = m_n;
-      while (ret_n && ret[ret_n - 1] == 0)
-        ret_n--;
-    }
-
-  if (ssh_mpn_cmp(ret, ret_n, m, m_n) >= 0)
-    ssh_mpn_sub(ret, ret, ret_n, m, m_n);
-}
-
-#if 0
-/* Coarsely integrated operand scanning as described by Kaliski et al.
-   However, we don't use this because it's faster to multiply with
-   karatsuba when values are reasonably large. And with smaller values
-   it really doesn't matter anyway, anymore.
-
-   NOTE: with elliptic curves there might be slight speed difference
-   noticeable, however, it would not probably be that much we should
-   be implementing this for some lengths.
-
-   Do not use, this is just for reference, and has not been tested. And
-   probably never will, because this will NOT be fast(er) for large
-   inputs.
-
-   XXX Do not try this, has NEVER been tested.
-   */
-void ssh_mpmn_mul(SshWord *ret, SshWord ret_n,
-                  SshWord *op1, SshWord op1_n,
-                  SshWord *op2, SshWord op2_n,
-                  SshWord mp,
-                  SshWord *m,   SshWord m_n)
-{
-  SshWord i, j, k, t, u, c, a1, a2;
-
-  for (i = 0; i < m_n; i++)
-    {
-      for (j = 0, c = 0, k = op1[i]; j < m_n; j++)
-        {
-          SSH_MP_LONG_MUL(a2, a1, k, op2[i]);
-
-          /* Add carry. */
-          a1 += c;
-          if (a1 < c)
-            a2++;
-          c = a2;
-
-          /* Add to ret. */
-          t = ret[j] + a1;
-          if (t < a1)
-            c++;
-          ret[j] = t;
-        }
-      t = ret[m_n] + c;
-      if (t < c)
-        ret[m_n + 1] = 1;
-      else
-        ret[m_n + 1] = 0;
-      ret[m_n] = t;
-
-      k = ret[0];
-      SSH_MP_LONG_MUL(t, u, k, mp);
-
-      /* Multiply and add */
-      SSH_MP_LONG_MUL(a2, a1, u, m[0]);
-
-      t = a1 + ret[0];
-      if (t < a1)
-        a2++;
-      c = a2;
-      
-      for (j = 1; j < m_n; j++)
-        {
-          SSH_MP_LONG_MUL(a2, a1, u, m[j]);
-
-          a1 += c;
-          if (a1 < c)
-            a2++;
-          c = a2;
-
-          t = a2 + ret[j];
-          if (t < a2)
-            c++;
-          ret[j - 1] = t;
-        }
-      t = ret[m_n] + c;
-      if (t < c)
-        c = 1;
-      else
-        c = 0;
-      ret[m_n - 1] = t;
-      ret[m_n] = ret[m_n + 1] + c;
-    }
-}
-#endif
-
-/* Compute x^-1 == a (mod 2^SSH_WORD_BITS). Please, use the Newton
-   iteration method. It is fastest and easily proven to be correct. */
-
-#if 0
-/* NOTE: this implementation is for testing only. */
-SshWord ssh_mpmn_small_inv(SshWord a)
-{
-  SshWord t, ignore, k;
-
-  /* It gets too complicated to implement extended euclidean
-     algorithm, so we just exponentiate. That is, we all know from
-     basic algebra that
-
-     phi(2^n) = (2^n - 2^(n - 1))
-
-     then with Fermat's theorem we get
-
-     a^-1 = a^(phi(2^n) - 1) (mod 2^n)
-
-     Clearly this is a very slow algorithm. Taking time for each of those
-     multiplications of which there shall be 2*(n - 1) - 1.
-     */
-
-  t = a;
-  k = SSH_WORD_BITS - 1;
-  while (k)
-    {
-      SSH_MP_LONG_MUL(ignore, t, t, t);
-      SSH_MP_LONG_MUL(ignore, t, t, a);
-      k--;
-    }
-  return t;
-}
-#else
-SshWord ssh_mpmn_small_inv(SshWord a)
-{
-  SshWord ignore, t, k;
-
-  /* Using the standard Newton's iteration. This should be significantly
-     faster than the above.
-
-     Why does this work, you ask. Well, I was amazed too, but it does. And
-     very amazingly fast. Colin Plumb was the first I have seen using
-     this, although, there probably are others. The proof for the success
-     of this can be easily seen by considering the error which _grows_
-     in each iteration leaving the least significant bits correct.
-     It can easily be seen that this is quadratically convergent.
-
-     Exercise: Prove that this sequence (x_n+1 = x_n*(2 - a*x_n) (mod 2^k))
-               converges quadratically, iff a == a^-1 (mod 2).
-     Hint:     Follow the steps
-
-               1. Obtain an expression for the error e_i+1 in terms of
-                  error e_i.
-               2. Use the expression to show that e_k -> 0.
-               3. Now as the sequence converges determine the speed.
-
-               as given by G.W. Stewart in his
-               Afternotes on Numerical Analysis.
-
-     You can also prove it for the more general case (mod p^k) as easily.
-     */
-  t = a;
-  while (1)
-    {
-      SSH_MP_LONG_MUL(ignore, k, t, a);
-      if (k == 1)
-        break;
-      k = 2 - k;
-      SSH_MP_LONG_MUL(ignore, t, k, t);
-    }
-  return t;
-}     
-#endif
-
 /* Very quick initialization! */
 Boolean ssh_mpm_init_m(SshIntModuli *m, const SshInt *op)
 {
@@ -4729,28 +2289,25 @@ Boolean ssh_mpm_init_m(SshIntModuli *m, const SshInt *op)
     return FALSE;
 
   /* Compute mp = -op^-1 (mod 2^SSH_WORD_BITS).
- 
-     XXX This is not a good way to do it, because we now alarm a
-     warning.
    */
-  m->mp = -ssh_mpmn_small_inv(op->v[0]);
+  m->mp = (~ssh_mpmk_small_inv(op->v[0])) + 1;
 
   /* Set the modulus up, also in normalized form. */
   m->m = ssh_xmalloc(sizeof(SshWord) * (op->n + op->n));
   m->d = m->m + op->n;
   m->m_n = op->n;
-  ssh_mpn_memcopy(m->m, op->v, m->m_n);
-  ssh_mpn_memcopy(m->d, op->v, m->m_n);
-  m->shift = ssh_mpn_leading_zeros(m->d, m->m_n);
-  ssh_mpn_shift_up_bits(m->d, m->m_n, m->shift);
+  ssh_mpk_memcopy(m->m, op->v, m->m_n);
+  ssh_mpk_memcopy(m->d, op->v, m->m_n);
+  m->shift = ssh_mpk_leading_zeros(m->d, m->m_n);
+  ssh_mpk_shift_up_bits(m->d, m->m_n, m->shift);
 
 #ifdef SSHMATH_USE_WORKSPACE
   /* Determine how much memory we want to keep in reserve as working
      space. */
   temp_n =
-    ssh_mpn_square_karatsuba_needed_memory(m->m_n);
+    ssh_mpk_square_karatsuba_needed_memory(m->m_n);
   m->karatsuba_work_space_n =
-    ssh_mpn_mul_karatsuba_needed_memory(m->m_n, m->m_n);
+    ssh_mpk_mul_karatsuba_needed_memory(m->m_n, m->m_n);
   if (m->karatsuba_work_space_n < temp_n)
     m->karatsuba_work_space_n = temp_n;
   /* Note that it is still possible that no extra memory is needed! */
@@ -4796,7 +2353,7 @@ void ssh_mpm_clear_m(SshIntModuli *m)
 void ssh_mp_set_m(SshInt *ret, const SshIntModuli *m)
 {
   ssh_mp_realloc(ret, m->m_n);
-  ssh_mpn_memcopy(ret->v, m->m, m->m_n);
+  ssh_mpk_memcopy(ret->v, m->m, m->m_n);
   ret->n = m->m_n;
   /* Our moduli cannot be negative! */
   SSH_MP_NO_SIGN(ret);
@@ -4826,7 +2383,7 @@ void ssh_mpm_set(SshIntModQ *ret, const SshIntModQ *op)
       ret->n = 0;
       return;
     }
-  ssh_mpn_memcopy(ret->v, op->v, op->n);
+  ssh_mpk_memcopy(ret->v, op->v, op->n);
   ret->n = op->n;
 }
 
@@ -4853,23 +2410,23 @@ void ssh_mpm_set_mp(SshIntModQ *ret, const SshInt *op)
   t = ssh_xmalloc(sizeof(SshWord) * (op->n + 1 + ret->m->m_n));
   
   /* Multiply by R the remainder. */
-  ssh_mpn_memzero(t, ret->m->m_n);
-  ssh_mpn_memcopy(t + ret->m->m_n, op->v, op->n);
+  ssh_mpk_memzero(t, ret->m->m_n);
+  ssh_mpk_memcopy(t + ret->m->m_n, op->v, op->n);
   t_n = op->n + ret->m->m_n + 1;
   t[t_n - 1] = 0;
 
   /* Normalize. */
-  ssh_mpn_shift_up_bits(t + ret->m->m_n, op->n + 1, ret->m->shift);
+  ssh_mpk_shift_up_bits(t + ret->m->m_n, op->n + 1, ret->m->shift);
 
   /* Validate that length is correct. */
   if (t[t_n - 1] == 0)
     t_n--;
   
   /* Modular operations. */
-  ssh_mpn_mod(t, t_n, ret->m->d, ret->m->m_n);
+  ssh_mpk_mod(t, t_n, ret->m->d, ret->m->m_n);
 
   /* Denormalize the remainder. */
-  ssh_mpn_shift_down_bits(t, ret->m->m_n, ret->m->shift);
+  ssh_mpk_shift_down_bits(t, ret->m->m_n, ret->m->shift);
 
   /* Compute exact size. */
   t_n = ret->m->m_n;
@@ -4877,7 +2434,7 @@ void ssh_mpm_set_mp(SshIntModQ *ret, const SshInt *op)
     t_n--;
   
   /* Copy into ret. */
-  ssh_mpn_memcopy(ret->v, t, t_n);
+  ssh_mpk_memcopy(ret->v, t, t_n);
   ret->n = t_n;
 
 #if 0
@@ -4899,10 +2456,10 @@ void ssh_mp_set_mpm(SshInt *ret, const SshIntModQ *op)
   /* Allocate enough space for reduction to happen. */
   t_n = op->m->m_n * 2 + 1;
   t = ssh_xmalloc(sizeof(SshWord) * t_n);
-  ssh_mpn_memzero(t, t_n);
+  ssh_mpk_memzero(t, t_n);
 
   /* Reduce. */
-  ssh_mpmn_reduce(t, t_n,
+  ssh_mpmk_reduce(t, t_n,
                   op->v, op->n,
                   op->m->mp,
                   op->m->m, op->m->m_n);
@@ -4914,7 +2471,7 @@ void ssh_mp_set_mpm(SshInt *ret, const SshIntModQ *op)
   
   /* Copy the result into ret. */
   ssh_mp_realloc(ret, t_n);
-  ssh_mpn_memcopy(ret->v, t, t_n);
+  ssh_mpk_memcopy(ret->v, t, t_n);
   ret->n = t_n;
 
   /* Free temporary storage. */
@@ -4926,7 +2483,7 @@ void ssh_mp_set_mpm(SshInt *ret, const SshIntModQ *op)
 /* This is a simple wrapper but rather useful in many occasions. */
 int ssh_mpm_cmp(SshIntModQ *op1, SshIntModQ *op2)
 {
-  return ssh_mpn_cmp(op1->v, op1->n, op2->v, op2->n);
+  return ssh_mpk_cmp(op1->v, op1->n, op2->v, op2->n);
 }
 
 /* Addition is easy with Montgomery representation. */
@@ -4944,7 +2501,7 @@ void ssh_mpm_add(SshIntModQ *ret, const SshIntModQ *op1,
     }
 
   /* Perform the addition. */
-  c = ssh_mpn_add(ret->v, op1->v, op1->n, op2->v, op2->n);
+  c = ssh_mpk_add(ret->v, op1->v, op1->n, op2->v, op2->n);
   if (c)
     {
       ret->v[op1->n] = c;
@@ -4954,9 +2511,9 @@ void ssh_mpm_add(SshIntModQ *ret, const SshIntModQ *op1,
     ret->n = op1->n;
 
   /* Do modular reduction. */
-  if (ssh_mpn_cmp(ret->v, ret->n, ret->m->m, ret->m->m_n) > 0)
+  if (ssh_mpk_cmp(ret->v, ret->n, ret->m->m, ret->m->m_n) > 0)
     {
-      ssh_mpn_sub(ret->v, ret->v, ret->n, ret->m->m, ret->m->m_n);
+      ssh_mpk_sub(ret->v, ret->v, ret->n, ret->m->m, ret->m->m_n);
       while (ret->n && ret->v[ret->n - 1] == 0)
         ret->n--;
     }
@@ -4966,22 +2523,22 @@ void ssh_mpm_add(SshIntModQ *ret, const SshIntModQ *op1,
 void ssh_mpm_sub(SshIntModQ *ret, const SshIntModQ *op1,
                  const SshIntModQ *op2)
 {
-  if (ssh_mpn_cmp(op1->v, op1->n, op2->v, op2->n) >= 0)
+  if (ssh_mpk_cmp(op1->v, op1->n, op2->v, op2->n) >= 0)
     {
-      ssh_mpn_sub(ret->v, op1->v, op1->n, op2->v, op2->n);
+      ssh_mpk_sub(ret->v, op1->v, op1->n, op2->v, op2->n);
       ret->n = op1->n;
       while (ret->n && ret->v[ret->n - 1] == 0)
         ret->n--;
     }
   else
     {
-      ssh_mpn_sub(ret->v, op2->v, op2->n, op1->v, op1->n);
+      ssh_mpk_sub(ret->v, op2->v, op2->n, op1->v, op1->n);
       ret->n = op2->n;
       while (ret->n && ret->v[ret->n - 1] == 0)
         ret->n--;
 
       /* Do modular reduction. */
-      ssh_mpn_sub(ret->v, ret->m->m, ret->m->m_n, ret->v, ret->n);
+      ssh_mpk_sub(ret->v, ret->m->m, ret->m->m_n, ret->v, ret->n);
       ret->n = ret->m->m_n;
       while (ret->n && ret->v[ret->n - 1] == 0)
         ret->n--;
@@ -5010,8 +2567,8 @@ void ssh_mpm_mul(SshIntModQ *ret, const SshIntModQ *op1,
   r = t + t_n;
 
   /* Clear temporary space. */
-  ssh_mpn_memzero(t, t_n);
-  ssh_mpn_mul_karatsuba(t, t_n, op1->v, op1->n, op2->v, op2->n,
+  ssh_mpk_memzero(t, t_n);
+  ssh_mpk_mul_karatsuba(t, t_n, op1->v, op1->n, op2->v, op2->n,
                         ret->m->karatsuba_work_space,
                         ret->m->karatsuba_work_space_n);
 
@@ -5020,8 +2577,8 @@ void ssh_mpm_mul(SshIntModQ *ret, const SshIntModQ *op1,
     t_n--;
 
   /* Do the reduction step. */
-  ssh_mpn_memzero(r, r_n);
-  ssh_mpmn_reduce(r, r_n,
+  ssh_mpk_memzero(r, r_n);
+  ssh_mpmk_reduce(r, r_n,
                   t, t_n,
                   ret->m->mp,
                   ret->m->m, ret->m->m_n);
@@ -5032,7 +2589,7 @@ void ssh_mpm_mul(SshIntModQ *ret, const SshIntModQ *op1,
     r_n--;
 
   /* Copy to destination. */
-  ssh_mpn_memcopy(ret->v, r, r_n);
+  ssh_mpk_memcopy(ret->v, r, r_n);
   ret->n = r_n;
 
   /* Free temporary storage. */
@@ -5068,8 +2625,8 @@ void ssh_mpm_mul_ui(SshIntModQ *ret, const SshIntModQ *op, SshWord u)
     t = ssh_xmalloc(sizeof(SshWord) * t_n);
   else
     t = ret->m->work_space;
-  ssh_mpn_memzero(t, t_n);
-  ssh_mpn_mul_ui(t, t_n, op->v, op->n, u);
+  ssh_mpk_memzero(t, t_n);
+  ssh_mpk_mul_ui(t, op->v, op->n, u);
 
   /* Correct the size. */
   while (t_n && t[t_n - 1] == 0)
@@ -5077,7 +2634,7 @@ void ssh_mpm_mul_ui(SshIntModQ *ret, const SshIntModQ *op, SshWord u)
 
   /* Do a compare, which determines whether the modular reduction
      is necessary. */
-  if (ssh_mpn_cmp(t, t_n, ret->m->m, ret->m->m_n) >= 0)
+  if (ssh_mpk_cmp(t, t_n, ret->m->m, ret->m->m_n) >= 0)
     {
       /* Allow growing a bit. */
       t_n ++;
@@ -5085,24 +2642,24 @@ void ssh_mpm_mul_ui(SshIntModQ *ret, const SshIntModQ *op, SshWord u)
       /* Now reduce (mod N). */
 
       /*The normalization first. */
-      ssh_mpn_shift_up_bits(t, t_n, ret->m->shift);
+      ssh_mpk_shift_up_bits(t, t_n, ret->m->shift);
       
       /* Check the size again. */
       while (t_n && t[t_n - 1] == 0)
         t_n--;
 
       /* Reduction function. */
-      ssh_mpn_mod(t, t_n, ret->m->d, ret->m->m_n);
+      ssh_mpk_mod(t, t_n, ret->m->d, ret->m->m_n);
       t_n = ret->m->m_n;
   
-      ssh_mpn_shift_down_bits(t, t_n, ret->m->shift);
+      ssh_mpk_shift_down_bits(t, t_n, ret->m->shift);
       
       /* Correct the size. */
       while (t_n && t[t_n - 1] == 0)
         t_n--;
     }
 
-  ssh_mpn_memcopy(ret->v, t, t_n);
+  ssh_mpk_memcopy(ret->v, t, t_n);
   ret->n = t_n;
 
   /* Free if necessary. */
@@ -5131,8 +2688,8 @@ void ssh_mpm_square(SshIntModQ *ret, const SshIntModQ *op)
   r = t + t_n;
 
   /* Clear temporary space. */
-  ssh_mpn_memzero(t, t_n + r_n);
-  ssh_mpn_square_karatsuba(t, t_n, op->v, op->n,
+  ssh_mpk_memzero(t, t_n + r_n);
+  ssh_mpk_square_karatsuba(t, t_n, op->v, op->n,
                            ret->m->karatsuba_work_space,
                            ret->m->karatsuba_work_space_n);
 
@@ -5141,8 +2698,8 @@ void ssh_mpm_square(SshIntModQ *ret, const SshIntModQ *op)
     t_n--;
 
   /* Do the reduction step. */
-  ssh_mpn_memzero(r, r_n);
-  ssh_mpmn_reduce(r, r_n,
+  ssh_mpk_memzero(r, r_n);
+  ssh_mpmk_reduce(r, r_n,
                   t, t_n,
                   ret->m->mp,
                   ret->m->m, ret->m->m_n);
@@ -5153,7 +2710,7 @@ void ssh_mpm_square(SshIntModQ *ret, const SshIntModQ *op)
     r_n--;
 
   /* Copy to destination. */
-  ssh_mpn_memcopy(ret->v, r, r_n);
+  ssh_mpk_memcopy(ret->v, r, r_n);
   ret->n = r_n;
 
   /* Free temporary storage. */
@@ -5181,6 +2738,16 @@ void ssh_mpm_mul_2exp(SshIntModQ *ret, const SshIntModQ *op,
     case 0:
       ssh_mpm_set(ret, op);
       return;
+#if 0
+      /* Note: It has occurred to me that this code doesn't actually lead
+         to improvement. This is usually because we are working under a
+         modulus transformed to the Montgomery world. E.g. the actual
+         modulus can be many bits smaller! This implies that often the
+         number of subtractions needed would be overhelming...
+
+         This even forces us to consider the usefulness of this whole
+         routine.
+         */
     case 1:
     case 2:
     case 3:
@@ -5188,20 +2755,21 @@ void ssh_mpm_mul_2exp(SshIntModQ *ret, const SshIntModQ *op,
       ssh_mpm_set(ret, op);
       /* This can be done, because ret has always one extra word. */
       ret->v[ret->n] = 0;
-      ssh_mpn_shift_up_bits(ret->v, ret->n + 1, exp);
+      ssh_mpk_shift_up_bits(ret->v, ret->n + 1, exp);
       /* Figure the correct length. */
       ret->n++;
       while (ret->n && ret->v[ret->n - 1] == 0)
         ret->n--;
       /* Compute the modulus by number of subtractions. */
-      while (ssh_mpn_cmp(ret->v, ret->n, ret->m->m, ret->m->m_n) > 0)
+      while (ssh_mpk_cmp(ret->v, ret->n, ret->m->m, ret->m->m_n) > 0)
         {
-          ssh_mpn_sub(ret->v, ret->v, ret->n, ret->m->m, ret->m->m_n);
+          ssh_mpk_sub(ret->v, ret->v, ret->n, ret->m->m, ret->m->m_n);
           /* Correct the size once again. */
           while (ret->n && ret->v[ret->n - 1] == 0)
             ret->n--;
         }
       return;
+#endif
     default:
       break;
     }
@@ -5216,25 +2784,25 @@ void ssh_mpm_mul_2exp(SshIntModQ *ret, const SshIntModQ *op,
   t = ssh_xmalloc(sizeof(SshWord) * t_n);
   
   /* Move from op to ret. */
-  ssh_mpn_memzero(t, t_n);
-  ssh_mpn_memcopy(t + k, op->v, op->n);
-  ssh_mpn_shift_up_bits(t + k, op->n + 1, exp);
+  ssh_mpk_memzero(t, t_n);
+  ssh_mpk_memcopy(t + k, op->v, op->n);
+  ssh_mpk_shift_up_bits(t + k, op->n + 1, exp);
 
   /* Figure out the correct size here. */
   while (t_n && t[t_n - 1] == 0)
     t_n--;
 
   /* Compute the modulus. */
-  ssh_mpn_mod(t, t_n, ret->m->d, ret->m->m_n);
+  ssh_mpk_mod(t, t_n, ret->m->d, ret->m->m_n);
   t_n = ret->m->m_n;
-  ssh_mpn_shift_down_bits(t, t_n, ret->m->shift);
+  ssh_mpk_shift_down_bits(t, t_n, ret->m->shift);
 
   /* Figure out the correct size. */
   while (t_n && t[t_n - 1] == 0)
     t_n--;
 
   /* Now copy to the ret. */
-  ssh_mpn_memcopy(ret->v, t, t_n);
+  ssh_mpk_memcopy(ret->v, t, t_n);
   ret->n = t_n;
   ssh_xfree(t);
 }
@@ -5262,7 +2830,7 @@ void ssh_mpm_div_2exp(SshIntModQ *ret, const SshIntModQ *op,
      large values this way isn't very fast! */
 
   /* Set up the return integer. */
-  ssh_mpn_memzero(ret->v, ret->m->m_n + 1);
+  ssh_mpk_memzero(ret->v, ret->m->m_n + 1);
   ssh_mpm_set(ret, op);
 
   /* Loop until done, might take a while. */
@@ -5272,14 +2840,14 @@ void ssh_mpm_div_2exp(SshIntModQ *ret, const SshIntModQ *op,
         {
           if (ret->n < ret->m->m_n)
             ret->n = ret->m->m_n;
-          c = ssh_mpn_add(ret->v, ret->v, ret->n, ret->m->m, ret->m->m_n);
+          c = ssh_mpk_add(ret->v, ret->v, ret->n, ret->m->m, ret->m->m_n);
           if (c)
             {
               ret->v[ret->n] = c;
               ret->n++;
             }
         }
-      ssh_mpn_shift_down_bits(ret->v, ret->n, 1);
+      ssh_mpk_shift_down_bits(ret->v, ret->n, 1);
       while (ret->n && ret->v[ret->n - 1] == 0)
         ret->n--;
     }
@@ -5367,7 +2935,7 @@ void ssh_mp_powm_naive_mont(SshInt *ret, const SshInt *g,
   ssh_mpm_set(&temp, &x);
   
   /* Compute the size of the exponent. */
-  bits = ssh_mpn_size_in_bits(e->v, e->n);
+  bits = ssh_mpk_size_in_bits(e->v, e->n);
 
   for (i = bits - 1; i; i--)
     {
@@ -5381,6 +2949,63 @@ void ssh_mp_powm_naive_mont(SshInt *ret, const SshInt *g,
   ssh_mpm_clear(&x);
   ssh_mpm_clear_m(&mod);
 }
+
+/* Fast computation for g = 2. */
+void ssh_mp_powm_naive_mont_base2(SshInt *ret,
+                                  const SshInt *e, const SshInt *m)
+{
+  SshIntModuli mod;
+  SshIntModQ   temp, x;
+  SshInt       gg;
+  unsigned int bits, i;
+  
+  /* Trivial cases. */
+  if (ssh_mp_cmp_ui(e, 0) == 0)
+    {
+      ssh_mp_set_ui(ret, 1);
+      return;
+    }
+
+  ssh_mp_init(&gg);
+  ssh_mp_set_ui(&gg, 2);
+  
+  if (ssh_mp_cmp_ui(e, 1) == 0)
+    {
+      ssh_mp_mod(ret, &gg, m);
+      ssh_mp_clear(&gg);
+      return;
+    }
+
+  if (ssh_mpm_init_m(&mod, m) == FALSE)
+    {
+      /* Later one could implement switch to standard method of
+         exponentiation, but for now lets die. */
+      ssh_fatal("ssh_mp_powm: montgomery representation demands odd moduli.");
+    }
+  
+  ssh_mpm_init(&temp, &mod);
+  ssh_mpm_init(&x,    &mod);
+
+  ssh_mpm_set_mp(&x, &gg);
+  ssh_mpm_set(&temp, &x);
+  
+  /* Compute the size of the exponent. */
+  bits = ssh_mpk_size_in_bits(e->v, e->n);
+
+  for (i = bits - 1; i; i--)
+    {
+      ssh_mpm_square(&temp, &temp);
+      if (ssh_mp_get_bit(e, i - 1))
+        ssh_mpm_mul_2exp(&temp, &temp, 1);
+    }
+  
+  ssh_mp_set_mpm(ret, &temp);
+  ssh_mp_clear(&gg);
+  ssh_mpm_clear(&temp);
+  ssh_mpm_clear(&x);
+  ssh_mpm_clear_m(&mod);
+}
+
 
 /* Simple Montgomery representation based exponentiation method.
    Cannot work with even moduli. */
@@ -5422,7 +3047,7 @@ void ssh_mp_powm_naive_mont_ui(SshInt *ret, SshWord g,
   ssh_mpm_set(&temp, &x);
   
   /* Compute the size of the exponent. */
-  bits = ssh_mpn_size_in_bits(e->v, e->n);
+  bits = ssh_mpk_size_in_bits(e->v, e->n);
 
   for (i = bits - 1; i; i--)
     {
@@ -5475,14 +3100,13 @@ void ssh_mp_powm_naive_mont_ui(SshInt *ret, SshWord g,
    n = k^2 * 2^(k - 1) * ln(2).
 
    This formula f is not exactly correct. It gives just a rough figure
-   for which is reasonable window selection. There are ways go beyond
+   for what is a reasonable window selection. There are ways go beyond
    these figures.
 
    This is the preferred method of exponentiation. However, cannot
-   work with even moduli. 
+   work with even moduli currently.
    
    */
-   
 void ssh_mp_powm_bsw_mont(SshInt *ret, const SshInt *g,
                           const SshInt *e, const SshInt *m)
 {
@@ -5508,9 +3132,14 @@ void ssh_mp_powm_bsw_mont(SshInt *ret, const SshInt *g,
 
   if (ssh_mpm_init_m(&mod, m) == FALSE)
     {
-      /* Implement some fallback mechanism to switch into some
-         slower, but standard exponentiation method. */
-      ssh_fatal("ssh_mp_powm: montgomery representation demands odd moduli.");
+      /* Fallback mechanism. This ensures that computation succeeds even
+         in this case. Notice that it might often be faster to divide out
+         the powers of 2 in case this was the cause! Thus by computing
+         the result both modulo 2^k and modulo the e/2^k a result could be
+         obtained. It might be that exponentiation with modulus 2^k, can be
+         performed fast. */
+      ssh_mp_powm_bsw(ret, g, e, m);
+      return;
     }
 
   ssh_mpm_init(&temp, &mod);
@@ -5520,7 +3149,7 @@ void ssh_mp_powm_bsw_mont(SshInt *ret, const SshInt *g,
   ssh_mpm_set_mp(&x, g);
   
   /* Compute the size of the exponent. */
-  bits = ssh_mpn_size_in_bits(e->v, e->n);
+  bits = ssh_mpk_size_in_bits(e->v, e->n);
 
   /* Select a reasonable window size. */
   for (i = 0; tab[i]; i++)
@@ -5602,6 +3231,181 @@ void ssh_mp_powm_bsw_mont(SshInt *ret, const SshInt *g,
   ssh_mpm_clear_m(&mod);
 }
 
+/* Heuristics for the modular exponentiation, this is the basic operation
+   in many cryptographic protocols and algorithms, hence possibly
+   worthy of optimizations. */
+
+void ssh_mp_powm_with_base_init(SshInt *g, SshInt *m,
+                           SshMpPowmBase *base)
+{
+  unsigned int ssh_mp_table_bits, ssh_mp_table_size;
+  SshIntModQ temp, x;
+  SshInt     y;
+  unsigned int bits, i;
+  unsigned int tab[] =
+  { 24, 88, 277, 798, 2173, 5678, 14373, 0 };
+  
+  if (ssh_mpm_init_m(&base->mod, m) == FALSE)
+    {
+      /* Error, not defined. */
+      base->defined = FALSE;
+      return;
+    }
+
+  /* Defined. */
+  base->defined = TRUE;
+
+  
+  ssh_mpm_init(&temp, &base->mod);
+  ssh_mpm_init(&x,    &base->mod);
+
+  /* Initialize the generator (in Montgomery representation). */
+  ssh_mp_init(&y);
+  ssh_mp_mod(&y, g, m);
+  
+  ssh_mpm_set_mp(&x, &y);
+  
+  ssh_mp_clear(&y);
+  
+  /* Compute the size of the exponent (approximated by the size of the
+     moduli). */
+  bits = ssh_mpk_size_in_bits(m->v, m->n);
+
+  /* Select a reasonable window size. */
+  for (i = 0; tab[i]; i++)
+    {
+      if (bits < tab[i])
+        break;
+    }
+  ssh_mp_table_bits = i + 2;
+  ssh_mp_table_size = ((SshWord)1 << (ssh_mp_table_bits - 1));
+
+  /* Allocate the table. */
+  base->table      = ssh_xmalloc(sizeof(SshIntModQ) * ssh_mp_table_size);
+  base->table_size = ssh_mp_table_size;
+  base->table_bits = ssh_mp_table_bits;
+  
+  /* Start computing the table. */
+  ssh_mpm_init(&base->table[0], &base->mod);
+  ssh_mpm_set(&base->table[0], &x);
+
+  /* Compute g^2 into temp. */
+  ssh_mpm_set(&temp, &base->table[0]);
+  ssh_mpm_square(&temp, &temp);
+  
+  /* Compute the small table of powers. */
+  for (i = 1; i < ssh_mp_table_size; i++)
+    {
+      ssh_mpm_init(&base->table[i], &base->mod);
+      ssh_mpm_mul(&base->table[i], &base->table[i - 1], &temp);
+    }
+
+  ssh_mpm_clear(&temp);
+  ssh_mpm_clear(&x);
+  
+  /* Finished. */
+}
+
+void ssh_mp_powm_with_base_bsw_mont(SshInt *ret, const SshInt *e,
+                                    SshMpPowmBase *base)
+{
+  SshIntModuli *mod;
+  unsigned int ssh_mp_table_bits;
+  SshIntModQ temp, x, *table;
+  unsigned int bits, i, j, mask, end_square, first;
+
+  if (base->defined == FALSE)
+    ssh_fatal("ssh_mp_powm_base_bsw_mont: base was not defined.");
+
+  /* Do this for speed. */
+  mod   = &base->mod;
+  table = base->table;
+  
+  /* Trivial cases. */
+  if (ssh_mp_cmp_ui(e, 0) == 0)
+    {
+      ssh_mp_set_ui(ret, 1);
+      return;
+    }
+
+  if (ssh_mp_cmp_ui(e, 1) == 0)
+    {
+      ssh_mp_set_mpm(ret, &table[0]);
+      return;
+    }
+
+  /* Initialize traditional temps. */
+  ssh_mpm_init(&temp, mod);
+  ssh_mpm_init(&x,    mod);
+
+  /* Initialize the generator (in Montgomery representation). */
+  ssh_mpm_set(&x, &table[0]);
+  
+  /* Compute the size of the exponent. */
+  bits = ssh_mpk_size_in_bits(e->v, e->n);
+
+  /* Reduce the exponent. XXX */
+
+  /* Number of bits in the table. */
+  ssh_mp_table_bits = base->table_bits;
+  
+  for (first = 1, i = bits; i;)
+    {
+      for (j = 0, mask = 0; j < ssh_mp_table_bits && i; j++, i--)
+        {
+          mask <<= 1;
+          mask |= ssh_mp_get_bit(e, i - 1);
+        }
+
+      for (end_square = 0; (mask & 0x1) == 0;)
+        {
+          mask >>= 1;
+          end_square++;
+        }
+
+      if (!first)
+        {
+          /* First square. */
+          for (j = mask; j; j >>= 1)
+            ssh_mpm_square(&temp, &temp);
+          
+          ssh_mpm_mul(&temp, &temp, &table[(mask - 1)/2]);
+        }
+      else
+        {
+          ssh_mpm_set(&temp, &table[(mask - 1)/2]);
+          first = 0;
+        }
+
+      /* Get rid of zero bits... */
+      while (end_square)
+        {
+          ssh_mpm_square(&temp, &temp);
+          end_square--;
+        }
+
+      while (i && ssh_mp_get_bit(e, i - 1) == 0)
+        {
+          ssh_mpm_square(&temp, &temp);
+          i--;
+        }
+    }
+
+  ssh_mp_set_mpm(ret, &temp);
+  ssh_mpm_clear(&temp);
+  ssh_mpm_clear(&x);
+}
+
+void ssh_mp_powm_with_base_clear(SshMpPowmBase *base)
+{
+  int i;
+  for (i = 0; i < base->table_size; i++)
+    ssh_mpm_clear(&base->table[i]);
+  ssh_mpm_clear_m(&base->mod);
+  ssh_xfree(base->table);
+  base->defined = FALSE;
+}
+
 /* Slow, but so simple to write that I had to do it. This will be
    optimized a lot in near future. */
 void ssh_mp_powm_naive(SshInt *ret, const SshInt *g, const SshInt *e,
@@ -5627,7 +3431,7 @@ void ssh_mp_powm_naive(SshInt *ret, const SshInt *g, const SshInt *e,
   ssh_mp_set(&temp, g);
 
   /* Compute the size of the exponent. */
-  bits = ssh_mpn_size_in_bits(e->v, e->n);
+  bits = ssh_mpk_size_in_bits(e->v, e->n);
 
   for (i = bits - 1; i; i--)
     {
@@ -5672,7 +3476,7 @@ void ssh_mp_powm_naive_ui(SshInt *ret, SshWord g, const SshInt *e,
   ssh_mp_set_ui(&temp, g);
 
   /* Compute the size of the exponent. */
-  bits = ssh_mpn_size_in_bits(e->v, e->n);
+  bits = ssh_mpk_size_in_bits(e->v, e->n);
 
   for (i = bits - 1; i; i--)
     {
@@ -5714,7 +3518,7 @@ void ssh_mp_powm_naive_expui(SshInt *ret, const SshInt *g, SshWord e,
   ssh_mp_set(&temp, g);
 
   bits = 0;
-  SSH_MP_COUNT_LEADING_ZEROS(bits, e);
+  SSH_MPK_COUNT_LEADING_ZEROS(bits, e);
   bits = SSH_WORD_BITS - bits;
   
   for (i = ((SshWord)1 << (bits - 1)); i; i >>= 1)
@@ -5732,185 +3536,6 @@ void ssh_mp_powm_naive_expui(SshInt *ret, const SshInt *g, SshWord e,
   ssh_mp_set(ret, &temp);
   ssh_mp_clear(&temp);
 }
-
-#if 0
-/* under construction XXX */
-
-/* It is quite unlikely that this would be much faster, because in
-   general the exponents are very uniformly distributed. */
-void ssh_mp_powm_bsw2(SshInt *ret, const SshInt *g, const SshInt *e,
-                      const SshInt *m)
-{
-#define SSH_MP_TABLE_BITS 7
-#define SSH_MP_TABLE_SIZE ((SshWord)1 << (SSH_MP_TABLE_BITS - 1))
-  SshInt temp, table[SSH_MP_TABLE_SIZE];
-  unsigned char tk[SSH_MP_TABLE_SIZE];
-#define SSH_MP_POW_NUM    4
-  SshInt pow[SSH_MP_POW_NUM];
-  unsigned int bits, i, j, mask, end_square, last;
-  
-  /* Trivial cases. */
-  if (ssh_mp_cmp_ui(e, 0) == 0)
-    {
-      ssh_mp_set_ui(ret, 1);
-      return;
-    }
-
-  if (ssh_mp_cmp_ui(e, 1) == 0)
-    {
-      ssh_mp_mod(ret, g, m);
-      return;
-    }
-
-  ssh_mp_init(&table[0]);
-  ssh_mp_set(&table[0], g);
-  ssh_mp_mod(&table[0], &table[0], m);
-  
-  ssh_mp_init(&temp);
-  ssh_mp_set(&temp, &table[0]);
-  ssh_mp_square(&temp, &temp);
-  ssh_mp_mod(&temp, &temp, m);
-
-  /* Compute the size of the exponent. */
-  bits = ssh_mpn_size_in_bits(e->v, e->n);
-
-  /* Compute g^2, g^4, g^6, g^8, ... */
-  ssh_mp_init(&pow[0]);
-  ssh_mp_set(&pow[0], &temp);
-  for (i = 1; i < SSH_MP_POW_NUM; i++)
-    {
-      ssh_mp_init(&pow[i]);
-      ssh_mp_mul(&pow[i], &pow[i - 1], &temp);
-      ssh_mp_mod(&pow[i], &pow[i], m);
-    }
-  
-  /* Clear the computed table. */
-  tk[0] = 1;
-  for (i = 1; i < SSH_MP_TABLE_SIZE; i++)
-    tk[i] = 0;
-  
-  /* Figure out which are to be used. This should be very fast. */
-  for (i = bits - 1; i;)
-    {
-      while (i && ssh_mp_get_bit(e, i - 1) == 0)
-        i--;
-
-      if (i == 0)
-        break;
-      
-      for (j = 0, mask = 0; j < SSH_MP_TABLE_BITS && i; j++, i--)
-        {
-          mask <<= 1;
-          mask |= ssh_mp_get_bit(e, i - 1);
-        }
-
-      for (end_square = 0; (mask & 0x1) == 0;)
-        {
-          mask >>= 1;
-          end_square++;
-        }
-
-      tk[(mask - 1)/2] = 1;
-    }
-
-  /* Now figure out which of the places are needed to be actually
-     computed. */
-  
-  /* This algorithm is very simple one, but still should be reasonably
-     efficient. */
-
-  /* This works as:
-
-     0  g^1
-     1  g^3  -- 1 - 0 - 1 = 0 -- g^2*g^1 
-     2  g^5  -- 2 - 0 - 1 = 1 -- g^4*g^1
-     3  g^7  -- 3 - 0 - 1 = 2 -- g^6*g^1
-     4  g^9  -- 4 - 0 - 1 = 3 -- g^8*g^1
-     
-   */
-  
-  for (i = 1, last = 0; i < SSH_MP_TABLE_SIZE; i++)
-    {
-      if (tk[i] == 1 || (i - last - 1) >= (SSH_MP_POW_NUM - 1))
-        {
-          ssh_mp_init(&table[i]);
-          ssh_mp_mul(&table[i], &table[last], &pow[i - last - 1]);
-          ssh_mp_mod(&table[i], &table[i], m);
-          last = i;
-
-          /* Make sure that this is taken as initialized. */
-          tk[i] = 1;
-        }
-    }
-
-  for (i = 0; i < SSH_MP_POW_NUM; i++)
-    ssh_mp_clear(&pow[i]);
-  
-  /* Start the actual exponentiation. */
-  ssh_mp_set(&temp, &table[0]);
-
-  /* Note that we recompute all the windows. This is stupid in a way, but
-     still doesn't slow things down much. */
-  for (i = bits - 1; i;)
-    {
-      while (i && ssh_mp_get_bit(e, i - 1) == 0)
-        {
-          ssh_mp_square(&temp, &temp);
-          ssh_mp_mod(&temp, &temp, m);
-          i--;
-        }
-
-      if (i == 0)
-        break;
-      
-      for (j = 0, mask = 0; j < SSH_MP_TABLE_BITS && i; j++, i--)
-        {
-          mask <<= 1;
-          mask |= ssh_mp_get_bit(e, i - 1);
-        }
-
-      for (end_square = 0; (mask & 0x1) == 0;)
-        {
-          mask >>= 1;
-          end_square++;
-        }
-
-      /* First square. */
-      for (j = mask; j; j >>= 1)
-        {
-          ssh_mp_square(&temp, &temp);
-          ssh_mp_mod(&temp, &temp, m);
-        }
-
-      if (tk[(mask - 1)/2] == 0)
-        ssh_fatal("ssh_mp_powm:"
-                  " set up incorrect, appropriate mask not found.");
-      ssh_mp_mul(&temp, &temp, &table[(mask - 1)/2]);
-      ssh_mp_mod(&temp, &temp, m);
-
-      while (end_square)
-        {
-          ssh_mp_square(&temp, &temp);
-          ssh_mp_mod(&temp, &temp, m);
-          end_square--;
-        }
-    }
-
-  for (i = 0; i < SSH_MP_TABLE_SIZE; i++)
-    {
-      if (tk[i])
-        ssh_mp_clear(&table[i]);
-    }
-  
-  ssh_mp_set(ret, &temp);
-  ssh_mp_clear(&temp);
-#undef SSH_MP_TABLE_SIZE
-#undef SSH_MP_TABLE_BITS
-#undef SSH_MP_POW_NUM
-  
-}
-
-#endif
 
 /* 2^k-ary Binary sliding window method of exponentiation for standard
    algorithms. */
@@ -5945,7 +3570,7 @@ void ssh_mp_powm_bsw(SshInt *ret, const SshInt *g, const SshInt *e,
   ssh_mp_mod(&temp, &temp, m);
   
   /* Compute the size of the exponent. */
-  bits = ssh_mpn_size_in_bits(e->v, e->n);
+  bits = ssh_mpk_size_in_bits(e->v, e->n);
   
   for (i = 1; i < SSH_MP_TABLE_SIZE; i++)
     {
@@ -6011,163 +3636,6 @@ void ssh_mp_powm_bsw(SshInt *ret, const SshInt *g, const SshInt *e,
 #undef SSH_MP_TABLE_BITS
 }
 
-#if 0
-/* A optimized exponentiation method which avoid much of the allocation
-   etc. However, doesn't use Karatsuba methods at the moment and thus
-   is rather slowish. It seems that allocation is not that slow, and
-   one could always use stack allocation in most of the routines. 
-   */
-void ssh_mp_powm_optimized_naive(SshInt *ret, const SshInt *g,
-                                 const SshInt *e, const SshInt *m)
-{
-  SshWord *div;
-  SshWord *gen1, *gen2, *gen3;
-  SshWord *exp, *tp;
-  SshWord v, k;
-  unsigned int exp_n, gen_n, gen1_n, gen2_n, gen3_n, bits, r, t;
-
-  /* Check the trivial cases. */
-  if (e->n == 0)
-    {
-      ssh_mp_set_ui(ret, 1);
-      return;
-    }
-  /* This seems to be too fancy stuff. */
-  if (e->n == 1)
-    {
-      switch (e->v[0])
-        {
-        case 1:
-          ssh_mp_mod(ret, g, m);
-          return;
-        case 2:
-          ssh_mp_square(ret, g);
-          ssh_mp_mod(ret, ret, m);
-          return;
-        default:
-          break;
-        }
-    }
-
-  if (g->n > m->n * 2)
-    gen_n = g->n + 1;
-  else
-    gen_n = m->n * 2 + 1;
-
-  /* Allocate. */
-  div  = ssh_xmalloc((m->n * 2 + gen_n * 2) * sizeof(SshWord));
-  gen1 = div  + m->n;
-  gen2 = gen1 + gen_n;
-  gen3 = gen2 + gen_n;
-  ssh_mpn_memcopy(gen1, g->v, g->n);
-  ssh_mpn_memzero(gen1 + g->n, gen_n - g->n);
-  
-  /* Compute the normalization degree. */
-  bits = ssh_mpn_leading_zeros(m->v, m->n);
-  ssh_mpn_memcopy(div, m->v, m->n);
-
-  /* Normalize. */
-  ssh_mpn_shift_up_bits(div, m->n, bits);
-
-  gen1_n = g->n + 1;
-  
-  /* Shift up i.e. normalize. */
-  ssh_mpn_shift_up_bits(gen1, gen_n, bits);
-
-  if (gen1[gen1_n - 1])
-    gen1_n++;
-  
-  /* Figure exp out. No need to allocate. */
-  exp = e->v;
-  exp_n = e->n;
-
-  /* Reduce gen first before starting something stupid. */
-  if (gen1_n > m->n || (gen1_n == m->n && gen1[gen1_n - 1] >= m->v[m->n - 1]))
-    {
-      ssh_mpn_mod(gen1, gen1_n, div, m->n);
-      gen1_n = m->n;
-      while (gen1_n && gen1[gen1_n - 1] == 0)
-        gen1_n--;
-    }
-
-  /* Copy and move back down (denormalize). */
-  ssh_mpn_memcopy(gen3, gen1, gen1_n);
-  gen3_n = gen1_n;
-  ssh_mpn_shift_down_bits(gen3, gen3_n, bits);
-  if (gen3[gen3_n - 1] == 0)
-    gen3_n--;
-
-  /* Compute the first msbit position. */
-  r = 0;
-  v = exp[exp_n - 1];
-  SSH_MP_COUNT_LEADING_ZEROS(r, v);
-  v = exp[exp_n - 1];
-  r = (SSH_WORD_BITS - r) - 2;
-  while (1)
-    {
-      if (r < SSH_WORD_BITS)
-        for (k = (SshWord)1 << r; k; k >>= 1)
-          {
-            gen2_n = gen1_n * 2 + 1;
-            ssh_mpn_memzero(gen2, gen2_n);
-            ssh_mpn_square(gen2, gen2_n, gen1, gen1_n);
-            ssh_mpn_shift_down_bits(gen2, gen2_n, bits);
-            
-            /* Correct the size. */
-            if (gen2[gen2_n - 1] == 0)
-              gen2_n--;
-            
-            ssh_mpn_mod(gen2, gen2_n, div, m->n);
-            gen2_n = m->n;
-            /* Correct the size. */
-            while (gen2_n && gen2[gen2_n - 1] == 0)
-              gen2_n--;
-
-            if (k & v)
-              {
-                gen1_n = gen2_n + gen3_n + 1;
-                ssh_mpn_memzero(gen1, gen1_n);
-                ssh_mpn_mul(gen1, gen1_n, gen2, gen2_n, gen3, gen3_n);
-                ssh_mpn_mod(gen1, gen1_n, div, m->n);
-                gen1_n = m->n;
-                /* Correct the size. */
-                while (gen1_n && gen1[gen1_n - 1] == 0)
-                  gen1_n--;
-              }
-            else
-              {
-                /* Swap. */
-                tp = gen1;
-                gen1 = gen2;
-                gen2 = tp;
-                
-                t = gen1_n;
-                gen1_n = gen2_n;
-                gen2_n = t;
-              }
-          }
-      exp_n--;
-      if (exp_n == 0)
-        break;
-      
-      v = exp[exp_n - 1];
-      r = SSH_WORD_BITS - 1;
-    }
-  ssh_mpn_shift_down_bits(gen1, gen1_n, bits);
-
-  ssh_mp_realloc(ret, gen1_n);
-  ssh_mpn_memcopy(ret->v, gen1, gen1_n);
-  ret->n = gen1_n;
-
-  ssh_xfree(div);
-  
-  /* Correct the size. */
-  while (ret->n && ret->v[ret->n - 1] == 0)
-    ret->n--;
-  
-  SSH_MP_NO_SIGN(ret);
-}
-#endif
 
 /* Basic bit operations, for integers. These are simple, but useful
    sometimes. */
@@ -6311,7 +3779,7 @@ int ssh_mp_miller_rabin(const SshInt *op, unsigned int limit)
           e = 0;
           while (ssh_mp_cmp_ui(&b, 1) != 0 &&
                  ssh_mp_cmp(&b, &op_1) != 0 &&
-                 e <= t - 2)
+                 e <= t - 1)
             {
               ssh_mp_square(&b, &b);
               ssh_mp_mod(&b, &b, op);

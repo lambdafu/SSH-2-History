@@ -16,12 +16,15 @@ AUTOMAKE_OPTIONS = 1.0 foreign dist-zip no-dependencies
 
 etcdir = @ETCDIR@
 
+SSH_SIGNER_INSTALL_MODE=@SSHSIGNERINSTALLMODE@
+
 bin_PROGRAMS = ssh2 \
 	       scp2 \
 	       sftp2 \
 	       sftp-server2 \
                ssh-agent2 \
 	       ssh-keygen2 \
+	       ssh-signer2 \
 	       @CONFPROGRAMS@ \
 	       ssh-add2
 
@@ -44,13 +47,15 @@ noinst_HEADERS = auths-passwd.h readpass.h ssh2includes.h \
 	ssh2version.h sshuserfiles.h authc-pubkey.h authc-passwd.h \
 	sshagentint.h sshagent.h auths-pubkey.h sshchx11.h sshchagent.h \
 	sshchssh1agent.h sshchsession.h sshchtcpfwd.h \
-	sshglob.h sshagentcache.h auths-common.h
+	sshglob.h auths-common.h \
+	sshttyflagsi.h sshttyflags.h auths-hostbased.h \
+	authc-hostbased.h ssh-signer2.h ssh2pgp.h
 
 noinst_LIBRARIES = libssh2.a
 
-INCLUDES = -I. -I$(srcdir) -I../.. -I$(srcdir) -I../../include \
+INCLUDES = -I. -I$(srcdir) -I../.. -I$(srcdir) \
 	   -I$(top_builddir) -I$(top_srcdir) \
-	   -I$(srcdir)/../../include 
+	   -I../../include -I$(srcdir)/../../include
 
 LDADD = -L. -L../../lib -lssh2 -lssh
 DEPENDENCIES = ./libssh2.a ../../lib/libssh.a
@@ -63,7 +68,9 @@ libssh2_a_SOURCES = agentclient.c sshchagent.c sshserver.c \
 		    auths-pubkey.c sshclient.c \
 		    sshcommon.c readpass.c sshconfig.c \
 		    sshauthmethodc.c sshauthmethods.c \
-		    sshglob.c sshagentcache.c auths-common.c
+		    sshglob.c auths-common.c \
+		    sshttyflags.c auths-hostbased.c authc-hostbased.c \
+		    auths-hostbased-rhosts.c ssh2pgppub.c ssh2pgpsec.c
 
 ssh2_SOURCES = ssh2.c
 ssh2_DEPENDENCIES = $(DEPENDENCIES)
@@ -73,7 +80,6 @@ sshd2_DEPENDENCIES = $(DEPENDENCIES)
 
 ssh_agent2_SOURCES = ssh-agent2.c
 ssh_agent2_DEPENDENCIES = $(DEPENDENCIES)
-
 
 ssh_add2_SOURCES = ssh-add2.c
 ssh_add2_DEPENDENCIES = $(DEPENDENCIES)
@@ -95,9 +101,12 @@ sftp2_LDADD = $(LDADD) -L../../lib/sshreadline -lsshreadline
 sftp_server2_SOURCES = sftp-server2.c
 sftp_server2_DEPENDENCIES = $(DEPENDENCIES)
 
+ssh_signer2_SOURCES = ssh-signer2.c
+ssh_signer2_DEPENDENCIES = $(DEPENDENCIES)
+
 # defines
 
-SSH_DEFS = -DHOST_KEY_FILE=\"$(HOST_KEY_FILE)\" -DHOST_CONFIG_FILE=\"$(HOST_CONFIG_FILE)\" -DSERVER_CONFIG_FILE=\"$(SERVER_CONFIG_FILE)\" -DSSH_PROGRAM=\"$(SSH_PROGRAM)\" -DETCDIR=\"$(etcdir)\" -DSSH_BINDIR=\"$(bindir)\" -DTIS_MAP_FILE=\"$(TIS_MAP_FILE)\"
+SSH_DEFS = -DETCDIR=\"$(etcdir)\" -DSSH_BINDIR=\"$(bindir)\"
 
 COMPILE = $(CC) $(KERBEROS_INCS) $(INCLUDES) $(SSH_DEFS) $(DEFS) $(CPPFLAGS) $(CFLAGS) $(X_CFLAGS)
 
@@ -123,6 +132,7 @@ install-symlinks:
 	-mv -f $(DESTDIR)$(bindir)/scp $(DESTDIR)$(bindir)/scp.old
 	-mv -f $(DESTDIR)$(bindir)/sftp $(DESTDIR)$(bindir)/sftp.old
 	-mv -f $(DESTDIR)$(bindir)/sftp-server $(DESTDIR)$(bindir)/sftp-server.old
+	-mv -f $(DESTDIR)$(bindir)/ssh-signer $(DESTDIR)$(bindir)/ssh-signer.old
 	(cd $(DESTDIR)$(bindir) && $(LN_S) ssh2 ssh)
 	(cd $(DESTDIR)$(bindir) && $(LN_S) ssh-agent2 ssh-agent)
 	(cd $(DESTDIR)$(bindir) && $(LN_S) ssh-add2 ssh-add)
@@ -131,6 +141,7 @@ install-symlinks:
 	(cd $(DESTDIR)$(bindir) && $(LN_S) scp2 scp)
 	(cd $(DESTDIR)$(bindir) && $(LN_S) sftp2 sftp)
 	(cd $(DESTDIR)$(bindir) && $(LN_S) sftp-server2 sftp-server)
+	(cd $(DESTDIR)$(bindir) && $(LN_S) ssh-signer2 ssh-signer)
 	-mv -f $(DESTDIR)$(sbindir)/sshd $(DESTDIR)$(sbindir)/sshd.old
 	(cd $(DESTDIR)$(sbindir) && $(LN_S) sshd2 sshd)
 	-mv -f $(DESTDIR)$(mandir)/man1/ssh.1 $(DESTDIR)$(mandir)/man1/ssh.old.1
@@ -153,11 +164,15 @@ clean-up-old:
 	 $(DESTDIR)$(bindir)/ssh-add.old $(DESTDIR)$(bindir)/ssh-askpass.old  \
 	 $(DESTDIR)$(bindir)/ssh-keygen.old $(DESTDIR)$(bindir)/scp.old	  \
 	 $(DESTDIR)$(bindir)/sftp.old $(DESTDIR)$(bindir)/sftp-server.old     \
-	 $(sbindir)/sshd.old 
+	 $(DESTDIR)$(bindir)/ssh-signer.old $(sbindir)/sshd.old 
 	 -rm -f $(DESTDIR)$(mandir)/man1/ssh-add.old.1 $(DESTDIR)$(mandir)/man1/ssh.old.1   \
 	 $(DESTDIR)$(mandir)/man1/ssh-agent.old.1 $(DESTDIR)$(mandir)/man1/ssh-keygen.old.1	\
 	 $(DESTDIR)$(mandir)/man1/scp.old.1 $(DESTDIR)$(mandir)/man1/sftp.old.1             \
 	 $(DESTDIR)$(mandir)/man8/sshd.old.8
+
+install-exec-hook:
+	chown root $(DESTDIR)$(bindir)/ssh-signer2
+	chmod $(SSH_SIGNER_INSTALL_MODE) $(DESTDIR)$(bindir)/ssh-signer2
 
 install-data-hook: make-install-dirs generate-host-key install-symlinks
 	-@if test '!' -f $(DESTDIR)$(etcdir)/ssh2/sshd2_config ; then \

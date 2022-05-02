@@ -158,6 +158,10 @@ void ssh_agenti_connect(SshLocalCallback callback,
   path = getenv((!ssh1_agent) ? SSH_AGENT_VAR : SSH1_AGENT_VAR);
   if (path == NULL)
     {
+      path = getenv(SSH_AA_VAR);
+    }
+  if (path == NULL)
+    {
       (*callback)(NULL, context);
       return;
     }

@@ -14,8 +14,8 @@
 .\" .ie \n(CO .TH SSHD2 8 "June 29, 1998" "F-SECURE SSH2" "F-SECURE SSH2"
 .\" .el  .TH SSHD2 8 "June 29, 1998" "F-SECURE SSH2" "F-SECURE SSH2"
 .\" #else /* SSHDIST_SSH2_F_SECURE_COMMERCIAL */
-.ie \n(CO .TH SSHD2 8 "June 29, 1998" "SSH2" "SSH2"
-.el  .TH SSHD2 8 "June 29, 1998" "SSH2" "SSH2"
+.ie \n(CO .TH SSHD2 8 "April 29, 1999" "SSH2" "SSH2"
+.el  .TH SSHD2 8 "April 29, 1999" "SSH2" "SSH2"
 .\" #endif /* SSHDIST_SSH2_F_SECURE_COMMERCIAL */
 
 .SH NAME
@@ -150,65 +150,66 @@ The following keywords are possible. Keywords are case insensitive.
 "\fByes\fR" or "\fBno\fR".
 ..
 
-.B ForwardAgent
-Specifies whether the connection to the authentication agent (if
-any) will be forwarded to the remote machine. The argument must
-be
-.YN
-.ne 3
 .TP
-.B ForwardX11
-Specifies whether X11 connections will be automatically
-redirected over the secure channel and DISPLAY set. The argument
-must be
-.YN
+.B AllowedAuthentications
+This keyword specifies the authentications methods, that are allowed
+to use. This is comma-separated list consisting of (currently) words
+.IR password,
+.I publickey 
+and
+.IR hostbased .
+Each specifies an authentication method. Default is
+"\fIpassword,publickey\fR". With
+.BR RequiredAuthentications ,
+sysadmin can force users to complete several authentications before
+they are considered authenticated.
 .ne 3
+
 .TP
-.B PasswordAuthentication
-Specifies whether to use password authentication. The argument
-must be
-.YN  
-.ne 3
-.TP
-.B RHostsAuthentication
-Specifies whether authentication using rhosts or /etc/hosts.equiv
-files is sufficient.  Normally, this method should not be permitted
-because it is insecure.  RhostsPubKeyAuthentication should be used
-instead, because it performs RSA-based host authentication in addition
-to normal rhosts or /etc/hosts.equiv authentication.
-The argument must be
-.YN
-(not yet implemented)
-.ne 3
-.TP
-.B RHostsPubKeyAuthentication 
-Specifies whether rhosts or /etc/hosts.equiv authentication
-together with successful publickey host authentication is
-allowed.
-.B RHostsRSAAuthentication 
-is a synonym for this keyword, and it is defined for backwards
-compatibility with
-.B ssh1\fR. 
-The argument must be
-.YN
-(not yet implemented)  
-.ne 3
-.TP
-.B PubKeyAuthentication
-Specifies whether to try public key authentication.
-.B RSAAuthentication
-is a synonym for this keyword, and it is defined for backwards
-compatibility with
-.B ssh1\fR.
-The argument must be
-.YN  
-.ne 3
-.TP
-.B Port
-Specifies the port number that
+.B AllowHosts
+This keyword can be followed by any number of host name patterns,
+separated by spaces.  If specified, login is allowed only from hosts
+whose name matches one of the patterns.  \'*\' and \'?\' can be used as
+wildcards in the patterns.  Normal name servers are used to map the
+client's host into a canonical host name.  If the name cannot be
+mapped, its IP-address is used as the host name.  By default all hosts
+are allowed to connect.
+
+Note that
 .B sshd2
-listens on.  The current default is 22.
+can also be configured to use tcp_wrappers using the --with-libwrap
+compile-time configuration option.
 .ne 3
+
+.TP
+.B AllowSHosts
+This keyword can be followed by any number of host name patterns,
+separated by spaces. If specified, .shosts (and .rhosts,
+/etc/hosts.equiv and /etc/shosts.equiv) entries are only honoured for
+hosts whose name matches one of the patterns.
+'*' and '?' can be used as wildcards in the patterns.  Normal name
+servers are used to map the client's host into a canonical host name.
+If the name cannot be mapped, its IP-address is used as the host name.
+By default all hosts are allowed to connect.
+.ne 3
+
+.TP 
+.B AuthorizationFile
+Specifies the name of the user's authorization file.
+.ne 3
+
+.TP
+.B CheckMail
+Specifies whether
+.B sshd
+should print information whether you have new mail or not when a user
+logs in interactively.  (On some systems it is also printed by the
+shell, /etc/profile, or equivalent.)  The argument must be
+.YN
+The default is
+"yes".
+.ne 3
+
 .TP
 .B Ciphers
 Specifies the ciphers to use for encrypting the
@@ -220,11 +221,15 @@ session. Currently,
 .IR idea
 and 
 .IR arcfour
+and
+.IR twofish
 are supported, of which
 .IR des ",
-.IR 3des
+.IR 3des ",
+.IR arcfour ",
+.IR blowfish
 and
-.IR arcfour
+.IR twofish
 are in all distributions. Multiple ciphers can be specified as a
 comma-separated list.  Special values to this option are
 .IR any ",
@@ -239,37 +244,65 @@ but allows all others.
 is the same as above, but includes only those ciphers mentioned in the
 IETF-SecSH-draft (excluding 'none').
 .ne 3
-.TP 
-.B AuthorizationFile
-Specifies the name of the user's authorization file.
-.ne 3
+
 .TP
-.B RandomSeedFile
-Specifies the name of the randomseed file.
+.B DenyHosts
+This keyword can be followed by any number of host name patterns,
+separated by spaces.  If specified, login is disallowed from the hosts
+whose name matches any of the patterns.
 .ne 3
+
 .TP
-.\" What does the server do with this?
+.B DenySHosts
+This keyword can be followed by any number of host name patterns,
+separated by spaces. If specified, .shosts (and .rhosts,
+/etc/hosts.equiv and /etc/shosts.equiv) entries whose name matches any
+of the patterns are ignored.
+.ne 3
+
+.TP
 .B ForcePTTYAllocation
+.\" What does the server do with this?
 For tty allocation, ie. allocate a tty even if a command is
 given. The argument must be
 .YN
 (not yet implemented)
 .ne 3
+
 .TP
-.B VerboseMode
-Verbose mode.  Causes 
-.B sshd2 
-to print debugging messages about its
-progress. This is helpful in debugging connection,
-authentication, and configuration problems.
-.ne 3
-.TP
-.B QuietMode
-Specifies whether the system runs in quiet mode.  In quiet mode,
-nothing is logged in the system log, except fatal errors.  The
-argument must be
+.B ForwardAgent
+Specifies whether the connection to the authentication agent (if any)
+will be forwarded to the remote machine. The argument must be
 .YN
 .ne 3
+
+.TP
+.B ForwardX11
+Specifies whether X11 connections will be automatically
+redirected over the secure channel and DISPLAY set. The argument
+must be
+.YN
+.ne 3
+
+.TP
+.B HostKeyFile
+Specifies the file containing the private host key (default
+.IR /etc/ssh2/hostkey ").
+.ne 3
+
+.TP
+.B IgnoreRhosts
+Specifies that rhosts and shosts files will not be used in
+"hostbased"-authentication (see
+.BR AllowedAuthentications ).
+.I /etc/hosts.equiv
+and
+.I /etc/shosts.equiv 
+are still used. The argument must be
+.YN
+The default is "no".
+.ne 3
+
 .TP
 .B KeepAlive
 Specifies whether the system should send keepalive messages to
@@ -285,37 +318,62 @@ will notice if the network goes down or the client host reboots.
 This avoids infinitely hanging sessions.
 
 To disable keepalives, the value should be set to "\fBno\fR" in
-both the server and the client configuration files.  (not yet
-implemented)
+both the server and the client configuration files.
 .ne 3
+
 .TP
-.B IgnoreRhosts
-Specifies that rhosts and shosts files will not be used in
-authentication.
-.I /etc/hosts.equiv
-and
-.I /etc/shosts.equiv 
-are still used.  (not yet implemented)
+.B ListenAddress
+Specifies the ip address of the interface where the
+.B sshd2 
+server socket is bind.
 .ne 3
+
 .TP
-.B PermitRootLogin
-Specifies whether the root can log in using
-.BR ssh2 .
-.\"May be set to "yes", "nopwd", or "no".  The default is "yes", allowing
-.\"root logins through any of the authentication types allowed for other
-.\"users.  The "nopwd" value disables password-authenticated root logins.
-.\"The "no" value disables root logins through any of the authentication
-.\"methods.  ("nopwd" and "no" are equivalent unless you have
-.\"a .rhosts, .shosts, or .ssh/authorized_keys file in the root home
-.\"directory.)
-.\"
-.\"Root login with RSA authentication when the "command" option has been
-.\"specified will be allowed regardless of the value of this setting
-.\"(which may be useful for taking remote backups even if root login is
-.\"normally not allowed).
-The default is "\fByes\fR".The argument must be
+.B LoginGraceTime
+The server disconnects after this time if the user has not
+successfully logged in.  If the value is 0, there is no time limit.
+The default is 600 (seconds). (not yet implemented)
+.ne 3
+
+.TP
+.B MaxConnections
+Specifies the maximum number of connections
+.B sshd2
+will handle simultaneously. This is useful in systems where spamming
+.B sshd2
+with new connections can cause the system to become unstable or
+crash. The argument is a positive number. 0 means that number of
+connections is unlimited (by
+.BR sshd2 ).
+
+Note that by using (at least) xinetd you achieve the same effect.
+.ne 3
+
+.TP
+.B NoDelay
+If "\fByes\fR", enable socket option TCP_NODELAY. The argument must be
 .YN
+Default is "\fBno\R".
 .ne 3
+
+.TP
+.B PasswordAuthentication
+Specifies whether to use password authentication. The argument
+must be
+.YN
+.B Note:
+This keyword is deprecated. Use
+.B AllowedAuthentications
+and
+.BR RequiredAuthentications .
+.ne 3
+
+.TP
+.B PasswordGuesses
+Specifies the number of tries that the user has when using
+password authentication. The default is 3.
+.ne 3
+
 .TP
 .B PermitEmptyPasswords
 When password authentication is allowed, it specifies whether the
@@ -323,16 +381,35 @@ server allows login to accounts with empty password strings. The
 argument must be
 .YN (not yet implemented)
 .ne 3
+
 .TP
-.B StrictModes
-Specifies whether 
-.B sshd2 
-should check file modes and ownership of the user's home directory and
-rhosts files before accepting login.  This is normally desirable because
-novices sometimes accidentally leave their directory or files
-world-writable. The default is "\fByes\fR". The argument must be
-.YN (not yet implemented)
+.B PermitRootLogin
+Specifies whether the root can log in using
+.BR ssh2 .
+May be set to "\fByes\fR", "\fBnopwd\fR", or "\fBno\fR".  The default
+is "\fByes\fR", allowing root logins through any of the authentication
+types allowed for other users.  The "\fBnopwd\fR" value disables
+password-authenticated root logins.  The "\fBno\fR" value disables
+root logins through any of the authentication methods. ("\fBnopwd\fR"
+and "\fBno\fR" are equivalent unless you have a .rhosts or .shosts in
+the root home directory and you you haven't set up public key
+authentication for root.)
+
+Root login with public key authentication when the "\fBcommand\fR"
+option has been specified will be allowed regardless of the value of
+this setting (which may be useful for taking remote backups even if
+root login is normally not allowed).  The default is "\fByes\fR".The
+argument must be
+.YN
 .ne 3
+
+.TP
+.B Port
+Specifies the port number that
+.B sshd2
+listens on.  The current default is 22.
+.ne 3
+
 .TP
 .B PrintMotd
 Specifies whether
@@ -343,17 +420,23 @@ when a user logs in interactively. The default
 is "\fByes\fR".  The argument must be
 .YN
 .ne 3
+
 .TP
-.B ListenAddress
-Specifies the ip address of the interface where the
-.B sshd2 
-server socket is bind.
+.B PubKeyAuthentication
+Specifies whether to try public key authentication.
+.B RSAAuthentication
+is a synonym for this keyword, and it is defined for backwards
+compatibility with
+.B ssh1\fR.
+The argument must be
+.YN  
+.B Note:
+This keyword is deprecated. Use
+.B AllowedAuthentications
+and
+.BR RequiredAuthentications .
 .ne 3
-.TP
-.B HostKeyFile
-Specifies the file containing the private host key (default
-.IR /etc/ssh2/hostkey ").
-.ne 3
+
 .TP
 .B PublicHostKeyFile
 Specifies the file containing the public host key (default
@@ -362,17 +445,33 @@ Note: In most cases the order of config parameters isn't an
 issue. Here it is safe if you specify HostKeyFile first before
 this parameter.
 .ne 3
+
 .TP
-.B LoginGraceTime
-The server disconnects after this time if the user has not
-successfully logged in.  If the value is 0, there is no time limit.
-The default is 600 (seconds). (not yet implemented)
+.B RandomSeedFile
+Specifies the name of the randomseed file.
 .ne 3
+
 .TP
-.B PasswordGuesses
-Specifies the number of tries that the user has when using
-password authentication. The default is 3.
+.B RequiredAuthentications
+Related to
+.BR AllowedAuthentications ,
+this is used to specify what authentication methods the users
+.I must
+complete before continuing. This parameter has no default.
+.B Note:
+This parameter has to be a subset for 
+.BR AllowedAuthentications .
+Otherwise, the server denies connection everytime.
 .ne 3
+
+.TP
+.B QuietMode
+Specifies whether the system runs in quiet mode.  In quiet mode,
+nothing is logged in the system log, except fatal errors.  The
+argument must be
+.YN
+.ne 3
+
 .TP
 .B Ssh1Compatibility
 Specifies whether to use SSH1 compatibility code. With this option,
@@ -381,6 +480,7 @@ is executed when the client supports only SSH 1.x protocols. The argument
 must be
 .YN
 .ne 3
+
 .TP
 .B Sshd1Path
 Specifies the path to 
@@ -391,6 +491,19 @@ client supports only SSH 1.x protocols. The arguments for
 are passed on to 
 .B sshd1 ".
 .ne 3
+
+.TP
+.B StrictModes
+Specifies whether 
+.B sshd2 
+should check file modes and ownership of the user's home directory and
+rhosts files before accepting login.  This is normally desirable because
+novices sometimes accidentally leave their directory or files
+world-writable.  The argument must be
+.YN 
+The default is "\fByes\fR". (not yet implemented)
+.ne 3
+
 .TP
 .B SyslogFacility
 Gives the facility code that is used when logging messages from
@@ -398,6 +511,7 @@ Gives the facility code that is used when logging messages from
 The possible values are: DAEMON, USER, AUTH, LOCAL0, LOCAL1, LOCAL2,
 LOCAL3, LOCAL4, LOCAL5, LOCAL6, LOCAL7.  The default is AUTH.
 .ne 3
+
 .TP
 .B UserConfigDirectory
 Specifies where user-specific configuration data should be fetched
@@ -407,6 +521,25 @@ given as a pattern string, which is expanded by sshd2. %D is the
 user's home directory, %U is user's login name, %IU is the user's user
 ID (uid) and %IG is his group ID (gid). The default is 
 .I %D/.ssh2
+
+.TP
+.B UserKnownHosts
+Specifies whether user's \&$HOME/\s+2.\s0ssh2/knownhosts/ -directory can be used to fetch hosts public keys when
+using "\fBhostbased\fR"-authentication.
+The argument must be
+.YN
+The default is "yes".
+.ne 3
+
+.TP
+.B VerboseMode
+Verbose mode.  Causes 
+.B sshd2 
+to print debugging messages about its
+progress. This is helpful in debugging connection,
+authentication, and configuration problems.
+.ne 3
+
 
 .\" .SH SUBSYSTEMS
 .\" XXX
@@ -426,6 +559,32 @@ Changes to user's home directory.
 .IP 5.
 Runs user's shell or command.
 .RT
+
+.SH SSH WITH TCP WRAPPERS
+
+When 
+.B sshd2
+is compiled with tcp wrappers libraries, then the
+host.allow/deny files also controls who can connect to ports forwarded
+by 
+.BR sshd2 .
+
+The program names in the hosts.allow/deny files are
+.B sshd2
+or
+.B sshd
+(depending on how you execute you 
+.BR sshd2 ),
+.B sshdfwd-\c
+.I <portname>\c
+,
+.B sshdfwd-\c
+.I <portnumber>\c
+, and
+.B sshdfwd-X11
+for forwarded ports the ssh client or server is listening.
+.LP
+If the port has name defined then you must use it. 
 
 .SH FILES
 .TP
@@ -458,6 +617,104 @@ contains information on how the server will verify the identity of
 an user. See 
 .BR ssh2 (1)
 for more information.
+.TP
+.I \&$HOME/\s+2.\s0hushlogin
+If this file exists, 
+.B sshd2 
+will not print information during login. (This is normally user's last
+login time, message of the day and mailcheck.)
+
+.TP
+.I /etc/nologin
+If this file exists, 
+.B sshd2
+refuses to let anyone except root log in.  The contents of the file
+are displayed to anyone trying to log in, and non-root connections are
+refused.  The file should be world-readable.
+
+.TP
+.I \&$HOME/\s+2.\s0rhosts
+This file contains host-username pairs, separated by a space, one per
+line.  The given user on the corresponding host is permitted to log in
+without password.  The same file is used by rlogind and rshd.
+.B sshd2 
+differs from rlogind and rshd in that it requires public host key
+authentication in addition to validating the host name retrieved from
+domain name servers . The file must be writable only by the user; it
+is recommended that it not be accessible by others.
+
+It is also possible to use netgroups in the file.  Either host or user
+name may be of the form +@groupname to specify all hosts or all users
+in the group.
+.TP
+.I \&$HOME/\s+2.\s0shosts
+For
+.B ssh2,
+this file is exactly the same as for \s+2.\s0rhosts.  However, this file is
+not used by rlogin and rshd, so using this permits access using
+.B ssh2
+only.
+.TP
+.I /etc/hosts.equiv
+This file is used during \s+2.\s0rhosts authentication.  In the
+simplest form, this file contains host names, one per line.  Users on
+those hosts are permitted to log in without a password, provided they
+have the same user name on both machines.  The host name may also be
+followed by a user name; such users are permitted to log in as
+.B any
+user on this machine (except root).  Additionally, the syntax +@group
+can be used to specify netgroups.  Negated entries start with \'-\'.
+
+If the client host/user is successfully matched in this file, login is
+automatically permitted provided the client and server user names are the
+same.  Additionally, successful RSA host authentication is normally
+required.  This file must be writable only by root; it is recommended
+that it be world-readable.
+
+\fBWarning: It is almost never a good idea to use user names in 
+hosts.equiv.\fR
+Beware that it really means that the named user(s) can log in as
+\fBanybody\fR,
+which includes bin, daemon, adm, and other accounts that own critical
+binaries and directories.  Using a user name practically grants the
+user root access.  The only valid use for user names that I can think
+of is in negative entries.
+\fBNote that this warning also applies to rsh/rlogin.\fR
+.TP
+.I /etc/shosts.equiv
+This is processed exactly as
+.I /etc/hosts.equiv.
+However, this file may be useful in environments that want to run both
+rsh/rlogin and
+.B ssh2.
+
+.TP
+.I \&$HOME/\s+2.\s0ssh2/knownhosts/xxxxyyyy.pub
+These are the public hostkeys of hosts that a user wants to log from
+using "\fBhostbased\fR"-authentication (equivalent with ssh1's
+\fBRhostsRSAAuthentication\fR). Also, a user has to set up her/his
+\fI$HOME/.shosts\fR (which only ssh uses) or \fI$HOME/.rhosts\fR file
+(insecure, as it is used by the r*-commands also). If username is the
+same in both hosts, it is adequate to put the public hostkey to
+\fI/etc/ssh2/knownhosts\fR and add the host's name to
+\fI/etc/shosts.equiv\fR (or \fI/etc/hosts.equiv\fR).
+
+xxxx denotes the hostname (FQDN) and yyyy the publickey
+algorithm of the key.
+
+For example, zappa.foo.fi's hostkey algorithm is ssh-dss. The hostkey
+would be named "\fIzappa.foo.fi.ssh-dss.pub\fR" in the
+knowhosts-directory.
+
+Possible names for publickey-algorithms are "\fBssh-dss\fR" and
+"\fBssh-rsa\fR" (without the quotes).
+
+.TP
+.I /etc/ssh2/knownhosts/xxxxyyyy.pub
+As above, but system-wide. These can be overridden by the user by
+putting a file with the same name to her/his
+\fI$HOME/.ssh2/knownhosts\fR directory.
+
 
 .SH INSTALLATION
 .LP

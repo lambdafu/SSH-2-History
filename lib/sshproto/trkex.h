@@ -16,7 +16,7 @@ Key exchange methods.
 */
 
 /*
- * $Id: trkex.h,v 1.4 1998/07/11 12:37:08 tri Exp $
+ * $Id: trkex.h,v 1.5 1999/04/07 09:34:40 sjl Exp $
  * $Log: trkex.h,v $
  * $EndLog$
  */
@@ -30,7 +30,10 @@ Key exchange methods.
 /* Data types for declaring key exchange methods. */
 
 typedef SshBuffer *(*SshMakeKexProc)(SshTransportCommon tr);
+typedef void (*SshKex2CompletionProc) (SshTransportCommon tr);
 typedef Boolean (*SshInputKexProc)(SshTransportCommon tr, SshBuffer *buffer);
+typedef void (*SshInputKex2Proc) (SshTransportCommon tr, SshBuffer *buffer,
+                                  SshKex2CompletionProc completion);
 
 struct SshKexTypeRec
 {
@@ -67,8 +70,8 @@ struct SshKexTypeRec
      If exchange is successful, these will set the session key, session
      identifier, and individual keys.  These will free the packet in
      any case. */
-  SshInputKexProc client_input_kex2;
-  SshInputKexProc server_input_kex2;
+  SshInputKex2Proc client_input_kex2;
+  SshInputKex2Proc server_input_kex2;
 };
 
 /* Returns a comma-separated list of supported key exchange algorithms.

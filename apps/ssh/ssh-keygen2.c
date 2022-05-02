@@ -21,12 +21,14 @@
 
 
 #include "sshincludes.h"
+#include "ssh2includes.h"
+#include "sshuserfiles.h"
 #include "sshreadline.h"
 #include "readpass.h"
-#include "sshuserfiles.h"
 #include "sshuser.h"
-#include "ssh2version.h"
+#include "sshcrypt.h"
 #include "sshcipherlist.h"
+#include "ssh2pubkeyencode.h"
 #include "sshgetopt.h"
 #include <sys/types.h>
 #include <pwd.h>
@@ -673,7 +675,7 @@ int main(int argc, char **argv)
   KeyGenCtx *kgc;
   struct passwd *pw;
   char *t;
-  time_t now;
+  SshTime now;
   int r = 0, rr = 0;
   
   /* Initialize the context */
@@ -820,17 +822,20 @@ int main(int argc, char **argv)
 
       if (kgc->comment == NULL)
         {
+          char *time_str;
+
           pw = getpwuid(getuid());
           if (!pw)
             keygen_error(kgc, "Could not get user's password structure.");
           t = ssh_xmalloc(64);
           gethostname(t, 64);
           kgc->comment = ssh_xmalloc(256);
-          time(&now);
-          snprintf(kgc->comment, 256, "%d-bit %s, created by %s@%s %s", 
+          now = ssh_time();
+          time_str = ssh_readable_time_string(now, TRUE);
+          snprintf(kgc->comment, 256, "%d-bit %s, %s@%s, %s", 
                    kgc->keybits, kgc->keytypecommon,
-                   pw->pw_name, t, ctime(&now));
-          kgc->comment[strlen(kgc->comment) - 1] = '\0';
+                   pw->pw_name, t, time_str);
+          ssh_xfree(time_str);
           ssh_xfree(t);
         }
 

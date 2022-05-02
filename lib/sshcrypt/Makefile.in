@@ -92,6 +92,7 @@ PACKAGE = @PACKAGE@
 RANLIB = @RANLIB@
 SSH1_PATH = @SSH1_PATH@
 SSHSESSION_CONFOBJS = @SSHSESSION_CONFOBJS@
+SSHSIGNERINSTALLMODE = @SSHSIGNERINSTALLMODE@
 VERSION = @VERSION@
 X11_DIR = @X11_DIR@
 XAUTH_PATH = @XAUTH_PATH@
@@ -131,12 +132,12 @@ libsshcrypt_a_SOURCES = \
   genrand.c \
   namelist.c \
   keyblob.c \
+  ssh2pubkeyencode.c \
   libmonitor.c
 
 include_HEADERS = \
   sshcrypt.h \
   namelist.h \
-  keyblob.h \
   sshcrypti.h \
   sshrotate.h \
   sha.h \
@@ -152,6 +153,8 @@ include_HEADERS = \
   dlglue.h \
   dlfix.h \
   bufzip.h \
+  keyblob.h \
+  ssh2pubkeyencode.h \
   libmonitor.h
 
 noinst_HEADERS = \
@@ -196,7 +199,7 @@ X_PRE_LIBS = @X_PRE_LIBS@
 libsshcrypt_a_OBJECTS =  genhash.o md5.o sha.o ripemd160.o genmac.o \
 hmac.o macs.o genciph.o nociph.o des.o blowfish.o arcfour.o twofish.o \
 genpkcs.o genmp.o dlglue.o dlfix.o bufzip.o genaux.o genrand.o \
-namelist.o keyblob.o libmonitor.o
+namelist.o keyblob.o ssh2pubkeyencode.o libmonitor.o
 CFLAGS = @CFLAGS@
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS)
 LINK = $(CC) $(CFLAGS) $(LDFLAGS) -o $@

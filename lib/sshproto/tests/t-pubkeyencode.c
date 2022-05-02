@@ -13,7 +13,7 @@
 
 #include "sshincludes.h"
 #include "sshcrypt.h"
-#include "pubkeyencode.h"
+#include "ssh2pubkeyencode.h"
 #include "sshcipherlist.h"
 
 #ifndef T_PUBKEYENCODE_ITERATIONS
@@ -38,10 +38,10 @@ void simple_test(char *keytype, int keybits)
   /* generate a private key and a matching public key */
 
   if (ssh_private_key_generate(randseed, &privkey, keytype,
-			       SSH_PKF_SIZE, keybits,
-			       SSH_PKF_END) != SSH_CRYPTO_OK)
+                               SSH_PKF_SIZE, keybits,
+                               SSH_PKF_END) != SSH_CRYPTO_OK)
     ssh_fatal("simple_test: unable to generate %d - bit private key of type :"
-	      "\n%s\n", keybits, keytype);
+              "\n%s\n", keybits, keytype);
 
   pubkey = ssh_private_key_derive_public_key(privkey);
 
@@ -68,17 +68,17 @@ void simple_test(char *keytype, int keybits)
   signature = ssh_xmalloc(siglen);
   
   code = ssh_private_key_sign(privkey, plaintext, strlen(plaintext),
-			      signature, siglen, &siglenr, randseed);
+                              signature, siglen, &siglenr, randseed);
   if (code != SSH_CRYPTO_OK)
     ssh_fatal("simple_test: ssh_private_key_sign() failed (%s).",
-	      ssh_crypto_status_message(code));
+              ssh_crypto_status_message(code));
 
   /* ok, now verify the signature with our decoded public key */
 
   if (ssh_public_key_verify_signature(pubkey2, signature, siglenr,
-				      plaintext, strlen(plaintext) == FALSE))
+                                      plaintext, strlen(plaintext) == FALSE))
     ssh_fatal("simple_test: signature verification failed.");
-	      
+              
   ssh_xfree(blob1);
   ssh_xfree(blob2);
   ssh_xfree(signature);

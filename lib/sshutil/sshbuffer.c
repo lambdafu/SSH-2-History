@@ -14,7 +14,7 @@ Functions for manipulating fifo buffers (that can grow if needed).
 */
 
 /*
- * $Id: sshbuffer.c,v 1.10 1999/01/18 13:14:05 mtr Exp $
+ * $Id: sshbuffer.c,v 1.11 1999/03/30 14:11:04 sjl Exp $
  * $Log: sshbuffer.c,v $
  * $EndLog$
  */
@@ -150,31 +150,6 @@ void ssh_buffer_append_cstrs(SshBuffer *buffer, ...)
     ssh_buffer_append(buffer, (unsigned char *) str, strlen(str));
 
   va_end(ap);
-}
-
-/* Insert region of size `len' bytes into buffer position pointed by
-   `offset'. Adjusts `offset', if the buffer data gets relocated.
-   Copies `len' bytes from `data' into this new region if `data' is not
-   NULL */
-void ssh_buffer_insert(SshBuffer *buffer,
-                       unsigned char **offset,
-                       unsigned char *data, size_t len)
-{
-  unsigned char *cp, *start;
-  size_t off, origlen;
-
-  SSH_ASSERT(buffer);
-  SSH_ASSERT(len >= 0);
-
-  start = ssh_buffer_ptr(buffer);
-  off = *offset - start;
-  origlen = ssh_buffer_len(buffer);
-
-  ssh_buffer_append_space(buffer, &cp, len);
-  memmove(buffer->buf + off + len, buffer->buf + off, origlen - off);
-  if (len > 0)
-    memcpy(buffer->buf + off, data, len);
-  *offset = buffer->buf + off;
 }
 
 /* Returns the number of bytes of data in the buffer. */

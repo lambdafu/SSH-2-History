@@ -15,11 +15,11 @@
 
 #define SSH_DEBUG_MODULE "GetOptCompat"
 
-int opterr;
-int optind;
-int optopt;
-int optreset;
-char *optarg;
+int opterr = 1;
+int optind = 1;
+int optopt = 0;
+int optreset = 0;
+char *optarg = NULL;
 
 static void ssh_set_externals(void);
 static void ssh_get_externals(void);

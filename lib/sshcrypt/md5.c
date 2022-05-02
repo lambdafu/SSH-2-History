@@ -187,6 +187,7 @@ void ssh_md5_of_buffer(unsigned char digest[16], const unsigned char *buf,
 
 #if !defined(ASM_MD5)
 
+
 /* The four core functions - F1 is optimized somewhat */
 
 /* #define F1(x, y, z) (x & y | ~x & z) */
@@ -292,4 +293,153 @@ void ssh_md5_transform(SshUInt32 buf[4], const unsigned char inext[64])
     buf[3] += d;
 }
 
+#else /* ASM_MD5 */
+
+#if defined(WIN32)
+
+/* Following assembler code is perhaps not fastest, however, it may
+   very well be faster than the above compiled. You should test this
+   experimentally. */
+
+/* Define the suitable macros. */
+#define MD5STEPF1(w, t, x, y, z, buffer, data, s) \
+  mov t, y; \
+  add w, buffer; \
+  xor t, z; \
+  add w, data; \
+  and t, x; \
+  xor t, z; \
+  add w, t; \
+  rol w, s; \
+  add w, x;
+
+#define MD5STEPF2(w, t, x, y, z, buffer, data, s) \
+  mov t, x; \
+  add w, buffer; \
+  xor t, y; \
+  add w, data; \
+  and t, z; \
+  xor t, y; \
+  add w, t; \
+  rol w, s; \
+  add w, x;
+
+#define MD5STEPF3(w, t, x, y, z, buffer, data, s) \
+  mov t, x; \
+  add w, buffer; \
+  xor t, y; \
+  add w, data; \
+  xor t, z; \
+  add w, t; \
+  rol w, s; \
+  add w, x;
+
+
+#define MD5STEPF4(w, t, x, y, z, buffer, data, s) \
+  mov t, z; \
+  add w, buffer; \
+  not t; \
+  add w, data; \
+  or  t, x; \
+  xor t, y; \
+  add w, t; \
+  rol w, s; \
+  add w, x;
+
+
+
+void ssh_md5_transform(SshUInt32 buf[4], const unsigned char inext[64])
+{
+  __asm
+    {
+      /* Set esi and edi. */
+      mov esi, inext
+      mov edi, buf
+        
+      /* Make a copy of  the input. */
+      mov eax, [edi     ]
+      mov ebx, [edi +  4]
+      mov ecx, [edi +  8]
+      mov edx, [edi + 12]
+        
+      /* The hashing operations. */
+      MD5STEPF1(eax, edi, ebx, ecx, edx, [esi + 0*4], 0xd76aa478, 7);
+      MD5STEPF1(edx, edi, eax, ebx, ecx, [esi + 1*4], 0xe8c7b756, 12);
+      MD5STEPF1(ecx, edi, edx, eax, ebx, [esi + 2*4], 0x242070db, 17);
+      MD5STEPF1(ebx, edi, ecx, edx, eax, [esi + 3*4], 0xc1bdceee, 22);
+      MD5STEPF1(eax, edi, ebx, ecx, edx, [esi + 4*4], 0xf57c0faf, 7);
+      MD5STEPF1(edx, edi, eax, ebx, ecx, [esi + 5*4], 0x4787c62a, 12);
+      MD5STEPF1(ecx, edi, edx, eax, ebx, [esi + 6*4], 0xa8304613, 17);
+      MD5STEPF1(ebx, edi, ecx, edx, eax, [esi + 7*4], 0xfd469501, 22);
+      MD5STEPF1(eax, edi, ebx, ecx, edx, [esi + 8*4], 0x698098d8, 7);
+      MD5STEPF1(edx, edi, eax, ebx, ecx, [esi + 9*4], 0x8b44f7af, 12);
+      MD5STEPF1(ecx, edi, edx, eax, ebx, [esi + 10*4], 0xffff5bb1, 17);
+      MD5STEPF1(ebx, edi, ecx, edx, eax, [esi + 11*4], 0x895cd7be, 22);
+      MD5STEPF1(eax, edi, ebx, ecx, edx, [esi + 12*4], 0x6b901122, 7);
+      MD5STEPF1(edx, edi, eax, ebx, ecx, [esi + 13*4], 0xfd987193, 12);
+      MD5STEPF1(ecx, edi, edx, eax, ebx, [esi + 14*4], 0xa679438e, 17);
+      MD5STEPF1(ebx, edi, ecx, edx, eax, [esi + 15*4], 0x49b40821, 22);
+      
+      MD5STEPF2(eax, edi, ebx, ecx, edx, [esi + 1*4], 0xf61e2562, 5);
+      MD5STEPF2(edx, edi, eax, ebx, ecx, [esi + 6*4], 0xc040b340, 9);
+      MD5STEPF2(ecx, edi, edx, eax, ebx, [esi + 11*4], 0x265e5a51, 14);
+      MD5STEPF2(ebx, edi, ecx, edx, eax, [esi + 0*4], 0xe9b6c7aa, 20);
+      MD5STEPF2(eax, edi, ebx, ecx, edx, [esi + 5*4], 0xd62f105d, 5);
+      MD5STEPF2(edx, edi, eax, ebx, ecx, [esi + 10*4], 0x02441453, 9);
+      MD5STEPF2(ecx, edi, edx, eax, ebx, [esi + 15*4], 0xd8a1e681, 14);
+      MD5STEPF2(ebx, edi, ecx, edx, eax, [esi + 4*4], 0xe7d3fbc8, 20);
+      MD5STEPF2(eax, edi, ebx, ecx, edx, [esi + 9*4], 0x21e1cde6, 5);
+      MD5STEPF2(edx, edi, eax, ebx, ecx, [esi + 14*4], 0xc33707d6, 9);
+      MD5STEPF2(ecx, edi, edx, eax, ebx, [esi + 3*4], 0xf4d50d87, 14);
+      MD5STEPF2(ebx, edi, ecx, edx, eax, [esi + 8*4], 0x455a14ed, 20);
+      MD5STEPF2(eax, edi, ebx, ecx, edx, [esi + 13*4], 0xa9e3e905, 5);
+      MD5STEPF2(edx, edi, eax, ebx, ecx, [esi + 2*4], 0xfcefa3f8, 9);
+      MD5STEPF2(ecx, edi, edx, eax, ebx, [esi + 7*4], 0x676f02d9, 14);
+      MD5STEPF2(ebx, edi, ecx, edx, eax, [esi + 12*4], 0x8d2a4c8a, 20);
+      
+      MD5STEPF3(eax, edi, ebx, ecx, edx, [esi + 5*4], 0xfffa3942, 4);
+      MD5STEPF3(edx, edi, eax, ebx, ecx, [esi + 8*4], 0x8771f681, 11);
+      MD5STEPF3(ecx, edi, edx, eax, ebx, [esi + 11*4], 0x6d9d6122, 16);
+      MD5STEPF3(ebx, edi, ecx, edx, eax, [esi + 14*4], 0xfde5380c, 23);
+      MD5STEPF3(eax, edi, ebx, ecx, edx, [esi + 1*4], 0xa4beea44, 4);
+      MD5STEPF3(edx, edi, eax, ebx, ecx, [esi + 4*4], 0x4bdecfa9, 11);
+      MD5STEPF3(ecx, edi, edx, eax, ebx, [esi + 7*4], 0xf6bb4b60, 16);
+      MD5STEPF3(ebx, edi, ecx, edx, eax, [esi + 10*4], 0xbebfbc70, 23);
+      MD5STEPF3(eax, edi, ebx, ecx, edx, [esi + 13*4], 0x289b7ec6, 4);
+      MD5STEPF3(edx, edi, eax, ebx, ecx, [esi + 0*4], 0xeaa127fa, 11);
+      MD5STEPF3(ecx, edi, edx, eax, ebx, [esi + 3*4], 0xd4ef3085, 16);
+      MD5STEPF3(ebx, edi, ecx, edx, eax, [esi + 6*4], 0x04881d05, 23);
+      MD5STEPF3(eax, edi, ebx, ecx, edx, [esi + 9*4], 0xd9d4d039, 4);
+      MD5STEPF3(edx, edi, eax, ebx, ecx, [esi + 12*4], 0xe6db99e5, 11);
+      MD5STEPF3(ecx, edi, edx, eax, ebx, [esi + 15*4], 0x1fa27cf8, 16);
+      MD5STEPF3(ebx, edi, ecx, edx, eax, [esi + 2*4], 0xc4ac5665, 23);
+      
+      MD5STEPF4(eax, edi, ebx, ecx, edx, [esi + 0*4], 0xf4292244, 6);
+      MD5STEPF4(edx, edi, eax, ebx, ecx, [esi + 7*4], 0x432aff97, 10);
+      MD5STEPF4(ecx, edi, edx, eax, ebx, [esi + 14*4], 0xab9423a7, 15);
+      MD5STEPF4(ebx, edi, ecx, edx, eax, [esi + 5*4], 0xfc93a039, 21);
+      MD5STEPF4(eax, edi, ebx, ecx, edx, [esi + 12*4], 0x655b59c3, 6);
+      MD5STEPF4(edx, edi, eax, ebx, ecx, [esi + 3*4], 0x8f0ccc92, 10);
+      MD5STEPF4(ecx, edi, edx, eax, ebx, [esi + 10*4], 0xffeff47d, 15);
+      MD5STEPF4(ebx, edi, ecx, edx, eax, [esi + 1*4], 0x85845dd1, 21);
+      MD5STEPF4(eax, edi, ebx, ecx, edx, [esi + 8*4], 0x6fa87e4f, 6);
+      MD5STEPF4(edx, edi, eax, ebx, ecx, [esi + 15*4], 0xfe2ce6e0, 10);
+      MD5STEPF4(ecx, edi, edx, eax, ebx, [esi + 6*4], 0xa3014314, 15);
+      MD5STEPF4(ebx, edi, ecx, edx, eax, [esi + 13*4], 0x4e0811a1, 21);
+      MD5STEPF4(eax, edi, ebx, ecx, edx, [esi + 4*4], 0xf7537e82, 6);
+      MD5STEPF4(edx, edi, eax, ebx, ecx, [esi + 11*4], 0xbd3af235, 10);
+      MD5STEPF4(ecx, edi, edx, eax, ebx, [esi + 2*4], 0x2ad7d2bb, 15);
+      MD5STEPF4(ebx, edi, ecx, edx, eax, [esi + 9*4], 0xeb86d391, 21);
+
+      /* Copy the result for output. */
+      mov edi, buf
+
+      add [edi     ], eax
+      add [edi +  4], ebx
+      add [edi +  8], ecx
+      add [edi + 12], edx
+    }
+}   
+
+#endif /* WIN32 */
 #endif /* ASM_MD5 */

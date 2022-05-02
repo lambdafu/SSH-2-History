@@ -15,7 +15,7 @@ Macros for storing and retrieving integers in msb first and lsb first order.
 */
 
 /*
- * $Id: sshgetput.h,v 1.6 1998/12/04 23:29:57 kivinen Exp $
+ * $Id: sshgetput.h,v 1.9 1999/05/04 12:38:55 niko Exp $
  * $Log: sshgetput.h,v $
  * $EndLog$
  */
@@ -55,6 +55,65 @@ Macros for storing and retrieving integers in msb first and lsb first order.
   SSH_PUT_32BIT_LSB_FIRST((cp), (SshUInt32)(value)); \
   SSH_PUT_32BIT_LSB_FIRST((cp) + 4, 0L); } while (0)
 #endif /* SSHUINT64_IS_64BITS */
+
+
+#if defined(_MSC_VER) && (defined (WIN32) || defined(KERNEL) && (defined(WIN95) || defined(WINNT)))
+/* optimizations for microsoft visual C++ */
+
+#define SSH_GET_32BIT_LSB_FIRST(cp) (*(SshUInt32 *)(cp))
+#define SSH_GET_16BIT_LSB_FIRST(cp) (*(SshUInt16 *)(cp))
+#define SSH_PUT_32BIT_LSB_FIRST(cp,x) (*(SshUInt32 *)(cp)) = (x)
+#define SSH_PUT_16BIT_LSB_FIRST(cp,x) (*(SshUInt16 *)(cp)) = (x)
+
+/* Getting bytes msb first */
+#define SSH_GET_16BIT(cp) \
+     ((SshUInt16) ((((unsigned long)((unsigned char *)(cp))[0]) << 8) | \
+      ((unsigned long)((unsigned char *)(cp))[1])))
+         
+#define SSH_PUT_16BIT(cp, value) do { \
+  ((unsigned char *)(cp))[0] = (unsigned char)((value) >> 8); \
+  ((unsigned char *)(cp))[1] = (unsigned char)(value); } while (0)
+     
+
+#pragma warning( disable : 4035 )
+__inline void SSH_PUT_32BIT(void *cp, unsigned long value)
+{
+  __asm
+    {
+      mov eax, value
+      mov ebx, cp
+#ifdef NO_386_COMPAT
+      bswap eax
+#else    
+      rol ax,8
+      rol eax,16
+      rol ax,8
+#endif
+      mov [ebx], eax
+    }
+}
+
+__inline SshUInt32 SSH_GET_32BIT(const char *cp)
+{
+  __asm
+    {
+      mov ebx, cp
+      mov eax, [ebx]
+#ifdef NO_386_COMPAT
+      bswap eax
+#else
+      rol ax,8
+      rol eax,16
+      rol ax,8
+#endif
+      
+    }
+  /* eax is interpreted as return value */
+}
+
+#pragma warning( default : 4035 )
+
+#else
 
 #if defined(NO_INLINE_GETPUT) || !defined(__i386__) || !defined(__GNUC__)
 
@@ -122,7 +181,7 @@ Macros for storing and retrieving integers in msb first and lsb first order.
 #define SSH_GET_32BIT(cp) \
 ({  \
   SshUInt32 __v__; \
-  __asm__ ("movl (%1), %0; rolw $8, %0; roll $16, %0; rolw $8, %0;" \
+  __asm__ volatile ("movl (%1), %0; rolw $8, %0; roll $16, %0; rolw $8, %0;" \
           : "=&r" (__v__) \
           : "r" (cp)); \
   __v__; \
@@ -131,21 +190,23 @@ Macros for storing and retrieving integers in msb first and lsb first order.
 #define SSH_GET_16BIT(cp) \
 ({ \
   SshUInt16 __v__; \
-  __asm__ ("movw (%1), %0; rolw $8, %0;" \
+  __asm__ volatile ("movw (%1), %0; rolw $8, %0;" \
           : "=&r" (__v__) \
           : "r" (cp)); \
   __v__; \
 })
 
 #define SSH_PUT_32BIT(cp, v) \
-__asm__ ("movl %1, %%ecx; rolw $8, %%cx; roll $16, %%ecx; rolw $8, %%cx;" \
+__asm__ volatile ("movl %1, %%ecx; rolw $8, %%cx; roll $16, %%ecx; rolw $8, %%cx;" \
          "movl %%ecx, (%0);" \
          : : "S" (cp), "a" (v) : "%ecx") \
 
 #define SSH_PUT_16BIT(cp,v)  \
-__asm__("movw %%ax, %%cx; rolw $8, %%cx; movw %%cx, (%0);"\
+__asm__ volatile ("movw %%ax, %%cx; rolw $8, %%cx; movw %%cx, (%0);"\
         : : "S" (cp), "a" (v) : "%cx") \
 
 #endif /* __i386__ */
+
+#endif /* GETPUT_MSVC */
 
 #endif /* GETPUT_H */

@@ -17,18 +17,18 @@ struct in_addr {
 };
 
 char *inet_ntoa(struct in_addr in);
+int inet_aton(const char *cp, struct in_addr *addr);
 
 main()
 {
    char *addr;
    struct in_addr in;
-   memset(&in, 0, sizeof(in));
+
+   inet_aton("127.0.0.1", &in);
    addr = inet_ntoa(in);
-   if (strcmp(addr, "0.0.0.0"))
-     {
-       fprintf(stderr, "t-inet_ntoa failed. (addr = %s) \n", addr);
-       return 1;
-     }
    
+   if (strcmp(addr, "127.0.0.1"))
+      return 1;
+
    return 0;
 }

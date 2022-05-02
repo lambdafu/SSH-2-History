@@ -10,7 +10,7 @@ Real time measuring.
 */
 
 /*
- * $Id: sshtimemeasure.c,v 1.8 1999/01/26 16:28:45 kukkonen Exp $
+ * $Id: sshtimemeasure.c,v 1.9 1999/05/04 02:20:23 kivinen Exp $
  * $Log: sshtimemeasure.c,v $
  * $EndLog$
  */
@@ -552,7 +552,7 @@ Boolean ssh_time_measure_system_time(SshTimeVal timeval)
 #elif defined(HAVE_GETTIMEOFDAY)
   struct timeval tv;
 #else /* !WIN32 && !CHORUS && !HAVE_GETTIMEOFDAY */
-  time_t tv;
+  SshTime tv;
 #endif /* !WIN32 && !CHORUS && !HAVE_GETTIMEOFDAY */
 
 #if defined(WIN32)
@@ -604,7 +604,7 @@ Boolean ssh_time_measure_system_time(SshTimeVal timeval)
       return FALSE;
     }
 #else /* !WIN32 && !CHORUS && !HAVE_GETTIMEOFDAY */
-  tv = time(NULL);
+  tv = ssh_time();
   if (timeval != NULL)
     {
       timeval->seconds = (SshUInt64)tv;

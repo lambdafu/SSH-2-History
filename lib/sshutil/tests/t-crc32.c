@@ -10,7 +10,7 @@ Copyright (c) 1996 SSH Communications Security, Finland
 */
 
 #include "sshincludes.h"
-#include "crc32.h"
+#include "sshcrc32.h"
 
 struct
 {
@@ -886,23 +886,24 @@ struct
 int main(int ac, char **av)
 {
   int i, pass;
-  unsigned long crc;
+  SshUInt32 crc;
   unsigned char *buf, *mask;
-  unsigned int buf_len, mask_len, buf_len_max;
-  unsigned int mask_crc, buf_crc, old_buf_crc, offset;
+  size_t buf_len, mask_len, buf_len_max;
+  SshUInt32 mask_crc, buf_crc, old_buf_crc;
+  size_t offset;
 
   for (pass = 0; pass < 1000; pass++)
     {
       for (i = 0; testdata[i].len != -1; i++)
-	{
-	  crc = crc32_buffer(testdata[i].data, testdata[i].len);
-	  if (crc != testdata[i].crc)
-	    {
-	      printf("crc test fails i=%d crc=0x%lx expected 0x%lx\n",
-		     i, crc, testdata[i].crc);
-	      exit(1);
-	    }
-	}
+        {
+          crc = crc32_buffer(testdata[i].data, testdata[i].len);
+          if (crc != testdata[i].crc)
+            {
+              printf("crc test fails i=%d crc=0x%lx expected 0x%lx\n",
+                     i, crc, testdata[i].crc);
+              exit(1);
+            }
+        }
     }
 
 #if 0
@@ -916,7 +917,7 @@ int main(int ac, char **av)
   mask_len = 100;
   mask = ssh_xmalloc(mask_len);
     
-  srandom(time(NULL));
+  srandom(ssh_time());
 
   for (i = 0; i < buf_len; i++)
     buf[i] = random() % 0xff;
@@ -927,10 +928,10 @@ int main(int ac, char **av)
     {
       offset = random() % (buf_len - mask_len);
       for (i = 0; i < mask_len; i++)
-	mask[i] = random() % 0xff;
+        mask[i] = random() % 0xff;
 
       for (i = 0; i < mask_len; i++)
-	buf[i + offset] ^= mask[i];
+        buf[i + offset] ^= mask[i];
 
       /* printf("Offset %u\n", offset); */
 
@@ -939,36 +940,36 @@ int main(int ac, char **av)
       /* printf("The crc of old one: %08x\n", buf_crc); */
 
       mask_crc = crc32_mask(mask, mask_len, offset, buf_len,
-			    old_buf_crc);
+                            old_buf_crc);
       if (mask_crc != buf_crc)
-	{
-	  ssh_fatal("Buffer and mask crc's are different!");
-	}
+        {
+          ssh_fatal("Buffer and mask crc's are different!");
+        }
 
       /* Adding few extra bytes. */
       buf_len += random() % buf_len;
       for (i = buf_len_max/2; i < buf_len; i++)
-	{
-	  buf[i] = 0;
-	}
+        {
+          buf[i] = 0;
+        }
 
       old_buf_crc = buf_crc;
       buf_crc = crc32_buffer(buf, buf_len);
 
       mask_crc = crc32_extend(old_buf_crc, buf_len - buf_len_max/2);
       if (buf_crc != mask_crc)
-	{
-	  ssh_fatal("Buffer and mask crc's are different! (2)");
-	}
+        {
+          ssh_fatal("Buffer and mask crc's are different! (2)");
+        }
 
       /* Truncate back to correct length. */
       old_buf_crc = buf_crc;
       buf_crc = crc32_buffer(buf, buf_len_max/2);
       mask_crc = crc32_truncate(old_buf_crc, buf_len - buf_len_max/2);
       if (mask_crc != buf_crc)
-	{
-	  ssh_fatal("Buffer and mask crc's are different! (3)");
-	}
+        {
+          ssh_fatal("Buffer and mask crc's are different! (3)");
+        }
       buf_len = buf_len_max/2;
     }
 

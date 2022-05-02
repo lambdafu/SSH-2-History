@@ -14,13 +14,13 @@
 */
 
 /*
- * $Id: t-base64.c,v 1.4 1998/10/09 13:26:10 kivinen Exp $
+ * $Id: t-base64.c,v 1.5 1999/03/15 15:24:35 tri Exp $
  * $Log: t-base64.c,v $
  * $EndLog$
  */
 
 #include "sshincludes.h"
-#include "base64.h"
+#include "sshbase64.h"
 #include "sshfileio.h"
 
 void usage(void)

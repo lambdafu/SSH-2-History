@@ -9,7 +9,7 @@
     */
 
 /*
- * $Id: genciph.c,v 1.39 1999/01/25 10:28:05 tmo Exp $
+ * $Id: genciph.c,v 1.41 1999/04/21 23:34:44 kivinen Exp $
  * $Log: genciph.c,v $
  * $EndLog$
  */
@@ -32,6 +32,8 @@
 
 #include "twofish.h"
 
+ 
+
 #ifndef KERNEL
 /* These ciphers can only be used in user-mode code, not in the kernel.
    To add a cipher to be used in the kernel, you must add its object
@@ -39,8 +41,6 @@
    outside the #ifndef KERNEL directive both here and later in this file. */
 
 #include "arcfour.h"
-
-
 
 
 
@@ -94,6 +94,8 @@ static const SshCipherDef ssh_cipher_algorithms[] =
     ssh_twofish_ctxsize, ssh_twofish_init, ssh_twofish_init, ssh_twofish_ofb },
 
 
+
+
 #ifndef KERNEL
   /* The ciphers below can only be used in user-level code.  See
      the comments above for adding ciphers to the kernel. */
@@ -105,7 +107,6 @@ static const SshCipherDef ssh_cipher_algorithms[] =
 
 
   
-
 #endif /* !KERNEL */
   
   { "none", 1, 0, NULL, NULL, NULL, ssh_none_cipher },
@@ -370,7 +371,7 @@ ssh_cipher_allocate_internal(const char *name,
              */
           rv = (*cipher_def->init_with_check)((*cipher)->context,
                                               expanded_key,
-                                          expanded_key_len,
+                                              expanded_key_len,
                                               for_encryption);
         }
     }
@@ -382,7 +383,12 @@ ssh_cipher_allocate_internal(const char *name,
     ssh_xfree(expanded_key);
 
   if (rv == FALSE)
-    return SSH_CRYPTO_OPERATION_FAILED;
+    {
+      ssh_xfree((*cipher)->context);
+      ssh_xfree(*cipher);
+      *cipher = NULL;
+      return SSH_CRYPTO_OPERATION_FAILED;
+    }
   return SSH_CRYPTO_OK;
 }
 

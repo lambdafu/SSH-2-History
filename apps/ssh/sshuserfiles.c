@@ -18,11 +18,11 @@
 #include "sshincludes.h"
 #include "sshuserfiles.h"
 #include "sshencode.h"
-#include "pubkeyencode.h"
+#include "ssh2pubkeyencode.h"
 #include "sshuser.h"
-#include "userfile.h"
+#include "sshuserfile.h"
 #include "sshconfig.h"
-#include "base64.h"
+#include "sshbase64.h"
 #include "sshmiscstring.h"
 
 #define SSH_DEBUG_MODULE "SshUserFiles"
@@ -392,7 +392,7 @@ unsigned long ssh2_key_blob_read(SshUser user, const char *fname,
   memcpy(tmp, pkeypem + end + 1 + step, start2 - end - step - 1);
 
   /* Remove whitespace. */
-  whitened = ssh_base64_remove_whitespace(tmp, start2 - end - step);
+  whitened = ssh_base64_remove_whitespace(tmp, start2 - end - step - 1);
   ssh_xfree(tmp);
   
   /* Decode the base64 blob. */

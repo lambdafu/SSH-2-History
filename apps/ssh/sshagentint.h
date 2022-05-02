@@ -30,13 +30,14 @@ Unix implementation internal header for the ssh-agent interface.
 #define SSH_AGENT_DELETE_KEY            207
 #define SSH_AGENT_LOCK                  208
 #define SSH_AGENT_UNLOCK                209
-
+#define SSH_AGENT_PING                  212
 /* Responses from the agent. */
 #define SSH_AGENT_SUCCESS               101
 #define SSH_AGENT_FAILURE               102
 #define SSH_AGENT_VERSION_RESPONSE      103
 #define SSH_AGENT_KEY_LIST              104
 #define SSH_AGENT_OPERATION_COMPLETE    105
+#define SSH_AGENT_ALIVE                 150
 
 /* SSH1 agent request codes. */
 #define SSH1_AGENT_LIST_KEYS            1
@@ -52,12 +53,19 @@ Unix implementation internal header for the ssh-agent interface.
 #define SSH1_AGENT_SUCCESS              6
 
 /* Constraints that can be given to the key in SSH_AGENT_ADD_KEY packet */
-#define SSH_AGENT_CONSTRAINT_TIMEOUT            1
-#define SSH_AGENT_CONSTRAINT_USE_LIMIT          2
-#define SSH_AGENT_CONSTRAINT_FORWARDING_STEPS   3
-#define SSH_AGENT_CONSTRAINT_FORWARDING_PATH    4
-#define SSH_AGENT_CONSTRAINT_COMPAT             5
-#define SSH_AGENT_CONSTRAINT_STATUS             6
+#define SSH_AGENT_CONSTRAINT_OLD_TIMEOUT            1
+#define SSH_AGENT_CONSTRAINT_OLD_USE_LIMIT          2
+#define SSH_AGENT_CONSTRAINT_OLD_FORWARDING_STEPS   3
+#define SSH_AGENT_CONSTRAINT_OLD_FORWARDING_PATH    4
+#define SSH_AGENT_CONSTRAINT_OLD_COMPAT             5
+#define SSH_AGENT_CONSTRAINT_OLD_STATUS             6
+#define SSH_AGENT_CONSTRAINT_TIMEOUT                50
+#define SSH_AGENT_CONSTRAINT_USE_LIMIT              51
+#define SSH_AGENT_CONSTRAINT_FORWARDING_STEPS       52
+#define SSH_AGENT_CONSTRAINT_FORWARDING_PATH        100
+#define SSH_AGENT_CONSTRAINT_COMPAT                 150
+#define SSH_AGENT_CONSTRAINT_STATUS                 53
+
 
 /* Pathname for the ssh-agent socket.  It takes two arguments, the
    user name and the process id of the agent. */
@@ -70,6 +78,7 @@ Unix implementation internal header for the ssh-agent interface.
 /* Environment variable that contains the authentication agent socket
    name if present. */
 #define SSH_AGENT_VAR "SSH2_AUTH_SOCK"
+#define SSH_AA_VAR    "SSH_AA_SOCK"
 
 /* Environment variable for agent's pid. */
 #define SSH_AGENT_PID "SSH2_AGENT_PID"

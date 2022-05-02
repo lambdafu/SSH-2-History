@@ -24,14 +24,14 @@
   */
 
 /*
- * $Id: t-asn1.c,v 1.7 1998/10/12 13:25:41 mkojo Exp $
+ * $Id: t-asn1.c,v 1.9 1999/04/29 13:39:03 huima Exp $
  * $Log: t-asn1.c,v $
  * $EndLog$
  */
 
 #include "sshincludes.h"
-#include "gmp.h"
-#include "asn1.h"
+#include "sshmp.h" /* was "gmp.h" */
+#include "sshasn1.h"
 
 const char *classes[4] =
 {
@@ -268,11 +268,11 @@ void test_1(void)
   SshAsn1Status status;
   unsigned char *data;
   size_t length;
-  MP_INT integer;
+  SshInt integer;
   char *oid = "1.2.840.113549.1";
   unsigned char bit_string[3] = { 0x6e, 0x5d, 0xc0 };
 
-  mpz_init_set_si(&integer, -129);
+  ssh_mp_init_set_si(&integer, -129);
 
   /* Allocate context for asn1 work. */
   context = ssh_asn1_init();
@@ -302,7 +302,7 @@ void test_1(void)
                             test_string_11, strlen(test_string_11),
                             &integer
                             );
-  mpz_clear(&integer);
+  ssh_mp_clear(&integer);
 
   
   if (status != SSH_ASN1_STATUS_OK)
@@ -365,13 +365,13 @@ void test_2(void)
   SshAsn1Tree tree;
   SshAsn1Node node;
   char *oid = "1.2.3234234.23423.34.3.23";
-  MP_INT int_1, int_2, int_3;
+  SshInt int_1, int_2, int_3;
   unsigned char *data;
   size_t length;
   
-  mpz_init_set_ui(&int_1, 1);
-  mpz_init_set_ui(&int_2, 93842359);
-  mpz_init_set_ui(&int_3, 439223);
+  ssh_mp_init_set_ui(&int_1, 1);
+  ssh_mp_init_set_ui(&int_2, 93842359);
+  ssh_mp_init_set_ui(&int_3, 439223);
 
   /* Initialize the asn1 allocation context. */
   context = ssh_asn1_init();
@@ -436,9 +436,9 @@ void test_2(void)
 
   ssh_xfree(data);
   
-  mpz_clear(&int_1);
-  mpz_clear(&int_2);
-  mpz_clear(&int_3);
+  ssh_mp_clear(&int_1);
+  ssh_mp_clear(&int_2);
+  ssh_mp_clear(&int_3);
 }
 
 void test_3(void)
@@ -586,7 +586,7 @@ void test_5(void)
   SshAsn1Status status;
   SshAsn1Context context;
   SshAsn1Tree tree;
-  MP_INT int_1, int_2, int_3, int_4, int_5, int_6, int_7, temp;
+  SshInt int_1, int_2, int_3, int_4, int_5, int_6, int_7, temp;
   char *oid = "1.2.840.113549.1";
   unsigned char bit_string[3] = { 0x6e, 0x5d, 0xc0 };
   char *my_oid;
@@ -594,14 +594,14 @@ void test_5(void)
   unsigned int my_bs_len;
   int i;
   
-  mpz_init_set_ui(&int_1, 0);
-  mpz_init_set_ui(&int_2, 343);
-  mpz_init_set_si(&int_3, -4982735);
-  mpz_init_set_ui(&int_4, 545);
-  mpz_init_set_ui(&int_5, 541);
-  mpz_init_set_ui(&int_6, 55);
-  mpz_init_set_ui(&int_7, 9873245);
-  mpz_init_set_ui(&temp, 0);
+  ssh_mp_init_set_ui(&int_1, 0);
+  ssh_mp_init_set_ui(&int_2, 343);
+  ssh_mp_init_set_si(&int_3, -4982735);
+  ssh_mp_init_set_ui(&int_4, 545);
+  ssh_mp_init_set_ui(&int_5, 541);
+  ssh_mp_init_set_ui(&int_6, 55);
+  ssh_mp_init_set_ui(&int_7, 9873245);
+  ssh_mp_init_set_ui(&temp, 0);
   
   context = ssh_asn1_init();
 
@@ -650,14 +650,14 @@ void test_5(void)
       exit(1);
     }
 
-  if (mpz_cmp(&temp, &int_3) != 0)
+  if (ssh_mp_cmp(&temp, &int_3) != 0)
     {
       printf("error: (5,4) not correct.\n");
 
       printf("\n");
-      mpz_out_str(NULL, 16, &temp);
+      ssh_mp_out_str(NULL, 16, &temp);
       printf(" != ");
-      mpz_out_str(NULL, 16, &int_3);
+      ssh_mp_out_str(NULL, 16, &int_3);
       printf("\n");
       exit(1);
     }
@@ -665,9 +665,9 @@ void test_5(void)
   if (verbose)
     {
       printf("\n");
-      mpz_out_str(NULL, 16, &temp);
+      ssh_mp_out_str(NULL, 16, &temp);
       printf(" = ");
-      mpz_out_str(NULL, 16, &int_3);
+      ssh_mp_out_str(NULL, 16, &int_3);
       printf("\n");
       printf("Found the correct one.\n");
     }
@@ -749,15 +749,15 @@ void test_5(void)
   if (verbose)
     printf("bs ok.\n");
   
-  mpz_clear(&temp);
+  ssh_mp_clear(&temp);
     
-  mpz_clear(&int_1);
-  mpz_clear(&int_2);
-  mpz_clear(&int_3);
-  mpz_clear(&int_4);
-  mpz_clear(&int_5);
-  mpz_clear(&int_6);
-  mpz_clear(&int_7);
+  ssh_mp_clear(&int_1);
+  ssh_mp_clear(&int_2);
+  ssh_mp_clear(&int_3);
+  ssh_mp_clear(&int_4);
+  ssh_mp_clear(&int_5);
+  ssh_mp_clear(&int_6);
+  ssh_mp_clear(&int_7);
   ssh_asn1_free(context);
 }
 
@@ -767,16 +767,16 @@ void test_6(void)
   SshAsn1Context context;
   SshAsn1Tree tree;
   SshAsn1Node node;
-  MP_INT int_1, int_2, int_3, int_4, int_5, int_6, int_7, temp;
+  SshInt int_1, int_2, int_3, int_4, int_5, int_6, int_7, temp;
   
-  mpz_init_set_ui(&int_1, 9843841);
-  mpz_init_set_ui(&int_2, 343);
-  mpz_init_set_si(&int_3, -4982735);
-  mpz_init_set_ui(&int_4, 545);
-  mpz_init_set_ui(&int_5, 43541);
-  mpz_init_set_ui(&int_6, 55);
-  mpz_init_set_ui(&int_7, 9873245);
-  mpz_init_set_ui(&temp, 0);
+  ssh_mp_init_set_ui(&int_1, 9843841);
+  ssh_mp_init_set_ui(&int_2, 343);
+  ssh_mp_init_set_si(&int_3, -4982735);
+  ssh_mp_init_set_ui(&int_4, 545);
+  ssh_mp_init_set_ui(&int_5, 43541);
+  ssh_mp_init_set_ui(&int_6, 55);
+  ssh_mp_init_set_ui(&int_7, 9873245);
+  ssh_mp_init_set_ui(&temp, 0);
   
   context = ssh_asn1_init();
 
@@ -830,15 +830,15 @@ void test_6(void)
       print_tree(tree);
     }
   
-  mpz_clear(&temp);
+  ssh_mp_clear(&temp);
     
-  mpz_clear(&int_1);
-  mpz_clear(&int_2);
-  mpz_clear(&int_3);
-  mpz_clear(&int_4);
-  mpz_clear(&int_5);
-  mpz_clear(&int_6);
-  mpz_clear(&int_7);
+  ssh_mp_clear(&int_1);
+  ssh_mp_clear(&int_2);
+  ssh_mp_clear(&int_3);
+  ssh_mp_clear(&int_4);
+  ssh_mp_clear(&int_5);
+  ssh_mp_clear(&int_6);
+  ssh_mp_clear(&int_7);
   ssh_asn1_free(context);
 }
 

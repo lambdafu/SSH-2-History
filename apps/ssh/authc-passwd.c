@@ -26,16 +26,16 @@
 
 /* Password authentication, client-side. */
 
-void ssh_client_auth_password(SshAuthClientOperation op,
-                              const char *user,
-                              unsigned int packet_type,
-                              SshBuffer *packet_in,
-                              const unsigned char *session_id,
-                              size_t session_id_len,
-                              void **state_placeholder,
-                              SshAuthClientCompletionProc completion,
-                              void *completion_context,
-                              void *method_context)
+void ssh_client_auth_passwd(SshAuthClientOperation op,
+                            const char *user,
+                            unsigned int packet_type,
+                            SshBuffer *packet_in,
+                            const unsigned char *session_id,
+                            size_t session_id_len,
+                            void **state_placeholder,
+                            SshAuthClientCompletionProc completion,
+                            void *completion_context,
+                            void *method_context)
 {
   char *password;
   SshBuffer *b;
@@ -77,7 +77,8 @@ void ssh_client_auth_password(SshAuthClientOperation op,
       break;
       
     case SSH_AUTH_CLIENT_OP_ABORT:
-      (*completion)(SSH_AUTH_CLIENT_FAIL, user, NULL, completion_context);
+      *state_placeholder = NULL;
+      
       break;
       
     default:

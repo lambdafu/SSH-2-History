@@ -14,13 +14,13 @@ trcommon.c
 */
 
 /*
- * $Id: trcommon.c,v 1.49 1998/11/26 13:44:09 sjl Exp $
+ * $Id: trcommon.c,v 1.58 1999/05/04 19:21:12 kivinen Exp $
  * $Log: trcommon.c,v $
  * $EndLog$
  */
 
 #include "sshincludes.h"
-#include "bufaux.h"
+#include "sshbufaux.h"
 #include "sshgetput.h"
 #include "namelist.h"
 #include "sshcipherlist.h"
@@ -31,7 +31,7 @@ trcommon.c
 #include "sshencode.h"
 #include "trcommon.h"
 #include "trkex.h"
-#include "pubkeyencode.h"
+#include "ssh2pubkeyencode.h"
 
 #define SSH_DEBUG_MODULE "Ssh2Transport"
 
@@ -161,12 +161,12 @@ void ssh_tr_destroy_now(SshTransportCommon tr)
 
   /* clear and free dh key exchange stuff */
 
-  mpz_clear(tr->dh_p);
-  mpz_clear(tr->dh_g);
-  mpz_clear(tr->dh_e);
-  mpz_clear(tr->dh_f);
-  mpz_clear(tr->dh_k);
-  mpz_clear(tr->dh_secret);
+  ssh_mp_clear(tr->dh_p);
+  ssh_mp_clear(tr->dh_g);
+  ssh_mp_clear(tr->dh_e);
+  ssh_mp_clear(tr->dh_f);
+  ssh_mp_clear(tr->dh_k);
+  ssh_mp_clear(tr->dh_secret);
 
   /* Fill with garbage for debugging. */
   memset(tr, 'F', sizeof(*tr));
@@ -631,14 +631,26 @@ Boolean ssh_tr_input_version(SshTransportCommon tr)
               ssh_tr_version_string_equal("2.0.7", temp_verstring) ||
               ssh_tr_version_string_equal("2.0.8", temp_verstring) ||
               ssh_tr_version_string_equal("2.0.9", temp_verstring) ||
-              ssh_tr_version_string_equal("2.0.10", temp_verstring) ||
-              ssh_tr_version_string_equal("2.0.11-beta2", temp_verstring) ||
-              ssh_tr_version_string_equal("2.0.11-beta12", temp_verstring) ||
-              ssh_tr_version_string_equal("2.0.11-beta19", temp_verstring))
+              ssh_tr_version_string_equal("2.0.10", temp_verstring))
             {
               SSH_DEBUG(5, ("Remote version has key size reduction bug."));
               tr->ssh_old_keygen_bug_compat = TRUE;
             }
+          if (ssh_tr_version_string_equal("2.0.6", temp_verstring) ||
+              ssh_tr_version_string_equal("2.0.7", temp_verstring) ||
+              ssh_tr_version_string_equal("2.0.8", temp_verstring) ||
+              ssh_tr_version_string_equal("2.0.9", temp_verstring) ||
+              ssh_tr_version_string_equal("2.0.10", temp_verstring) ||
+              ssh_tr_version_string_equal("2.0.12", temp_verstring) ||
+              ssh_tr_version_string_equal("2.0.13.beta5",temp_verstring) ||
+              ssh_tr_version_string_equal("2.0.13.beta6",temp_verstring) ||
+              ssh_tr_version_string_equal("2.0.13.beta13",temp_verstring))
+            {
+              SSH_DEBUG(5, ("Remote version has publickey draft " \
+                            "incompatibility bug."));
+              tr->ssh_old_publickey_bug_compat = TRUE;
+            }
+
           ssh_xfree(temp_verstring);
         }
     }
@@ -954,7 +966,7 @@ unsigned int ssh_tr_peek_packet_type(SshBuffer *packet)
 void ssh_tr_input_disconnect(SshTransportCommon tr, SshBuffer *packet)
 {
   unsigned int packet_type;
-  unsigned long reason;
+  SshUInt32 reason;
   char *message;
 
   SSH_DEBUG(5, ("ssh_tr_input_disconnect"));
@@ -1592,37 +1604,49 @@ Boolean ssh_tr_input_kex1(SshTransportCommon tr)
   return TRUE;
 }
 
-/* Process KEX2 packet.  If no packet is yet available, return FALSE.  If
-   key exchange fails, initiate disconnect and return FALSE.  If KEX2
-   is successfully received and the key exchange successfully completes,
-   update state, send NEWKEYS, and return TRUE.  Otherwise, this returns
-   FALSE. */
+/* Forward declaration. */
+void ssh_tr_input_kex2_finalize(SshTransportCommon tr);
 
-Boolean ssh_tr_input_kex2(SshTransportCommon tr)
+/* Process KEX2 packet.  If no packet is yet available, return. Rest
+   is done ssh_tr_input_kex2_finalize(), after key check.  */
+void ssh_tr_input_kex2(SshTransportCommon tr)
 {
   SshBuffer *packet;
-  Boolean success;
 
   SSH_DEBUG(5, ("ssh_tr_input_kex2"));
   
   /* Read a packet. */
   packet = ssh_tr_input_packet(tr);
   if (!packet)
-    return FALSE;
+    return;
 
   /* Process the packet to finalize our part of the key exchange.
      This will also free the packet. */
   if (tr->server)
-    success = (*tr->kex->server_input_kex2)(tr, packet);
+    (*tr->kex->server_input_kex2)(tr, packet,
+                                  ssh_tr_input_kex2_finalize);
   else
-    success = (*tr->kex->client_input_kex2)(tr, packet);
+    (*tr->kex->client_input_kex2)(tr, packet,
+                                  ssh_tr_input_kex2_finalize);
+  
+}
 
+/* If key exchange fails, initiate disconnect and return.  If KEX2 is
+   successfully received and the key exchange successfully completes,
+   update state and send NEWKEYS. After these, this calls
+   ssh_tr_process_input() to continue the protocol. */
+void ssh_tr_input_kex2_finalize(SshTransportCommon tr)
+{
+  Boolean success;
+
+  success = tr->key_check_result;
+  
   if (!success)
     {
       /* Disconnect. */
       ssh_tr_up_disconnect(tr, TRUE, TRUE, SSH_DISCONNECT_KEY_EXCHANGE_FAILED,
-			   "Key exchange failed.");
-      return FALSE;
+                           "Key exchange failed.");
+      return;
     }
   
   /* Key exchange has been successful.  Send newkeys. */
@@ -1643,7 +1667,7 @@ Boolean ssh_tr_input_kex2(SshTransportCommon tr)
   tr->received_state = RECEIVED_KEX2;
   ssh_tr_process_output(tr);
   
-  return TRUE;
+  ssh_tr_process_input(tr);
 }
   
 /* Process NEWKEYS packet.  This will cause new algorithms to be taken
@@ -2115,7 +2139,7 @@ void ssh_tr_process_input(SshTransportCommon tr)
                : tr->kex->client_input_kex1) != NULL)
             ok = ssh_tr_input_kex1(tr);
           else
-            ok = ssh_tr_input_kex2(tr);
+            ssh_tr_input_kex2(tr);
           break;
           
         case RECEIVED_KEX1_IGNORED:
@@ -2123,7 +2147,7 @@ void ssh_tr_process_input(SshTransportCommon tr)
           break;
           
         case RECEIVED_KEX1_FINAL:
-          ok = ssh_tr_input_kex2(tr);
+          ssh_tr_input_kex2(tr);
           break;
           
         case RECEIVED_KEX2:
@@ -2221,10 +2245,32 @@ void ssh_tr_process_output(SshTransportCommon tr)
       switch (tr->sent_state)
         {
         case SENT_NOTHING:
+          /* This is technically against the draft. */
+          /* Don't send anything before we receive the server's
+             version string. */
+          /* The reason for this kludge is that there existed a race
+             condition. Sometimes ssh2-client executed the ssh1-client
+             (=the version_callback got called), sometimes not,
+             depending on whether it managed to process the server's
+             version string before the server had closed the
+             connection, and the stream got destroyed. It wasn't nice,
+             so now we get to exec it in any case. Furthermore, this
+             bug wasn't universal, and I found it when using my
+             Linux-system.*/
+          if (!tr->server && tr->version_compatibility &&
+              tr->received_state < RECEIVED_VERSION )
+            {
+              /* We're in compatibility mode, we're client, and we
+                 haven't received server's version string yet. */
+              ok = FALSE;
+              break;
+            }
+          
           /* Append version number to outgoing data. */
           ssh_buffer_append(&tr->outgoing, (unsigned char *) tr->own_version,
                         strlen(tr->own_version));
-          /* No CR on compat mode */
+          
+          /* No CR on compat mode */              
           if (strncmp("SSH-1.", tr->own_version, 6) != 0)
             ssh_buffer_append(&tr->outgoing, (unsigned char *) "\r", 1);
           ssh_buffer_append(&tr->outgoing, (unsigned char *) "\n", 1);
@@ -2373,7 +2419,7 @@ void ssh_tr_process_up_incoming_packet(SshTransportCommon tr,
   char *ciphers_c_to_s, *ciphers_s_to_c, *macs_c_to_s, *macs_s_to_c,
     *compressions_c_to_s, *compressions_s_to_c, *host_key_algorithms;
   unsigned char *msg, *msg_lang;
-  unsigned long reason_code;
+  SshUInt32 reason_code;
 
   SSH_DEBUG(5, ("ssh_tr_process_up_incoming_packet %d", packet_type));
   
@@ -2432,7 +2478,7 @@ void ssh_tr_process_up_incoming_packet(SshTransportCommon tr,
       /* Send the disconnect packet to the connection. */
       ssh_buffer_init(&buffer);
       ssh_encode_buffer(&buffer,
-                        SSH_FORMAT_CHAR, SSH_MSG_DISCONNECT,
+                        SSH_FORMAT_CHAR, (unsigned int) SSH_MSG_DISCONNECT,
                         SSH_FORMAT_UINT32, reason_code,
                         SSH_FORMAT_UINT32_STR, msg,
                         strlen((char *) msg),
@@ -2464,7 +2510,7 @@ void ssh_tr_process_up_incoming_packet(SshTransportCommon tr,
       /* Send the debug packet to the connection. */
       ssh_buffer_init(&buffer);
       ssh_encode_buffer(&buffer,
-                        SSH_FORMAT_CHAR, SSH_MSG_DEBUG,
+                        SSH_FORMAT_CHAR, (unsigned int) SSH_MSG_DEBUG,
                         SSH_FORMAT_BOOLEAN, always_display,
                         SSH_FORMAT_UINT32_STR, msg,
                         strlen((char *) msg),
@@ -2843,15 +2889,16 @@ SshTransportCommon ssh_tr_create(SshStream connection,
 
   tr->ssh_old_mac_bug_compat = FALSE;
   tr->ssh_old_keygen_bug_compat = FALSE;
-
+  tr->ssh_old_publickey_bug_compat = FALSE;
+  
   /* initialize the key excange parameters */
 
-  mpz_init(tr->dh_p);
-  mpz_init(tr->dh_g);
-  mpz_init(tr->dh_e);
-  mpz_init(tr->dh_f);
-  mpz_init(tr->dh_k);
-  mpz_init(tr->dh_secret);
+  ssh_mp_init(tr->dh_p);
+  ssh_mp_init(tr->dh_g);
+  ssh_mp_init(tr->dh_e);
+  ssh_mp_init(tr->dh_f);
+  ssh_mp_init(tr->dh_k);
+  ssh_mp_init(tr->dh_secret);
 
   return tr;
 }

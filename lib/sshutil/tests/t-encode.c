@@ -168,38 +168,38 @@ void test_encode(void)
               SSH_FORMAT_UINT32_STR, "ABCDEFGHIJK", 5, SSH_FORMAT_END);
   decode_case_str(SSH_FORMAT_UINT32_STR, "ABCDE", 5);
   encode_case("vlint32 0", "\0", 1,
-              SSH_FORMAT_VLINT32, 0, SSH_FORMAT_END);
-  decode_case_int(SSH_FORMAT_VLINT32, 0);
+              SSH_FORMAT_VLINT32, (SshUInt32) 0, SSH_FORMAT_END);
+  decode_case_int(SSH_FORMAT_VLINT32, (SshUInt32) 0);
   encode_case("vlint32 63", "\77", 1,
-              SSH_FORMAT_VLINT32, 63, SSH_FORMAT_END);
-  decode_case_int(SSH_FORMAT_VLINT32, 63);
+              SSH_FORMAT_VLINT32, (SshUInt32) 63, SSH_FORMAT_END);
+  decode_case_int(SSH_FORMAT_VLINT32, (SshUInt32) 63);
   encode_case("vlint32 64", "\100\100", 2,
-              SSH_FORMAT_VLINT32, 64, SSH_FORMAT_END);
-  decode_case_int(SSH_FORMAT_VLINT32, 64);
+              SSH_FORMAT_VLINT32, (SshUInt32) 64, SSH_FORMAT_END);
+  decode_case_int(SSH_FORMAT_VLINT32, (SshUInt32) 64);
   encode_case("vlint32 255", "\100\377", 2,
-              SSH_FORMAT_VLINT32, 255, SSH_FORMAT_END);
-  decode_case_int(SSH_FORMAT_VLINT32, 255);
+              SSH_FORMAT_VLINT32, (SshUInt32) 255, SSH_FORMAT_END);
+  decode_case_int(SSH_FORMAT_VLINT32, (SshUInt32) 255);
   encode_case("vlint32 256", "\101\0", 2,
-              SSH_FORMAT_VLINT32, 256, SSH_FORMAT_END);
-  decode_case_int(SSH_FORMAT_VLINT32, 256);
+              SSH_FORMAT_VLINT32, (SshUInt32) 256, SSH_FORMAT_END);
+  decode_case_int(SSH_FORMAT_VLINT32, (SshUInt32) 256);
   encode_case("vlint32 16383", "\177\377", 2,
-              SSH_FORMAT_VLINT32, 16383, SSH_FORMAT_END);
-  decode_case_int(SSH_FORMAT_VLINT32, 16383);
+              SSH_FORMAT_VLINT32, (SshUInt32) 16383, SSH_FORMAT_END);
+  decode_case_int(SSH_FORMAT_VLINT32, (SshUInt32) 16383);
   encode_case("vlint32 16384", "\200\100\0", 3,
-              SSH_FORMAT_VLINT32, 16384, SSH_FORMAT_END);
-  decode_case_int(SSH_FORMAT_VLINT32, 16384);
+              SSH_FORMAT_VLINT32, (SshUInt32) 16384, SSH_FORMAT_END);
+  decode_case_int(SSH_FORMAT_VLINT32, (SshUInt32) 16384);
   encode_case("vlint32 4194303", "\277\377\377", 3,
-              SSH_FORMAT_VLINT32, 4194303, SSH_FORMAT_END);
-  decode_case_int(SSH_FORMAT_VLINT32, 4194303);
+              SSH_FORMAT_VLINT32, (SshUInt32) 4194303, SSH_FORMAT_END);
+  decode_case_int(SSH_FORMAT_VLINT32, (SshUInt32) 4194303);
   encode_case("vlint32 4194304", "\300\0\100\0\0", 5,
-              SSH_FORMAT_VLINT32, 4194304, SSH_FORMAT_END);
-  decode_case_int(SSH_FORMAT_VLINT32, 4194304);
+              SSH_FORMAT_VLINT32, (SshUInt32) 4194304, SSH_FORMAT_END);
+  decode_case_int(SSH_FORMAT_VLINT32, (SshUInt32) 4194304);
   encode_case("vlint32 2^32-1", "\300\377\377\377\377", 5,
-              SSH_FORMAT_VLINT32, 0xffffffff, SSH_FORMAT_END);
-  decode_case_int(SSH_FORMAT_VLINT32, 0xffffffff);
+              SSH_FORMAT_VLINT32, (SshUInt32) 0xffffffff, SSH_FORMAT_END);
+  decode_case_int(SSH_FORMAT_VLINT32, (SshUInt32) 0xffffffff);
   encode_case("uint32 0x12345678", "\22\64\126\170", 4,
-              SSH_FORMAT_UINT32, 0x12345678, SSH_FORMAT_END);
-  decode_case_int(SSH_FORMAT_UINT32, 0x12345678);
+              SSH_FORMAT_UINT32, (SshUInt32) 0x12345678, SSH_FORMAT_END);
+  decode_case_int(SSH_FORMAT_UINT32, (SshUInt32) 0x12345678);
   encode_case("boolean TRUE", "\0", 1,
               SSH_FORMAT_BOOLEAN, FALSE, SSH_FORMAT_END);
   decode_case_bool(SSH_FORMAT_BOOLEAN, FALSE);
@@ -211,11 +211,11 @@ void test_encode(void)
   decode_case_bool(SSH_FORMAT_BOOLEAN, TRUE);
   /* XXX mp tests */
   encode_case("char 0x12", "\22", 1,
-              SSH_FORMAT_CHAR, 0x12, SSH_FORMAT_END);
-  decode_case_char(SSH_FORMAT_CHAR, 0x12);
+              SSH_FORMAT_CHAR, (unsigned int) 0x12, SSH_FORMAT_END);
+  decode_case_char(SSH_FORMAT_CHAR, (unsigned int) 0x12);
   encode_case("char 0xee", "\356", 1,
-              SSH_FORMAT_CHAR, 0xee, SSH_FORMAT_END);
-  decode_case_char(SSH_FORMAT_CHAR, 0xee);
+              SSH_FORMAT_CHAR, (unsigned int) 0xee, SSH_FORMAT_END);
+  decode_case_char(SSH_FORMAT_CHAR, (unsigned int) 0xee);
   encode_case("data foo\\0bar", "foo\0bar", 7,
               SSH_FORMAT_DATA, "foo\0bar", 7, SSH_FORMAT_END);
   decode_case_data(SSH_FORMAT_DATA, "foo\0bar", 7);
@@ -302,7 +302,8 @@ void test_functions(int foo, ...)
   unsigned char *cp;
   
   ssh_buffer_clear(buffer);
-  if (ssh_encode_buffer(buffer, SSH_FORMAT_VLINT32, 67, SSH_FORMAT_END) != 2)
+  if (ssh_encode_buffer(buffer, SSH_FORMAT_VLINT32, (SshUInt32) 67,
+                        SSH_FORMAT_END) != 2)
     ssh_fatal("test_functions: ssh_encode error");
   if (memcmp(ssh_buffer_ptr(buffer), "\100\103", 2) != 0)
     ssh_fatal("test_functions: ssh_encode data error");
@@ -314,9 +315,11 @@ void test_functions(int foo, ...)
   if (memcmp(ssh_buffer_ptr(buffer), "\100\103", 2) != 0)
     ssh_fatal("test_functions: ssh_encode_va data error");
 
-  if (ssh_encode_alloc(NULL, SSH_FORMAT_VLINT32, 67, SSH_FORMAT_END) != 2)
+  if (ssh_encode_alloc(NULL, SSH_FORMAT_VLINT32, (SshUInt32) 67,
+                       SSH_FORMAT_END) != 2)
     ssh_fatal("test_function: ssh_encode_alloc NULL error");
-  if (ssh_encode_alloc(&cp, SSH_FORMAT_VLINT32, 67, SSH_FORMAT_END) != 2)
+  if (ssh_encode_alloc(&cp, SSH_FORMAT_VLINT32, (SshUInt32) 67,
+                       SSH_FORMAT_END) != 2)
     ssh_fatal("test_functions: ssh_encode_alloc error");
   if (memcmp(cp, "\100\103", 2) != 0)
     ssh_fatal("test_functions: ssh_encode_alloc data error");
@@ -336,7 +339,7 @@ void test_functions(int foo, ...)
   if (ssh_encode_buffer(buffer,
                         SSH_FORMAT_VLINT32_STR, "A", 1,
                         SSH_FORMAT_BOOLEAN, FALSE,
-                        SSH_FORMAT_VLINT32, 7,
+                        SSH_FORMAT_VLINT32, (SshUInt32) 7,
                         SSH_FORMAT_END) != 4)
     ssh_fatal("test_functions: compound error");
   if (memcmp(ssh_buffer_ptr(buffer), "\1A\0\7", 4) != 0)
@@ -344,7 +347,7 @@ void test_functions(int foo, ...)
 
   {
     Boolean bool;
-    unsigned long l = 0;
+    SshUInt32 l = 0;
     test_functions_parse_compound(buffer,
                                   SSH_FORMAT_VLINT32_STR, NULL, NULL,
                                   SSH_FORMAT_BOOLEAN, &bool,
@@ -365,7 +368,7 @@ int main()
       test_encode();
       test_empty_decode();
       test_random_decode();
-      test_functions(0, SSH_FORMAT_VLINT32, 67, SSH_FORMAT_END);
+      test_functions(0, SSH_FORMAT_VLINT32, (SshUInt32) 67, SSH_FORMAT_END);
       ssh_buffer_free(buffer);
     }
 

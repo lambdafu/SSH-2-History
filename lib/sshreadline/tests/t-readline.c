@@ -6,12 +6,12 @@
 /*
  *        Program: sshreadline test
  *        $Source: /ssh/CVS/src/lib/sshreadline/tests/t-readline.c,v $
- *        $Author: ylo $
+ *        $Author: tmo $
  *
  *        Creation          : 06:45 Mar 14 1997 kivinen
  *        Last Modification : 06:57 Mar 14 1997 kivinen
- *        Last check in     : $Date: 1998/01/28 10:12:57 $
- *        Revision number   : $Revision: 1.2 $
+ *        Last check in     : $Date: 1999/03/17 08:52:14 $
+ *        Revision number   : $Revision: 1.3 $
  *        State             : $State: Exp $
  *        Version           : 1.4
  *
@@ -24,24 +24,44 @@
 
 #include "sshincludes.h"
 #include "sshreadline.h"
+#include "sshunixeloop.h"
+#include "sshgetopt.h"
 
+void cb(int fd, char *line)
+{
+  fprintf(stderr, "\nline = %s\n", line);
+}
 int main(int argc, char **argv)
 {
-  unsigned char *line, *prompt;
+  unsigned char *line = NULL, *prompt = "*> ";
+  int opt;
+  Boolean eloop = FALSE;
 
-  if (argc >= 2)
-    prompt = argv[1];
-  else
-    prompt = "*> ";
-  
-  if (argc >= 3)
-    line = strdup(argv[2]);
-  else
-    line = NULL;
-  
-  ssh_readline(prompt, &line, 0);
+  while ((opt = ssh_getopt(argc, argv, "p:i:e", NULL)) != EOF)
+    {
+      switch (opt)
+        {
+        case 'p': prompt = ssh_optarg; break;
+        case 'i': line = ssh_xstrdup(ssh_optarg); break;
+        case 'e': eloop = TRUE; break;
+        default:
+          fprintf(stderr, "%s: usage %s [-e] [-p prompt] [-i initial-data]\n",
+                  argv[0], argv[0]);
+          exit(1);
+        }
+    }
 
-  printf("\n");
-  printf("line = `%s'\n", line);
-  exit(0);
+  if (eloop)
+    {
+      ssh_event_loop_initialize();
+      ssh_readline_eloop(prompt, line, 0, cb);
+      ssh_event_loop_run();
+      ssh_event_loop_uninitialize();
+    }
+  else
+    {
+      ssh_readline(prompt, &line, 0);
+      fprintf(stderr, "\nline = %s\n", line);      
+    }
+  return 0;
 }

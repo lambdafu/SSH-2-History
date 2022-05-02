@@ -529,10 +529,10 @@ ssh_mac_allocate_with_info(const void *mac_info,
    is very special behaviour and should be performed only when all the
    power of the interface is to be used.
 
-   Note: most input will be given in MP_INT's because it is reasonably
+   Note: most input will be given in SshInt's because it is reasonably
          convenient way of handling large strings of bits. However,
          not all values are integers, nor natural numbers. You should
-         not assume that any MP_INT you get can be used for reasonable
+         not assume that any SshInt you get can be used for reasonable
          computations without knowledge of the meaning of the actual
          value. 
    
@@ -692,13 +692,13 @@ typedef enum
   
        dl-modp:
 
-          generation:  MP_INT *
-          reading:     MP_INT *
+          generation:  SshInt *
+          reading:     SshInt *
 
        ec-modp:
 
-          generation:  MP_INT *, MP_INT *
-          reading:     MP_INT *, MP_INT *
+          generation:  SshInt *, SshInt *
+          reading:     SshInt *, SshInt *
 
           The comma denotes that we mean a pair or values. E.g. the first
           one is the x co-ordinate and the second y co-ordinate. We
@@ -706,8 +706,8 @@ typedef enum
 
        ec-gf2n:
 
-          generation: MP_INT *, MP_INT *
-          reading:    MP_INT *, MP_INT *
+          generation: SshInt *, SshInt *
+          reading:    SshInt *, SshInt *
           
      */
      
@@ -717,18 +717,18 @@ typedef enum
 
        dl-modp:
 
-         generation:   MP_INT *
-         reading:      MP_INT *
+         generation:   SshInt *
+         reading:      SshInt *
 
        ec-modp:
 
-         generation:   MP_INT *
-         reading:      MP_INT *
+         generation:   SshInt *
+         reading:      SshInt *
 
        ec-gf2n:
 
-         generation:   MP_INT *
-         reading:      MP_INT *
+         generation:   SshInt *
+         reading:      SshInt *
 
      */
   
@@ -742,26 +742,26 @@ typedef enum
      
        if-modn:
 
-         generation:    MP_INT *
-         reading:       MP_INT *
+         generation:    SshInt *
+         reading:       SshInt *
 
      For the discrete logarithm problem based methods this identifier
      means the integer field modulus.
          
        dl-modp:
 
-         generation:    MP_INT *
-         reading:       MP_INT *
+         generation:    SshInt *
+         reading:       SshInt *
        
        ec-modp:
 
-         generation:    MP_INT *
-         reading:       MP_INT *
+         generation:    SshInt *
+         reading:       SshInt *
 
        ec-gf2n:
 
-         generation:    MP_INT *
-         reading:       MP_INT *
+         generation:    SshInt *
+         reading:       SshInt *
 
      */
   
@@ -774,8 +774,8 @@ typedef enum
 
        ec-gf2n:
 
-         generation:   MP_INT *
-         reading:      MP_INT *
+         generation:   SshInt *
+         reading:      SshInt *
 
     */
      
@@ -789,26 +789,26 @@ typedef enum
 
        if-modn:
 
-         generation:    MP_INT *
-         reading:       MP_INT *
+         generation:    SshInt *
+         reading:       SshInt *
 
      For the discrete logarithm problem bases system this identifier
      means the order of the group in which computation occurs.
 
        dl-modp:
 
-         generation:    MP_INT *
-         reading:       MP_INT *
+         generation:    SshInt *
+         reading:       SshInt *
 
        ec-modp:
 
-         generation:    MP_INT *
-         reading:       MP_INT *
+         generation:    SshInt *
+         reading:       SshInt *
 
        ec-gf2n:
 
-         generation:    MP_INT *
-         reading:       MP_INT *
+         generation:    SshInt *
+         reading:       SshInt *
 
      */
   
@@ -818,13 +818,13 @@ typedef enum
 
        dl-modp:
 
-         generation:   MP_INT *
-         reading:      MP_INT *
+         generation:   SshInt *
+         reading:      SshInt *
 
        ec-modp:
 
-         generation:   MP_INT *, MP_INT *
-         reading:      MP_INT *, MP_INT *
+         generation:   SshInt *, SshInt *
+         reading:      SshInt *, SshInt *
 
        Here we denote by comma the fact that you are supposed to give
        two values, a pair, as input. The first component will be x, and
@@ -832,8 +832,8 @@ typedef enum
 
        ec-gf2n:
 
-         generation:   MP_INT *, MP_INT *
-         reading:      MP_INT *, MP_INT *
+         generation:   SshInt *, SshInt *
+         reading:      SshInt *, SshInt *
          
 
      In general generator is a value which generates the set of numbers
@@ -849,8 +849,8 @@ typedef enum
 
        if-modn:
 
-         generation:    MP_INT *
-         reading:       MP_INT *
+         generation:    SshInt *
+         reading:       SshInt *
 
      Currently implemented is the RSA which used n = pq and e = d^1 (mod n).
          
@@ -863,8 +863,8 @@ typedef enum
 
        if-modn:
 
-         generation:    MP_INT *
-         reading:       MP_INT *
+         generation:    SshInt *
+         reading:       SshInt *
 
        In context of RSA this value will set the public exponent
        explicitly to some value or make sure that the value set is the
@@ -880,8 +880,8 @@ typedef enum
 
        if-modn:
 
-         generation:     MP_INT *
-         reading:        MP_INT *
+         generation:     SshInt *
+         reading:        SshInt *
 
        In RSA this value has priority over public exponent. Given this
        value and primes p and q, all the RSA parameters can be
@@ -894,8 +894,8 @@ typedef enum
 
        if-modn:
 
-         generation:     MP_INT *
-         reading:        MP_INT *
+         generation:     SshInt *
+         reading:        SshInt *
 
        This value can be excluded because it is automatically computed
        within the parameter making utility. Although, if given among all
@@ -926,13 +926,13 @@ typedef enum
 
   /*   ec-modp:
 
-         generation:       MP_INT *
-         reading:          MP_INT *
+         generation:       SshInt *
+         reading:          SshInt *
 
        ec-gf2n:
 
-         generation:   MP_INT *
-         reading:      MP_INT *
+         generation:   SshInt *
+         reading:      SshInt *
 
        The number of points that lie of elliptic curve your are defining,
        or reading. This is not important for the working of the system,
@@ -944,13 +944,13 @@ typedef enum
 
   /*   ec-modp:
 
-         generation:       MP_INT *
-         reading:          MP_INT *
+         generation:       SshInt *
+         reading:          SshInt *
 
        ec-gf2n:
 
-         generation:   MP_INT *
-         reading:      MP_INT *
+         generation:   SshInt *
+         reading:      SshInt *
 
        The another number which is used to define the elliptic curve.
          
@@ -958,13 +958,13 @@ typedef enum
   SSH_PKF_CURVE_A,
   /*   ec-modp:
 
-         generation:       MP_INT *
-         reading:          MP_INT *
+         generation:       SshInt *
+         reading:          SshInt *
 
        ec-gf2n:
 
-         generation:   MP_INT *
-         reading:      MP_INT *
+         generation:   SshInt *
+         reading:      SshInt *
 
        The another number which is used to define the elliptic curve. 
          
@@ -1076,6 +1076,21 @@ DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_public_key_export(SshPublicKey key,
                       unsigned char **buf,
                       size_t *length_return);
+
+
+/* This function creates a public key blob (or linearization of the key).
+   Returns SSH_CRYPTO_OK if everything went fine. In such a case *buf will
+   be set to point to a dynamically allocated memory which contains the
+   blob, and *length_return to the length of the blob. The caller must
+   free the buf with ssh_xfree().
+
+   In effect, the key doesn't contain information about the schemes and
+   thus the application must save them without this function. 
+   */
+DLLEXPORT SshCryptoStatus DLLCALLCONV
+ssh_public_key_export_canonical(SshPublicKey key,
+                                unsigned char **buf,
+                                size_t *length_return);
 
 /* Copy public key from 'key_src' to 'key_dest'. Returns SSH_CRYPTO_OK,
    if everything went fine. This copying is explicit, operation on other

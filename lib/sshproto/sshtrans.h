@@ -18,7 +18,7 @@ SSH Transport Layer Protocol interface.
 */
 
 /*
- * $Id: sshtrans.h,v 1.10 1998/07/11 12:37:06 tri Exp $
+ * $Id: sshtrans.h,v 1.11 1999/04/16 14:40:45 sjl Exp $
  * $Log: sshtrans.h,v $
  * $EndLog$
  */
@@ -85,36 +85,36 @@ typedef struct
    host key.
      `server_name'  The server name as passed in when the protocol
                     was created.  This is expected to be the name that
-		    the user typed.
-     `blob'	    The linear representation of the public key (including
+                    the user typed.
+     `blob'         The linear representation of the public key (including
                     optional certificates).
      `len'          The length of the public key blob.
      `result_cb'    This function must be called when the validity has been
-     		    determined.  The argument must be TRUE if the host key
-		    is to be accepted, and FALSE if it is to be rejected.
+                    determined.  The argument must be TRUE if the host key
+                    is to be accepted, and FALSE if it is to be rejected.
      `result_context' This must be passed to the result function.
      `context'      Context argument.
    This function should call the result callback in every case.  This is not
    allowed to destroy the protocol context.  This function is allowed to
    do basically anything before calling the result callback. */
 typedef void (*SshKeyCheckCallback)(const char *server_name,
-				    const unsigned char *blob,
-				    size_t len,
-				    void (*result_cb)(Boolean result,
-						      void *result_context),
-				    void *result_context,
-				    void *context);
+                                    const unsigned char *blob,
+                                    size_t len,
+                                    void (*result_cb)(Boolean result,
+                                                      void *result_context),
+                                    void *result_context,
+                                    void *context);
 
 /* Callback function that is called when the remote version has been received.
    This can be used to check for compatibility with older versions and to
    exec an old version as appropriate.  If this returns, the version
    should be compatible, or otherwise the connection will be disconnected.
       `remote_version'     remote version string as received from remote
-      			   host, but without terminating newline.
-      `context'		   context argument that was supplied when the
-      			   callback was registered. */
+                           host, but without terminating newline.
+      `context'            context argument that was supplied when the
+                           callback was registered. */
 typedef void (*SshVersionCallback)(const char *remote_version,
-				   void *context);
+                                   void *context);
 
 /* Creates default transport protocol parameter structure.  This structure
    can be modified to choose different parameters. */
@@ -140,20 +140,20 @@ void ssh_transport_destroy_params(SshTransportParams params);
      `server_host_name' name to use for the server host when checking host key
      `key_check' is used to check the validity of the host key, if non-NULL.
                  This is also called during rekey, and thus data (and the
-		 context) must remain valid for the duration of the connection.
+                 context) must remain valid for the duration of the connection.
      `key_context' is passed to the key_check callback.
      `version_callback' is version check function, or NULL
      `version_context' is given as argument to `version_callback'. */
 SshStream ssh_transport_client_wrap(SshStream stream,
-				    SshRandomState random_state,
-				    const char *version,
-				    const char *service,
-				    SshTransportParams params,
-				    const char *server_host_name,
-				    SshKeyCheckCallback key_check,
-				    void *key_context,
-				    SshVersionCallback version_callback,
-				    void *version_context);
+                                    SshRandomState random_state,
+                                    const char *version,
+                                    const char *service,
+                                    SshTransportParams params,
+                                    const char *server_host_name,
+                                    SshKeyCheckCallback key_check,
+                                    void *key_context,
+                                    SshVersionCallback version_callback,
+                                    void *version_context);
 
 /* Takes a stream which is supposed to be a connection to the client,
    and performs server-side processing for the transport layer.  Returns
@@ -171,19 +171,19 @@ SshStream ssh_transport_client_wrap(SshStream stream,
        copied into the protocol object.  It may be NULL.
      `public_host_key_blob' gives the public host key to be passed to the
         other side.  This may include certificates.  It is copied into
-	the protocol object.
+        the protocol object.
      `version_callback' is version check function, or NULL
      `version_context' is given as argument to `version_callback'. */
 SshStream ssh_transport_server_wrap(SshStream stream,
-				    SshRandomState random_state,
-				    const char *version,
-				    SshTransportParams params,
-				    SshPrivateKey private_host_key,
-				    SshPrivateKey private_server_key,
-				    const unsigned char *public_host_key_blob,
-				    unsigned int public_host_key_blob_len,
-				    SshVersionCallback version_callback,
-				    void *version_context);
+                                    SshRandomState random_state,
+                                    const char *version,
+                                    SshTransportParams params,
+                                    SshPrivateKey private_host_key,
+                                    SshPrivateKey private_server_key,
+                                    const unsigned char *public_host_key_blob,
+                                    unsigned int public_host_key_blob_len,
+                                    SshVersionCallback version_callback,
+                                    void *version_context);
 
 typedef struct {
   /* XXX should use 64 bit type */
@@ -197,6 +197,21 @@ typedef struct {
 
 /* Returns statistics information about the transport layer object. */
 void ssh_transport_get_statistics(SshStream transport_stream,
-				  SshTransportStatistics *statistics_return);
+                                  SshTransportStatistics *statistics_return);
+
+/* compat flags structure. These are pointers, because these can only
+   fetched before the transport stream is wrapped. Their values change
+   during the kexinit phase. */
+typedef struct 
+{
+  Boolean *publickey_draft_incompatility;
+} *SshTransportCompat;
+
+/* Return application level compatibility flags. Note that this must
+   not be called if tr has become invalid for some reason. The return
+   struct should be freed by the caller, when it is no longer
+   needed. */
+void ssh_transport_get_compatibility_flags(SshStream stream,
+                                           SshTransportCompat *compat_flags);
 
 #endif /* SSHTRANS_H */

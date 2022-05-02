@@ -24,13 +24,13 @@
   */
 
 /*
- * $Id: genmp.c,v 1.28 1999/01/27 22:33:15 mkojo Exp $
+ * $Id: genmp.c,v 1.29 1999/04/29 13:38:05 huima Exp $
  * $Log: genmp.c,v $
  * $EndLog$
  */
 
 #include "sshincludes.h"
-#include "gmp.h"
+#include "sshmp.h" /* was "gmp.h" */
 #include "sshcrypt.h"
 #include "libmonitor.h"
 #include "genmp.h"
@@ -175,13 +175,13 @@ const unsigned int ssh_prime_table[SSH_MAX_PRIMES_IN_TABLE + 1] =
 /* Generate a random integer (using the cryptographically strong random number
    generator). */
 
-void ssh_mp_random_integer(MP_INT *ret, SshRandomState state,
+void ssh_mp_random_integer(SshInt *ret, SshRandomState state,
                            unsigned int bits)
 {
   unsigned int i;
   SshUInt32 limb;
   
-  mpz_set_ui(ret, 0);
+  ssh_mp_set_ui(ret, 0);
   /* Loop 32 bit limbs */
   for (i = 0; i < bits; i += 32)
     {
@@ -191,19 +191,19 @@ void ssh_mp_random_integer(MP_INT *ret, SshRandomState state,
               ((SshUInt32)ssh_random_get_byte(state) << 8) |
               ((SshUInt32)ssh_random_get_byte(state) & 0xff));
       /* Shift and add */
-      mpz_mul_2exp(ret, ret, 32);
-      mpz_add_ui(ret, ret, limb);
+      ssh_mp_mul_2exp(ret, ret, 32);
+      ssh_mp_add_ui(ret, ret, limb);
     }
   /* Cut unneeded bits off */
-  mpz_mod_2exp(ret, ret, bits);
+  ssh_mp_mod_2exp(ret, ret, bits);
 }
 
 /* Generate traditional prime. */
 
-void ssh_mp_random_prime(MP_INT *ret, SshRandomState state,
+void ssh_mp_random_prime(SshInt *ret, SshRandomState state,
                          unsigned int bits)
 {
-  MP_INT start, aux;
+  SshInt start, aux;
   unsigned int num_primes;
   long *moduli;
   long difference;
@@ -212,8 +212,8 @@ void ssh_mp_random_prime(MP_INT *ret, SshRandomState state,
   unsigned int progress_counter = 0;
 
   /* Initialize the prime search. */
-  mpz_init(&start);
-  mpz_init(&aux);
+  ssh_mp_init(&start);
+  ssh_mp_init(&aux);
 
  retry:
 
@@ -221,12 +221,12 @@ void ssh_mp_random_prime(MP_INT *ret, SshRandomState state,
   ssh_mp_random_integer(&start, state, bits);
 
   /* Set the highest bit. */
-  mpz_set_ui(&aux, 1);
-  mpz_mul_2exp(&aux, &aux, bits - 1);
-  mpz_ior(&start, &start, &aux);
+  ssh_mp_set_ui(&aux, 1);
+  ssh_mp_mul_2exp(&aux, &aux, bits - 1);
+  ssh_mp_or(&start, &start, &aux);
   /* Set the lowest bit to make it odd. */
-  mpz_set_ui(&aux, 1);
-  mpz_ior(&start, &start, &aux);
+  ssh_mp_set_ui(&aux, 1);
+  ssh_mp_or(&start, &start, &aux);
 
   /* Initialize moduli of the small primes with respect to the given
      random number. */
@@ -237,8 +237,8 @@ void ssh_mp_random_prime(MP_INT *ret, SshRandomState state,
     {
       for (num_primes = 1; ssh_prime_table[num_primes] != 0; num_primes++)
         {
-          mpz_mod_ui(&aux, &start, ssh_prime_table[num_primes]);
-          moduli[num_primes] = mpz_get_ui(&aux);
+          ssh_mp_mod_ui2(&aux, &start, ssh_prime_table[num_primes]);
+          moduli[num_primes] = ssh_mp_get_ui(&aux);
         }
     }
 
@@ -271,10 +271,10 @@ void ssh_mp_random_prime(MP_INT *ret, SshRandomState state,
                                   ++progress_counter);
       
       /* Compute the number in question. */
-      mpz_add_ui(ret, &start, difference);
+      ssh_mp_add_ui(ret, &start, difference);
 
       /* Perform Miller-Rabin strong pseudo primality tests */
-      if (mpz_probab_prime_p(ret, 20))
+      if (ssh_mp_is_probable_prime(ret, 20))
         break; 
     }
 
@@ -284,21 +284,21 @@ void ssh_mp_random_prime(MP_INT *ret, SshRandomState state,
 
   /* Sanity check: does it still have the high bit set (we might have
      wrapped around)? */
-  mpz_div_2exp(&aux, ret, bits - 1);
-  if (mpz_get_ui(&aux) != 1)
+  ssh_mp_div_2exp(&aux, ret, bits - 1);
+  if (ssh_mp_get_ui(&aux) != 1)
     {
       goto retry;
     }
-  mpz_clear(&start);
-  mpz_clear(&aux);
+  ssh_mp_clear(&start);
+  ssh_mp_clear(&aux);
   /* Return value already set in ret. */
 }
 
 /* Find next prime, given a start value. */
 #if 0
-void ssh_mp_next_prime(MP_INT *ret, MP_INT *x)
+void ssh_mp_next_prime(SshInt *ret, SshInt *x)
 {
-  MP_INT aux, start;
+  SshInt aux, start;
   unsigned int num_primes;
   unsigned long *moduli;
   unsigned long difference;
@@ -308,31 +308,31 @@ void ssh_mp_next_prime(MP_INT *ret, MP_INT *x)
   /* Progress monitoring. */
   unsigned int progress_counter = 0;
   
-  mpz_init_set(&start, x);
+  ssh_mp_init_set(&start, x);
   
   /* Check for even start values, force odd. */
-  if (!(mpz_get_ui(&start) & 0x1))
+  if (!(ssh_mp_get_ui(&start) & 0x1))
     {
-      mpz_add_ui(&start, &start, 1);
+      ssh_mp_add_ui(&start, &start, 1);
     }
   else
     {
-      mpz_add_ui(&start, &start, 2);
+      ssh_mp_add_ui(&start, &start, 2);
     }
 
   /* Precheck for very small start values. */
-  if (mpz_cmp_ui(&start, ssh_prime_table[SSH_MAX_PRIMES_IN_TABLE - 2]) <= 0)
+  if (ssh_mp_cmp_ui(&start, ssh_prime_table[SSH_MAX_PRIMES_IN_TABLE - 2]) <= 0)
     {
-      if (mpz_cmp_ui(&start, 2) < 0)
+      if (ssh_mp_cmp_ui(&start, 2) < 0)
         {
           /* Give the smallest (it could be thought that 1 is not
              prime, but the unit) prime. */
-          mpz_set_ui(ret, 2);
+          ssh_mp_set_ui(ret, 2);
           return;
         }
 
       /* We got rather small value seek for it. */
-      t = mpz_get_ui(&start);
+      t = ssh_mp_get_ui(&start);
 
       /* Check using the prime table, which we already know. */
       for (num_primes = 1; ssh_prime_table[num_primes] != 0; num_primes++)
@@ -341,7 +341,7 @@ void ssh_mp_next_prime(MP_INT *ret, MP_INT *x)
             {
               if (ssh_prime_table[num_primes + 1] != 0)
                 {
-                  mpz_set_ui(ret, ssh_prime_table[num_primes + 1]);
+                  ssh_mp_set_ui(ret, ssh_prime_table[num_primes + 1]);
                   return;
                 }
               
@@ -349,14 +349,14 @@ void ssh_mp_next_prime(MP_INT *ret, MP_INT *x)
             }
           if (ssh_prime_table[num_primes] == t)
             {
-              mpz_set_ui(ret, ssh_prime_table[num_primes]);
+              ssh_mp_set_ui(ret, ssh_prime_table[num_primes]);
               return;
             }
         }
     }
   
   /* Initialize some temporary variables. */
-  mpz_init(&aux);
+  ssh_mp_init(&aux);
   
   /* Initialize moduli of the small primes with respect to the given
      random number. */
@@ -364,8 +364,8 @@ void ssh_mp_next_prime(MP_INT *ret, MP_INT *x)
 
   for (num_primes = 1; ssh_prime_table[num_primes] != 0; num_primes++)
     {
-      mpz_mod_ui(&aux, &start, ssh_prime_table[num_primes]);
-      moduli[num_primes] = mpz_get_ui(&aux);
+      ssh_mp_mod_ui2(&aux, &start, ssh_prime_table[num_primes]);
+      moduli[num_primes] = ssh_mp_get_ui(&aux);
     }
 
   /* Look for numbers that are not evenly divisible by any of the small
@@ -394,17 +394,17 @@ void ssh_mp_next_prime(MP_INT *ret, MP_INT *x)
                                   ++progress_counter);
       
       /* Compute the number in question. */
-      mpz_add_ui(ret, &start, difference);
+      ssh_mp_add_ui(ret, &start, difference);
 
       /* Perform Miller-Rabin strong pseudo primality tests */
-      if (mpz_probab_prime_p(ret, 15))
+      if (ssh_mp_is_probable_prime(ret, 15))
         break; 
     }
 
   /* Free the small prime moduli; they are no longer needed. */
   ssh_xfree(moduli);
 
-  mpz_clear(&aux);
+  ssh_mp_clear(&aux);
   /* Return value already set in ret. */
 }
 #endif
@@ -414,11 +414,11 @@ void ssh_mp_next_prime(MP_INT *ret, MP_INT *x)
 
 /* Generate random prime number using explicitly set limits. */
 
-void ssh_mp_random_prime_within_limits(MP_INT *ret,
+void ssh_mp_random_prime_within_limits(SshInt *ret,
                                        int min_bits, int max_bits,
                                        SshRandomState state)
 {
-  MP_INT pprime, temp;
+  SshInt pprime, temp;
   unsigned long *moduli, difference, num_primes;
   unsigned int i, len;
   Boolean divisible;
@@ -436,8 +436,8 @@ void ssh_mp_random_prime_within_limits(MP_INT *ret,
       max_bits = min_bits + 2;
     }
 
-  mpz_init(&pprime);
-  mpz_init(&temp);
+  ssh_mp_init(&pprime);
+  ssh_mp_init(&temp);
 
 retry:
   
@@ -446,12 +446,12 @@ retry:
      taken in the above code so doing this differently). */
   do {
     ssh_mp_random_integer(&pprime, state, max_bits);
-    len = mpz_sizeinbase(&pprime, 2);
+    len = ssh_mp_get_size(&pprime, 2);
   } while (len < min_bits);
 
   /* If even the make it odd. */
-  if ((mpz_get_ui(&pprime) & 0x1) == 0)
-    mpz_add_ui(&pprime, &pprime, 1);
+  if ((ssh_mp_get_ui(&pprime) & 0x1) == 0)
+    ssh_mp_add_ui(&pprime, &pprime, 1);
 
   /* Initialize moduli of the small primes with respect to the given
      random number. */
@@ -459,8 +459,8 @@ retry:
 
   for (num_primes = 1; ssh_prime_table[num_primes] != 0; num_primes++)
     {
-      mpz_mod_ui(&temp, &pprime, ssh_prime_table[num_primes]);
-      moduli[num_primes] = mpz_get_ui(&temp);
+      ssh_mp_mod_ui2(&temp, &pprime, ssh_prime_table[num_primes]);
+      moduli[num_primes] = ssh_mp_get_ui(&temp);
     }
 
   /* Look for numbers that are not evenly divisible by any of the small
@@ -475,29 +475,29 @@ retry:
       /* In now and them add the difference to the probable prime. */
       if (difference > 1000)
         {
-          mpz_add_ui(&pprime, &pprime, difference);
+          ssh_mp_add_ui(&pprime, &pprime, difference);
           difference = 0;
 
-          len = mpz_sizeinbase(&pprime, 2);
+          len = ssh_mp_get_size(&pprime, 2);
           if (len > max_bits)
             {
-              mpz_set_ui(&temp, 1);
-              mpz_mul_2exp(&temp, &temp, max_bits);
-              mpz_sub(&pprime, &pprime, &temp);
+              ssh_mp_set_ui(&temp, 1);
+              ssh_mp_mul_2exp(&temp, &temp, max_bits);
+              ssh_mp_sub(&pprime, &pprime, &temp);
               
-              mpz_div_2exp(&temp, &temp, max_bits - min_bits);
-              mpz_add(&pprime, &pprime, &temp);
-              mpz_sub_ui(&pprime, &pprime, 1);
+              ssh_mp_div_2exp(&temp, &temp, max_bits - min_bits);
+              ssh_mp_add(&pprime, &pprime, &temp);
+              ssh_mp_sub_ui(&pprime, &pprime, 1);
 
               /* Check that the probable prime is odd. */
-              if ((mpz_get_ui(&pprime) & 0x1) == 0)
-                mpz_add_ui(&pprime, &pprime, 1);
+              if ((ssh_mp_get_ui(&pprime) & 0x1) == 0)
+                ssh_mp_add_ui(&pprime, &pprime, 1);
 
               /* Compute again the moduli table. */
               for (i = 1; i < num_primes; i++)
                 {
-                  mpz_mod_ui(&temp, &pprime, ssh_prime_table[i]);
-                  moduli[i] = mpz_get_ui(&temp);
+                  ssh_mp_mod_ui2(&temp, &pprime, ssh_prime_table[i]);
+                  moduli[i] = ssh_mp_get_ui(&temp);
                 }
             }
         }
@@ -526,40 +526,40 @@ retry:
                                   ++progress_counter);
       
       /* Set to ret and check if gone over the max limit. */
-      mpz_add_ui(&pprime, &pprime, difference);
+      ssh_mp_add_ui(&pprime, &pprime, difference);
       difference = 0;
 
       /* Check the length. */
-      len = mpz_sizeinbase(&pprime, 2);
+      len = ssh_mp_get_size(&pprime, 2);
       if (len > max_bits)
         {
           /* compute: pprime - 2^max_bits + 2^min_bits - 1 */
-          mpz_set_ui(&temp, 1);
-          mpz_mul_2exp(&temp, &temp, max_bits);
-          mpz_sub(&pprime, &pprime, &temp);
-          mpz_set_ui(&temp, 1);
-          mpz_mul_2exp(&temp, &temp, min_bits);
-          mpz_add(&pprime, &pprime, &temp);
-          mpz_sub_ui(&pprime, &pprime, 1);
+          ssh_mp_set_ui(&temp, 1);
+          ssh_mp_mul_2exp(&temp, &temp, max_bits);
+          ssh_mp_sub(&pprime, &pprime, &temp);
+          ssh_mp_set_ui(&temp, 1);
+          ssh_mp_mul_2exp(&temp, &temp, min_bits);
+          ssh_mp_add(&pprime, &pprime, &temp);
+          ssh_mp_sub_ui(&pprime, &pprime, 1);
           
           /* Check that the probable prime is odd. */
-          if ((mpz_get_ui(&pprime) & 0x1) == 0)
-            mpz_add_ui(&pprime, &pprime, 1);
+          if ((ssh_mp_get_ui(&pprime) & 0x1) == 0)
+            ssh_mp_add_ui(&pprime, &pprime, 1);
           
           /* Compute again the moduli table. */
           for (i = 1; i < num_primes; i++)
             {
-              mpz_mod_ui(&temp, &pprime, ssh_prime_table[i]);
-              moduli[i] = mpz_get_ui(&temp);
+              ssh_mp_mod_ui2(&temp, &pprime, ssh_prime_table[i]);
+              moduli[i] = ssh_mp_get_ui(&temp);
             }
           continue;
         }
       
       /* Compute the number in question. */
-      mpz_set(ret, &pprime);
+      ssh_mp_set(ret, &pprime);
 
       /* Perform Miller-Rabin strong pseudo primality tests */
-      if (mpz_probab_prime_p(ret, 15))
+      if (ssh_mp_is_probable_prime(ret, 15))
         break; 
     }
 
@@ -568,13 +568,13 @@ retry:
   ssh_xfree(moduli);
 
   /* Sanity check. */
-  len = mpz_sizeinbase(ret, 2);
+  len = ssh_mp_get_size(ret, 2);
   if (len < min_bits || len > max_bits)
     {
       goto retry;
     }
-  mpz_clear(&pprime);
-  mpz_clear(&temp);
+  ssh_mp_clear(&pprime);
+  ssh_mp_clear(&temp);
   /* Return value already set in ret. */  
 }
 
@@ -582,12 +582,12 @@ retry:
    a congruence condition. ret = a (mod r). This operation is
    rather slow. */
 
-void ssh_mp_random_prime_with_congruence(MP_INT *ret,
+void ssh_mp_random_prime_with_congruence(SshInt *ret,
                                          int min_bits, int max_bits,
-                                         MP_INT *r, MP_INT *a,
+                                         SshInt *r, SshInt *a,
                                          SshRandomState state)
 {
-  MP_INT pprime, temp, w, r2;
+  SshInt pprime, temp, w, r2;
   unsigned int len;
 
   unsigned int progress_counter = 0;
@@ -602,10 +602,10 @@ void ssh_mp_random_prime_with_congruence(MP_INT *ret,
       max_bits = min_bits + 2;
     }
 
-  mpz_init(&pprime);
-  mpz_init(&temp);
-  mpz_init(&w);
-  mpz_init(&r2);
+  ssh_mp_init(&pprime);
+  ssh_mp_init(&temp);
+  ssh_mp_init(&w);
+  ssh_mp_init(&r2);
   
 retry:
   
@@ -614,46 +614,46 @@ retry:
      taken in the above code so doing this differently). */
   do {
     ssh_mp_random_integer(&pprime, state, max_bits);
-    len = mpz_sizeinbase(&pprime, 2);
+    len = ssh_mp_get_size(&pprime, 2);
   } while (len < min_bits);
 
-  mpz_mul_ui(&r2, r, 2);
-  mpz_mod(&w, &pprime, &r2);
+  ssh_mp_mul_ui(&r2, r, 2);
+  ssh_mp_mod(&w, &pprime, &r2);
 
-  mpz_add(&pprime, &pprime, &r2);
-  mpz_add(&pprime, &pprime, a);
-  mpz_sub(&pprime, &pprime, &w);
+  ssh_mp_add(&pprime, &pprime, &r2);
+  ssh_mp_add(&pprime, &pprime, a);
+  ssh_mp_sub(&pprime, &pprime, &w);
   
   /* If even the make it odd. */
-  if ((mpz_get_ui(&pprime) & 0x1) == 0)
-    mpz_add(&pprime, &pprime, r);
+  if ((ssh_mp_get_ui(&pprime) & 0x1) == 0)
+    ssh_mp_add(&pprime, &pprime, r);
 
   while (1)
     {
-      mpz_add(&pprime, &pprime, &r2);
+      ssh_mp_add(&pprime, &pprime, &r2);
       
       /* Check the length. */
-      len = mpz_sizeinbase(&pprime, 2);
+      len = ssh_mp_get_size(&pprime, 2);
       if (len > max_bits)
         {
           /* compute: pprime - 2^max_bits + 2^min_bits - 1 */
-          mpz_set_ui(&temp, 1);
-          mpz_mul_2exp(&temp, &temp, max_bits);
-          mpz_sub(&pprime, &pprime, &temp);
-          mpz_set_ui(&temp, 1);
-          mpz_mul_2exp(&temp, &temp, min_bits);
-          mpz_add(&pprime, &pprime, &temp);
-          mpz_sub_ui(&pprime, &pprime, 1);
+          ssh_mp_set_ui(&temp, 1);
+          ssh_mp_mul_2exp(&temp, &temp, max_bits);
+          ssh_mp_sub(&pprime, &pprime, &temp);
+          ssh_mp_set_ui(&temp, 1);
+          ssh_mp_mul_2exp(&temp, &temp, min_bits);
+          ssh_mp_add(&pprime, &pprime, &temp);
+          ssh_mp_sub_ui(&pprime, &pprime, 1);
           
           /* Check that the probable prime is odd. */
-          if ((mpz_get_ui(&pprime) & 0x1) == 0)
-            mpz_add_ui(&pprime, &pprime, 1);
+          if ((ssh_mp_get_ui(&pprime) & 0x1) == 0)
+            ssh_mp_add_ui(&pprime, &pprime, 1);
 
-          mpz_mod(&w, &pprime, &r2);
+          ssh_mp_mod(&w, &pprime, &r2);
           
-          mpz_add(&pprime, &pprime, &r2);
-          mpz_add(&pprime, &pprime, a);
-          mpz_sub(&pprime, &pprime, &w);
+          ssh_mp_add(&pprime, &pprime, &r2);
+          ssh_mp_add(&pprime, &pprime, a);
+          ssh_mp_sub(&pprime, &pprime, &w);
           continue;
         }
 
@@ -663,23 +663,23 @@ retry:
       /* Check for primality. */
       
       /* Compute the number in question. */
-      mpz_set(ret, &pprime);
+      ssh_mp_set(ret, &pprime);
 
       /* Perform Miller-Rabin strong pseudo primality tests */
-      if (mpz_probab_prime_p(ret, 15))
+      if (ssh_mp_is_probable_prime(ret, 15))
         break;
     }
 
   /* Sanity check. */
-  len = mpz_sizeinbase(ret, 2);
+  len = ssh_mp_get_size(ret, 2);
   if (len < min_bits || len > max_bits)
     {
       goto retry;
     }
-  mpz_clear(&pprime);
-  mpz_clear(&temp);
-  mpz_clear(&w);
-  mpz_clear(&r2);
+  ssh_mp_clear(&pprime);
+  ssh_mp_clear(&temp);
+  ssh_mp_clear(&w);
+  ssh_mp_clear(&r2);
   /* Return value already set in ret. */  
 }
 
@@ -687,11 +687,11 @@ retry:
    prime = 1 (mod r), prime = -1 (mod s), r = 1 (mod t) and r, s, t are all
    large primes. Also 'div' = r. */
 
-void ssh_mp_strong_p1363_random_prime(MP_INT *prime, MP_INT *div, 
+void ssh_mp_strong_p1363_random_prime(SshInt *prime, SshInt *div, 
                                       int big_bits, int small_bits,
                                       SshRandomState state)
 {
-  MP_INT t, r, s, u, v, a, temp;
+  SshInt t, r, s, u, v, a, temp;
   unsigned int lt_bits, lr_bits, ls_bits;
 
   if (small_bits < 160 || big_bits < 320)
@@ -707,15 +707,15 @@ void ssh_mp_strong_p1363_random_prime(MP_INT *prime, MP_INT *div,
   ls_bits = small_bits;
   
   /* Initialize integers. */
-  mpz_init(&t);
-  mpz_init(&r);
-  mpz_init(&s);
-  mpz_init(&u);
-  mpz_init(&v);
-  mpz_init(&a);
-  mpz_init(&temp);
+  ssh_mp_init(&t);
+  ssh_mp_init(&r);
+  ssh_mp_init(&s);
+  ssh_mp_init(&u);
+  ssh_mp_init(&v);
+  ssh_mp_init(&a);
+  ssh_mp_init(&temp);
 
-  mpz_set_ui(&temp, 1);
+  ssh_mp_set_ui(&temp, 1);
   
   ssh_mp_random_prime_within_limits(&t, lt_bits - 1, lt_bits, state);
   ssh_mp_random_prime_with_congruence(&r, lr_bits - 1, lr_bits, &t, &temp,
@@ -727,26 +727,26 @@ void ssh_mp_strong_p1363_random_prime(MP_INT *prime, MP_INT *div,
   ssh_mp_mod_invert(&v, &r, &s);
 
   /* Compute a = su - rv (mod rs) */
-  mpz_mul(&a, &s, &u);
-  mpz_mul(&temp, &r, &v);
-  mpz_sub(&a, &a, &temp);
+  ssh_mp_mul(&a, &s, &u);
+  ssh_mp_mul(&temp, &r, &v);
+  ssh_mp_sub(&a, &a, &temp);
 
-  mpz_mul(&temp, &r, &s);
-  mpz_mod(&a, &a, &temp);
+  ssh_mp_mul(&temp, &r, &s);
+  ssh_mp_mod(&a, &a, &temp);
 
   ssh_mp_random_prime_with_congruence(prime, big_bits - 1, big_bits, &temp, &a,
                                       state);
 
-  mpz_set(div, &r);
+  ssh_mp_set(div, &r);
   
   /* Free integers. */
-  mpz_clear(&t);
-  mpz_clear(&r);
-  mpz_clear(&s);
-  mpz_clear(&u);
-  mpz_clear(&v);
-  mpz_clear(&a);
-  mpz_clear(&temp);
+  ssh_mp_clear(&t);
+  ssh_mp_clear(&r);
+  ssh_mp_clear(&s);
+  ssh_mp_clear(&u);
+  ssh_mp_clear(&v);
+  ssh_mp_clear(&a);
+  ssh_mp_clear(&temp);
 }
 
 /* Generate a strong random prime. That is, p = q * c + 1, where p and q are
@@ -759,12 +759,12 @@ void ssh_mp_strong_p1363_random_prime(MP_INT *prime, MP_INT *div,
    
    */
 
-void ssh_mp_random_strong_prime(MP_INT *prime,
-                                MP_INT *order,
+void ssh_mp_random_strong_prime(SshInt *prime,
+                                SshInt *order,
                                 int prime_bits, int order_bits,
                                 SshRandomState state)
 {
-  MP_INT aux, aux2, u;
+  SshInt aux, aux2, u;
   unsigned long *table_q, *table_u;
   unsigned long i, j, table_count, upto;
   Boolean flag;
@@ -782,9 +782,9 @@ void ssh_mp_random_strong_prime(MP_INT *prime,
   else
     upto = 1 << (prime_bits - order_bits - 1);
   
-  mpz_init(&aux);
-  mpz_init(&aux2);
-  mpz_init(&u);
+  ssh_mp_init(&aux);
+  ssh_mp_init(&aux2);
+  ssh_mp_init(&u);
 
   /* There seems to be no real reason to generate this as a strong prime. */
   ssh_mp_random_prime(order, state, order_bits);
@@ -794,9 +794,9 @@ void ssh_mp_random_strong_prime(MP_INT *prime,
   table_u = table_q + SSH_MAX_PRIMES_IN_TABLE;
   for (table_count = 1; ssh_prime_table[table_count] != 0; table_count++)
     {
-      mpz_mod_ui(&aux, order, ssh_prime_table[table_count]);
+      ssh_mp_mod_ui2(&aux, order, ssh_prime_table[table_count]);
       table_q[table_count] =
-        (mpz_get_ui(&aux) * 2) % ssh_prime_table[table_count];
+        (ssh_mp_get_ui(&aux) * 2) % ssh_prime_table[table_count];
     }
 
   /* In case we don't find one quickly enough. */
@@ -806,30 +806,30 @@ retry:
   ssh_mp_random_integer(&u, state, prime_bits);
 
   /* Set the highest bit on. */
-  mpz_set_ui(&aux, 1);
-  mpz_mul_2exp(&aux, &aux, prime_bits - 1);
-  mpz_ior(&u, &u, &aux);
+  ssh_mp_set_ui(&aux, 1);
+  ssh_mp_mul_2exp(&aux, &aux, prime_bits - 1);
+  ssh_mp_or(&u, &u, &aux);
   
   /* Compute the initial value for the prime. */
-  mpz_set(&aux, order);
-  mpz_mul_2exp(&aux, &aux, 1);
-  mpz_mod(&aux2, &u, &aux);
-  mpz_sub(&u, &u, &aux2);
-  mpz_add_ui(&u, &u, 1);
+  ssh_mp_set(&aux, order);
+  ssh_mp_mul_2exp(&aux, &aux, 1);
+  ssh_mp_mod(&aux2, &u, &aux);
+  ssh_mp_sub(&u, &u, &aux2);
+  ssh_mp_add_ui(&u, &u, 1);
 
   /* Now check whether the value is still large enough. */
-  if (mpz_sizeinbase(&u, 2) <= prime_bits - 1)
+  if (ssh_mp_get_size(&u, 2) <= prime_bits - 1)
     goto retry;
 
   /* Now compute the residues of the 'probable prime'. */
   for (j = 1; j < table_count; j++)
     {
-      mpz_mod_ui(&aux, &u, ssh_prime_table[j]);
-      table_u[j] = mpz_get_ui(&aux);
+      ssh_mp_mod_ui2(&aux, &u, ssh_prime_table[j]);
+      table_u[j] = ssh_mp_get_ui(&aux);
     }
 
   /* Set the 2*q for  later. */
-  mpz_mul_2exp(&aux2, order, 1);
+  ssh_mp_mul_2exp(&aux2, order, 1);
   
   /* Loop through until a prime is found. */
   for (i = 0; i < upto; i++)
@@ -857,16 +857,16 @@ retry:
                                   ++progress_counter);
       
       /* Compute the proposed prime. */
-      mpz_set(prime, &u);
-      mpz_mul_ui(&aux, &aux2, i);
-      mpz_add(prime, prime, &aux);
+      ssh_mp_set(prime, &u);
+      ssh_mp_mul_ui(&aux, &aux2, i);
+      ssh_mp_add(prime, prime, &aux);
 
       /* Check that the size of the prime is within range. */
-      if (mpz_sizeinbase(prime, 2) > prime_bits)
+      if (ssh_mp_get_size(prime, 2) > prime_bits)
         goto retry;
       
       /* Miller-Rabin */
-      if (mpz_probab_prime_p(prime, 20))
+      if (ssh_mp_is_probable_prime(prime, 20))
         break;
     }
 
@@ -877,9 +877,9 @@ retry:
   ssh_xfree(table_q);
 
   /* Free temporary memory. */
-  mpz_clear(&aux);
-  mpz_clear(&aux2);
-  mpz_clear(&u);
+  ssh_mp_clear(&aux);
+  ssh_mp_clear(&aux2);
+  ssh_mp_clear(&u);
 }
 
 /* Method for computing a prime that is resistant against p-1 and p+1
@@ -905,13 +905,13 @@ retry:
    
    */
 
-void ssh_mp_random_safe_prime(MP_INT *p,
-                              MP_INT *q1,
-                              MP_INT *q2,
+void ssh_mp_random_safe_prime(SshInt *p,
+                              SshInt *q1,
+                              SshInt *q2,
                               unsigned int bits,
                               SshRandomState state)
 {
-  MP_INT t1, t2, t3, y1, y2, y3, m1, m2, m3, q3, qq;
+  SshInt t1, t2, t3, y1, y2, y3, m1, m2, m3, q3, qq;
   unsigned int *table_v, *table_u;
   unsigned int table_count, i, j;
   unsigned int upto = (1 << 30);
@@ -920,17 +920,17 @@ void ssh_mp_random_safe_prime(MP_INT *p,
   unsigned int progress_counter = 0;
   
   /* Initialize a few temporary variables. */
-  mpz_init(&t1);
-  mpz_init(&t2);
-  mpz_init(&t3);
-  mpz_init(&m1);
-  mpz_init(&m2);
-  mpz_init(&m3);
-  mpz_init(&y1);
-  mpz_init(&y2);
-  mpz_init(&y3);
-  mpz_init(&qq);
-  mpz_init(&q3);
+  ssh_mp_init(&t1);
+  ssh_mp_init(&t2);
+  ssh_mp_init(&t3);
+  ssh_mp_init(&m1);
+  ssh_mp_init(&m2);
+  ssh_mp_init(&m3);
+  ssh_mp_init(&y1);
+  ssh_mp_init(&y2);
+  ssh_mp_init(&y3);
+  ssh_mp_init(&qq);
+  ssh_mp_init(&q3);
   
   /* Using chinese remainder theorem generate t1 = 1 mod q1, t1 = -1 mod q2.
      Also we'd like to make sure that t1 = 1 mod 2. */
@@ -943,39 +943,39 @@ retry:
   ssh_mp_random_prime(q2, state, (bits/2));
 
   /* Compute modulus. */
-  mpz_mul(&m3, q1, q2);
+  ssh_mp_mul(&m3, q1, q2);
   
   /* q3 = 2, thus q1*q2 mod 2 == 1. */
-  if ((mpz_get_ui(&m3) & 0x1) == 0)
+  if ((ssh_mp_get_ui(&m3) & 0x1) == 0)
     ssh_fatal("ssh_mp_random_safe_prime: prime equals to 2.");
 
-  mpz_mul_ui(&qq, &qq, 2);
+  ssh_mp_mul_ui(&qq, &qq, 2);
   
-  mpz_mul_ui(&m1, q2, 2);
-  mpz_mul_ui(&m2, q1, 2);
+  ssh_mp_mul_ui(&m1, q2, 2);
+  ssh_mp_mul_ui(&m2, q1, 2);
   
-  mpz_set_ui(&q3, 2);
+  ssh_mp_set_ui(&q3, 2);
 
   /* Compute inverses. */
   ssh_mp_mod_invert(&y1, &m1, q1);
   ssh_mp_mod_invert(&y2, &m2, q2);
   
   /* Compute first part. */
-  mpz_mul(&t1, &m1, &y1);
+  ssh_mp_mul(&t1, &m1, &y1);
 
   /* Compute second part. */
-  mpz_mul(&t2, &m2, &y2);
-  mpz_sub_ui(&t3, q1, 1);
-  mpz_mul(&t2, &t2, &t3);
-  mpz_mod(&t2, &t2, &qq);
+  ssh_mp_mul(&t2, &m2, &y2);
+  ssh_mp_sub_ui(&t3, q1, 1);
+  ssh_mp_mul(&t2, &t2, &t3);
+  ssh_mp_mod(&t2, &t2, &qq);
 
   /* Combine. */
-  mpz_add(&t1, &t1, &t2);
-  mpz_add(&t1, &t1, &m3);
-  mpz_mod(&t1, &t1, &qq);
+  ssh_mp_add(&t1, &t1, &t2);
+  ssh_mp_add(&t1, &t1, &m3);
+  ssh_mp_mod(&t1, &t1, &qq);
 
   /* We never should have to deal with cases like this. */
-  if ((mpz_get_ui(&t1) & 0x1) == 0)
+  if ((ssh_mp_get_ui(&t1) & 0x1) == 0)
     {
       ssh_fatal("ssh_mp_random_safe_prime: should never be divisible by 2!");
       /* Divisible by 2! */
@@ -1000,15 +1000,15 @@ retry:
   table_u = table_v + SSH_MAX_PRIMES_IN_TABLE;
 
   /* For simplicity we'd like to work only with values > qq. */
-  mpz_add(&t1, &t1, &qq);
+  ssh_mp_add(&t1, &t1, &qq);
   
   /* Compute table values. */
   for (table_count = 1; ssh_prime_table[table_count] != 0; table_count++)
     {
-      mpz_mod_ui(&t2, &t1, ssh_prime_table[table_count]);
-      table_v[table_count] = mpz_get_ui(&t2);
-      mpz_mod_ui(&t2, &qq, ssh_prime_table[table_count]);
-      table_u[table_count] = mpz_get_ui(&t2);
+      ssh_mp_mod_ui2(&t2, &t1, ssh_prime_table[table_count]);
+      table_v[table_count] = ssh_mp_get_ui(&t2);
+      ssh_mp_mod_ui2(&t2, &qq, ssh_prime_table[table_count]);
+      table_u[table_count] = ssh_mp_get_ui(&t2);
     }
 
   /* Search for a prime. */
@@ -1033,43 +1033,43 @@ retry:
                                   ++progress_counter);
 
       /* Compute the proposed prime. */
-      mpz_mul_ui(p, &qq, i);
-      mpz_add(p, p, &t1);
+      ssh_mp_mul_ui(p, &qq, i);
+      ssh_mp_add(p, p, &t1);
       
       /* Miller-Rabin */
-      if (mpz_probab_prime_p(p, 20))
+      if (ssh_mp_is_probable_prime(p, 20))
         break;
     }
 
   /* Free tables. */
   ssh_xfree(table_v);
 
-  mpz_clear(&t1);
-  mpz_clear(&t2);
-  mpz_clear(&t3);
-  mpz_clear(&m1);
-  mpz_clear(&m2);
-  mpz_clear(&m3);
-  mpz_clear(&y1);
-  mpz_clear(&y2);
-  mpz_clear(&y3);
-  mpz_clear(&qq);
-  mpz_clear(&q3);
+  ssh_mp_clear(&t1);
+  ssh_mp_clear(&t2);
+  ssh_mp_clear(&t3);
+  ssh_mp_clear(&m1);
+  ssh_mp_clear(&m2);
+  ssh_mp_clear(&m3);
+  ssh_mp_clear(&y1);
+  ssh_mp_clear(&y2);
+  ssh_mp_clear(&y3);
+  ssh_mp_clear(&qq);
+  ssh_mp_clear(&q3);
 }
                               
 /* Basic modular enhancements. Due the nature of extended euclids algorithm
    it sometimes returns integers that are negative. For our cases positive
    results are better. */
 
-int ssh_mp_mod_invert(MP_INT *op_dest, const MP_INT *op_src,
-                      const MP_INT *modulo)
+int ssh_mp_mod_invert(SshInt *op_dest, const SshInt *op_src,
+                      const SshInt *modulo)
 {
   int status;
 
-  status = mpz_invert(op_dest, op_src, modulo);
+  status = ssh_mp_invert(op_dest, op_src, modulo);
 
-  if (mpz_cmp_ui(op_dest, 0) < 0)
-    mpz_add(op_dest, op_dest, modulo);
+  if (ssh_mp_cmp_ui(op_dest, 0) < 0)
+    ssh_mp_add(op_dest, op_dest, modulo);
   
   return status;
 }
@@ -1081,22 +1081,22 @@ int ssh_mp_mod_invert(MP_INT *op_dest, const MP_INT *op_src,
    do it in many other ways too. Like we could distribute the random bits
    in reasonably random fashion around the available size. This would
    ensure that cryptographical use would be slightly safer. */
-void ssh_mp_mod_random_entropy(MP_INT *op, const MP_INT *modulo,
+void ssh_mp_mod_random_entropy(SshInt *op, const SshInt *modulo,
                                SshRandomState state,
                                unsigned int bits)
 {
   ssh_mp_random_integer(op, state, bits);
-  mpz_mod(op, op, modulo);
+  ssh_mp_mod(op, op, modulo);
 }
 
 /* Just plain _modular_ random number generation. */
-void ssh_mp_mod_random(MP_INT *op, const MP_INT *modulo, SshRandomState state)
+void ssh_mp_mod_random(SshInt *op, const SshInt *modulo, SshRandomState state)
 {
   unsigned int bits;
  
   bits = ssh_mp_bit_size(modulo);
   ssh_mp_random_integer(op, state, bits);
-  mpz_mod(op, op, modulo);
+  ssh_mp_mod(op, op, modulo);
 }
 
 #if 0
@@ -1104,17 +1104,17 @@ void ssh_mp_mod_random(MP_INT *op, const MP_INT *modulo, SshRandomState state)
 /* Reduced and faster lucas function. Works a quite nicely with Williams p+1
    factoring method. */
 
-void ssh_mp_reduced_lucas(MP_INT *op_dest, const MP_INT *op_e,
-                          const MP_INT *op_p,
-                          const MP_INT *op_n)
+void ssh_mp_reduced_lucas(SshInt *op_dest, const SshInt *op_e,
+                          const SshInt *op_p,
+                          const SshInt *op_n)
 {
-  MP_INT v1, v2;
+  SshInt v1, v2;
   char *bittable;
   int bit, scan_bit, maxbit;
 
-  if (mpz_cmp_ui(op_e, 0) == 0)
+  if (ssh_mp_cmp_ui(op_e, 0) == 0)
     {
-      mpz_set_ui(op_dest, 2);
+      ssh_mp_set_ui(op_dest, 2);
       return;
     }
   
@@ -1127,7 +1127,7 @@ void ssh_mp_reduced_lucas(MP_INT *op_dest, const MP_INT *op_e,
   
   while (bit < maxbit)
     {
-      scan_bit = mpz_scan1(op_e, bit);
+      scan_bit = ssh_mp_scan1(op_e, bit);
       if (scan_bit >= maxbit)
         break;
 
@@ -1142,11 +1142,11 @@ void ssh_mp_reduced_lucas(MP_INT *op_dest, const MP_INT *op_e,
     }
 
   /* Set up */
-  mpz_init_set(&v2, op_p);
-  mpz_init(&v1);
-  mpz_mul(&v1, op_p, op_p);
-  mpz_sub_ui(&v1, &v1, 2);
-  mpz_mod(&v1, &v1, op_n);
+  ssh_mp_init_set(&v2, op_p);
+  ssh_mp_init(&v1);
+  ssh_mp_mul(&v1, op_p, op_p);
+  ssh_mp_sub_ui(&v1, &v1, 2);
+  ssh_mp_mod(&v1, &v1, op_n);
 
   /* Get the most-significant bit */
   bit--;
@@ -1155,62 +1155,62 @@ void ssh_mp_reduced_lucas(MP_INT *op_dest, const MP_INT *op_e,
     {
       if (bittable[bit])
         {
-          mpz_mul(&v2, &v2, &v1);
-          mpz_sub(&v2, &v2, op_p);
-          mpz_mod(&v2, &v2, op_n);
+          ssh_mp_mul(&v2, &v2, &v1);
+          ssh_mp_sub(&v2, &v2, op_p);
+          ssh_mp_mod(&v2, &v2, op_n);
 
-          mpz_mul(&v1, &v1, &v1);
-          mpz_sub_ui(&v1, &v1, 2);
-          mpz_mod(&v1, &v1, op_n);
+          ssh_mp_mul(&v1, &v1, &v1);
+          ssh_mp_sub_ui(&v1, &v1, 2);
+          ssh_mp_mod(&v1, &v1, op_n);
         }
       else
         {
-          mpz_mul(&v1, &v2, &v1);
-          mpz_sub(&v1, &v1, op_p);
-          mpz_mod(&v1, &v1, op_n);
+          ssh_mp_mul(&v1, &v2, &v1);
+          ssh_mp_sub(&v1, &v1, op_p);
+          ssh_mp_mod(&v1, &v1, op_n);
 
-          mpz_mul(&v2, &v2, &v2);
-          mpz_sub_ui(&v2, &v2, 2);
-          mpz_mod(&v2, &v2, op_n);
+          ssh_mp_mul(&v2, &v2, &v2);
+          ssh_mp_sub_ui(&v2, &v2, 2);
+          ssh_mp_mod(&v2, &v2, op_n);
         }
     }
 
   /* Free bit table */
   ssh_xfree(bittable);
 
-  mpz_clear(&v1);
-  mpz_clear(&v2);
+  ssh_mp_clear(&v1);
+  ssh_mp_clear(&v2);
 
-  mpz_set(op_dest, &v2);
+  ssh_mp_set(op_dest, &v2);
 }
  
 /* Generating lucas sequences. */
 
-void ssh_mp_lucas(MP_INT *op_dest, const MP_INT *op_src1,
-                  const MP_INT *op_src2,
-                  const MP_INT *k, const MP_INT *modulo)
+void ssh_mp_lucas(SshInt *op_dest, const SshInt *op_src1,
+                  const SshInt *op_src2,
+                  const SshInt *k, const SshInt *modulo)
 {
-  MP_INT u, v, inv2, t, t1, t2, t3, a;
+  SshInt u, v, inv2, t, t1, t2, t3, a;
   int bits, scan_bits, last_bit = 0, maxbits;
   unsigned char *bit_table;
   
   /* Initialize temporary variables. */
-  mpz_init_set_ui(&u, 1);
-  mpz_init_set(&v, op_src1);
+  ssh_mp_init_set_ui(&u, 1);
+  ssh_mp_init_set(&v, op_src1);
 
-  mpz_init(&t);
-  mpz_init(&t1);
-  mpz_init(&t2);
-  mpz_init(&t3);
-  mpz_init_set_ui(&inv2, 2);
+  ssh_mp_init(&t);
+  ssh_mp_init(&t1);
+  ssh_mp_init(&t2);
+  ssh_mp_init(&t3);
+  ssh_mp_init_set_ui(&inv2, 2);
   ssh_mp_mod_invert(&inv2, &inv2, modulo);
-  mpz_init(&a);
+  ssh_mp_init(&a);
 
   /* Compute a = op_src1*op_src1 - 4*op_src2 */
-  mpz_mul(&a, op_src1, op_src1);
-  mpz_mul_ui(&t, op_src2, 4);
-  mpz_sub(&a, &a, &t);
-  mpz_mod(&a, &a, modulo);
+  ssh_mp_mul(&a, op_src1, op_src1);
+  ssh_mp_mul_ui(&t, op_src2, 4);
+  ssh_mp_sub(&a, &a, &t);
+  ssh_mp_mod(&a, &a, modulo);
   
   /* Get the maximum bit count */
   maxbits = ssh_mp_bit_size(k);
@@ -1223,7 +1223,7 @@ void ssh_mp_lucas(MP_INT *op_dest, const MP_INT *op_src1,
   /* Get the reverse order */
   while (bits < maxbits)
     {
-      scan_bits = mpz_scan1(k, bits);
+      scan_bits = ssh_mp_scan1(k, bits);
       if (scan_bits >= maxbits)
         break;
       
@@ -1245,110 +1245,110 @@ void ssh_mp_lucas(MP_INT *op_dest, const MP_INT *op_src1,
     {
       bits--;
       /* Compute (u, v) = (uv (mod p), (v^2 + a)/2 (mod p)) */
-      mpz_mul(&t1, &u, &v);
+      ssh_mp_mul(&t1, &u, &v);
       
-      mpz_mul(&t2, &v, &v);
-      mpz_mul(&t3, &u, &u);
-      mpz_mul(&t3, &t3, &a);
-      mpz_add(&t2, &t2, &t3);
-      mpz_mul(&t2, &t2, &inv2);
+      ssh_mp_mul(&t2, &v, &v);
+      ssh_mp_mul(&t3, &u, &u);
+      ssh_mp_mul(&t3, &t3, &a);
+      ssh_mp_add(&t2, &t2, &t3);
+      ssh_mp_mul(&t2, &t2, &inv2);
       
-      mpz_mod(&v, &t2, modulo);
-      mpz_mod(&u, &t1, modulo);
+      ssh_mp_mod(&v, &t2, modulo);
+      ssh_mp_mod(&u, &t1, modulo);
       
       if (bit_table[bits])
         {
-          mpz_mul(&t1, op_src1, &u);
-          mpz_add(&t1, &t1, &v);
-          mpz_mul(&t1, &t1, &inv2);
+          ssh_mp_mul(&t1, op_src1, &u);
+          ssh_mp_add(&t1, &t1, &v);
+          ssh_mp_mul(&t1, &t1, &inv2);
 
-          mpz_mul(&t2, op_src1, &v);
-          mpz_mul(&t3, &a, &u);
-          mpz_add(&t2, &t2, &t3);
-          mpz_mul(&t2, &t2, &inv2);
+          ssh_mp_mul(&t2, op_src1, &v);
+          ssh_mp_mul(&t3, &a, &u);
+          ssh_mp_add(&t2, &t2, &t3);
+          ssh_mp_mul(&t2, &t2, &inv2);
 
-          mpz_mod(&u, &t1, modulo);
-          mpz_mod(&v, &t2, modulo);
+          ssh_mp_mod(&u, &t1, modulo);
+          ssh_mp_mod(&v, &t2, modulo);
         }
     }
 
-  mpz_set(op_dest, &v);
+  ssh_mp_set(op_dest, &v);
 
   /* Free allocated memory */
   ssh_xfree(bit_table);
   
-  mpz_clear(&t);
-  mpz_clear(&u);
-  mpz_clear(&v);
-  mpz_clear(&t1);
-  mpz_clear(&t2);
-  mpz_clear(&t3);
-  mpz_clear(&a);
-  mpz_clear(&inv2);
+  ssh_mp_clear(&t);
+  ssh_mp_clear(&u);
+  ssh_mp_clear(&v);
+  ssh_mp_clear(&t1);
+  ssh_mp_clear(&t2);
+  ssh_mp_clear(&t3);
+  ssh_mp_clear(&a);
+  ssh_mp_clear(&inv2);
   
 }
 /* Modular square roots, with lucas sequence. Works fine, and is quite
    fast. If possible select the modulus so that you can use the special
    cases. */
 
-int ssh_mp_mod_sqrt(MP_INT *op_dest, const MP_INT *op_src,
-                    const MP_INT *modulo)
+int ssh_mp_mod_sqrt(SshInt *op_dest, const SshInt *op_src,
+                    const SshInt *modulo)
 {
-  MP_INT t, t1, t2, inv2;
+  SshInt t, t1, t2, inv2;
 
   /* Fast check for 0, which would otherwise confuse the system
      quite a bit. */
-  if (mpz_cmp_ui(op_src, 0) == 0)
+  if (ssh_mp_cmp_ui(op_src, 0) == 0)
     {
-      mpz_set_ui(op_dest, 0);
+      ssh_mp_set_ui(op_dest, 0);
       return 1;
     }
   
   /* There is no square root if this is true. */
-  if (mpz_legendre(op_src, modulo) == -1)
+  if (ssh_mp_legendre(op_src, modulo) == -1)
     {
-      mpz_set_ui(op_dest, 0);
+      ssh_mp_set_ui(op_dest, 0);
       return 0;
     }
 
   /* Initialize temporary variables. */
-  mpz_init(&t);
-  mpz_init(&t1);
-  mpz_init(&t2);
-  mpz_init_set_ui(&inv2, 2);
+  ssh_mp_init(&t);
+  ssh_mp_init(&t1);
+  ssh_mp_init(&t2);
+  ssh_mp_init_set_ui(&inv2, 2);
 
   /* Test the special cases first */
   
   /* if congruence modulo = 3 (mod 4) holds */
-  mpz_mod_ui(&t, modulo, 4);
-  if (mpz_cmp_ui(&t, 3) == 0)
+  ssh_mp_mod_ui2(&t, modulo, 4);
+  if (ssh_mp_cmp_ui(&t, 3) == 0)
     {
-      mpz_sub_ui(&t, modulo, 3);
-      mpz_div_2exp(&t, &t, 2);
-      mpz_add_ui(&t, &t, 1);
-      mpz_powm(op_dest, op_src, &t, modulo);
+      ssh_mp_sub_ui(&t, modulo, 3);
+      ssh_mp_div_2exp(&t, &t, 2);
+      ssh_mp_add_ui(&t, &t, 1);
+      ssh_mp_powm(op_dest, op_src, &t, modulo);
       goto end;
     }
 
   /* if congruence modulo = 5 (mod 8) holds */
-  mpz_mod_ui(&t, modulo, 8);
-  if (mpz_cmp_ui(&t, 5) == 0)
+  ssh_mp_mod_ui2(&t, modulo, 8);
+  if (ssh_mp_cmp_ui(&t, 5) == 0)
     {
-      mpz_sub_ui(&t, modulo, 5);
-      mpz_div_2exp(&t, &t, 3);
+      ssh_mp_sub_ui(&t, modulo, 5);
+      ssh_mp_div_2exp(&t, &t, 3);
       
-      mpz_mul_ui(&t1, op_src, 2);
-      mpz_powm(&t2, &t1, &t, modulo);
+      ssh_mp_mul_ui(&t1, op_src, 2);
+      ssh_mp_powm(&t2, &t1, &t, modulo);
 
-      mpz_mul(&t, &t2, &t2);
-      mpz_mul(&t, &t, op_src);
-      mpz_mul_ui(&t, &t, 2);
-      mpz_mod(&t, &t, modulo);
+      ssh_mp_mul(&t, &t2, &t2);
+      ssh_mp_mul(&t, &t, op_src);
+      ssh_mp_mul_ui(&t, &t, 2);
+      ssh_mp_mod(&t, &t, modulo);
 
-      mpz_sub_ui(&t, &t, 1);
-      mpz_mul(&t, &t, &t2);
-      mpz_mul(&t, &t, op_src);
-      mpz_mod(op_dest, &t, modulo);
+      ssh_mp_sub_ui(&t, &t, 1);
+      ssh_mp_mul(&t, &t, &t2);
+      ssh_mp_mul(&t, &t, op_src);
+      ssh_mp_mod(op_dest, &t, modulo);
 
       goto end;
     }
@@ -1356,39 +1356,39 @@ int ssh_mp_mod_sqrt(MP_INT *op_dest, const MP_INT *op_src,
   /* Modulo = 1 (mod 4). */
 
   /* Find t^2 - 4(op_src) such that it has not square root (mod modulo) */
-  mpz_mul_ui(&t, op_src, 4);
-  mpz_set_ui(&t1, 1);
+  ssh_mp_mul_ui(&t, op_src, 4);
+  ssh_mp_set_ui(&t1, 1);
 
-  while (mpz_cmp(&t1, modulo) <= 0)
+  while (ssh_mp_cmp(&t1, modulo) <= 0)
     {
-      mpz_mul(&t2, &t1, &t1);
-      mpz_sub(&t2, &t2, &t);
-      mpz_mod(&t2, &t2, modulo);
+      ssh_mp_mul(&t2, &t1, &t1);
+      ssh_mp_sub(&t2, &t2, &t);
+      ssh_mp_mod(&t2, &t2, modulo);
 
-      if (mpz_legendre(&t2, modulo) == -1)
+      if (ssh_mp_legendre(&t2, modulo) == -1)
         break;
 
-      mpz_add_ui(&t1, &t1, 1);
+      ssh_mp_add_ui(&t1, &t1, 1);
     }
   
   /* Compute the square root with lucas sequence... */
-  mpz_add_ui(&t2, modulo, 1);
-  mpz_fdiv_q_ui(&t2, &t2, 2);
+  ssh_mp_add_ui(&t2, modulo, 1);
+  ssh_mp_div_ui(&t2, &t2, 2);
   ssh_mp_lucas(op_dest, &t1, op_src, &t2, modulo);
 
   /* ...multiply with the inverse of 2 */
   ssh_mp_mod_invert(&inv2, &inv2, modulo);
-  mpz_mul(op_dest, op_dest, &inv2);
-  mpz_mod(op_dest, op_dest, modulo);
+  ssh_mp_mul(op_dest, op_dest, &inv2);
+  ssh_mp_mod(op_dest, op_dest, modulo);
   
 end:
 
   /* Clear temporary variables */
-  mpz_clear(&t);
-  mpz_clear(&t1);
-  mpz_clear(&t2);
+  ssh_mp_clear(&t);
+  ssh_mp_clear(&t1);
+  ssh_mp_clear(&t2);
 
-  mpz_clear(&inv2);
+  ssh_mp_clear(&inv2);
 
   return 1;
 }
@@ -1399,34 +1399,34 @@ end:
 /* Check the Menezes, Okamoto and Vanstone elliptic curve reduction attack
    possibility. */
 
-Boolean ssh_mp_mov_condition(const MP_INT *op_b, const MP_INT *op_q,
-                             const MP_INT *op_r)
+Boolean ssh_mp_mov_condition(const SshInt *op_b, const SshInt *op_q,
+                             const SshInt *op_r)
 {
-  MP_INT t, i;
+  SshInt t, i;
   Boolean mov_condition = FALSE;
   
   /* Initialize temporary variables. */
-  mpz_init_set_ui(&t, 1);
+  ssh_mp_init_set_ui(&t, 1);
   
-  mpz_init_set(&i, op_b);
+  ssh_mp_init_set(&i, op_b);
 
   /* Iterate the mov condition */
-  while (mpz_cmp_ui(&i, 0) != 0)
+  while (ssh_mp_cmp_ui(&i, 0) != 0)
     {
-      mpz_mul(&t, &t, op_q);
-      mpz_mod(&t, &t, op_r);
-      if (mpz_cmp_ui(&t, 1) == 0)
+      ssh_mp_mul(&t, &t, op_q);
+      ssh_mp_mod(&t, &t, op_r);
+      if (ssh_mp_cmp_ui(&t, 1) == 0)
         {
           mov_condition = TRUE;
           break;
         }
 
-      mpz_sub_ui(&i, &i, 1);
+      ssh_mp_sub_ui(&i, &i, 1);
     }
 
   /* Clear temporary variables. */
-  mpz_clear(&t);
-  mpz_clear(&i);
+  ssh_mp_clear(&t);
+  ssh_mp_clear(&i);
 
   return mov_condition;
 }
@@ -1436,40 +1436,40 @@ Boolean ssh_mp_mov_condition(const MP_INT *op_b, const MP_INT *op_q,
 /* Check whether op_src is of order op_ord (mod modulo). Not used and not
    tested. */
 
-int ssh_mp_is_order(const MP_INT *op_ord, const MP_INT *op_src,
-                    const MP_INT *modulo)
+int ssh_mp_is_order(const SshInt *op_ord, const SshInt *op_src,
+                    const SshInt *modulo)
 {
-  MP_INT t, t1;
+  SshInt t, t1;
   int i;
   int is_order = 1;
   
   /* Initialize t and t1 */
-  mpz_init(&t);
-  mpz_init(&t1);
+  ssh_mp_init(&t);
+  ssh_mp_init(&t1);
   
-  mpz_powm(&t, op_src, op_ord, modulo);
-  if (mpz_cmp_ui(&t, 1) != 0)
+  ssh_mp_powm(&t, op_src, op_ord, modulo);
+  if (ssh_mp_cmp_ui(&t, 1) != 0)
     {
       is_order = 0;
       goto end;
     }
   
   /* Trial division factoring algorithm... this shouldn't need better (?) */
-  mpz_set(&t, op_ord);
+  ssh_mp_set(&t, op_ord);
   for (i = 0; ssh_prime_table[i]; i++)
     {
       /* Check whether op_src is divisible by a prime... */
-      mpz_fdiv_r_ui(&t1, &t, ssh_prime_table[i]);
-      if (mpz_cmp_ui(&t1, 0) == 0)
+      ssh_mp_mod_ui2(&t1, &t, ssh_prime_table[i]);
+      if (ssh_mp_cmp_ui(&t1, 0) == 0)
         {
           /* This really isn't necessary but speeds up possibly a bit. */
           do {
-            mpz_fdiv_q_ui(&t, &t, ssh_prime_table[i]);
-            mpz_fdiv_r_ui(&t1, &t, ssh_prime_table[i]);
-          } while (mpz_cmp_ui(&t1, 0) == 0);
+            ssh_mp_div_ui(&t, &t, ssh_prime_table[i]);
+            ssh_mp_mod_ui2(&t1, &t, ssh_prime_table[i]);
+          } while (ssh_mp_cmp_ui(&t1, 0) == 0);
             
-          mpz_powm_ui(&t, op_src, ssh_prime_table[i], modulo);
-          if (mpz_cmp_ui(&t, 1) == 0)
+          ssh_mp_powm_expui(&t, op_src, ssh_prime_table[i], modulo);
+          if (ssh_mp_cmp_ui(&t, 1) == 0)
             {
               is_order = 0;
               break;
@@ -1478,8 +1478,8 @@ int ssh_mp_is_order(const MP_INT *op_ord, const MP_INT *op_src,
     }
 end:
   
-  mpz_clear(&t);
-  mpz_clear(&t1);
+  ssh_mp_clear(&t);
+  ssh_mp_clear(&t1);
   
   /* Could be of the order of op_ord */
   return is_order;
@@ -1487,49 +1487,49 @@ end:
 
 /* Find a random generator of order 'order' modulo 'modulo'. */
 
-Boolean ssh_mp_random_generator(MP_INT *g, MP_INT *order, MP_INT *modulo,
+Boolean ssh_mp_random_generator(SshInt *g, SshInt *order, SshInt *modulo,
                                 SshRandomState state)
 {
-  MP_INT aux, t;
+  SshInt aux, t;
   int bits;
 
-  mpz_init(&aux);
-  mpz_init(&t);
+  ssh_mp_init(&aux);
+  ssh_mp_init(&t);
 
-  mpz_sub_ui(&aux, modulo, 1);
-  mpz_mod(&t, &aux, order);
+  ssh_mp_sub_ui(&aux, modulo, 1);
+  ssh_mp_mod(&t, &aux, order);
 
-  if (mpz_cmp_ui(&t, 0) != 0)
+  if (ssh_mp_cmp_ui(&t, 0) != 0)
     {
-      mpz_clear(&aux);
-      mpz_clear(&t);
+      ssh_mp_clear(&aux);
+      ssh_mp_clear(&t);
       return FALSE;
     }
 
-  mpz_div(&t, &aux, order);
-  bits = mpz_sizeinbase(modulo, 2);
+  ssh_mp_div_q(&t, &aux, order);
+  bits = ssh_mp_get_size(modulo, 2);
   
   while (1)
     {
       ssh_mp_random_integer(g, state, bits);
-      mpz_mod(g, g, modulo);
-      mpz_powm(g, g, &t, modulo);
+      ssh_mp_mod(g, g, modulo);
+      ssh_mp_powm(g, g, &t, modulo);
 
-      if (mpz_cmp_ui(g, 1) != 0)
+      if (ssh_mp_cmp_ui(g, 1) != 0)
         break;
     }
 
   /* Check. */
-  mpz_powm(&aux, g, order, modulo);
-  if (mpz_cmp_ui(&aux, 1) != 0)
+  ssh_mp_powm(&aux, g, order, modulo);
+  if (ssh_mp_cmp_ui(&aux, 1) != 0)
     {
-      mpz_clear(&aux);
-      mpz_clear(&t);
+      ssh_mp_clear(&aux);
+      ssh_mp_clear(&t);
       return FALSE;
     }
 
-  mpz_clear(&aux);
-  mpz_clear(&t);
+  ssh_mp_clear(&aux);
+  ssh_mp_clear(&t);
 
   return TRUE;
 }

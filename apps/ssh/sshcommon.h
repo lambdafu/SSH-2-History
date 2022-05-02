@@ -24,16 +24,17 @@
 #include "sshcrypt.h"
 #include "sshconn.h"
 
-#define SSH2_PROTOCOL_VERSION_STRING \
-                SSH2_VERSION " (non-commercial)"
-
 /* XXX temporarily defined here. */
 #define SSH_CHANNEL_SESSION
-#define SSH_CHANNEL_AGENT
-#define SSH_CHANNEL_SSH1_AGENT
-#define SSH_CHANNEL_TCPFWD
+#ifndef DISABLE_PORT_FORWARDING
+#  define SSH_CHANNEL_AGENT
+#  define SSH_CHANNEL_SSH1_AGENT
+#  define SSH_CHANNEL_TCPFWD
+#endif /* DISABLE_PORT_FORWARDING */
 #if !defined (X_DISPLAY_MISSING) && defined (XAUTH_PATH)
-#define SSH_CHANNEL_X11
+#  ifndef DISABLE_X11_FORWARDING
+#    define SSH_CHANNEL_X11
+#  endif /* DISABLE_X11_FORWARDING */
 #endif /* X_DISPLAY_MISSING */
 
 /* Data type for representing the common protocol object for both server and
@@ -99,7 +100,7 @@ struct SshCommonRec
   char *local_port;
 
   /* Last login data */
-  time_t last_login_time;
+  SshTime last_login_time;
   char *last_login_from_host;
   unsigned int sizeof_last_login_from_host;
   
@@ -122,7 +123,6 @@ struct SshCommonRec
 
   /* TRUE if context is being destroyed. */
   Boolean being_destroyed;
-  
 };
 
 /* A function of this type will be called to notify the application that

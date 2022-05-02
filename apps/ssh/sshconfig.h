@@ -52,6 +52,15 @@ typedef enum {
   SSH_AGENT_COMPAT_SSH2 = 2
 } SshAgentSsh1CompatMode;
 
+typedef enum {
+  /* Don't allow root login's. */
+  SSH_ROOTLOGIN_FALSE = 0,
+  /* Allow root login's. */
+  SSH_ROOTLOGIN_TRUE = 1,
+  /* Don't allow if using password authentication. */ 
+  SSH_ROOTLOGIN_NOPWD = 2
+} SshPermitRootLogin;
+
 /* Data type for SSH server configuration data. */
 
 struct SshConfigRec
@@ -60,11 +69,13 @@ struct SshConfigRec
   Boolean client;
 
   /* The private host key */
-
+  /* XXX multiple host keys. These should probably be put into a
+     separate struct, and one for each keytype should be help here. */
   SshPrivateKey private_host_key;
   unsigned char *public_host_key_blob;
   size_t public_host_key_blob_len;
-
+  char *public_key_algorithm;
+  
   /* A context structure to be used with various callbacks. 
      No use at *nix at this time, but Windows-code uses it
      to pass registry-arguments. */
@@ -82,7 +93,10 @@ struct SshConfigRec
   Boolean force_ptty_allocation;
   Boolean verbose_mode;
   Boolean compression;
-
+  SshDlList allowed_authentications;
+  SshDlList required_authentications;
+  Boolean user_known_hosts;
+  
   char *port;      
   char *ciphers;   
   char *user_conf_dir;
@@ -90,9 +104,14 @@ struct SshConfigRec
   char *authorization_file;
   char *random_seed_file;
 
+  char *pgp_public_key_file;
+  char *pgp_secret_key_file;
+
   char *password_prompt;
   int password_guesses;
 
+  int max_connections;
+  
   char *host_to_connect;
   char *login_as_user;
   SshForward local_forwards;
@@ -100,6 +119,8 @@ struct SshConfigRec
 
   SshDlList allowed_hosts;
   SshDlList denied_hosts;
+  SshDlList allowed_shosts;
+  SshDlList denied_shosts;
   Boolean require_reverse_mapping;
 
   SshLogFacility log_facility;
@@ -109,17 +130,22 @@ struct SshConfigRec
   Boolean batch_mode;
   Boolean strict_host_key_checking;
   Boolean go_background;
-  Boolean use_nonpriviledged_port;
   Boolean dont_read_stdin;
+  Boolean gateway_ports;
   char *escape_char;
   Boolean ignore_rhosts;
-  Boolean permit_root_login;
+  /* This is int because we assign it to -1 first; just a style
+     issue. */
+  int ignore_root_rhosts;
+  SshPermitRootLogin permit_root_login;
   Boolean permit_empty_passwords;
   Boolean strict_modes;
   Boolean quiet_mode;
   Boolean fascist_logging;
   Boolean print_motd;
+  Boolean check_mail;
   Boolean keep_alive;
+  Boolean no_delay;
   Boolean inetd_mode;
   char *listen_address;
   int login_grace_time;
@@ -144,14 +170,24 @@ struct SshConfigRec
   
   /* Ssh1 arguments for compatibility. If this is NULL, there will be no
      ssh1 compatibility.  The first argument should be the program name. */
-  char **ssh1_args;
-
+  char **ssh1_argv;
+  int ssh1_argc;
+  
   /* The file descriptor for the connection to the remote ssh1 server/client.
      This is used in ssh1 compatibility code. */
   int ssh1_fd;
+
+  /* Path to sshsigner2. */
+  char *signer_path;
 };
 
 typedef struct SshConfigRec *SshConfig;
+
+/* This a template for a function which is used to check whether a
+   given parameter (represented as a standard C-string) is valid by
+   certain qualifiers. Return FALSE if so, TRUE if not.*/
+typedef Boolean (*SshParameterValidityProc)(const char *param,
+                                            void *data);
 
 /* Parse a configuration/authorization file into an array of 
    variable name <-> value pairs. Return the number of variables or -1 on 
@@ -169,6 +205,11 @@ SshConfig ssh_server_create_config(void);
 /* Returns default configuration information for the client. */
 SshConfig ssh_client_create_config(void);
 
+/* This should be called after initializing the config-struct
+   (ie. after command-line variables have been parsed. This checks,
+   that some required members are initialized properly.*/
+void ssh_config_init_finalize(SshConfig config);
+
 /* Frees client configuration data. */
 void ssh_config_free(SshConfig config);
 
@@ -179,7 +220,6 @@ Boolean ssh_config_read_file(SshUser user, SshConfig config, char *instance,
 
 /* Reads the host key that is defined in the config data. Returns
    TRUE if succesful. */
-
 Boolean ssh_server_load_host_key(SshConfig config,
                                  SshPrivateKey *private_host_key,
                                  unsigned char **public_host_key_blob,
@@ -195,8 +235,14 @@ Boolean ssh_config_parse_line(SshConfig config, char *line);
 
 /* Parses a given comma-separated list to tokens, which are stored in
    a SshDlList. The list is allocated and returned by this
-   function. On error, returns NULL. */
-SshDlList ssh_config_parse_list(char *string);
+   function. On error, returns NULL. function and context are used to
+   check whether a given list-item is valid for a given config
+   parameter. function and context can be NULL, if the parameter is
+   not needed to be checked or the context isn't needed,
+   respectively. */
+SshDlList ssh_config_parse_list(char *string,
+                                SshParameterValidityProc function,
+                                void *context);
 
 /* separate (commandline)options from their parameters */
 void ssh_split_arguments(int argc, char **argv, int *dest_ac, char ***dest_av);

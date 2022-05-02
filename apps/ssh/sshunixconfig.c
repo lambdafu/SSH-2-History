@@ -18,10 +18,11 @@ Processing configuration data in SSH (both client and server).
 #include "ssh2includes.h"
 #include "sshconfig.h"
 #include "sshuser.h"
-#include "userfile.h"
+#include "sshuserfile.h"
 #include "sshuserfiles.h"
-#include "match.h"
+#include "sshmatch.h"
 #include "sshcipherlist.h"
+#include "ssh2pubkeyencode.h"
 
 #define SSH_DEBUG_MODULE "SshUnixConfig"
 
@@ -92,7 +93,7 @@ void ssh2_config_remove_quotes(char *str)
 int ssh2_parse_config(SshUser user, const char *instance, const char *path, 
                       char ***variables, char ***values, void *context)
 {
-  UserFile f;
+  SshUserFile f;
   char **vars, **vals, *varpos, *valpos, *hlp;
   char linebuf[1024];
   size_t n;
@@ -102,7 +103,7 @@ int ssh2_parse_config(SshUser user, const char *instance, const char *path,
 
   if (user == NULL)
     {
-      if ((f = userfile_open(getuid(), path, O_RDONLY, 0755)) == NULL)
+      if ((f = ssh_userfile_open(getuid(), path, O_RDONLY, 0755)) == NULL)
         {
           ssh_debug("Unable to open %s", path);
           return -1;
@@ -110,7 +111,7 @@ int ssh2_parse_config(SshUser user, const char *instance, const char *path,
     }
   else
     {
-      if ((f = userfile_open(ssh_user_uid(user), path, O_RDONLY, 0755)) ==
+      if ((f = ssh_userfile_open(ssh_user_uid(user), path, O_RDONLY, 0755)) ==
           NULL)
         {
           ssh_debug("Unable to open %s", path);
@@ -125,7 +126,7 @@ int ssh2_parse_config(SshUser user, const char *instance, const char *path,
   vars = ssh_xcalloc(n, sizeof(char *));
   vals = ssh_xcalloc(n, sizeof(char *));
 
-  while (userfile_gets(linebuf, sizeof(linebuf) - 1, f) != NULL)
+  while (ssh_userfile_gets(linebuf, sizeof(linebuf) - 1, f) != NULL)
     {
       line++;
 
@@ -196,7 +197,7 @@ int ssh2_parse_config(SshUser user, const char *instance, const char *path,
       ;
     }
 
-  userfile_close(f);
+  ssh_userfile_close(f);
   *variables = vars;
   *values = vals;
 
@@ -266,7 +267,7 @@ Boolean ssh_server_load_host_key(SshConfig config,
                config->public_host_key_file);
     }
   
-  ssh_debug("Reading public host key from: %s", hostkeyfile);
+  SSH_TRACE(1, ("Reading public host key from: %s", hostkeyfile));
 
   if (ssh2_key_blob_read(user, hostkeyfile, NULL,
                         public_host_key_blob,
@@ -274,10 +275,27 @@ Boolean ssh_server_load_host_key(SshConfig config,
       != SSH_KEY_MAGIC_PUBLIC)
     ssh_fatal("Unable to load public host key from %s.", hostkeyfile);
 
+  /* check keytype */
+
+  if ((config->public_key_algorithm =
+       ssh_pubkeyblob_type(*public_host_key_blob,
+                           *public_host_key_blob_len))
+      == NULL)
+    {
+      SSH_TRACE(0, ("Unable to get public key type from %s.", hostkeyfile));
+      goto error;
+    }
+  
+
   ssh_xfree(userdir);
   ssh_user_free(user, FALSE);
 
   return TRUE;
+
+ error: 
+  ssh_xfree(userdir);
+  ssh_user_free(user, FALSE);
+  return FALSE;
 }
 
 

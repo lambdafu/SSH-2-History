@@ -23,6 +23,7 @@ SSH client functionality for processing a connection.
 #include "sshconfig.h"
 #include "sshauthmethods.h"
 #include "sshuser.h"
+#include "sshtrans.h"
 
 /* Data type for the SSH client object.  The client object processes
    one connection (potentially multiple sessions/channels). */
@@ -46,6 +47,10 @@ struct SshClientRec
 
   /* Data for the user at the client end. */
   SshUser user_data;
+
+  /* Contains the application level compatibility flags needed to
+     interoperate with other/older versions. */
+  SshTransportCompat compat_flags;
 };
 
 typedef struct SshClientRec *SshClient;

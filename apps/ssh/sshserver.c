@@ -25,6 +25,7 @@ implementation is actually shared with the client (in sshcommon.c).
 #include "sshserver.h"
 #include "sshuserfiles.h"
 #include "sshcipherlist.h"
+#include "sshtimeouts.h"
 
 #define SSH_DEBUG_MODULE "SshServer"
 
@@ -84,6 +85,7 @@ SshServer ssh_server_wrap(SshStream stream, SshConfig config,
                           SshServerDisconnectProc disconnect,
                           SshServerDebugProc debug,
                           SshVersionCallback version_check,
+                          SshAuthPolicyProc auth_policy_proc,
                           SshCommonAuthenticatedNotify authenticated_notify,
                           void *context)
 {
@@ -121,6 +123,9 @@ SshServer ssh_server_wrap(SshStream stream, SshConfig config,
                                     version_check,
                                     (void *)context);
 
+  
+  ssh_transport_get_compatibility_flags(trans, &server->compat_flags);
+  
   /* Create the authentication methods array for the server. */
   server->methods = ssh_server_authentication_initialize();
   /* XXX config data */
@@ -128,7 +133,7 @@ SshServer ssh_server_wrap(SshStream stream, SshConfig config,
   /* Create an authentication protocol object. */
   ssh_debug("ssh_server_wrap: creating userauth protocol");
   /* XXX policy_proc */
-  auth = ssh_auth_server_wrap(trans, NULL, (void *)server,
+  auth = ssh_auth_server_wrap(trans, auth_policy_proc, (void *)server,
                               server->methods, (void *)server);
 
   /* Create the common part of client/server objects. */
@@ -147,11 +152,17 @@ SshServer ssh_server_wrap(SshStream stream, SshConfig config,
   return server;
 }
 
+/* External declaration. (this is defined is sshd2.c.)*/
+extern void ssh_login_grace_time_exceeded(void *context);
+
 /* Forcibly destroys the given server. */
   
 void ssh_server_destroy(SshServer server)
 {
+  /* Cancel grace timeout. */
+  ssh_cancel_timeouts(ssh_login_grace_time_exceeded, SSH_ALL_CONTEXTS);
   ssh_common_destroy(server->common);
+  ssh_xfree(server->compat_flags);
   ssh_server_authentication_uninitialize(server->methods);
   memset(server, 'F', sizeof(*server));
   ssh_xfree(server);

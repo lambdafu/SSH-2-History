@@ -12,7 +12,7 @@ Tests for mapping.c
 */
 
 #include "sshincludes.h"
-#include "mapping.h"
+#include "sshmapping.h"
 
 #define KEY_L   20
 #define VALUE_L 128
@@ -37,7 +37,7 @@ void start_time(TimeContext *tc)
   tc->start_time = ((double)tc->realtime.tv_sec +
                     (double)tc->realtime.tv_usec/1000000.0);
 #else  /* HAVE_GETTIMEOFDAY */
-  tc->start_time = (double)(time(NULL));
+  tc->start_time = (double)(ssh_time());
 #endif /* HAVE_GETTIMEOFDAY */
 }
 
@@ -50,7 +50,7 @@ double get_time(TimeContext *tc)
   t = ((double)tc->realtime.tv_sec +
        (double)tc->realtime.tv_usec/1000000.0);
 #else  /* HAVE_GETTIMEOFDAY */
-  t = ((double)(time(NULL))) + 0.000001;
+  t = ((double)(ssh_time())) + 0.000001;
 #endif /* HAVE_GETTIMEOFDAY */
 
   return t - tc->start_time;
@@ -73,7 +73,7 @@ void hexdump(unsigned char *buf, size_t len)
 unsigned int my_rand(void)
 {
 #if 0
-  unsigned long my_time = time(NULL) ^ clock();
+  unsigned long my_time = ssh_time() ^ clock();
   return ((((random() >> 1) ^ (random() << 7)) ^ (random() % 8) ^
     (my_time << 2) ^ (my_time >> 8)) * random()) ^ random();
 #else
@@ -189,7 +189,7 @@ Boolean add_entry(SshMapping set, unsigned long seed,
   if (rval == FALSE)
     {
       if (k_len == -1)
-        key_len[idx] = 4 + (random() % 100);
+        key_len[idx] = sizeof(unsigned long) + (random() % 100);
       else
         key_len[idx] = (size_t)k_len;
       
@@ -1331,7 +1331,7 @@ int main(void)
   double t;
   int r; 
   
-  srandom(time(NULL));
+  srandom(ssh_time());
   srandom(42);
   
 #ifdef STORE_POINTERS

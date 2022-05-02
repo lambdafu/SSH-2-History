@@ -1,8 +1,10 @@
 /*
-  Author: Sami Lehtinen <sjl@ssh.fi>
+  Authors: Sami Lehtinen <sjl@ssh.fi>
+           Timo J. Rinne <tri@ssh.fi>
+
   Original author: William C. Ray <ray@soyokaze.biosci.ohio-state.edu>
 
-  Copyright (C) 1997-1998 SSH Communications Security Oy, Espoo, Finland
+  Copyright (C) 1997-1999 SSH Communications Security Oy, Espoo, Finland
   All rights reserved.
   
 */
@@ -22,22 +24,12 @@ struct in_addr {
 
 char *inet_ntoa(struct in_addr in)
 {
-  SshUInt32 my_address;
-  SshUInt32 hold_address;
-  int a,b,c,d;
+  unsigned char *b;
   static char outstring[16];
-  my_address = in.s_addr;
 
-  hold_address = my_address;
-  d = hold_address%256;
-  hold_address = hold_address/256;
-  c = hold_address%256;
-  hold_address = hold_address/256;
-  b = hold_address%256;
-  hold_address = hold_address/256;
-  a = hold_address%256;
-
-  snprintf(outstring, sizeof(outstring), "%d.%d.%d.%d", a, b, c, d);
+  b = (unsigned char *)(&(in.s_addr));
+  snprintf(outstring, sizeof(outstring), 
+           "%d.%d.%d.%d", (int)(b[0]), (int)(b[1]), (int)(b[2]), (int)(b[3]));
 
   return outstring;
 }

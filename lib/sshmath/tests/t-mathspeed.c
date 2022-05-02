@@ -10,11 +10,11 @@
  *        $Author: kivinen $
  *
  *        Creation          : 18:00 Jul 21 1998 kivinen
- *        Last Modification : 18:40 Oct  8 1998 kivinen
- *        Last check in     : $Date: 1998/10/08 15:40:30 $
- *        Revision number   : $Revision: 1.2 $
+ *        Last Modification : 04:11 May  4 1999 kivinen
+ *        Last check in     : $Date: 1999/05/04 02:19:53 $
+ *        Revision number   : $Revision: 1.4 $
  *        State             : $State: Exp $
- *        Version           : 1.69
+ *        Version           : 1.70
  *
  *        Description       : Test math library speed.
  *
@@ -50,6 +50,12 @@ void speed_test(int bits)
   ssh_mp_rand(&c, bits);
   ssh_mp_set_bit(&c, 0);
   ssh_mp_set_ui(&g, 2);
+
+  /* Set the highest bit of all the important values. */
+  ssh_mp_set_bit(&a, bits);
+  ssh_mp_set_bit(&b, bits);
+  ssh_mp_set_bit(&c, bits);
+  ssh_mp_set_bit(&g, bits);
   
   ssh_mpm_init_m(&m, &c);
   ssh_mpm_init(&am, &m);
@@ -131,7 +137,7 @@ int main(int argc, char **argv)
   int bits;
   
   /* Randomize the random number generator. */
-  srandom(time(NULL));
+  srandom(ssh_time());
 
   bits = 1024;
 

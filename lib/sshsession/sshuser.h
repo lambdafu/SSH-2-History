@@ -24,6 +24,10 @@ typedef struct SshUserRec *SshUser;
    try to look for shadow passwords etc.*/
 SshUser ssh_user_initialize(const char *user, Boolean privileged);
 
+#ifndef WINDOWS
+/* As above, but we explicitely want to use uid (instead of name). */
+SshUser ssh_user_initialize_with_uid(uid_t uid, Boolean privileged);
+#endif /* WINDOWS */
 /* Frees information about the user.  If ``undo'' is TRUE, undoes any
    cached state related to e.g. Kerberos and Secure RPC.  Returns
    FALSE if undo was requested, but was unable to undo everything; otherwise
@@ -34,8 +38,15 @@ Boolean ssh_user_free(SshUser uc, Boolean undo);
 Boolean ssh_user_login_is_allowed(SshUser uc);
 
 /* Returns TRUE if login is allowed with the given local password. */
+#ifdef HAVE_SIA
+Boolean ssh_user_validate_local_password(SshUser uc,
+                                         const char *password,
+                                         const char *remote_host);
+#else /* HAVE_SIA */
 Boolean ssh_user_validate_local_password(SshUser uc,
                                          const char *password);
+#endif /* HAVE_SIA */
+
 
 /* Returns TRUE if the user's password needs to be changed. */
 Boolean ssh_user_password_must_be_changed(SshUser uc,
@@ -66,6 +77,20 @@ Boolean ssh_user_validate_secure_rpc_password(SshUser uc,
    The return value of this function MUST BE CHECKED! */
 Boolean ssh_user_become(SshUser uc);
 
+#ifdef HAVE_SIA
+/* Last chance to finish anything that ssh_user_become() left undone.  The
+   difference between the two functions is that ssh_user_become() is called
+   before the user's environment is set, while we're called after.
+
+   Switches the current process to the permissions and privileges of the
+   specified user.  The process should not hold any confidential information
+   at this point.  This returns FALSE if switching to the given user failed
+   for some reason.  The return value of this function MUST BE CHECKED! */
+Boolean ssh_user_become_real(SshUser uc,
+                             const char *remote_host,
+                             const char *ttyname);
+#endif /* HAVE_SIA */
+
 /* Returns the login name of the user. */
 const char *ssh_user_name(SshUser uc);
 
@@ -90,9 +115,9 @@ const char *ssh_user_shell(SshUser uc);
    is not available.  This must be called before
    ssh_user_record_login.  The host the user logged in from will be
    returned in hostbuf. */
-time_t ssh_user_get_last_login_time(SshUser user,
-                                    char *hostbuf,
-                                    unsigned int hostbufsize);
+SshTime ssh_user_get_last_login_time(SshUser user,
+                                     char *hostbuf,
+                                     unsigned int hostbufsize);
 
 /* Records that the user has logged in.  I wish these parts of
    operating systems were more standardized.  This code normally needs

@@ -329,7 +329,7 @@ SshFileClientRequest ssh_file_request(SshFileClient client,
   va_start(va, reply_type);
   ssh_buffer_init(&buffer);
   ssh_encode_buffer(&buffer,
-                    SSH_FORMAT_UINT32, (unsigned long)client->next_id,
+                    SSH_FORMAT_UINT32, client->next_id,
                     SSH_FORMAT_END);
   ssh_encode_va(&buffer, va);
 
@@ -409,7 +409,7 @@ void ssh_file_client_open(SshFileClient client,
   
   request = ssh_file_request(client, SSH_FXP_OPEN, SSH_FILEXFER_HANDLE_REPLY,
                              SSH_FORMAT_UINT32_STR, name, strlen(name),
-                             SSH_FORMAT_UINT32, (unsigned long)pflags,
+                             SSH_FORMAT_UINT32, (SshUInt32) pflags,
                              SSH_FORMAT_EXTENDED, 
                                ssh_file_attrs_encoder, attributes,
                              SSH_FORMAT_END);
@@ -443,7 +443,7 @@ void ssh_file_client_read(SshFileHandle handle,
                              SSH_FILEXFER_DATA_REPLY,
                              SSH_FORMAT_UINT32_STR, handle->value, handle->len,
                              SSH_FORMAT_UINT64, seek_offset,
-                             SSH_FORMAT_UINT32, (unsigned long)len,
+                             SSH_FORMAT_UINT32, (SshUInt32) len,
                              SSH_FORMAT_END);
   request->data_callback = callback;
   request->context = context;
@@ -821,7 +821,7 @@ void ssh_file_client_receive_proc(SshPacketType type,
   SshFileClientRequest request;
   SshFileHandle handle;
   size_t bytes, slen, offset;
-  unsigned long u, id;
+  SshUInt32 u, id;
   unsigned int i, a;
   unsigned char *s, *name, *long_name;
   SshFileAttributes attrs;
@@ -1173,7 +1173,8 @@ SshFileClient ssh_file_client_wrap(SshStream stream)
 
   /* Send initialization packet. */
   ssh_packet_wrapper_send_encode(client->conn, SSH_FXP_INIT,
-                                 SSH_FORMAT_UINT32, 0L, SSH_FORMAT_END);
+                                 SSH_FORMAT_UINT32, (SshUInt32) 0,
+                                 SSH_FORMAT_END);
 
   return client;
 }

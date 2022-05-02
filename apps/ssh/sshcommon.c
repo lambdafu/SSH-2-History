@@ -338,7 +338,7 @@ SshCommon ssh_common_wrap(SshStream connection,
       else
         common->type_contexts[i] = NULL;
     }
-
+  
   /* Set remote host name to ip address. There is no need to do
      reverse mapping in the client (yet) */
   if (!client)

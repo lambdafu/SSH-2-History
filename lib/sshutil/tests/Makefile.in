@@ -89,6 +89,7 @@ PACKAGE = @PACKAGE@
 RANLIB = @RANLIB@
 SSH1_PATH = @SSH1_PATH@
 SSHSESSION_CONFOBJS = @SSHSESSION_CONFOBJS@
+SSHSIGNERINSTALLMODE = @SSHSIGNERINSTALLMODE@
 VERSION = @VERSION@
 X11_DIR = @X11_DIR@
 XAUTH_PATH = @XAUTH_PATH@
@@ -99,7 +100,7 @@ TESTS = t-buffer t-crc32 t-replace t-snprintf t-malloc t-encode \
 	t-timemeasure t-dllist \
 	t-stream t-socks t-streampair t-localstream t-mapping t-udp \
 	t-asn1 t-base64 t-sshutf8 t-psystem t-filexfer t-url \
-	t-inet_ntoa
+	t-inet_ntoa t-dsprintf t-time
 
 # t-parser t-uf
 
@@ -109,7 +110,7 @@ EXTRA_PROGRAMS = t-buffer t-crc32 t-encode \
 	t-snprintf t-malloc t-socks t-streampair t-localstream \
 	t-mapping t-udp \
 	t-asn1 t-base64 t-sshutf8 t-psystem t-filexfer t-url t-serial \
-	t-sshlist t-inet_ntoa t-debug
+	t-sshlist t-inet_ntoa t-debug t-dns t-dsprintf t-time
 
 LDADD = ../libsshutil.a ../../sshmath/libsshmath.a
 INCLUDES = -I../.. -I. -I.. -I$(srcdir) -I$(srcdir)/..  \
@@ -121,6 +122,8 @@ t_buffer_SOURCES = t-buffer.c
 t_buffer_DEPENDENCIES = $(LDADD)
 t_crc32_SOURCES = t-crc32.c
 t_crc32_DEPENDENCIES = $(LDADD)
+t_dns_SOURCES = t-dns.c
+t_dns_DEPENDENCIES = $(LDADD)
 t_encode_SOURCES = t-encode.c
 t_encode_DEPENDENCIES = $(LDADD)
 t_timemeasure_SOURCES = t-timemeasure.c
@@ -165,6 +168,8 @@ t_inet_ntoa_SOURCES = t-inet_ntoa.c
 t_inet_ntoa_DEPENDENCIES = $(LDADD)
 t_debug_SOURCES = t-debug.c
 t_debug_DEPENDENCIES = $(LDADD)
+t_dsprintf_SOURCES = t-dsprintf.c
+t_dsprintf_DEPENDENCIES = $(LDADD)
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = ../../../sshconf.h
 CONFIG_CLEAN_FILES = 
@@ -249,6 +254,17 @@ t_inet_ntoa_LDFLAGS =
 t_debug_OBJECTS =  t-debug.o
 t_debug_LDADD = $(LDADD)
 t_debug_LDFLAGS = 
+t_dns_OBJECTS =  t-dns.o
+t_dns_LDADD = $(LDADD)
+t_dns_LDFLAGS = 
+t_dsprintf_OBJECTS =  t-dsprintf.o
+t_dsprintf_LDADD = $(LDADD)
+t_dsprintf_LDFLAGS = 
+t_time_SOURCES = t-time.c
+t_time_OBJECTS =  t-time.o
+t_time_LDADD = $(LDADD)
+t_time_DEPENDENCIES =  ../libsshutil.a ../../sshmath/libsshmath.a
+t_time_LDFLAGS = 
 CFLAGS = @CFLAGS@
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS)
 LINK = $(CC) $(CFLAGS) $(LDFLAGS) -o $@
@@ -259,8 +275,8 @@ DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
 
 TAR = tar
 GZIP = --best
-SOURCES = $(t_buffer_SOURCES) $(t_crc32_SOURCES) $(t_encode_SOURCES) $(t_timemeasure_SOURCES) $(t_dllist_SOURCES) $(t_stream_SOURCES) $(t_replace_SOURCES) $(t_snprintf_SOURCES) $(t_malloc_SOURCES) $(t_socks_SOURCES) $(t_streampair_SOURCES) $(t_localstream_SOURCES) $(t_mapping_SOURCES) $(t_udp_SOURCES) $(t_asn1_SOURCES) $(t_base64_SOURCES) $(t_sshutf8_SOURCES) $(t_psystem_SOURCES) $(t_filexfer_SOURCES) $(t_url_SOURCES) $(t_serial_SOURCES) $(t_sshlist_SOURCES) $(t_inet_ntoa_SOURCES) $(t_debug_SOURCES)
-OBJECTS = $(t_buffer_OBJECTS) $(t_crc32_OBJECTS) $(t_encode_OBJECTS) $(t_timemeasure_OBJECTS) $(t_dllist_OBJECTS) $(t_stream_OBJECTS) $(t_replace_OBJECTS) $(t_snprintf_OBJECTS) $(t_malloc_OBJECTS) $(t_socks_OBJECTS) $(t_streampair_OBJECTS) $(t_localstream_OBJECTS) $(t_mapping_OBJECTS) $(t_udp_OBJECTS) $(t_asn1_OBJECTS) $(t_base64_OBJECTS) $(t_sshutf8_OBJECTS) $(t_psystem_OBJECTS) $(t_filexfer_OBJECTS) $(t_url_OBJECTS) $(t_serial_OBJECTS) $(t_sshlist_OBJECTS) $(t_inet_ntoa_OBJECTS) $(t_debug_OBJECTS)
+SOURCES = $(t_buffer_SOURCES) $(t_crc32_SOURCES) $(t_encode_SOURCES) $(t_timemeasure_SOURCES) $(t_dllist_SOURCES) $(t_stream_SOURCES) $(t_replace_SOURCES) $(t_snprintf_SOURCES) $(t_malloc_SOURCES) $(t_socks_SOURCES) $(t_streampair_SOURCES) $(t_localstream_SOURCES) $(t_mapping_SOURCES) $(t_udp_SOURCES) $(t_asn1_SOURCES) $(t_base64_SOURCES) $(t_sshutf8_SOURCES) $(t_psystem_SOURCES) $(t_filexfer_SOURCES) $(t_url_SOURCES) $(t_serial_SOURCES) $(t_sshlist_SOURCES) $(t_inet_ntoa_SOURCES) $(t_debug_SOURCES) $(t_dns_SOURCES) $(t_dsprintf_SOURCES) t-time.c
+OBJECTS = $(t_buffer_OBJECTS) $(t_crc32_OBJECTS) $(t_encode_OBJECTS) $(t_timemeasure_OBJECTS) $(t_dllist_OBJECTS) $(t_stream_OBJECTS) $(t_replace_OBJECTS) $(t_snprintf_OBJECTS) $(t_malloc_OBJECTS) $(t_socks_OBJECTS) $(t_streampair_OBJECTS) $(t_localstream_OBJECTS) $(t_mapping_OBJECTS) $(t_udp_OBJECTS) $(t_asn1_OBJECTS) $(t_base64_OBJECTS) $(t_sshutf8_OBJECTS) $(t_psystem_OBJECTS) $(t_filexfer_OBJECTS) $(t_url_OBJECTS) $(t_serial_OBJECTS) $(t_sshlist_OBJECTS) $(t_inet_ntoa_OBJECTS) $(t_debug_OBJECTS) $(t_dns_OBJECTS) $(t_dsprintf_OBJECTS) t-time.o
 
 all: Makefile
 
@@ -388,6 +404,18 @@ t-inet_ntoa: $(t_inet_ntoa_OBJECTS) $(t_inet_ntoa_DEPENDENCIES)
 t-debug: $(t_debug_OBJECTS) $(t_debug_DEPENDENCIES)
 	@rm -f t-debug
 	$(LINK) $(t_debug_LDFLAGS) $(t_debug_OBJECTS) $(t_debug_LDADD) $(LIBS)
+
+t-dns: $(t_dns_OBJECTS) $(t_dns_DEPENDENCIES)
+	@rm -f t-dns
+	$(LINK) $(t_dns_LDFLAGS) $(t_dns_OBJECTS) $(t_dns_LDADD) $(LIBS)
+
+t-dsprintf: $(t_dsprintf_OBJECTS) $(t_dsprintf_DEPENDENCIES)
+	@rm -f t-dsprintf
+	$(LINK) $(t_dsprintf_LDFLAGS) $(t_dsprintf_OBJECTS) $(t_dsprintf_LDADD) $(LIBS)
+
+t-time: $(t_time_OBJECTS) $(t_time_DEPENDENCIES)
+	@rm -f t-time
+	$(LINK) $(t_time_LDFLAGS) $(t_time_OBJECTS) $(t_time_LDADD) $(LIBS)
 
 tags: TAGS
 

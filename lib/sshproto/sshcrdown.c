@@ -20,12 +20,12 @@ a cross-layer based protocol module.
 
 */
 
-#define ALLOW_AFTER_BUFFER_FULL		(10000 + 5)
-#define BUFFER_MAX_SIZE			50000
+#define ALLOW_AFTER_BUFFER_FULL         (10000 + 5)
+#define BUFFER_MAX_SIZE                 50000
 
 #include "sshincludes.h"
 #include "sshbuffer.h"
-#include "bufaux.h"
+#include "sshbufaux.h"
 #include "sshgetput.h"
 #include "sshstream.h"
 #include "sshmsgs.h"
@@ -115,16 +115,16 @@ Boolean ssh_cross_down_output(SshCrossDown down)
     {
       /* Write as much data as possible. */
       len = ssh_stream_write(down->stream, ssh_buffer_ptr(&down->outgoing),
-			     ssh_buffer_len(&down->outgoing));
+                             ssh_buffer_len(&down->outgoing));
       if (len < 0)
-	return return_value;  /* Cannot write more now. */
+        return return_value;  /* Cannot write more now. */
       if (len == 0)
-	{
-	  /* EOF on output; will not be able to write any more. */
-	  down->outgoing_eof = TRUE;
-	  ssh_buffer_clear(&down->outgoing);
-	  return TRUE;
-	}
+        {
+          /* EOF on output; will not be able to write any more. */
+          down->outgoing_eof = TRUE;
+          ssh_buffer_clear(&down->outgoing);
+          return TRUE;
+        }
       
       /* Consume written data. */
       ssh_buffer_consume(&down->outgoing, len);
@@ -138,13 +138,13 @@ Boolean ssh_cross_down_output(SshCrossDown down)
     {
       down->cannot_destroy = TRUE;
       if (down->can_send)
-	(*down->can_send)(down->context);
+        (*down->can_send)(down->context);
       down->cannot_destroy = FALSE;
       if (down->destroy_requested)
-	{
-	  ssh_cross_down_destroy(down);
-	  return FALSE;
-	}
+        {
+          ssh_cross_down_destroy(down);
+          return FALSE;
+        }
       down->send_blocked = FALSE;
     }
   
@@ -158,7 +158,7 @@ Boolean ssh_cross_down_output(SshCrossDown down)
     {
       down->shortcircuited = TRUE;
       ssh_cross_up_shortcircuit_now(down->shortcircuit_up_stream,
-				    down->stream);
+                                    down->stream);
     }
 
   /* If there's a destroy pending (that is, waiting for buffers to drain),
@@ -169,7 +169,7 @@ Boolean ssh_cross_down_output(SshCrossDown down)
       ssh_cross_down_destroy_now(down);
 
       /* Return FALSE to ensure that the loop in ssh_cross_down_callback
-	 exits without looking at the context again. */
+         exits without looking at the context again. */
       return FALSE;
     }
 
@@ -192,79 +192,79 @@ Boolean ssh_cross_down_input(SshCrossDown down)
     {
       /* If we cannot receive, return immediately. */
       if (!down->can_receive || down->incoming_eof || down->destroy_pending ||
-	  down->shortcircuit_up_stream != NULL)
-	return return_value;
+          down->shortcircuit_up_stream != NULL)
+        return return_value;
 
       /* Get length of data read so far. */
       data_read = ssh_buffer_len(&down->incoming);
 
       /* Add enough space to buffer for reading either header or
-	 entire packet.  This also sets `ptr' to point to the place
-	 where data should be read, and `data_to_read' to the number
-	 of bytes that should be there after reading (should read
-	 data_to_read - data_read bytes). */
+         entire packet.  This also sets `ptr' to point to the place
+         where data should be read, and `data_to_read' to the number
+         of bytes that should be there after reading (should read
+         data_to_read - data_read bytes). */
       if (data_read < 4)
-	{
-	  /* Packet header not yet in buffer.  Read only header. */
-	  data_to_read = 4;
-	  ssh_buffer_append_space(&down->incoming, &ptr, 4 - data_read);
-	}
+        {
+          /* Packet header not yet in buffer.  Read only header. */
+          data_to_read = 4;
+          ssh_buffer_append_space(&down->incoming, &ptr, 4 - data_read);
+        }
       else
-	{
-	  /* Packet header already in buffer. */
-	  ptr = ssh_buffer_ptr(&down->incoming);
-	  data_to_read = 4 + SSH_GET_32BIT(ptr);
-	  assert(data_to_read > data_read);
-	  ssh_buffer_append_space(&down->incoming, &ptr, data_to_read - data_read);
-	}
+        {
+          /* Packet header already in buffer. */
+          ptr = ssh_buffer_ptr(&down->incoming);
+          data_to_read = 4 + SSH_GET_32BIT(ptr);
+          assert(data_to_read > data_read);
+          ssh_buffer_append_space(&down->incoming, &ptr, data_to_read - data_read);
+        }
   
       /* Keep reading until entire packet read, or no more data available. */
       while (data_read < data_to_read)
-	{
-	  /* Try to read the remaining bytes. */
-	  ptr = (unsigned char *)ssh_buffer_ptr(&down->incoming) + data_read;
-	  ret = ssh_stream_read(down->stream, ptr, data_to_read - data_read);
-	  if (ret < 0)
-	    {
-	      /* No more data available at this time.  Remove
-		 allocated but unread space from end of buffer. */
-	      ssh_buffer_consume_end(&down->incoming, data_to_read - data_read);
-	      return return_value;
-	    }
+        {
+          /* Try to read the remaining bytes. */
+          ptr = (unsigned char *)ssh_buffer_ptr(&down->incoming) + data_read;
+          ret = ssh_stream_read(down->stream, ptr, data_to_read - data_read);
+          if (ret < 0)
+            {
+              /* No more data available at this time.  Remove
+                 allocated but unread space from end of buffer. */
+              ssh_buffer_consume_end(&down->incoming, data_to_read - data_read);
+              return return_value;
+            }
 
-	  if (ret == 0)
-	    {
-	      /* EOF received. */
-	      ssh_buffer_consume_end(&down->incoming, data_to_read - data_read);
-	      down->incoming_eof = TRUE;
-	      
-	      /* Pass the EOF to the application callback. */
-	      down->cannot_destroy = TRUE;
-	      if (down->received_eof)
-		(*down->received_eof)(down->context);
-	      down->cannot_destroy = FALSE;
-	      if (down->destroy_requested)
-		{
-		  ssh_cross_down_destroy(down);
-		  return FALSE;
-		}
-	      return TRUE;
-	    }
+          if (ret == 0)
+            {
+              /* EOF received. */
+              ssh_buffer_consume_end(&down->incoming, data_to_read - data_read);
+              down->incoming_eof = TRUE;
+              
+              /* Pass the EOF to the application callback. */
+              down->cannot_destroy = TRUE;
+              if (down->received_eof)
+                (*down->received_eof)(down->context);
+              down->cannot_destroy = FALSE;
+              if (down->destroy_requested)
+                {
+                  ssh_cross_down_destroy(down);
+                  return FALSE;
+                }
+              return TRUE;
+            }
 
-	  if (data_read < 4 && data_read + ret >= 4)
-	    {
-	      /* Header has now been fully received.  Prepare to receive rest
-		 of packet. */
-	      data_read += ret;
-	      ptr = ssh_buffer_ptr(&down->incoming);
-	      data_to_read = 4 + SSH_GET_32BIT(ptr);
-	      if (data_to_read > data_read)
-		ssh_buffer_append_space(&down->incoming, &ptr,
-				    data_to_read - data_read);
-	    }
-	  else
-	    data_read += ret;
-	}
+          if (data_read < 4 && data_read + ret >= 4)
+            {
+              /* Header has now been fully received.  Prepare to receive rest
+                 of packet. */
+              data_read += ret;
+              ptr = ssh_buffer_ptr(&down->incoming);
+              data_to_read = 4 + SSH_GET_32BIT(ptr);
+              if (data_to_read > data_read)
+                ssh_buffer_append_space(&down->incoming, &ptr,
+                                    data_to_read - data_read);
+            }
+          else
+            data_read += ret;
+        }
 
       /* An entire packet has been received. */
       assert(ssh_buffer_len(&down->incoming) == data_to_read);
@@ -276,14 +276,14 @@ Boolean ssh_cross_down_input(SshCrossDown down)
       /* Call the application callback if set. */
       down->cannot_destroy = TRUE;
       if (down->received_packet)
-	(*down->received_packet)(type, ptr + 5, data_to_read - 5,
-				 down->context);
+        (*down->received_packet)(type, ptr + 5, data_to_read - 5,
+                                 down->context);
       down->cannot_destroy = FALSE;
       if (down->destroy_requested)
-	{
-	  ssh_cross_down_destroy(down);
-	  return FALSE;
-	}
+        {
+          ssh_cross_down_destroy(down);
+          return FALSE;
+        }
       ssh_buffer_clear(&down->incoming);
       
       return_value = TRUE;
@@ -307,27 +307,27 @@ void ssh_cross_down_callback(SshStreamNotification op, void *context)
   do
     {
       switch (op)
-	{
-	case SSH_STREAM_CAN_OUTPUT:
-	  ret = ssh_cross_down_output(down);
-	  op = SSH_STREAM_INPUT_AVAILABLE;
-	  break;
-	  
-	case SSH_STREAM_INPUT_AVAILABLE:
-	  ret = ssh_cross_down_input(down);
-	  op = SSH_STREAM_CAN_OUTPUT;
-	  break;
-	  
-	case SSH_STREAM_DISCONNECTED:
-	  ssh_debug("ssh_cross_down_callback: disconnected");
-	  ret = FALSE;
-	  break;
-	  
-	default:
-	  ssh_fatal("ssh_cross_down_callback: unknown op %d", (int)op);
-	}
+        {
+        case SSH_STREAM_CAN_OUTPUT:
+          ret = ssh_cross_down_output(down);
+          op = SSH_STREAM_INPUT_AVAILABLE;
+          break;
+          
+        case SSH_STREAM_INPUT_AVAILABLE:
+          ret = ssh_cross_down_input(down);
+          op = SSH_STREAM_CAN_OUTPUT;
+          break;
+          
+        case SSH_STREAM_DISCONNECTED:
+          ssh_debug("ssh_cross_down_callback: disconnected");
+          ret = FALSE;
+          break;
+          
+        default:
+          ssh_fatal("ssh_cross_down_callback: unknown op %d", (int)op);
+        }
       /* Note: `down' might have been destroyed by now.  In that case
-	 `ret' is FALSE. */
+         `ret' is FALSE. */
     }
   while (ret == TRUE);
 }
@@ -346,10 +346,10 @@ void ssh_cross_down_callback(SshStreamNotification op, void *context)
    Any of the functions can be NULL if not needed. */
 
 SshCrossDown ssh_cross_down_create(SshStream down_stream,
-				   SshCrossPacketProc received_packet,
-				   SshCrossEofProc received_eof,
-				   SshCrossCanSendNotify can_send,
-				   void *context)
+                                   SshCrossPacketProc received_packet,
+                                   SshCrossEofProc received_eof,
+                                   SshCrossCanSendNotify can_send,
+                                   void *context)
 {
   SshCrossDown down;
 
@@ -417,7 +417,7 @@ void ssh_cross_down_can_receive(SshCrossDown down, Boolean status)
     {
       /* Reset the callbacks to ensure that our callback gets called. */
       ssh_stream_set_callback(down->stream, ssh_cross_down_callback,
-			      (void *)down);
+                              (void *)down);
     }
 }
 
@@ -461,8 +461,8 @@ Boolean ssh_cross_down_can_send(SshCrossDown down)
 /* Encodes and sends a packet as specified for ssh_encode_cross_packet. */
 
 void ssh_cross_down_send_encode_va(SshCrossDown down,
-				   SshCrossPacketType type,
-				   va_list va)
+                                   SshCrossPacketType type,
+                                   va_list va)
 {
   /* Wrap the data into a cross-layer packet and append to the outgoing
      stream. */
@@ -475,8 +475,8 @@ void ssh_cross_down_send_encode_va(SshCrossDown down,
 /* Encodes and sends a packet as specified for ssh_encode_cross_packet. */
 
 void ssh_cross_down_send_encode(SshCrossDown down,
-				SshCrossPacketType type,
-				...)
+                                SshCrossPacketType type,
+                                ...)
 {
   va_list va;
 
@@ -488,11 +488,11 @@ void ssh_cross_down_send_encode(SshCrossDown down,
 /* Sends the given packet down.  The packet may actually get buffered. */
 
 void ssh_cross_down_send(SshCrossDown down, SshCrossPacketType type,
-			 const unsigned char *data, size_t len)
+                         const unsigned char *data, size_t len)
 {
   ssh_cross_down_send_encode(down, type,
-			     SSH_FORMAT_DATA, data, len,
-			     SSH_FORMAT_END);
+                             SSH_FORMAT_DATA, data, len,
+                             SSH_FORMAT_END);
 }
 
 /* Sends a disconnect message down.  However, this does not automatically
@@ -502,9 +502,9 @@ void ssh_cross_down_send(SshCrossDown down, SshCrossPacketType type,
    a va_list. */
 
 void ssh_cross_down_send_disconnect_va(SshCrossDown down,
-				       Boolean locally_generated,
-				       unsigned int reason_code,
-				       const char *reason_format, va_list va)
+                                       Boolean locally_generated,
+                                       unsigned int reason_code,
+                                       const char *reason_format, va_list va)
 {
   char buf[256];
   const char lang[] = "en";
@@ -515,11 +515,11 @@ void ssh_cross_down_send_disconnect_va(SshCrossDown down,
   /* Wrap the data into a cross layer packet and append to the outgoing
      stream. */
   ssh_cross_down_send_encode(down, SSH_CROSS_DISCONNECT,
-			     SSH_FORMAT_BOOLEAN, locally_generated,
-			     SSH_FORMAT_UINT32, reason_code,
-			     SSH_FORMAT_UINT32_STR, buf, strlen(buf),
-			     SSH_FORMAT_UINT32_STR, lang, strlen(lang),
-			     SSH_FORMAT_END);
+                             SSH_FORMAT_BOOLEAN, locally_generated,
+                             SSH_FORMAT_UINT32, (SshUInt32) reason_code,
+                             SSH_FORMAT_UINT32_STR, buf, strlen(buf),
+                             SSH_FORMAT_UINT32_STR, lang, strlen(lang),
+                             SSH_FORMAT_END);
 }
 
 /* Sends a disconnect message down.  However, this does not automatically
@@ -528,23 +528,23 @@ void ssh_cross_down_send_disconnect_va(SshCrossDown down,
    should not contain a newline. */
 
 void ssh_cross_down_send_disconnect(SshCrossDown down,
-				    Boolean locally_generated,
-				    unsigned int reason_code,
-				    const char *reason_format, ...)
+                                    Boolean locally_generated,
+                                    unsigned int reason_code,
+                                    const char *reason_format, ...)
 {
   va_list va;
 
   /* Format the reason string. */
   va_start(va, reason_format);
   ssh_cross_down_send_disconnect_va(down, locally_generated, reason_code,
-				    reason_format, va);
+                                    reason_format, va);
 }
 
 /* Sends a debug message down.  The format is as in printf.  The message
    should not contain a newline.  Note that the argument list is a va_list. */
 
 void ssh_cross_down_send_debug_va(SshCrossDown down, Boolean always_display,
-				  const char *format, va_list va)
+                                  const char *format, va_list va)
 {
   char buf[256];
   const char lang[] = "en";
@@ -555,17 +555,17 @@ void ssh_cross_down_send_debug_va(SshCrossDown down, Boolean always_display,
   /* Wrap the data into a cross layer packet and append to the outgoing
      stream. */
   ssh_cross_down_send_encode(down, SSH_CROSS_DEBUG,
-			     SSH_FORMAT_BOOLEAN, always_display,
-			     SSH_FORMAT_UINT32_STR, buf, strlen(buf),
-			     SSH_FORMAT_UINT32_STR, lang, strlen(lang),
-			     SSH_FORMAT_END);
+                             SSH_FORMAT_BOOLEAN, always_display,
+                             SSH_FORMAT_UINT32_STR, buf, strlen(buf),
+                             SSH_FORMAT_UINT32_STR, lang, strlen(lang),
+                             SSH_FORMAT_END);
 }
 
 /* Sends a debug message down.  The format is as in printf.  The message
    should not contain a newline. */
 
 void ssh_cross_down_send_debug(SshCrossDown down, Boolean always_display,
-			       const char *format, ...)
+                               const char *format, ...)
 {
   va_list va;
 
@@ -583,7 +583,7 @@ void ssh_cross_down_send_debug(SshCrossDown down, Boolean always_display,
    called from a SshCrossDown packet callback. */
 
 void ssh_cross_shortcircuit(SshStream up_stream,
-			    SshCrossDown down)
+                            SshCrossDown down)
 {
   /* Mark that the stream is shortcircuited. */
   down->shortcircuited = FALSE;
@@ -600,6 +600,6 @@ void ssh_cross_shortcircuit(SshStream up_stream,
     {
       down->shortcircuited = TRUE;
       ssh_cross_up_shortcircuit_now(down->shortcircuit_up_stream,
-				    down->stream);
+                                    down->stream);
     }
 }

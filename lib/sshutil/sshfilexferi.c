@@ -32,7 +32,7 @@ void ssh_file_attrs_encoder(SshBuffer *buffer, va_list *app)
 
   /* Encode flags. */
   ssh_encode_buffer(buffer,
-                    SSH_FORMAT_UINT32, (unsigned long)attrs->flags,
+                    SSH_FORMAT_UINT32, (SshUInt32) attrs->flags,
                     SSH_FORMAT_END);
 
   /* Encode size if flags indicate it should be present. */
@@ -52,21 +52,21 @@ void ssh_file_attrs_encoder(SshBuffer *buffer, va_list *app)
   /* Encode uid and gid if flags indicate they should be present. */
   if (attrs->flags & SSH_FILEXFER_ATTR_UIDGID)
     ssh_encode_buffer(buffer,
-                      SSH_FORMAT_UINT32, (unsigned long)attrs->uid,
-                      SSH_FORMAT_UINT32, (unsigned long)attrs->gid,
+                      SSH_FORMAT_UINT32, (SshUInt32) attrs->uid,
+                      SSH_FORMAT_UINT32, (SshUInt32) attrs->gid,
                       SSH_FORMAT_END);
 
   /* Encode permissions if flags indicate they should be present. */
   if (attrs->flags & SSH_FILEXFER_ATTR_PERMISSIONS)
     ssh_encode_buffer(buffer,
-                      SSH_FORMAT_UINT32, (unsigned long)attrs->permissions,
+                      SSH_FORMAT_UINT32, (SshUInt32) attrs->permissions,
                       SSH_FORMAT_END);
   /* Encode access and modification times if flags indicate they should be
      present. */
   if (attrs->flags & SSH_FILEXFER_ATTR_ACMODTIME)
     ssh_encode_buffer(buffer,
-                      SSH_FORMAT_UINT32, (unsigned long)attrs->atime,
-                      SSH_FORMAT_UINT32, (unsigned long)attrs->mtime,
+                      SSH_FORMAT_UINT32, (SshUInt32) attrs->atime,
+                      SSH_FORMAT_UINT32, (SshUInt32) attrs->mtime,
                       SSH_FORMAT_END);
 
 }
@@ -80,7 +80,7 @@ size_t ssh_file_attrs_decoder(const unsigned char *buf, size_t len,
 {
   SshFileAttributes attrs, *attrsp;
   size_t offset, bytes;
-  unsigned long u1, u2;
+  SshUInt32 u1, u2;
   SshUInt64 size;
 
   /* Get the next argument. */

@@ -109,7 +109,7 @@ void ssh_agent_received_packet(SshCrossPacketType type,
 {
   SshAgent agent = (void *)context;
   SshAgentError err;
-  long code, num_keys;
+  SshUInt32 code, temp, num_keys;
   const unsigned char *result;
   size_t result_len, bytes;
   SshAgentKeyInfo keys;
@@ -195,13 +195,13 @@ void ssh_agent_received_packet(SshCrossPacketType type,
         }
       ssh_cancel_timeouts(ssh_agent_timeout, (void *)agent);
       if (ssh_decode_array(data, len,
-                               SSH_FORMAT_UINT32, &agent->version,
+                               SSH_FORMAT_UINT32, &temp,
                                SSH_FORMAT_END) != len)
         {
           ssh_debug("ssh_agent_received_packet: VERSION_RESPONSE bad data");
           return;
         }
-
+      agent->version = temp;
       agent->state = SSH_AC_IDLE;
       if (agent->open_callback)
         (*agent->open_callback)(agent, agent->context);
@@ -335,7 +335,8 @@ void ssh_agent_received_eof(void *context)
 
 Boolean ssh_agent_present()
 {
-  return getenv(SSH_AGENT_VAR) != NULL;
+  return ((getenv(SSH_AGENT_VAR) != NULL) ||
+          (getenv(SSH_AA_VAR) != NULL));
 }
 
 typedef struct SshAgentOpenContextRec {
@@ -379,7 +380,7 @@ void ssh_agent_open_complete(SshStream stream, void *context)
   ssh_cross_down_send_encode(agent->down,
                              (SshCrossPacketType)SSH_AGENT_REQUEST_VERSION,
                              SSH_FORMAT_UINT32_STR,
-                             SSH2_VERSION, strlen(SSH2_VERSION),
+                             SSH2_VERSION_STRING, strlen(SSH2_VERSION_STRING),
                              SSH_FORMAT_END);
 
   /* The callback will be called when a version number has been received
@@ -419,7 +420,7 @@ void ssh_agent_init_key_attrs(SshAgentKeyAttrs attrs)
   attrs->use_limit = 0xffffffff;
   attrs->path_len_limit = 0xffffffff;
   attrs->path_constraint = NULL;
-  attrs->timeout_time = (time_t)0;
+  attrs->timeout_time = (SshTime) 0;
   attrs->compat_allowed = TRUE; 
 }
 
@@ -496,7 +497,7 @@ void ssh_agent_add_generic(SshAgent agent,
           ssh_encode_buffer(&buffer,
                             SSH_FORMAT_CHAR, 
                             (unsigned int)SSH_AGENT_CONSTRAINT_TIMEOUT,
-                            SSH_FORMAT_UINT32, attrs->timeout_time,
+                            SSH_FORMAT_UINT32, (SshUInt32) attrs->timeout_time,
                             SSH_FORMAT_END);
       if (attrs->use_limit != 0xffffffff)
           ssh_encode_buffer(&buffer,
@@ -565,7 +566,7 @@ void ssh_agent_add_with_attrs(SshAgent agent,
                               char *path_constraint,
                               SshUInt32 use_limit, 
                               Boolean compat_forbidden, 
-                              time_t timeout_time,
+                              SshTime timeout_time,
                               SshAgentCompletion callback,
                               void *context)
 {

@@ -74,8 +74,8 @@ SshServerHandle ssh_file_server_new_handle(SshFileServer server,
   /* Create a string that is used as the handle.  We include the memory
      address of the handle object and the file descriptor. */
   handle->len = ssh_encode_alloc(&handle->value,
-                                 SSH_FORMAT_UINT32, (unsigned long)handle,
-                                 SSH_FORMAT_UINT32, (unsigned long)fd,
+                                 SSH_FORMAT_UINT32, (SshUInt32) handle,
+                                 SSH_FORMAT_UINT32, (SshUInt32) fd,
                                  SSH_FORMAT_END);
 
   /* Set up other fields of the handle structure. */
@@ -156,8 +156,8 @@ void ssh_file_server_send_status(SshFileServer server, unsigned long id,
                                  SshFileClientError error)
 {
   ssh_file_server_send(server, SSH_FXP_STATUS,
-                       SSH_FORMAT_UINT32, id,
-                       SSH_FORMAT_UINT32, (unsigned long)error,
+                       SSH_FORMAT_UINT32, (SshUInt32) id,
+                       SSH_FORMAT_UINT32, (SshUInt32) error,
                        SSH_FORMAT_END);
 }
 
@@ -187,7 +187,8 @@ void ssh_file_server_receive_proc(SshPacketType type,
 {
   SshFileServer server = (SshFileServer)context;
   size_t valuelen, iodatalen;
-  unsigned long version, id, flags, pflags, iolen;
+  SshUInt32 version, id, pflags, iolen;
+  unsigned long flags;
   SshUInt64 offset;
   long ret;
   char *name;  
@@ -207,9 +208,9 @@ void ssh_file_server_receive_proc(SshPacketType type,
   struct timeval times[2];
 #endif /* HAVE_LUTIMES || HAVE_FUTIMES || HAVE_UTIMES */
 
-#ifdef HAVE_UTIME
+#if defined(HAVE_UTIME) && !defined(HAVE_LUTIMES)
   struct utimbuf timep;
-#endif /* HAVE_UTIME */
+#endif /* HAVE_UTIME && !HAVE_LUTIMES */
 
 #ifndef NO_LONG_NAMES
 #ifdef HAVE_GETPWUID
@@ -218,9 +219,9 @@ void ssh_file_server_receive_proc(SshPacketType type,
 #ifdef HAVE_GETGRGID
   struct group *gr;
 #endif /* HAVE_GETGRGID */
-  struct tm *tm;
+  struct SshCalendarTimeRec tm[1];
   int    this_year;  
-  time_t tim;
+  SshTime tim;
   char   user_name[32];
   char   group_name[32];  
   char   date_string[32];
@@ -804,12 +805,12 @@ void ssh_file_server_receive_proc(SshPacketType type,
           break;
         }
       
-#ifndef NO_LONG_NAMES      
+#ifndef NO_LONG_NAMES
       /* What year is it ? */
 
-      tim = time(NULL);
-      tm = localtime(&tim);
-      this_year = tm->tm_year;      
+      tim = ssh_time();
+      ssh_calendar_time(tim, tm, TRUE);
+      this_year = tm->year;      
 #endif
       
       /* Prepare a buffer for the message. */
@@ -867,20 +868,20 @@ void ssh_file_server_receive_proc(SshPacketType type,
           /*
            * tm = localtime(&st.st_mtimespec.tv_sec);
            */
-          tm = localtime(&st.st_mtime);
+          ssh_calendar_time(st.st_mtime, tm, TRUE);
           
           /* Print time if modified this year, otherwise print year */
           
-          if (tm->tm_year == this_year)
+          if (tm->year == this_year)
             snprintf(date_string, sizeof(date_string),
                      "%3s %2d %2d:%02d",
-                     month_name[tm->tm_mon % 12], tm->tm_mday, 
-                     tm->tm_hour, tm->tm_min);
+                     month_name[tm->month % 12], tm->monthday, 
+                     tm->hour, tm->minute);
           else
             snprintf(date_string, sizeof(date_string),
                      "%3s %2d  %4d", 
-                     month_name[tm->tm_mon % 12], tm->tm_mday, 
-                     tm->tm_year + 1900);           
+                     month_name[tm->month % 12], tm->monthday, 
+                     tm->year);           
 
           name_ext[0] = '\0';
           if ((st.st_mode & S_IFMT) == S_IFDIR)
@@ -991,7 +992,7 @@ void ssh_file_server_receive_proc(SshPacketType type,
           /* Send the names to the other side. */
           ssh_file_server_send(server, SSH_FXP_NAME,
                                SSH_FORMAT_UINT32, id,
-                               SSH_FORMAT_UINT32, (unsigned long)i,
+                               SSH_FORMAT_UINT32, (SshUInt32) i,
                                SSH_FORMAT_DATA, ssh_buffer_ptr(&buffer),
                                ssh_buffer_len(&buffer),
                                SSH_FORMAT_END);
@@ -1091,7 +1092,7 @@ void ssh_file_server_receive_proc(SshPacketType type,
       attrs->flags = 0;                                       
       ssh_file_server_send(server, SSH_FXP_NAME,
                            SSH_FORMAT_UINT32, id,
-                           SSH_FORMAT_UINT32, 1,
+                           SSH_FORMAT_UINT32, (SshUInt32) 1,
                            SSH_FORMAT_UINT32_STR,
                            resolved, strlen(resolved),
                            SSH_FORMAT_UINT32_STR,

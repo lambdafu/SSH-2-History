@@ -16,7 +16,7 @@
 #include "sshuser.h"
 #include "auths-common.h"
 #include "sshcommon.h"
-#include "match.h"
+#include "sshmatch.h"
 
 #define SSH_DEBUG_MODULE "Ssh2AuthCommonServer"
 
@@ -32,11 +32,6 @@ Boolean ssh_server_auth_check_user(SshUser *ucp, const char *user,
       uc = ssh_user_initialize(user, TRUE);
       if (!uc)
         {
-          /* If user context allocation failed, the user probably does not 
-             exist. */
-          ssh_log_event(config->log_facility,
-                        SSH_LOG_WARNING,
-                        "User \"%s\" does not exist.", user);
           return TRUE;
         }       
       *ucp = uc;
@@ -45,12 +40,6 @@ Boolean ssh_server_auth_check_user(SshUser *ucp, const char *user,
   /* Reject the login if the user is not allowed to log in. */
   if (!ssh_user_login_is_allowed(uc))
     {
-      ssh_log_event(config->log_facility,
-                    SSH_LOG_WARNING,
-                    "login to account '%s' not allowed.",
-                    ssh_user_name(uc));
-      SSH_DEBUG(2, ("login to account '%s' not allowed.",\
-                    ssh_user_name(uc)));
       return TRUE;
     }
   return FALSE;
@@ -85,6 +74,23 @@ Boolean match_host_id(char *host_name, char *host_ip, char *pattern)
   return !ssh_match_pattern(host_name, pattern);
 }
 
+/* Helper function to check whether given host name or ip-address
+   is found in list. Returns FALSE if a match is found, and
+   TRUE otherwise. */
+Boolean ssh_match_host_in_list(char *host_name, char *host_ip, SshDlList list)
+{
+  int i = 0, length = 0;
+  
+  for (ssh_dllist_rewind(list), i = 0,
+         length = ssh_dllist_length(list);
+       i < length; ssh_dllist_fw(list, 1), i++)
+    if (!match_host_id(host_name, host_ip,
+                       (char *)ssh_dllist_current(list)))
+      return FALSE;  
+
+  return TRUE;
+}
+
 /* This is the function for checking a host{name,ip} against
    {Allow,Deny}Hosts parameters. Also checks remote host against
    statements in the AllowDenyHostsFile. Returns FALSE if connection
@@ -92,7 +98,6 @@ Boolean match_host_id(char *host_name, char *host_ip, char *pattern)
 Boolean ssh_server_auth_check_host(SshCommon common)
 {
   SshConfig config = common->config;
-  int i = 0, length = 0;
   
   /* XXX AllowDenyHostsFile */
   /* XXX subnet masks "130.240.0.0/16" */
@@ -106,22 +111,16 @@ Boolean ssh_server_auth_check_host(SshCommon common)
      matches in AllowHosts.*/
   if (config->denied_hosts)
     {
-      for (ssh_dllist_rewind(config->denied_hosts), i = 0,
-             length = ssh_dllist_length(config->denied_hosts);
-           i < length; ssh_dllist_fw(config->denied_hosts, 1), i++)
-        if (!match_host_id(common->remote_host, common->remote_ip,
-                          (char *)ssh_dllist_current(config->denied_hosts)))
-          return TRUE;
+      if (!ssh_match_host_in_list(common->remote_host, common->remote_ip,
+                                  config->denied_hosts))
+        return TRUE;
     }
 
   if (config->allowed_hosts)
     {
-      for (ssh_dllist_rewind(config->allowed_hosts), i = 0,
-             length = ssh_dllist_length(config->allowed_hosts);
-           i < length; ssh_dllist_fw(config->allowed_hosts, 1), i++)
-        if (!match_host_id(common->remote_host, common->remote_ip,
-                          (char *)ssh_dllist_current(config->allowed_hosts)))
-          return FALSE;
+      if (!ssh_match_host_in_list(common->remote_host, common->remote_ip,
+                                  config->allowed_hosts))
+        return FALSE;
       return TRUE;
     }
   

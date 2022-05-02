@@ -49,8 +49,6 @@ int deny_severity = SSH_LOG_WARNING;
 const char *av0;
 SshRandomState random_state;
 
-#define SSH2_GETOPT_ARGUMENTS "ac:Cvd:e:fF:hi:l:L:no:p:PqR:s:Stx"
-
 void client_disconnect(int reason, const char *msg, void *context)
 {
   SshClientData data = (SshClientData)context;
@@ -190,8 +188,8 @@ void client_ssh_warning(const char *msg, void *context)
 void client_ssh_fatal(const char *msg, void *context)
 {
   fprintf(stderr, "FATAL: %s\r\n", msg);
-  ssh_leave_non_blocking();
-  ssh_leave_raw_mode();
+  ssh_leave_non_blocking(-1);
+  ssh_leave_raw_mode(-1);
   exit(255);
 }
 
@@ -218,8 +216,8 @@ void session_close(void *context)
         }
     }
 
-  ssh_leave_non_blocking();
-  ssh_leave_raw_mode();
+  ssh_leave_non_blocking(-1);
+  ssh_leave_raw_mode(-1);
   
   /* If there are forwarded channels open, we fork to background to wait
      for them to complete. */
@@ -273,7 +271,7 @@ int ssh_stream_sink_filter(SshBuffer *data,
 
 void ssh_stream_sink_filter_destroy(void *context)
 {
-  ssh_leave_raw_mode();
+  ssh_leave_raw_mode(-1);
   return;
 }
 
@@ -386,7 +384,7 @@ void client_authenticated(const char *user, void *context)
                                  ssh_stream_sink_filter,
                                  ssh_stream_sink_filter_destroy,
                                  NULL);
-      ssh_enter_raw_mode();
+      ssh_enter_raw_mode(-1);
     }
 
   ssh_client_start_session(data->client, 
@@ -412,6 +410,11 @@ void connect_done(SshIpError error, SshStream stream, void *context)
   if (error != SSH_IP_OK)
     ssh_fatal("Connecting to %s failed: %s",
               data->config->host_to_connect, ssh_tcp_error_string(error));
+
+  /* Set socket to nodelay mode if configuration suggests this. */
+  ssh_socket_set_nodelay(stream, data->config->no_delay);
+  /* Set socket to keepalive mode if configuration suggests this. */
+  ssh_socket_set_keepalive(stream, data->config->keep_alive);
   
   /* Save the file descriptor for ssh1 compatibility code. */
   data->config->ssh1_fd = ssh_stream_fd_get_readfd(stream);
@@ -494,7 +497,7 @@ void ssh2_help(const char *name)
  *  This function digs out the first non-option parameter, ie. the host to 
  * connect to.
  */
-char *ssh_get_host_name(int argc, char **argv)
+char *ssh_get_host_name_from_command_line(int argc, char **argv)
 {
   struct SshGetOptDataRec getopt_data;
 
@@ -526,6 +529,10 @@ int main(int argc, char **argv)
   char temp_s[1024];
   int have_c_arg;
 
+#if 0
+  sleep(30);
+#endif
+
   have_c_arg = 0;
   /* Save program name. */
   if (strchr(argv[0], '/'))
@@ -546,7 +553,8 @@ int main(int argc, char **argv)
   data->exit_status = 0;
   
   /* Save arguments for ssh1 compatibility. */
-  data->config->ssh1_args = argv;
+  data->config->ssh1_argv = argv;
+  data->config->ssh1_argc = argc;
   
   /* Register debug, fatal, and warning callbacks. */
   ssh_debug_register_callbacks(client_ssh_fatal, client_ssh_warning,
@@ -591,7 +599,7 @@ int main(int argc, char **argv)
 
   host = NULL;
   
-  host = ssh_get_host_name(argc, argv);
+  host = ssh_get_host_name_from_command_line(argc, argv);
 
   if (host)
     {
@@ -683,7 +691,7 @@ int main(int argc, char **argv)
             {
               if (data->is_subsystem)
                 {
-                  ssh_fatal("%s: No command allowed with subsystem.", av0);
+                  ssh_fatal("No command allowed with subsystem.");
                 }
               command = ssh_xstrdup(argv[ssh_optind]);
               for (i = 1; i < (argc - ssh_optind); i++)
@@ -737,7 +745,8 @@ int main(int argc, char **argv)
             cname = ssh_cipher_get_native_name(ssh_optarg);
 
             if (cname == NULL)
-              ssh_fatal("%s: Cipher %s is not supported.", av0, ssh_optarg);
+              ssh_fatal("%s: Cipher %s is not supported.", av0,
+                        ssh_optarg);
                 
             if (!have_c_arg)
               {
@@ -876,9 +885,9 @@ int main(int argc, char **argv)
           i++;
           break;
               
-              /* use priviledged port ? */
+          /* use privileged port. This option is only recognized for
+             backwards compatibility with ssh1 */
         case 'P':
-          data->config->use_nonpriviledged_port = (ssh_optval != 0);
           break;
 
           /* quiet mode */
@@ -926,8 +935,28 @@ int main(int argc, char **argv)
 
         case 'h':
           ssh2_help(av0);
+          exit(0);
           break;
 
+          /* Specify 8-bit clean. This option is only recognized for
+             backwards compatibility with ssh1, and is passed to
+             rsh/rlogin if falling back to them. (ssh2 doesn't fall
+             back to rsh; it wouldn't be secure (and it would be
+             against the draft))*/
+        case '8':
+          break;
+
+          /* Gateway ports?  If yes, remote hosts may connect to
+             locally forwarded ports. */
+        case 'g':
+          data->config->gateway_ports = (ssh_optval == 0);
+          break;
+
+        case 'V':
+          ssh2_version(av0);
+          exit(0);
+          break;
+          
         default:
           if (ssh_optmissarg)
             {
@@ -966,6 +995,9 @@ int main(int argc, char **argv)
   data->env = NULL;
   data->debug = data->config->verbose_mode;
 
+  /* Finalize initialization. */
+  ssh_config_init_finalize(data->config);
+
   /* Figure out the name of the socks server, if any.  It can specified
      at run time using the SSH_SOCKS_SERVER environment variable, or at
      compile time using the SOCKS_DEFAULT_SERVER define.  The environment
@@ -995,6 +1027,10 @@ int main(int argc, char **argv)
   ssh_debug("uninitializing event loop");
 
   ssh_event_loop_uninitialize();
+
+  ssh_leave_non_blocking(-1);
+  ssh_leave_raw_mode(-1);
+
   ssh_user_free(tuser, FALSE);
 
   /* XXX free user, command, host ? */

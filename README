@@ -1,9 +1,9 @@
-SSH 2.0.12
+SSH 2.0.13
 ==============
 
         Timo J. Rinne <tri@ssh.fi>
 	Sami Lehtinen <sjl@ssh.fi>
-        28 January 1999
+        29 April 1999
 	
 	See file LICENSING for licensing terms.
 
@@ -78,7 +78,10 @@ SSH2 Binaries
 
       ssh-askpass2    X11 utility for querying passwords.
 
-
+      ssh-signer2     Small program that signs
+                      "hostbased"-authentication packets. Executed by
+                      ssh2, and for proper function, must be suid root.
+                      (this is done by 'make install')
 
 Installation
 ============
@@ -98,11 +101,13 @@ Installation
 
       Read the NOTES-section found in the end of this file.
 
+
       > ./configure
       > make
 
       If this fails, find and fix the problem. Report it to ssh2-bugs@ssh.fi.
-      Try again :-)
+      Try again :-) Look at section REPORTING BUGS for more
+      information, before submitting a bug report.
 
    3. run the install script
    -------------------------
@@ -122,7 +127,10 @@ Installation
 
       NOTE: This host key has relatively little entropy. We'll have
             to actually stir in more randomness to create strong
-            keys. We'll fix this later..
+            keys (this is a problem, if your system doesn't have
+	    /dev/random). If your system doesn't have /dev/random, you
+            might want to generate a couple of keys with ssh-keygen,
+            and after that install a new hostkey. We'll fix this later..
 
    4. configure sshd2
    ------------------
@@ -207,12 +215,61 @@ ssh 2 files
        Client configuration file. See the global client config file
        ssh2_config in /etc/ssh2.
 
+   ~/.ssh2/knownhosts/xxxxyyyy.pub
+   -------------------------------
+
+      These are the public hostkeys of hosts that a user wants to log
+      from using hostbased-authentication (equivalent with ssh1's
+      RhostsRSAAuthentication). Also, a user has to set up her/his
+      ~/.shosts (which only ssh uses) or ~/.rhosts file (insecure, as
+      it is used by the r*-commands also). If username is the same in
+      both hosts, it is adequate to put the public hostkey to
+      /etc/ssh2/knownhosts and add the host's name to
+      /etc/shosts.equiv (or /etc/hosts.equiv). 
+
+      xxxx denotes the hostname (FQDN) and yyyy the publickey
+      algorithm of the key.
+
+      For example, zappa.foo.fi's hostkey algorithm is ssh-dss. The
+      hostkey would be named 
+
+          zappa.foo.fi.ssh-dss.pub
+
+      in the knowhosts-directory.
+
+      Possible values for publickey-algorithms are "ssh-dss" and
+      "ssh-rsa" (without the quotes).
+
+   /etc/ssh2/knownhosts/xxxxyyyy.pub
+   ---------------------------------
+
+      As above, but system-wide. These can be overridden by the user
+      by putting a file with the same name to her/his ~/.ssh2/knownhosts
+      directory. 
+
+   /etc/hosts.equiv and /etc/shosts.equiv
+   --------------------------------------
+
+      Used to check whether authentication from host is allowed using
+      hostbased-authentication. In the simplest form, contains
+      hostnames, one per line.
+
+      For more information, check 'man sshd2'.
+
+   ~/.rhosts and ~/.shosts
+   -----------------------
+
+      This file contains host-username-pairs, separated by spaces, one
+      per line. The given user from the specified host is allowed to
+      log in without a password. 
+
+      For more information, check 'man ssh2' and 'man sshd2'.
 
 Platforms
 =========
 
 	Ssh 2.0 has been reportedly successfully compiled and
-	run on the following platforms.
+	run on the following platforms (there are more):
 
 	Processor	OS		OS-Versions
 	-------------------------------------------------------------
@@ -247,7 +304,14 @@ NOTES ON INSTALLATION AND USE
 	  --enable-blocking-connect etc).
 
 	* if configure complains 'configure: error: configuring with X
-	  but xauth not found - aborting', try ./configure --without-x .
+	  but xauth not found - aborting', try 
+
+		./configure --without-x
+
+	  or, add path of xauth to your PATH before running
+	  configure. You can find xauth's location like this:
+
+		find / -name xauth
 
 	* Use 'ssh-keygen -P' to create keys without passphrases (for
 	  use with rsync etc.).
@@ -285,6 +349,44 @@ KNOWN BUGS
 	  library. Either it isn't in a standard place, or you don't
 	  have it.
 
+REPORTING BUGS
+==============
+
+   When reporting bugs, please attach to you mail atleast the
+   following:
+
+	a) your system type (preferably by running config.guess which
+           is in the root of ssh2 sourcedir, and runnning the command 
+		% uname -a
+		).
+
+	b) detailed description of bug
+
+	c) how to repeat
+
+	d) config.log, which is left to the root of ssh2 sourcedir
+	   after running configure.
+
+	e) possibly even make.log, if you've encountered a problem
+	   with compilation. You can do this by running the following
+	   sequence:
+
+		% script make.log
+		% make
+		  [.... lots of output ...]
+		% exit
+
+	   If your system doesn't have script, use shell redirects
+	   etc. For example, in Bourne shell-variants:
+
+		% make > make.log 2>&1
+	
+	   Note, that you need to redirect also stderr (2) to stdout
+	   (1). We need those warnings and errors to appear in the log
+           too.
+
+   See template in file BUG.REPORT .
+
 REMEMBER
 ========
 
@@ -296,6 +398,27 @@ REMEMBER
 
 * Latest news about ssh can be found in
   <URL:http://www.ssh.fi/sshprotocols2/>
+
+LEGAL ISSUES
+============
+
+See the file COPYING for licensing and distribution conditions.
+THERE IS NO WARRANTY FOR THIS PROGRAM.
+
+In some countries, particularly Russia, Iraq, Pakistan, and France, it
+may be illegal to use any encryption at all without a special permit.
+
+This software may be freely imported into the United States; however,
+the United States Government may consider re-exporting it a criminal
+offense.  Thus, if you are outside the US, please retrieve this
+software from outside the US.
+
+Note that any information and cryptographic algorithms used in this
+software are publicly available on the Internet and at any major
+bookstore, scientific library, or patent office worldwide.
+
+SSH, SSH2 and Secure shell are a registered trademarks or trademarks
+of SSH Communications Security.
 
 THANKS
 ======	
@@ -322,6 +445,11 @@ THANKS
 	Alexander Savelyev
 	Aldo Ramos
 	Sigurdur Asgeirsson
+	Cedomir Igaly
+	Jeremy Buhler
+	Per Allansson
+	Andre Cornelis van Veen
+	Tom Woodburn
 
 	... and everyone else who submitted bug-reports,
 	feature-requests and patches.

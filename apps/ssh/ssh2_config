@@ -15,9 +15,12 @@
 	Ssh1AgentCompatibility		none
 	#Ssh1AgentCompatibility		traditional
 	#Ssh1AgentCompatibility		ssh2
+	#SshSignerPath			ssh-signer2
+	NoDelay				no
+	KeepAlive			yes
 	
 #alpha*:
-#	Host				alpha.hut.fi
+#	Host				alpha.oof.fi
 #	User				user
 #	PasswordPrompt			"%U:s password at %H: "
 #	Ciphers				idea

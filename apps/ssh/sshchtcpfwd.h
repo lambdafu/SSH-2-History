@@ -94,6 +94,7 @@ void *ssh_channel_ftcp_create(SshCommon common);
    channels and listeners and free the context. */
 void ssh_channel_ftcp_destroy(void *context);
 
+#if 0
 /* This function is called whenever a protocol request is received to
    set up a remote TCP/IP forwarding. */
 Boolean ssh_channel_ftcp_global_forward(const char *type,
@@ -107,7 +108,7 @@ Boolean ssh_channel_ftcp_global_cancel_forward(const char *type,
                                                const unsigned char *data,
                                                size_t len,
                                                void *context);
-
+#endif
 /* Returns the channel type context from the SshCommon object. */
 
 SshChannelTypeTcpForward ssh_channel_ftcp_ct(SshCommon common);

@@ -28,7 +28,7 @@
 #include "sshunixpipestream.h"
 #include "sshgetopt.h"
 #include "sshtimemeasure.h"
-#include "match.h"
+#include "sshmatch.h"
 
 #define SSH_DEBUG_MODULE "Scp2"
 
@@ -324,8 +324,8 @@ void fatal_signal_handler(int signal, void *context)
             session->child_pid);
 }
 
-/*                                                               shade{0.9}
- * Scp2 main                                                     shade{1.0}
+/*
+ * Scp2 main
  */
 int main(int argc, char **argv)
 {
@@ -552,8 +552,8 @@ int main(int argc, char **argv)
   exit(scp_execute(&session));
 }
 
-/*                                                               shade{0.9}
- * Print usage information.                                      shade{1.0}
+/*
+ * Print usage information.
  */
 void usage()
 {
@@ -756,9 +756,9 @@ ScpCipherName scp_new_cipher_item(char *name)
   return r;
 }
 
-/*                                                               shade{0.9}
+/*
  * Creates and allocates a ScpFileLocation-struct.
- * Returns pointer to malloced struct.                           shade{1.0}
+ * Returns pointer to malloced struct.
  */
 ScpFileLocation scp_file_location_allocate(void)
 {
@@ -779,9 +779,9 @@ ScpFileLocation scp_file_location_allocate(void)
   return rec;
 }
 
-/*                                                               shade{0.9}
+/*
  * Duplicate a ScpFileLocation-struct. Returns pointer to malloced
- * struct.                                                       shade{1.0}
+ * struct.
  */
 ScpFileLocation scp_file_location_dup(ScpFileLocation rec)
 {
@@ -803,8 +803,8 @@ ScpFileLocation scp_file_location_dup(ScpFileLocation rec)
   return dup;
 }
 
-/*                                                               shade{0.9}
- * Free a ScpFileLocation-struct.                                shade{1.0}
+/*
+ * Free a ScpFileLocation-struct.
  */
 void scp_file_location_free(ScpFileLocation rec)
 {
@@ -818,13 +818,13 @@ void scp_file_location_free(ScpFileLocation rec)
   ssh_xfree(rec);
 }
 
-/*                                                               shade{0.9}
+/*
  * Expands wildcards (currently only '*?'). loc_list_start will be
  * used to store the start of the made list, and loc_list_tail the
  * end. basepath is the path where expanding will
  * begin. orig_glob_pattern holds the original glob pattern
  * given. Function returns FALSE if successful, TRUE otherwise. This
- * function is recursive.                                        shade{1.0}
+ * function is recursive.
  */
 Boolean scp_expand_wildcards(ScpFileLocation *loc_list_start,
                              ScpFileLocation *loc_list_tail,
@@ -848,6 +848,7 @@ Boolean scp_expand_wildcards(ScpFileLocation *loc_list_start,
   temp_filename = &orig_filename[strlen(basepath)];
 
   hlp = strchr(temp_filename, '/');
+  
   if (hlp)
     {
       *hlp = '\0';
@@ -1014,7 +1015,7 @@ Boolean scp_expand_wildcards(ScpFileLocation *loc_list_start,
   return FALSE;
 }
 
-/*                                                               shade{0.9}
+/*
  * This is used to traverse directory-paths recursively. It
  * starts from the path specified in loc_list_start, and stores all
  * file names to this list structure. When this function encounters a
@@ -1022,7 +1023,7 @@ Boolean scp_expand_wildcards(ScpFileLocation *loc_list_start,
  * information about the path where the recursion started. found
  * filename is stored to fileloc->file. In case of an error, which
  * causes this function to fail so that no files are put to the list,
- * it returns TRUE. Otherwise, it returns FALSE.                 shade{1.0}
+ * it returns TRUE. Otherwise, it returns FALSE.
  */
 Boolean scp_recurse_directories(ScpFileLocation *loc_list_start,
                                 ScpFileLocation *loc_list_tail,
@@ -1033,6 +1034,7 @@ Boolean scp_recurse_directories(ScpFileLocation *loc_list_start,
   ScpFileLocation *new_loc_list_start = NULL, *new_loc_list_tail = NULL;
   ScpFileLocation temp_loc = NULL;
   SshFileHandle handle;
+  Boolean found_expansion = FALSE; 
   
   SSH_PRECOND(loc_list_start && loc_list_tail);
   SSH_PRECOND((*loc_list_start)->next == NULL);
@@ -1085,7 +1087,7 @@ Boolean scp_recurse_directories(ScpFileLocation *loc_list_start,
         {
           char *full_filename;
           int is_dir = 0;
-          
+
           /* Discard if "." or ".." */
           if ((session->tmp_attributes->permissions & S_IFMT)
               == S_IFDIR)
@@ -1099,6 +1101,7 @@ Boolean scp_recurse_directories(ScpFileLocation *loc_list_start,
               if (!strcmp(tempdir, ".") || !strcmp(tempdir, ".."))
                 continue;
 
+              found_expansion = TRUE;          
               is_dir = 1;
             }
 
@@ -1125,6 +1128,7 @@ Boolean scp_recurse_directories(ScpFileLocation *loc_list_start,
                   list_tail = list_tail->next;
                 }
               
+              found_expansion = TRUE;          
             }
           
           /* XXX what if permissions doesn't contain everything we need?
@@ -1141,13 +1145,13 @@ Boolean scp_recurse_directories(ScpFileLocation *loc_list_start,
               if (session->preserve_flag)  
                 (*new_loc_list_start)->dir_attrs =
                   ssh_file_attributes_dup(session->tmp_attributes);
-                
               
               if (!scp_recurse_directories(new_loc_list_start,
                                            new_loc_list_tail,
                                            session,
                                            src_client))
                 {
+                  found_expansion = TRUE;
                   /* Append. (If list's first item, initialize.) */
                   if (list_start == NULL)
                     {
@@ -1163,7 +1167,6 @@ Boolean scp_recurse_directories(ScpFileLocation *loc_list_start,
               else
                 {
                   scp_file_location_free(*new_loc_list_start);
-                  ssh_xfree(full_filename);
                 }
             }
         }
@@ -1173,6 +1176,8 @@ Boolean scp_recurse_directories(ScpFileLocation *loc_list_start,
   ssh_xfree(new_loc_list_start);
   ssh_xfree(new_loc_list_tail);
   
+  if (!found_expansion)
+    return TRUE;
   
   (*loc_list_start)->next = list_start;
   *loc_list_tail = list_tail;
@@ -1180,14 +1185,14 @@ Boolean scp_recurse_directories(ScpFileLocation *loc_list_start,
   return FALSE;
 }
 
-/*                                                               shade{0.9}
+/*
  * Takes in a string str that is of form
  * [[user@]host[#port]:]file and parses it to tokens which contain a
  * file's location as (optional) username, (optional) hostname,
  * (optional) port and (required) filename. Returns a pointer to a
  * valid calloced ScpFileLocation struct if successful, otherwise
  * returns NULL. If port number wasn't valid, loc->port will
- * be 0.                                                         shade{1.0}
+ * be 0.
  */
 ScpFileLocation scp_parse_location_string(char *str)
 {
@@ -1305,6 +1310,8 @@ SshFileClient scp_open_remote_connection(ScpSession session,
     {
       ssh_argv[i++] = "-o";
       ssh_argv[i++] = "passwordprompt %U@%H's password: ";
+      ssh_argv[i++] = "-o";
+      ssh_argv[i++] = "nodelay yes";
     }
   else
     {
@@ -1371,14 +1378,19 @@ SshFileClient scp_open_remote_connection(ScpSession session,
     
     case SSH_PIPE_CHILD_OK:
       execvp(ssh_argv[0], ssh_argv);
-      exit(-2);
+      fprintf(stderr, "Executing ssh2 failed. Command:'");
+      for (i = 0;ssh_argv[i] != NULL; i++)
+        fprintf(stderr," %s", ssh_argv[i]);
+
+      fprintf(stderr,"' System error message: '%s'\r\n", strerror(errno));
+      exit(254);
     }  
   return NULL;
 }
 
-/*                                                               shade{0.9}
+/*
  * Copies information about a remote connection to be
- * used in connecting.                                           shade{1.0}
+ * used in connecting.
  */
 void scp_set_src_remote_location(ScpSession session, 
                                  char *host, 
@@ -1396,9 +1408,9 @@ void scp_set_src_remote_location(ScpSession session,
   session->src_remote_port = port;
 }
 
-/*                                                               shade{0.9}
+/*
  * This function checks whether arguments are ok for
- * remote connection. Return TRUE, if they are.                  shade{1.0}
+ * remote connection. Return TRUE, if they are.
  */
 Boolean scp_set_src_is_remote_location_ok(ScpSession session, 
                                           char *host, 
@@ -1420,9 +1432,9 @@ Boolean scp_set_src_is_remote_location_ok(ScpSession session,
   return FALSE;
 }
 
-/*                                                               shade{0.9}
+/*
  * Extract a filename from a path. Return NULL if `pathname' is
- * invalid.                                                      shade{1.0}
+ * invalid.
  */
 char *scp_file_basename(char *pathname)
 {
@@ -1459,6 +1471,8 @@ void scp_set_next_src_location(void *context)
   /* Here we do wildcard-expansion*/
   if (session->src_list && session->src_list->contains_wildcards)
     {
+      char *basepath = NULL;
+      
       /* host has to be remote, not local, otherwise the shell
          would've parsed the wildcards for us.*/
       if (!session->src_list->host)
@@ -1473,21 +1487,28 @@ void scp_set_next_src_location(void *context)
       
 
       to_be_deleted = session->src_list;
-      
-      if (session->src_remote_client != NULL)
+      if (!scp_set_src_is_remote_location_ok(session,
+                                             session->src_list->host,
+                                             session->src_list->port,
+                                             session->src_list->user))
         {
-          ssh_file_client_destroy(session->src_remote_client);
-          session->src_remote_client = NULL;
+          
+          if (session->src_remote_client != NULL)
+            {
+              ssh_file_client_destroy(session->src_remote_client);
+              session->src_remote_client = NULL;
+            }
+          session->src_remote_client =
+            scp_open_remote_connection(session,
+                                       session->src_list->host, 
+                                       session->src_list->user,
+                                       session->src_list->port);
+          scp_set_src_remote_location(session, 
+                                      session->src_list->host,
+                                      session->src_list->port,
+                                      session->src_list->user);
         }
-      session->src_remote_client =
-        scp_open_remote_connection(session,
-                                   session->src_list->host, 
-                                   session->src_list->user,
-                                   session->src_list->port);
-      scp_set_src_remote_location(session, 
-                                  session->src_list->host,
-                                  session->src_list->port,
-                                  session->src_list->user);
+      
       if (session->src_remote_client == NULL)
         ssh_fatal("Cannot reach the source location.");
       scp_abort_if_remote_dead(session, session->src_remote_client);
@@ -1495,10 +1516,15 @@ void scp_set_next_src_location(void *context)
       
       *list_start =
         scp_file_location_dup(session->src_list);
+
+      if (session->src_list->file[0] == '/')
+        basepath = ssh_xstrdup("/");
+      else
+        basepath = ssh_xstrdup("");
       
       /* Expand. (NOTE: this is a recursive function) */
       if (!scp_expand_wildcards(list_start, list_tail,
-                                (char *)"", session->src_list->file,
+                                basepath, session->src_list->file,
                                 session))
         {
           tmp = session->src_list->next;
@@ -1540,21 +1566,28 @@ void scp_set_next_src_location(void *context)
         {
           
           /* Open connection */
-          if (session->src_remote_client != NULL)
+          if (!scp_set_src_is_remote_location_ok(session,
+                                                 session->src_list->host,
+                                                 session->src_list->port,
+                                                 session->src_list->user))
             {
-              ssh_file_client_destroy(session->src_remote_client);
-              session->src_remote_client = NULL;
-            }
+              if (session->src_remote_client != NULL)
+                {
+                  ssh_file_client_destroy(session->src_remote_client);
+                  session->src_remote_client = NULL;
+                }
 
-          session->src_remote_client =
-            scp_open_remote_connection(session,
-                                       session->src_list->host, 
-                                       session->src_list->user,
-                                       session->src_list->port);
-          scp_set_src_remote_location(session, 
-                                      session->src_list->host,
-                                      session->src_list->port,
-                                      session->src_list->user);
+              session->src_remote_client =
+                scp_open_remote_connection(session,
+                                           session->src_list->host, 
+                                           session->src_list->user,
+                                           session->src_list->port);
+              scp_set_src_remote_location(session, 
+                                          session->src_list->host,
+                                          session->src_list->port,
+                                          session->src_list->user);
+            }
+          
           if (session->src_remote_client == NULL)
             ssh_fatal("Cannot reach the source location.");
           scp_abort_if_remote_dead(session, session->src_remote_client);
@@ -1670,9 +1703,16 @@ void scp_set_next_src_location(void *context)
                     current_src_location->
                     file[strlen(session->
                                 current_src_location->dir_mask)]);
-      
-      if (*temp_filename == '/')
+
+      /* Remove excess '/' characters */
+      for (;*temp_filename == '/';)
         temp_filename++;
+
+      if (session->dst_location->file[strlen(session->dst_location->file) - 1]
+          == '/')
+        session->dst_location->file[strlen(session->dst_location->file) - 1] =
+          '\0';
+
       
       session->current_dst_file = 
         str_concat_3(session->dst_location->file,
@@ -1685,6 +1725,11 @@ void scp_set_next_src_location(void *context)
   else if (session->dst_is_dir)
     {
       char *hlp = strrchr(session->current_src_location->file, '/');
+      /* Remove excess '/' characters */
+      if (session->dst_location->file[strlen(session->dst_location->file) - 1]
+          == '/')
+        session->dst_location->file[strlen(session->dst_location->file) - 1] =
+          '\0';
       
       if (hlp == NULL)
         {
@@ -2661,7 +2706,7 @@ Boolean scp_move_file(ScpSession session,
                                                  SSH_TIME_GRANULARITY_SECOND);
           if (sec_dbl > 0.0)
             {
-              snprintf(per_sec, sizeof(per_sec), " [%.2f kb/sec]", 
+              snprintf(per_sec, sizeof(per_sec), " [%.2f kB/sec]", 
                        (((double)file_len) / (sec_dbl * 1024.0)));
             }
           else
@@ -2711,7 +2756,7 @@ Boolean scp_is_dst_directory(ScpSession session)
 {
   session->callback_fired = 0;
 
-  ssh_file_client_lstat(session->dst_client, 
+  ssh_file_client_stat(session->dst_client, 
                        session->dst_location->file, 
                        scp_is_dst_directory_callback,
                        session);
@@ -2793,14 +2838,6 @@ int scp_execute(ScpSession session)
           /* create needed directories */
           if (session->current_src_location->is_dir == 1)
             {
-              /*              char *new_dir;*/
-              /* If source file is directory, we make the dir and
-                 continue. */
-              /* xxx */
-              /* session->tmp_attributes->flags = 0;
-                 new_dir = str_concat_3(session->dst_location->file, "/",
-                 session->current_dst_file);
-              */
               if (session->preserve_flag)
                 {
                   SSH_DEBUG(3, ("Preserve flag is on, but we don't have " \

@@ -17,6 +17,7 @@
 
 #include "sshincludes.h"
 #include "sshcipherlist.h"
+#include "ssh2pubkeyencode.h"
 #include "sshcrypt.h"
 #include "namelist.h"
 
@@ -60,15 +61,15 @@ Boolean ssh_cipher_list_contains(char *list, char *item)
     {
       rest += strlen(current);
       if (*rest == ',')
-	rest++;
+        rest++;
       if (strcmp(item, current) == 0)
-	{
-	  ssh_xfree(current);
-	  return TRUE;
-	}
+        {
+          ssh_xfree(current);
+          return TRUE;
+        }
       ssh_xfree(current);
       if (strlen(rest) == 0)
-	break;
+        break;
     }
 
   return FALSE;
@@ -93,20 +94,20 @@ char *ssh_cipher_list_canonialize(char *list)
     {
       rest += strlen(current);
       if (*rest == ',')
-	rest++;
+        rest++;
 
       canon = ssh_cipher_get_native_name(current);
       if (canon)
-	{
-	  if (!(ssh_cipher_list_contains(r, canon)))
-	    {
-	      ssh_cipher_list_append(&r, canon);
-	    }
-	  ssh_xfree(canon);
-	}
+        {
+          if (!(ssh_cipher_list_contains(r, canon)))
+            {
+              ssh_cipher_list_append(&r, canon);
+            }
+          ssh_xfree(canon);
+        }
       ssh_xfree(current);
       if (strlen(rest) == 0)
-	break;
+        break;
     }
 
   return r;
@@ -129,15 +130,15 @@ char *ssh_cipher_list_exclude(char *original, char *excluded)
     {
       rest += strlen(current);
       if (*rest == ',')
-	rest++;
+        rest++;
 
       if (! ssh_cipher_list_contains(excluded, current))
-	{
-	  ssh_cipher_list_append(&r, current);
-	}
+        {
+          ssh_cipher_list_append(&r, current);
+        }
       ssh_xfree(current);
       if (strlen(rest) == 0)
-	break;
+        break;
     }
 
   return r;
@@ -169,7 +170,7 @@ char *ssh_public_key_name_ssh_to_cryptolib(char *str)
   else if (ssh_public_key_supported(str))
     r = ssh_xstrdup(str);
 
-  return ssh_xstrdup(str); /* XXX */
+  return r;
 }
 
 char *ssh_public_key_name_cryptolib_to_ssh(char *str)
@@ -219,20 +220,20 @@ char *ssh_public_key_list_canonialize(char *list)
     {
       rest += strlen(current);
       if (*rest == ',')
-	rest++;
+        rest++;
 
       canon = ssh_public_key_name_cryptolib_to_ssh(current);
       if (canon)
-	{
-	  if (!(ssh_cipher_list_contains(r, canon)))
-	    {
-	      ssh_cipher_list_append(&r, canon);
-	    }
-	  ssh_xfree(canon);
-	}
+        {
+          if (!(ssh_cipher_list_contains(r, canon)))
+            {
+              ssh_cipher_list_append(&r, canon);
+            }
+          ssh_xfree(canon);
+        }
       ssh_xfree(current);
       if (strlen(rest) == 0)
-	break;
+        break;
     }
 
   return r;
@@ -252,20 +253,20 @@ char *ssh_hash_list_canonialize(char *list)
     {
       rest += strlen(current);
       if (*rest == ',')
-	rest++;
+        rest++;
 
       canon = ssh_hash_name_cryptolib_to_ssh(current);
       if (canon)
-	{
-	  if (!(ssh_cipher_list_contains(r, canon)))
-	    {
-	      ssh_cipher_list_append(&r, canon);
-	    }
-	  ssh_xfree(canon);
-	}
+        {
+          if (!(ssh_cipher_list_contains(r, canon)))
+            {
+              ssh_cipher_list_append(&r, canon);
+            }
+          ssh_xfree(canon);
+        }
       ssh_xfree(current);
       if (strlen(rest) == 0)
-	break;
+        break;
     }
 
   return r;

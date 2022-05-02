@@ -23,9 +23,9 @@
 #include "sshincludes.h"
 #include "sshuserfiles.h"
 #include "sshencode.h"
-#include "pubkeyencode.h"
+#include "ssh2pubkeyencode.h"
 #include "sshuser.h"
-#include "userfile.h"
+#include "sshuserfile.h"
 #include "sshconfig.h"
 #include "sshmiscstring.h"
 
@@ -51,8 +51,8 @@ char *ssh_userdir(SshUser user, SshConfig config, Boolean create_if_needed)
         {
           if (mkdir(sshdir, 0755) < 0)
             {
-              ssh_debug("ssh_userdir: could not create user's ssh" 
-                        "directory %s", sshdir);
+              SSH_DEBUG(2, ("could not create user's ssh directory %s", 
+                            sshdir));
               ssh_xfree(sshdir);
               return NULL;
             }  
@@ -77,7 +77,7 @@ char *ssh_userdir(SshUser user, SshConfig config, Boolean create_if_needed)
 
 char *ssh_randseed_file(SshUser user, SshConfig config)
 {
-  UserFile f;
+  SshUserFile f;
   char *sshdir, *sshseed;
   size_t sshseedlen;
   struct stat st;
@@ -94,18 +94,17 @@ char *ssh_randseed_file(SshUser user, SshConfig config)
 
   /* If it doesn't exist, create it. */
 
-  if (userfile_stat(ssh_user_uid(user), sshseed, &st) < 0)
+  if (ssh_userfile_stat(ssh_user_uid(user), sshseed, &st) < 0)
     {
-      if ((f = userfile_open(ssh_user_uid(user), sshseed, O_RDWR | O_CREAT, 
-                            0600)) == NULL)
+      if ((f = ssh_userfile_open(ssh_user_uid(user), sshseed, 
+                                 O_RDWR | O_CREAT, 0600)) == NULL)
         {
-          ssh_debug("ssh_randseed_file: Could not create random"
-                      "seed file %s.", sshseed);
+          SSH_DEBUG(2, ("Could not create random seed file %s.", sshseed));
           ssh_xfree(sshdir);
           ssh_xfree(sshseed);
           return NULL;
         }
-      userfile_close(f);
+      ssh_userfile_close(f);
     }
   
   ssh_xfree(sshdir);
@@ -120,7 +119,7 @@ void ssh_randseed_load(SshUser user, SshRandomState random_state,
                        SshConfig config)
 {
   int i;
-  UserFile f;
+  SshUserFile f;
   unsigned char randbuf[16];
   char *sshseed;
   size_t nbytes;
@@ -132,11 +131,12 @@ void ssh_randseed_load(SshUser user, SshRandomState random_state,
   
   /* Stir the seed file in, if possible. */
   sshseed = ssh_randseed_file(user, config);
-  if ((f = userfile_open(ssh_user_uid(user), sshseed, O_RDONLY, 0)) != NULL)
+  if ((f = ssh_userfile_open(ssh_user_uid(user), sshseed, O_RDONLY, 0)) != 
+      NULL)
     {
-      while ((nbytes = userfile_read(f, randbuf, sizeof(randbuf))) > 0)
+      while ((nbytes = ssh_userfile_read(f, randbuf, sizeof(randbuf))) > 0)
         ssh_random_add_noise(random_state, randbuf, nbytes);
-      userfile_close(f);
+      ssh_userfile_close(f);
     }
   ssh_xfree(sshseed); 
   
@@ -154,7 +154,7 @@ void ssh_randseed_load(SshUser user, SshRandomState random_state,
 void ssh_randseed_update(SshUser user, SshRandomState rs, SshConfig config)
 {
   size_t i;
-  UserFile f;
+  SshUserFile f;
   char *sshseed;
   unsigned char seed[SSH_RANDSEED_LEN];
 
@@ -163,19 +163,19 @@ void ssh_randseed_update(SshUser user, SshRandomState rs, SshConfig config)
   
   /* Write data from the generator into the random seed file. */
   sshseed = ssh_randseed_file(user, config);
-  if ((f = userfile_open(ssh_user_uid(user), sshseed, O_CREAT | O_WRONLY, 
+  if ((f = ssh_userfile_open(ssh_user_uid(user), sshseed, O_CREAT | O_WRONLY, 
                          0600)) == NULL)
     {
-      ssh_debug("ssh_randseed_close: unable to write the random seed file!");
+      SSH_DEBUG(2, ("unable to write the random seed file!"));
       goto error;
     }
   for (i = 0; i < SSH_RANDSEED_LEN; i++)
     seed[i] = ssh_random_get_byte(rs);
-  if (userfile_write(f, seed, SSH_RANDSEED_LEN) != SSH_RANDSEED_LEN)
+  if (ssh_userfile_write(f, seed, SSH_RANDSEED_LEN) != SSH_RANDSEED_LEN)
     ssh_warning("unable to write to the random seed file %s.", sshseed);
 
   memset(seed, 0, SSH_RANDSEED_LEN);
-  userfile_close(f);
+  ssh_userfile_close(f);
 
 error:
   ssh_xfree(sshseed);
@@ -188,7 +188,7 @@ error:
 Boolean ssh_blob_read(SshUser user, const char *fname, unsigned char **blob, 
                       size_t *bloblen, void *context)
 {
-  UserFile f;
+  SshUserFile f;
   unsigned char *data;
   struct stat st;
   size_t datalen;
@@ -196,32 +196,32 @@ Boolean ssh_blob_read(SshUser user, const char *fname, unsigned char **blob,
   *bloblen = 0;
   *blob = NULL;
 
-  if (userfile_stat(ssh_user_uid(user), fname, &st) < 0)
+  if (ssh_userfile_stat(ssh_user_uid(user), fname, &st) < 0)
     {
-      ssh_debug("ssh_blob_read: file %s does not exist.", fname);
+      SSH_DEBUG(2, ("file %s does not exist.", fname));
       return TRUE;
     }
   
   datalen = st.st_size;
   data = ssh_xmalloc(datalen);
 
-  if ((f = userfile_open(ssh_user_uid(user), fname, O_RDONLY, 0)) == NULL) 
+  if ((f = ssh_userfile_open(ssh_user_uid(user), fname, O_RDONLY, 0)) == NULL) 
     {
-      ssh_debug("ssh_blob_read: Could not open %s.", fname);
+      SSH_DEBUG(2, ("Could not open %s.", fname));
       ssh_xfree(data);
       return TRUE;
     }
 
-  if (userfile_read(f, data, datalen) != datalen)
+  if (ssh_userfile_read(f, data, datalen) != datalen)
     {
-      ssh_debug("ssh_blob_read: Error while reading %s.", fname);
+      SSH_DEBUG(2, ("Error while reading %s.", fname));
       memset(data, 0, datalen);
       ssh_xfree(data);
-      userfile_close(f); 
+      ssh_userfile_close(f); 
       return TRUE;
     }
 
-  userfile_close(f);
+  ssh_userfile_close(f);
   *blob = data;
   *bloblen = datalen;
 
@@ -232,24 +232,25 @@ Boolean ssh_blob_read(SshUser user, const char *fname, unsigned char **blob,
 /* Write a blob. Return TRUE on failure. */
 
 Boolean ssh_blob_write(SshUser user, const char *fname, mode_t mode,
-                       const unsigned char *blob, size_t bloblen, void *context)
+                       const unsigned char *blob, size_t bloblen, 
+                       void *context)
 {
-  UserFile f;
+  SshUserFile f;
 
-  if ((f = userfile_open(ssh_user_uid(user), fname, O_WRONLY | O_CREAT, 
+  if ((f = ssh_userfile_open(ssh_user_uid(user), fname, O_WRONLY | O_CREAT, 
                          mode)) == NULL)
     {
-      ssh_debug("ssh_blob_write: could not open %s.", fname);
+      SSH_DEBUG(2, ("could not open %s.", fname));
       return TRUE;
     }
 
-  if(userfile_write(f, blob, bloblen) != bloblen)
+  if(ssh_userfile_write(f, blob, bloblen) != bloblen)
     {
-      ssh_debug("ssh_blob_write: failed to write %s.", fname);
+      SSH_DEBUG(2, ("failed to write %s.", fname));
       return TRUE;
     }
 
-  userfile_close(f);
+  ssh_userfile_close(f);
 
   return FALSE;
 }
@@ -259,14 +260,20 @@ Boolean ssh_blob_write(SshUser user, const char *fname, mode_t mode,
    The caller should free the array and all strings in it when no longer
    needed. */
 
-char **ssh_privkey_list(SshUser user, char *host, SshConfig config)
+struct SshConfigPrivateKey **ssh_privkey_list(SshUser user, 
+                                              char *host, 
+                                              SshConfig config)
 {
   int i, j, n;
-  char *udir, **vars, **vals, **prklist, buf[1024];
+  char *udir, **vars, **vals, buf[1024];
+  struct SshConfigPrivateKey **prkey;
+#ifdef WITH_PGP
+  char *pgp_secret_key_file;
+#endif /* WITH_PGP */
 
   if ((udir = ssh_userdir(user, config, TRUE)) == NULL)
     {
-      ssh_debug("ssh_privkey_list: no user directory.");
+      SSH_DEBUG(2, ("no user directory."));
       return NULL;
     }
 
@@ -285,7 +292,11 @@ char **ssh_privkey_list(SshUser user, char *host, SshConfig config)
 
   /* construct a name list with complete file paths */
 
-  prklist = ssh_xcalloc(n + 1, sizeof(char *));
+  prkey = ssh_xcalloc(n + 1, sizeof (struct SshConfigPrivateKey *));
+
+#ifdef WITH_PGP
+  pgp_secret_key_file = ssh_xstrdup(config->pgp_secret_key_file);
+#endif /* WITH_PGP */
 
   j = 0;
   for (i = 0; i < n; i++)
@@ -294,14 +305,64 @@ char **ssh_privkey_list(SshUser user, char *host, SshConfig config)
         {
           snprintf(buf, sizeof(buf), "%s/%s",
                    udir, vals[i]);
-          prklist[j++] = ssh_xstrdup(buf);
+          prkey[j] = ssh_xcalloc(1, sizeof (struct SshConfigPrivateKey));
+          prkey[j]->keyfile = ssh_xstrdup(buf);
+          j++;
         }
+#ifdef WITH_PGP
+      else if (strcmp(vars[i], "pgpsecretkeyfile") == 0)
+        {
+          ssh_xfree(pgp_secret_key_file);
+          pgp_secret_key_file = ssh_xstrdup(vals[i]);
+        }
+      else if (strcmp(vars[i], "idpgpkeyid") == 0)
+        {
+          unsigned long id;
+          char *endptr = NULL;
+
+          id = strtoul(vals[i], &endptr, 0);
+          if (((*(vals[0])) != '\0') && ((*endptr) == '\0'))
+            {
+              snprintf(buf, sizeof(buf), "%s/%s",
+                       udir, pgp_secret_key_file);
+              prkey[j] = ssh_xcalloc(1, sizeof (struct SshConfigPrivateKey));
+              prkey[j]->pgp_keyring = ssh_xstrdup(buf);
+              prkey[j]->pgp_id = id;
+              j++;
+            }
+          else
+            {
+              SSH_DEBUG(2, ("invalid pgp key id number \"%s\"", vals[i]));
+            }
+        }
+      else if (strcmp(vars[i], "idpgpkeyname") == 0)
+        {
+          snprintf(buf, sizeof(buf), "%s/%s",
+                   udir, pgp_secret_key_file);
+          prkey[j] = ssh_xcalloc(1, sizeof (struct SshConfigPrivateKey));
+          prkey[j]->pgp_keyring = ssh_xstrdup(buf);
+          prkey[j]->pgp_name = ssh_xstrdup(vals[i]);
+          j++;
+        }
+      else if (strcmp(vars[i], "idpgpkeyfingerprint") == 0)
+        {
+          snprintf(buf, sizeof(buf), "%s/%s",
+                   udir, pgp_secret_key_file);
+          prkey[j] = ssh_xcalloc(1, sizeof (struct SshConfigPrivateKey));
+          prkey[j]->pgp_keyring = ssh_xstrdup(buf);
+          prkey[j]->pgp_fingerprint = ssh_xstrdup(vals[i]);
+          j++;
+        }
+#endif /* WITH_PGP */
     }
-  prklist[j++] = NULL;
+  prkey[j++] = NULL;
   ssh_free_varsvals(n, vars, vals);
   ssh_xfree(udir);
+#ifdef WITH_PGP
+  ssh_xfree(pgp_secret_key_file);
+#endif /* WITH_PGP */
 
-  return prklist;
+  return prkey;
 }
 
 char *ssh_user_conf_dir(SshConfig config, SshUser user)

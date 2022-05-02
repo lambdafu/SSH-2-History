@@ -14,9 +14,9 @@
 
 #include "sshincludes.h"
 #include "sshlist.h"
-#include "sshcrypt.h"
 
-SshPrivateKey k1, k2, k3, k4, k5;
+
+int *k1, *k2, *k3, *k4, *k5;
  
 
 void *my_mapcar_test(void *data, void *ctx)
@@ -136,3 +136,4 @@ int main()
   printf("List test OK.\n");
   return 0;
 }
+

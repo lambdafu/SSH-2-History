@@ -21,13 +21,12 @@
   */
 
 /*
- * $Id: t-mathtest.c,v 1.12 1998/10/08 15:39:42 kivinen Exp $
+ * $Id: t-mathtest.c,v 1.18 1999/05/04 02:19:56 kivinen Exp $
  * $Log: t-mathtest.c,v $
  * $EndLog$
  */
 
 #include "sshincludes.h"
-#include "sshmath-types.h"
 #include "sshmp.h"
 #include "timeit.h"
 #include "sieve.h"
@@ -174,7 +173,7 @@ void test_int(int flag, int bits)
           ssh_mp_cmp(&e, &b) != 0)
         {
           printf("error: division/multiplication failed.\n");
-          
+
           print_int("c = ", &c);
           print_int("a = ", &a);
           print_int("a' = ", &d);
@@ -807,6 +806,230 @@ void test_mod(int flag, int bits)
 
 
 
+/* Speed tests of some sort. */
+
+void timing_int(int bits)
+{
+  SshInt a, b, c, d, e, f[100];
+  TimeIt tmit;
+  unsigned int i, j;
+  SshMpPowmBase base;
+
+  ssh_mp_init(&a);
+  ssh_mp_init(&b);
+  ssh_mp_init(&c);
+  ssh_mp_init(&d);
+  ssh_mp_init(&e);
+  
+  printf("Timing integer arithmetic.\n");
+
+  printf("Bits = %u\n", bits);
+
+  for (i = 0; i < 100; i++)
+    {
+      ssh_mp_init(&f[i]);
+      ssh_mp_rand(&f[i], bits);
+      if ((ssh_mp_get_ui(&f[i]) & 0x1) == 0)
+        ssh_mp_add_ui(&f[i], &f[i], 1);
+    }
+
+  printf("Timing multiplication [%u * %u = %u] \n",
+         bits, bits, bits + bits);
+  start_timing(&tmit);
+  for (i = 0; i < 50; i++)
+    {
+      ssh_mp_rand(&b, bits);
+      for (j = 0; j < 100; j++)
+        ssh_mp_mul(&a, &f[j], &b);
+    }
+  check_timing(&tmit);
+
+  printf("  * %g multiplications per sec (%g cycles)\n",
+         ((double)50*100)/(tmit.real_secs), (double)tmit.cycles/(50*100.0));
+  
+  printf("Timing divisions [%u / %u = %u] \n",
+         bits + bits, bits, bits);
+  start_timing(&tmit);
+  for (i = 0; i < 50; i++)
+    {
+      ssh_mp_rand(&b, bits*2);
+      for (j = 0; j < 100; j++)
+        ssh_mp_div(&a, &c, &b, &f[j]);
+    }
+  check_timing(&tmit);
+
+  printf("  * %g divisions per sec (%g cycles)\n",
+         ((double)50*100)/(tmit.real_secs), (double)tmit.cycles/(50*100.0));
+
+  
+  printf("Timing modular reductions [%u %% %u = %u] \n",
+         bits + bits, bits, bits);
+  start_timing(&tmit);
+  for (i = 0; i < 50; i++)
+    {
+      ssh_mp_rand(&b, bits*2);
+      for (j = 0; j < 100; j++)
+        ssh_mp_mod(&a, &b, &f[j]);
+    }
+  check_timing(&tmit);
+
+  printf("  * %g modular reductions per sec (%g cycles)\n",
+         ((double)50*100)/(tmit.real_secs), (double)tmit.cycles/(50*100.0));
+
+  
+  printf("Timing squarings [%u^2 = %u] \n",
+         bits, bits + bits);
+  start_timing(&tmit);
+  for (i = 0; i < 50; i++)
+    {
+      ssh_mp_rand(&b, bits);
+      for (j = 0; j < 100; j++)
+        ssh_mp_square(&a, &b);
+    }
+  check_timing(&tmit);
+
+  printf("  * %g squarings per sec (%g cycles)\n",
+         ((double)50*100)/(tmit.real_secs), (double)tmit.cycles/(50*100.0));
+
+  printf("Timing modexp [%u^%u %% %u = %u] \n",
+         bits, bits, bits, bits);
+  start_timing(&tmit);
+  for (j = 0, i = 0; i < 10; i++, j += 2)
+    {
+      ssh_mp_rand(&b, bits);
+      ssh_mp_powm(&a, &b, &f[j + 1], &f[j + 2]);
+    }
+  check_timing(&tmit);
+
+  printf("  * %g modexps per sec (%g cycles)\n",
+         ((double)10)/(tmit.real_secs), (double)tmit.cycles/(10.0));
+
+
+  /* Generate the fixed base. */
+  do
+    {
+      ssh_mp_rand(&b, bits);
+    }
+  while (ssh_mp_get_size(&b, 2) < bits-1);
+
+  /* Create the base. */
+  ssh_mp_powm_with_base_init(&b, &f[2], &base);
+
+  if (base.defined == FALSE)
+    ssh_fatal("error: could not define base.");
+    
+  printf("Timing modexp with fixed base [%u^%u %% %u = %u] \n",
+         bits, bits, bits, bits);
+
+  start_timing(&tmit);
+  for (j = 0, i = 0; i < 10; i++, j += 2)
+    ssh_mp_powm_with_base(&a, &f[j + 1], &base);
+  check_timing(&tmit);
+
+  printf("  * %g modexps per sec (%g cycles)\n",
+         ((double)10)/(tmit.real_secs), (double)tmit.cycles/(10.0));
+
+  ssh_mp_powm_with_base_clear(&base);
+  
+  
+#define ENTROPY_BITS 256
+  
+  printf("Timing modexp [%u^%u %% %u = %u] \n",
+         bits, ENTROPY_BITS, bits, bits);
+  start_timing(&tmit);
+  for (j = 0, i = 0; i < 10; i++, j += 2)
+    {
+      ssh_mp_rand(&b, ENTROPY_BITS);
+      ssh_mp_set_bit(&b, ENTROPY_BITS);
+      ssh_mp_powm(&a, &f[j+1], &b, &f[j + 2]);
+    }
+  check_timing(&tmit);
+
+  printf("  * %g modexps per sec (%g cycles)\n",
+         ((double)10)/(tmit.real_secs), (double)tmit.cycles/(10.0));
+
+  ssh_mp_clear(&a);
+  ssh_mp_clear(&b);
+  ssh_mp_clear(&c);
+  ssh_mp_clear(&d);
+  ssh_mp_clear(&e);
+
+  for (i = 0; i < 100; i++)
+    ssh_mp_clear(&f[i]);
+}
+
+void timing_modular(int bits)
+{
+  SshIntModQ b, c, d, e, f[100];
+  SshIntModuli m;
+  SshInt a;
+  int i, j;
+  TimeIt tmit;
+  
+  ssh_mp_init(&a);
+
+  do
+    {
+      ssh_mp_rand(&a, bits);
+      while (ssh_mp_next_prime(&a, &a) == FALSE)
+        ssh_mp_rand(&a, bits);
+    }
+  while (ssh_mp_get_size(&a, 2) < bits - 1);
+
+  printf("Timing modular arithmetic.\n");
+  if (ssh_mpm_init_m(&m, &a) == FALSE)
+    ssh_fatal("timing_modular: could not initialize modular arithmetic.");
+
+  printf("Bits = %u\n", bits);
+
+  ssh_mpm_init(&b, &m);
+  ssh_mpm_init(&c, &m);
+  ssh_mpm_init(&d, &m);
+  ssh_mpm_init(&e, &m);
+  
+  for (i = 0; i < 100; i++)
+    {
+      ssh_mpm_init(&f[i], &m);
+      ssh_mp_rand(&a, bits);
+      ssh_mpm_set_mp(&f[i], &a);
+    }
+
+  printf("Timing multiplication [%u * %u = %u] \n",
+         bits, bits, bits);
+  start_timing(&tmit);
+  for (i = 0; i < 50; i++)
+    {
+      ssh_mpm_set(&b, &f[i]);
+      for (j = 0; j < 100; j++)
+        ssh_mpm_mul(&c, &f[j], &b);
+    }
+  check_timing(&tmit);
+
+  printf("  * %g multiplications per sec (%g cycles)\n",
+         ((double)50*100)/(tmit.real_secs), (double)tmit.cycles/(50*100.0));
+  
+  printf("Timing squarings [%u^2 = %u] \n",
+         bits, bits);
+  start_timing(&tmit);
+  for (i = 0; i < 50; i++)
+    for (j = 0; j < 100; j++)
+      ssh_mpm_square(&b, &f[j]);
+  check_timing(&tmit);
+
+  printf("  * %g squarings per sec (%g cycles)\n",
+         ((double)50*100)/(tmit.real_secs), (double)tmit.cycles/(50*100.0));
+
+  ssh_mpm_clear(&b);
+  ssh_mpm_clear(&c);
+  ssh_mpm_clear(&d);
+  ssh_mpm_clear(&e);
+
+  for (i = 0; i < 100; i++)
+    ssh_mpm_clear(&f[i]);
+  ssh_mpm_clear_m(&m);
+  ssh_mp_clear(&a);  
+}
+
 /* Routines for handling the arguments etc. */
 
 typedef struct CommandRec
@@ -884,6 +1107,7 @@ void usage(void)
          " -t     run also timings for modules\n"
          " -i xx  run all tests xx times (will use different random seeds)\n"
          " -h     this help.\n"
+         " -b     initial bits of the test parameters.\n"
          "advanced options: \n"
          " --integer [on|off] sets the integer arithmetic testing on/off.\n"
          " --modular [on|off] sets the (mod p) arithmetic testing on/off.\n"
@@ -907,7 +1131,7 @@ int main(int ac, char *av[])
   int i, all, itr, type, args;
   int gf2n, mod, integer, ecp, ec2n, fec2n, poly2n, bpoly,
     bits, bits_advance, timing;
-
+  
   printf("Arithmetic library test suite\n"
          "Copyright (C) 1998 SSH Communications Security, Ltd.\n"
          "              All rights reserved.\n"
@@ -918,7 +1142,7 @@ int main(int ac, char *av[])
          "\n");
   
   /* Randomize the random number generator. */
-  srandom(time(NULL));
+  srandom(ssh_time());
 
   /* Don't use this if you want to test the mathlibrary :) */
   /*extra_test(); */
@@ -1003,8 +1227,18 @@ int main(int ac, char *av[])
       if (bits < 10)
         bits = 512;
       
-      if (integer) test_int(all, bits);
-      if (mod)     test_mod(all, bits);
+      if (integer)
+        {
+          test_int(all, bits);
+          if (timing)
+            timing_int(bits);
+        }
+      if (mod)     
+        {
+          test_mod(all, bits);
+          if (timing)
+            timing_modular(bits);
+        }
     }
 
   return 0;

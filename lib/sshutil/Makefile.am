@@ -20,16 +20,15 @@ CONFOBJS = @LIBOBJS@
 noinst_LIBRARIES = libsshutil.a
 
 libsshutil_a_SOURCES = \
-	bufaux.c		\
+	sshbufaux.c		\
 	sshbuffer.c		\
 	sshfilebuffer.c		\
 	sshunixeloop.c		\
 	sshunixfdstream.c	\
 	sshmiscstring.c		\
-	match.c			\
-	mpaux.c			\
+	sshmatch.c		\
+	sshmpaux.c		\
 	sshgetput.c		\
-	sshsignals.c		\
 	sshtcp.c		\
 	sshunixtcp.c		\
 	sshstream.c		\
@@ -40,24 +39,28 @@ libsshutil_a_SOURCES = \
 	sshunixlocalstream.c	\
 	sshstreampair.c		\
 	sshfilterstream.c	\
-	base64.c		\
+	sshbase64.c		\
 	sshutf8.c		\
 	sshfilexfer.c		\
 	sshfilexferc.c		\
 	sshfilexfers.c		\
 	sshfilexferi.c		\
 	sshunixrealpath.c	\
+	sshsignals.c		\
 	sshurl.c		\
 	sshgetopt.c		\
 	sshinet.c		\
-	cstack.c		\
-	vlint32.c		\
-	crc32.c			\
-	filelock.c		\
+	sshcstack.c		\
+	sshvlint32.c		\
+	sshcrc32.c		\
+	sshfilelock.c		\
 	sshfileio.c		\
 	sshtimemeasure.c	\
 	sshdllist.c		\
-	mapping.c		\
+	sshmapping.c		\
+	sshdsprintf.c		\
+	sshtime.c		\
+	sshaudit.c		\
 	sshpacketwrapper.c	\
 	sshpacketstream.c	\
 	sshpacketimpl.c		\
@@ -70,14 +73,14 @@ libsshutil_a_DEPENDENCIES = $(CONFOBJS)
 
 include_HEADERS = \
 	sshincludes.h		\
+	sshincludes_unix.h	\
 	sshstream.h		\
 	sshtimeouts.h		\
-	snprintf.h		\
+	sshsnprintf.h		\
 	sshunixeloop.h		\
 	sshgetput.h		\
-	sshsignals.h		\
 	sshdebug.h		\
-	bufaux.h		\
+	sshbufaux.h		\
 	sshbuffer.h		\
 	sshfilebuffer.h		\
 	sshenum.h		\
@@ -87,32 +90,36 @@ include_HEADERS = \
 	sshstreampair.h		\
 	sshtcp.h		\
 	sshsocks.h		\
-	match.h			\
-	mpaux.h			\
+	sshmatch.h		\
+	sshmpaux.h		\
 	sshfilterstream.h	\
-	base64.h		\
+	sshbase64.h		\
 	sshutf8.h		\
 	sshlocalstream.h	\
 	sshfilexfer.h		\
+	sshsignals.h		\
 	sshurl.h		\
 	sshgetopt.h		\
 	sshinet.h		\
-	cstack.h		\
-	vlint32.h		\
-	crc32.h			\
-	filelock.h		\
+	sshcstack.h		\
+	sshvlint32.h		\
+	sshcrc32.h		\
+	sshfilelock.h		\
 	sshfileio.h		\
 	sshtimemeasure.h	\
 	sshdllist.h		\
-	mapping.h		\
+	sshmapping.h		\
+	sshdsprintf.h		\
+	sshtime.h		\
+	sshaudit.h		\
 	sshpacketstream.h	\
 	sshmalloc.h
 
 noinst_HEADERS = sshpacketint.h sshfilexferi.h
 
 EXTRA_DIST = \
-	memmove.c memset.c putenv.c random.c remove.c snprintf.c   \
-	strcasecmp.c strerror.c strncasecmp.c crypt.c getopt.c \
+	memmove.c memset.c putenv.c random.c remove.c snprintf.c \
+	strcasecmp.c strerror.c strncasecmp.c getopt.c crypt.c \
 	inet_ntoa.c
 
 INCLUDES = -I. -I$(srcdir) -I.. -I$(srcdir)/..	\

@@ -53,7 +53,7 @@ struct SshAgentKeyAttrsRec
   SshUInt32 use_limit;
   SshUInt32 path_len_limit; 
   char *path_constraint;
-  time_t timeout_time;
+  SshTime timeout_time;
   Boolean compat_allowed; 
 };
 typedef struct SshAgentKeyAttrsRec *SshAgentKeyAttrs;
@@ -105,7 +105,7 @@ void ssh_agent_add_with_attrs(SshAgent agent,
                               char *path_constraint,
                               SshUInt32 use_limit, 
                               Boolean compat_forbidden, 
-                              time_t timeout_time,
+                              SshTime timeout_time,
                               SshAgentCompletion callback,
                               void *context);
 

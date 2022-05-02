@@ -13,12 +13,19 @@ simply do not work.)
 
 */
 
+#ifdef linux
+#define _GNU_SOURCE
+#endif /* linux */
 #include "sshsessionincludes.h"
 #include "pty-int.h"
 #include "sshunixptystream.h"
-#include <sys/stream.h>
 #include <stropts.h>
+#ifdef HAVE_SYS_STREAM_H
+#include <sys/stream.h>
+#endif /* HAVE_SYS_STREAM_H */
+#ifdef HAVE_SYS_CONF_H
 #include <sys/conf.h>
+#endif /* HAVE_SYS_CONF_H */
 
 /* Allocates a pty using a machine-specific method, and returns the
    master side pty in *ptyfd, the child side in *ttyfd, and the name of the
@@ -28,8 +35,12 @@ Boolean ssh_pty_internal_allocate(int *ptyfd, int *ttyfd, char *namebuf)
 {
   int ptm;
   char *pts;
-  
+
+#ifdef HAVE_GETPT
+  ptm = getpt();
+#else /* HAVE_GETPT */
   ptm = open("/dev/ptmx", O_RDWR|O_NOCTTY);
+#endif /* HAVE_GETPT */
   if (ptm < 0)
     {
       ssh_warning("/dev/ptmx: %.100s", strerror(errno));
@@ -128,7 +139,7 @@ Boolean ssh_pty_internal_make_ctty(int *ttyfd, const char *ttyname)
   if (fd < 0)
     {
       ssh_warning("open /dev/tty failed; could not set controlling tty: %s",
-		  strerror(errno));
+                  strerror(errno));
       return FALSE;
     }
   close(fd);
@@ -139,7 +150,7 @@ Boolean ssh_pty_internal_make_ctty(int *ttyfd, const char *ttyname)
   fd = open(ttyname, O_RDWR);
   if (fd == -1)
     ssh_warning("pty_make_controlling_tty: reopening controlling tty after vhangup failed for %.100s",
-		ttyname);
+                ttyname);
   close(*ttyfd);
   *ttyfd = fd;
 #endif /* HAVE_VHANGUP && !HAVE_REVOKE */

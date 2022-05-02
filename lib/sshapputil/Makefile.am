@@ -15,11 +15,12 @@ SUBDIRS = tests
 
 noinst_LIBRARIES = libsshapputil.a
 
-libsshapputil_a_SOURCES = userfile.c 
+libsshapputil_a_SOURCES = sshuserfile.c sshuserfilebuf.c 
 list_libssh_a_objects:
 	@echo BEGIN_FILE_LIST: $(libsshapputil_a_OBJECTS) $(libsshapputil_a_LIBADD) :END_FILE_LIST
 
-include_HEADERS = userfile.h
+include_HEADERS = sshuserfile.h \
+		  sshuserfilebuf.h
 
 INCLUDES = -I../.. -I. -I$(srcdir) \
 	-I$(top_builddir) -I$(top_srcdir) \

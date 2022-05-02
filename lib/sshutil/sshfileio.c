@@ -7,12 +7,12 @@
 /*
  *        Program: sshutil
  *        $Source: /ssh/CVS/src/lib/sshutil/sshfileio.c,v $
- *        $Author: kivinen $
+ *        $Author: tri $
  *
  *        Creation          : 11:03 Oct  9 1998 kivinen
  *        Last Modification : 04:32 Nov 13 1998 kivinen
- *        Last check in     : $Date: 1998/11/18 14:08:26 $
- *        Revision number   : $Revision: 1.5 $
+ *        Last check in     : $Date: 1999/03/15 15:23:30 $
+ *        Revision number   : $Revision: 1.6 $
  *        State             : $State: Exp $
  *        Version           : 1.107
  *
@@ -25,7 +25,7 @@
 
 #include "sshincludes.h"
 #include "sshdebug.h"
-#include "base64.h"
+#include "sshbase64.h"
 
 #define SSH_BUFFER_LEN 1024
 

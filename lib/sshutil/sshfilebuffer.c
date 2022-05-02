@@ -15,7 +15,7 @@ Code for reading files into SshBuffer.
 */
 
 /*
- * $Id: sshfilebuffer.c,v 1.1 1998/09/22 11:49:47 tri Exp $
+ * $Id: sshfilebuffer.c,v 1.3 1999/04/07 09:24:10 tri Exp $
  * $Log: sshfilebuffer.c,v $
  * $EndLog$
  */
@@ -26,15 +26,15 @@ Code for reading files into SshBuffer.
 
 #define SSH_DEBUG_MODULE "SshFileBuffer"
 
+#define SSH_FILE_BUFFER_MINIMUM_READ    1024
+
 /* Allocate a file buffer */
 SshFileBuffer *ssh_file_buffer_allocate(void)
 {
   SshFileBuffer *r;
 
-  r = ssh_xmalloc(sizeof (SshFileBuffer));
-  r->attached_as_fileptr = FALSE;
-  r->f = NULL;
-  ssh_buffer_init(&(r->buf));
+  r = ssh_xmalloc(sizeof (*r));
+  ssh_file_buffer_init(r);
   return r;
 }
 
@@ -45,7 +45,7 @@ void ssh_file_buffer_free(SshFileBuffer *buf)
   if (ssh_file_buffer_attached(buf))
     {
       if (!(buf->attached_as_fileptr))
-	fclose(buf->f);
+        fclose(buf->f);
       buf->attached_as_fileptr = FALSE;
       buf->f = NULL;
     }
@@ -58,7 +58,10 @@ void ssh_file_buffer_free(SshFileBuffer *buf)
 void ssh_file_buffer_init(SshFileBuffer *buf)
 {
   SSH_ASSERT(buf != NULL);
+  buf->attached_as_fileptr = FALSE;
   buf->f = NULL;
+  buf->read_callback = NULL;
+  buf->read_context = NULL;
   ssh_buffer_init(&(buf->buf));
   return;
 }
@@ -106,11 +109,24 @@ Boolean ssh_file_buffer_attach_fileptr(SshFileBuffer *buf, FILE *f)
   return TRUE;
 }
 
+/* Attach a file pointer with a read callback. */
+Boolean ssh_file_buffer_attach_with_read_callback(SshFileBuffer *buf, 
+                                      SshFileBufferReadCallback read_callback,
+                                      void *read_context)
+{
+  SSH_ASSERT(buf != NULL);
+  SSH_ASSERT(read_callback != NULL);
+  ssh_file_buffer_detach(buf);
+  buf->read_callback = read_callback;
+  buf->read_context = read_context;
+  return TRUE;
+}
+
 /* Return TRUE if file is attached to a buffer. */
 Boolean ssh_file_buffer_attached(SshFileBuffer *buf)
 {
   SSH_ASSERT(buf != NULL);
-  return ((buf->f != NULL) ? TRUE : FALSE);
+  return (((buf->f != NULL) || (buf->read_callback != NULL)) ? TRUE : FALSE);
 }
 
 /* Detach file.  Leave the buffer untouched. */
@@ -120,10 +136,17 @@ void ssh_file_buffer_detach(SshFileBuffer *buf)
   if (ssh_file_buffer_attached(buf))
     {
       if (buf->attached_as_fileptr)
-	buf->attached_as_fileptr = FALSE;
-      else
-	fclose(buf->f);
+        {
+          buf->attached_as_fileptr = FALSE;
+        }
+      else 
+        {
+          if (buf->f != NULL)
+            fclose(buf->f);
+        }
       buf->f = NULL;
+      buf->read_callback = NULL;
+      buf->read_context = NULL;
     }
   return;
 }
@@ -131,25 +154,41 @@ void ssh_file_buffer_detach(SshFileBuffer *buf)
 /* Read attached file so that buffer size exceeds argument bytes. */
 Boolean ssh_file_buffer_expand(SshFileBuffer *buf, size_t bytes)
 {
-  size_t len;
+  size_t len, need_bytes;
   unsigned char *newdata;
-
+  
   SSH_ASSERT(buf != NULL);
   len = ssh_buffer_len(&(buf->buf));
   if (len >= bytes)
     return TRUE;
   if (!ssh_file_buffer_attached(buf))
     return FALSE;
-  bytes -= len;
+  need_bytes = bytes - len;
+  bytes = ((need_bytes > SSH_FILE_BUFFER_MINIMUM_READ) ? 
+           need_bytes : 
+           SSH_FILE_BUFFER_MINIMUM_READ);
   ssh_buffer_append_space(&(buf->buf), &newdata, bytes);
   SSH_ASSERT(newdata != NULL);
-  len = fread(newdata, 1, bytes, buf->f);
+  if (buf->read_callback == NULL)
+    {
+      SSH_DEBUG(5, ("attempting to read %d bytes with fread", (int)bytes));
+      len = fread(newdata, 1, bytes, buf->f);
+    }
+  else
+    {
+      SSH_DEBUG(5, ("attempting to read %d bytes with callback", (int)bytes));
+      len = buf->read_callback(newdata, bytes, buf->read_context);
+    }
   SSH_ASSERT(len <= bytes);
-  if (len < bytes)
+  if (len < need_bytes)
     {
       ssh_buffer_consume_end(&(buf->buf), bytes - len); 
       ssh_file_buffer_detach(buf);
       return FALSE;
+    }
+  else if (len < bytes)
+    {
+      ssh_buffer_consume_end(&(buf->buf), bytes - len);
     }
   return TRUE;
 }

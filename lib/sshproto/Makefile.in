@@ -89,6 +89,7 @@ PACKAGE = @PACKAGE@
 RANLIB = @RANLIB@
 SSH1_PATH = @SSH1_PATH@
 SSHSESSION_CONFOBJS = @SSHSESSION_CONFOBJS@
+SSHSIGNERINSTALLMODE = @SSHSIGNERINSTALLMODE@
 VERSION = @VERSION@
 X11_DIR = @X11_DIR@
 XAUTH_PATH = @XAUTH_PATH@
@@ -101,10 +102,10 @@ noinst_LIBRARIES = libsshproto.a
 
 libsshproto_a_SOURCES = sshtrans.c trcommon.c trkex.c sshcross.c \
 	sshcrup.c sshcrdown.c sshauthc.c sshauths.c sshconn.c \
-	pubkeyencode.c sshcipherlist.c
+	sshcipherlist.c
 
 include_HEADERS = sshtrans.h sshcross.h sshauth.h sshconn.h sshmsgs.h \
-	          pubkeyencode.h sshcipherlist.h
+	          sshcipherlist.h
 
 noinst_HEADERS = trcommon.h trkex.h
 
@@ -131,8 +132,7 @@ X_EXTRA_LIBS = @X_EXTRA_LIBS@
 X_PRE_LIBS = @X_PRE_LIBS@
 libsshproto_a_LIBADD = 
 libsshproto_a_OBJECTS =  sshtrans.o trcommon.o trkex.o sshcross.o \
-sshcrup.o sshcrdown.o sshauthc.o sshauths.o sshconn.o pubkeyencode.o \
-sshcipherlist.o
+sshcrup.o sshcrdown.o sshauthc.o sshauths.o sshconn.o sshcipherlist.o
 CFLAGS = @CFLAGS@
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS)
 LINK = $(CC) $(CFLAGS) $(LDFLAGS) -o $@

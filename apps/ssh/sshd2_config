@@ -15,13 +15,21 @@
 	RandomSeedFile			random_seed
 	ForwardAgent			yes
 	ForwardX11			yes
-	PasswordAuthentication		yes
+# DEPRECATED	PasswordAuthentication		yes
 	PasswordGuesses			3
+#	MaxConnections			50
+# 0 == number of connections not limited 
+	MaxConnections			0 
+#	PermitRootLogin			nopwd
 	PermitRootLogin			yes
-	PubkeyAuthentication		yes
+# DEPRECATED	PubkeyAuthentication		yes
+#	AllowedAuthentications		publickey,password,hostbased
+	AllowedAuthentications		publickey,password
+#	RequiredAuthentications		publickey,password
 	ForcePTTYAllocation		no
 	VerboseMode			no
 	PrintMotd			yes
+	CheckMail			yes
 	UserConfigDirectory		"%D/.ssh2"
 #	UserConfigDirectory		"/etc/ssh2/auth/%U"
 	SyslogFacility			AUTH
@@ -30,6 +38,13 @@
 #	Sshd1Path			<set by	configure>
 #	AllowHosts			localhost, foobar.com, friendly.org
 #	DenyHosts			evil.org, aol.com
+#	AllowSHosts			trusted.host.org
+#	DenySHosts			not.quite.trusted.org
+#	NoDelay				yes
+
+#	KeepAlive			yes
+	RequireReverseMapping		yes
+	UserKnownHosts			yes
 
 # subsystem definitions
 

@@ -19,13 +19,15 @@ SSH2 authentication methods for the server.
 #include "sshauth.h"
 #include "auths-passwd.h"
 #include "auths-pubkey.h"
+#include "auths-hostbased.h"
 
 #define SSH_DEBUG_MODULE "SshAuthMethodServer"
 
 static SshAuthServerMethod server_methods[] =
 {
-  { "publickey", ssh_server_auth_pubkey },
-  { "password", ssh_server_auth_passwd },
+  { SSH_AUTH_PUBKEY, ssh_server_auth_pubkey },
+  { SSH_AUTH_PASSWD, ssh_server_auth_passwd },
+  { SSH_AUTH_HOSTBASED, ssh_server_auth_hostbased },
   { NULL, NULL }
 };
 

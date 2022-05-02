@@ -218,7 +218,7 @@ void ssh_channel_ftcp_open_request(const char *type, int channel_id,
                                    void *completion_context, void *context)
 {
   SshCommon common = (SshCommon)context;
-  long port, originator_port;
+  SshUInt32 port, originator_port;
   char *address_to_bind, *originator_ip;
   char port_string[20];
   SshRemoteTcpForward fwd;
@@ -244,7 +244,7 @@ void ssh_channel_ftcp_open_request(const char *type, int channel_id,
       return;
     }
 
-  snprintf(port_string, sizeof(port_string), "%ld", port);
+  snprintf(port_string, sizeof(port_string), "%ld", (long) port);
 
   ssh_debug("Received remote TCP/IP forward connect for port %s from %s:%ld",
             port_string, originator_ip, (long)originator_port);
@@ -333,7 +333,7 @@ void ssh_channel_dtcp_open_request(const char *type, int channel_id,
 {
   SshCommon common = (SshCommon)context;
   char *connect_to_host, connect_to_port[20], *originator_ip;
-  long port, originator_port;
+  SshUInt32 port, originator_port;
   SshDirectTcp tcp;
 
   SSH_DEBUG(5, ("direct TCP/IP channel open request"));
@@ -357,7 +357,8 @@ void ssh_channel_dtcp_open_request(const char *type, int channel_id,
   /* We do not currently allow direct connections from server to client. */
   if (common->client)
     {
-      ssh_warning("Direct TCP/IP connection request from server to %s:%ld denied.",
+      ssh_warning("Direct TCP/IP connection request from server "
+                  "to %s:%ld denied.",
                   connect_to_host, (long)port);
       /* Free dynamically allocated data. */
       ssh_xfree(originator_ip);
@@ -370,7 +371,7 @@ void ssh_channel_dtcp_open_request(const char *type, int channel_id,
 
 
   /* Convert port number to string. */
-  snprintf(connect_to_port, sizeof(connect_to_port), "%ld", port);
+  snprintf(connect_to_port, sizeof(connect_to_port), "%ld", (long) port);
 
   ssh_debug("Direct TCP/IP connect to %s:%s from %s:%ld",
             connect_to_host, connect_to_port, originator_ip,
@@ -481,9 +482,9 @@ void ssh_channel_ftcp_incoming_connection(SshIpError error, SshStream stream,
   ssh_encode_buffer(&buffer,
                     SSH_FORMAT_UINT32_STR,
                     fwd->address_to_bind, strlen(fwd->address_to_bind),
-                    SSH_FORMAT_UINT32, atol(fwd->port),
+                    SSH_FORMAT_UINT32, (SshUInt32) atol(fwd->port),
                     SSH_FORMAT_UINT32_STR, ip, strlen(ip),
-                    SSH_FORMAT_UINT32, atol(port),
+                    SSH_FORMAT_UINT32, (SshUInt32) atol(port),
                     SSH_FORMAT_END);
   ssh_conn_send_channel_open(fwd->common->conn, "forwarded-tcpip",
                              stream, TRUE, FALSE, SSH_TCPIP_WINDOW,
@@ -509,7 +510,7 @@ Boolean ssh_channel_remote_tcp_forward_request(const char *type,
 {
   SshCommon common = (SshCommon)context;
   char *address_to_bind;
-  long port;
+  SshUInt32 port;
   char port_string[20];
   SshRemoteTcpForward fwd;
   SshChannelTypeTcpForward ct;
@@ -542,7 +543,7 @@ Boolean ssh_channel_remote_tcp_forward_request(const char *type,
     }
 
   /* Convert port number to a string. */
-  snprintf(port_string, sizeof(port_string), "%ld", port);
+  snprintf(port_string, sizeof(port_string), "%ld", (unsigned long) port);
 
   /* If user is not logged in as a privileged user, don't allow
      forwarding of privileged ports. */
@@ -551,13 +552,15 @@ Boolean ssh_channel_remote_tcp_forward_request(const char *type,
       if (ssh_user_uid(common->user_data))
         {
           SSH_TRACE(2, ("User \"%s\" not root, tried to forward " \
-                        "privileged port %d.",
-                        ssh_user_name(common->user_data), port));
+                        "privileged port %ld.",
+                        ssh_user_name(common->user_data),
+                        (unsigned long) port));
           ssh_log_event(common->config->log_facility,
                         SSH_LOG_WARNING,
                         "User \"%s\" not root, tried to forward " \
-                        "privileged port %d.",
-                        ssh_user_name(common->user_data), port);
+                        "privileged port %ld.",
+                        ssh_user_name(common->user_data),
+                        (unsigned long) port);
           return FALSE;
         }
       else
@@ -572,13 +575,13 @@ Boolean ssh_channel_remote_tcp_forward_request(const char *type,
   if (port >= 65536)
     {
       SSH_TRACE(2, ("User \"%s\" tried to forward " \
-                    "port above 65535 (%d).",
-                    ssh_user_name(common->user_data), port));
+                    "port above 65535 (%ld).",
+                    ssh_user_name(common->user_data), (unsigned long) port));
       ssh_log_event(common->config->log_facility,
                     SSH_LOG_WARNING,
                     "User \"%s\" tried to forward " \
-                    "port above 65535 (%d).",
-                    ssh_user_name(common->user_data), port);
+                    "port above 65535 (%ld).",
+                    ssh_user_name(common->user_data), (unsigned long) port);
       return FALSE;
     }
   
@@ -615,7 +618,8 @@ Boolean ssh_channel_remote_tcp_forward_request(const char *type,
 
   ssh_log_event(common->config->log_facility,
                 SSH_LOG_INFORMATIONAL,
-                "Port %d set up for remote forwarding.", port);
+                "Port %ld set up for remote forwarding.",
+                (unsigned long) port);
   
   return TRUE;
 }  
@@ -629,7 +633,7 @@ Boolean ssh_channel_tcp_forward_cancel(const char *type,
 {
   SshCommon common = (SshCommon)context;
   char *address_to_bind;
-  long port;
+  SshUInt32 port;
   char port_string[20];
   SshRemoteTcpForward fwd, *fwdp;
   SshChannelTypeTcpForward ct;
@@ -656,7 +660,7 @@ Boolean ssh_channel_tcp_forward_cancel(const char *type,
     }
 
   /* Convert port number to a string. */
-  snprintf(port_string, sizeof(port_string), "%ld", port);
+  snprintf(port_string, sizeof(port_string), "%ld", (unsigned long) port);
 
   for (fwdp = &ct->remote_forwards; *fwdp; fwdp = &fwd->next)
     {
@@ -721,7 +725,7 @@ void ssh_channel_start_remote_tcp_forward(SshCommon common,
   ssh_encode_buffer(&buffer,
                     SSH_FORMAT_UINT32_STR,
                       address_to_bind, strlen(address_to_bind),
-                    SSH_FORMAT_UINT32, atol(port),
+                    SSH_FORMAT_UINT32, (SshUInt32) atol(port),
                     SSH_FORMAT_END);
   ssh_conn_send_global_request(common->conn, "tcpip-forward",
                                ssh_buffer_ptr(&buffer), ssh_buffer_len(&buffer),
@@ -908,10 +912,10 @@ void ssh_channel_dtcp_open_to_remote(SshCommon common, SshStream stream,
   ssh_encode_buffer(&buffer,
                     SSH_FORMAT_UINT32_STR,
                       connect_to_host, strlen(connect_to_host),
-                    SSH_FORMAT_UINT32, atol(connect_to_port),
+                    SSH_FORMAT_UINT32, (SshUInt32) atol(connect_to_port),
                     SSH_FORMAT_UINT32_STR,
                       originator_ip, strlen(originator_ip),
-                    SSH_FORMAT_UINT32, atol(originator_port),
+                    SSH_FORMAT_UINT32, (SshUInt32) atol(originator_port),
                     SSH_FORMAT_END);
   
   /* Send the channel open request. */

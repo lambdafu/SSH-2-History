@@ -75,7 +75,7 @@ int main(int argc, char *argv[])
   int i, k, evens, odds;
 
   /* Initialize the random number generator and timer */
-  srand((unsigned int)time(NULL));
+  srand((unsigned int)ssh_time());
   ssh_timer = ssh_time_measure_allocate();
 
   printf("Running test for SshDlList");

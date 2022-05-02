@@ -14,14 +14,14 @@
 
 AUTOMAKE_OPTIONS = 1.0 foreign dist-zip no-dependencies
 
-SUBDIRS = zlib sshmath sshreadline sshutil sshapputil sshcrypt sshproto sshsession
+SUBDIRS = zlib sshmath sshreadline sshutil sshapputil sshcrypt sshproto sshsession sshpgp
 
 # sshtest testsuite
 
 lib_LIBRARIES = libssh.a
 # libsshcrypt.kpure.a
 
-SUBLIBRARIES = sshmath/libsshmath.a zlib/libz.a sshutil/libsshutil.a sshapputil/libsshapputil.a sshcrypt/libsshcrypt.a sshproto/libsshproto.a sshsession/libsshsession.a sshreadline/libsshreadline.a
+SUBLIBRARIES = sshmath/libsshmath.a zlib/libz.a sshutil/libsshutil.a sshapputil/libsshapputil.a sshcrypt/libsshcrypt.a sshproto/libsshproto.a sshsession/libsshsession.a sshreadline/libsshreadline.a sshpgp/libsshpgp.a
 
 libssh.a: $(SUBLIBRARIES)
 	-rm -f libssh.a

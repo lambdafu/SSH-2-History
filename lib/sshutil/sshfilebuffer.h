@@ -15,7 +15,7 @@ Code for reading files into SshBuffer.
 */
 
 /*
- * $Id: sshfilebuffer.h,v 1.1 1998/09/22 11:49:49 tri Exp $
+ * $Id: sshfilebuffer.h,v 1.2 1999/04/06 17:39:53 tri Exp $
  * $Log: sshfilebuffer.h,v $
  * $EndLog$
  */
@@ -23,9 +23,17 @@ Code for reading files into SshBuffer.
 #ifndef SSHFILEBUFFER_H
 #define SSHFILEBUFFER_H
 
+#include "sshbuffer.h"
+
+typedef size_t (*SshFileBufferReadCallback)(unsigned char *buf,
+                                            size_t len,
+                                            void *context);
+
 typedef struct {
   FILE *f;
   Boolean attached_as_fileptr;
+  SshFileBufferReadCallback read_callback;
+  void *read_context;
   SshBuffer buf;
 } SshFileBuffer;
 
@@ -50,6 +58,11 @@ Boolean ssh_file_buffer_attach(SshFileBuffer *buf, char *filename);
 
 /* Attach a file pointer to a file buffer. */
 Boolean ssh_file_buffer_attach_fileptr(SshFileBuffer *buf, FILE *f);
+
+/* Attach a file pointer with a read callback. */
+Boolean ssh_file_buffer_attach_with_read_callback(SshFileBuffer *buf, 
+                                      SshFileBufferReadCallback read_callback,
+                                      void *read_context);
 
 /* Return TRUE if file is attached to a buffer. */
 Boolean ssh_file_buffer_attached(SshFileBuffer *buf);

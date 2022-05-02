@@ -14,7 +14,7 @@
   */
 
 /*
- * $Id: dlfix.h,v 1.2 1998/01/28 10:09:55 ylo Exp $
+ * $Id: dlfix.h,v 1.3 1999/04/29 13:37:53 huima Exp $
  * $Log: dlfix.h,v $
  * $EndLog$
  */
@@ -25,6 +25,6 @@
 /* Search a parameter set of name "name". Returns TRUE if found. */
 
 Boolean ssh_dlp_set_param(const char *name, const char **outname,
-			  MP_INT *p, MP_INT *q, MP_INT *g);
+                          SshInt *p, SshInt *q, SshInt *g);
 
 #endif /* DLFIX_H */

@@ -92,6 +92,7 @@ PACKAGE = @PACKAGE@
 RANLIB = @RANLIB@
 SSH1_PATH = @SSH1_PATH@
 SSHSESSION_CONFOBJS = @SSHSESSION_CONFOBJS@
+SSHSIGNERINSTALLMODE = @SSHSIGNERINSTALLMODE@
 VERSION = @VERSION@
 X11_DIR = @X11_DIR@
 XAUTH_PATH = @XAUTH_PATH@
@@ -104,12 +105,12 @@ noinst_LIBRARIES = libsshmath.a
 
 libsshmath_a_SOURCES =	\
 sshmp.c			\
+sshmp-kernel.c		\
 sieve.c
 
 include_HEADERS =	\
-sshgmp.h		\
-gmp.h			\
 sshmp.h			\
+sshmp-kernel.h			\
 sieve.h			\
 sshmath-types.h
 
@@ -143,7 +144,7 @@ X_CFLAGS = @X_CFLAGS@
 X_LIBS = @X_LIBS@
 X_EXTRA_LIBS = @X_EXTRA_LIBS@
 X_PRE_LIBS = @X_PRE_LIBS@
-libsshmath_a_OBJECTS =  sshmp.o sieve.o
+libsshmath_a_OBJECTS =  sshmp.o sshmp-kernel.o sieve.o
 CFLAGS = @CFLAGS@
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS)
 LINK = $(CC) $(CFLAGS) $(LDFLAGS) -o $@

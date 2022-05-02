@@ -15,7 +15,7 @@ failure (they call fatal if they encounter an error).
 */
 
 /*
- * $Id: sshmalloc.h,v 1.3 1998/08/23 06:30:57 ylo Exp $
+ * $Id: sshmalloc.h,v 1.4 1999/04/20 23:47:05 kivinen Exp $
  * $Log: sshmalloc.h,v $
  * $EndLog$
  */
@@ -35,6 +35,10 @@ failure (they call fatal if they encounter an error).
 #else  /* WINDOWS */
 #define XMALLOC_MAX_SIZE (1024*1024L*1024L)
 #endif /* WINDOWS */
+
+#ifdef DEBUG_LIGHT
+#define SSH_DEBUG_MALLOC
+#endif /* DEBUG_LIGHT */
 
 /* Like malloc, but calls ssh_fatal() if out of memory.  Allocating zero bytes
    is permitted, and results in a valid object. */

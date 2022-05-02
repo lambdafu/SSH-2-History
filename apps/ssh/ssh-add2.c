@@ -8,7 +8,7 @@ ssh-add.c
         Timo J. Rinne <tri@ssh.fi>
         Sami Lehtinen <sjl@ssh.fi>
 
-  Copyright (C) 1997-1998 SSH Communications Security Oy, Espoo, Finland
+  Copyright (C) 1997-1999 SSH Communications Security Oy, Espoo, Finland
   All rights reserved.
 
 Adds an identity to the authentication server, or removes an identity.
@@ -16,7 +16,7 @@ Adds an identity to the authentication server, or removes an identity.
 */
 
 /*
- * $Id: ssh-add2.c,v 1.18 1999/01/20 12:30:44 tri Exp $
+ * $Id: ssh-add2.c,v 1.23 1999/05/04 02:14:41 kivinen Exp $
  * $Log: ssh-add2.c,v $
  * $EndLog$
  */
@@ -24,12 +24,21 @@ Adds an identity to the authentication server, or removes an identity.
 #include "sshincludes.h"
 #include "sshcrypt.h"
 #include "sshtimeouts.h"
+#include "sshuserfiles.h"
 #include "sshagent.h"
 #include "sshuser.h"
 #include "readpass.h"
 #include "sshuserfiles.h"
 #include "sshunixeloop.h"
 #include "sshgetopt.h"
+#include "sshmiscstring.h"
+#ifdef WITH_PGP
+#include "sshbuffer.h"
+#include "sshfilebuffer.h"
+#include "sshpgp.h"
+#include "ssh2pgp.h"
+#include "ssh2pubkeyencode.h"
+#endif /* WITH_PGP */
 
 #define SSH_DEBUG_MODULE "SshAdd"
 
@@ -57,16 +66,32 @@ typedef enum
   UNLOCK 
 } SshAgentAction;
 
+#ifdef WITH_PGP
+typedef enum
+{
+  PGP_KEY_NONE = 0,
+  PGP_KEY_NAME,
+  PGP_KEY_FINGERPRINT,
+  PGP_KEY_ID
+} SshAgentPgpKeyMode;
+#endif /* WITH_PGP */
+
+char *av0;
+
 /* Files to add/delete from agent. */
 char **files;
 int num_files;
 SshAgentAction action;
+#ifdef WITH_PGP
+SshAgentPgpKeyMode pgp_mode = PGP_KEY_NONE;
+char *pgp_keyring;
+#endif /* WITH_PGP */
 
 /* Possible attributes */
 SshUInt32 path_limit = 0xffffffff;
 char *path_constraint = NULL;
 Boolean forbid_compat = FALSE;
-time_t key_timeout = 0;
+SshTime key_timeout = 0;
 Boolean have_attrs = FALSE;
 SshUInt32 use_limit = 0xffffffff;
 
@@ -81,7 +106,7 @@ void agent_completion(SshAgentError result, void *context);
 void add_file(SshAgent agent, const char *filename)
 {
   SshPrivateKey key;
-  char *saved_comment, *comment, *pass;
+  char *saved_comment, *comment = NULL, *pass;
   int query_cnt;
   unsigned char *certs;
   size_t certs_len;
@@ -111,144 +136,370 @@ void add_file(SshAgent agent, const char *filename)
                        agent_completion, (void *)agent);
       return;
     }
-  /* Construct the names of the public and private key files. */
-  if (strlen(filename) > 4 &&
-      strcmp(filename + strlen(filename) - 4, ".pub") == 0)
+#ifdef WITH_PGP
+  if (pgp_mode == PGP_KEY_NONE)
+#endif /* WITH_PGP */
     {
-      snprintf(pubname, sizeof(pubname), "%s", filename);
-      snprintf(privname, sizeof(privname), "%s", filename);
-      privname[strlen(privname) - 4] = '\0';
-    }
-  else
-    {
-      snprintf(pubname, sizeof(pubname), "%s.pub", filename);
-      snprintf(privname, sizeof(privname), "%s", filename);
-    }
-
-  if (action == ADD)
-    printf("Adding identity: %s\n", pubname);
-  else if (action == DELETE)
-    printf("Deleting identity: %s\n", pubname);
-
-  if (stat(pubname, &st) < 0)
-    {
-      printf("Public key file %s does not exist.\n", pubname);
-      (*agent_completion)(SSH_AGENT_ERROR_OK, (void *)agent);
-      return;
-    }
-
-  if (stat(privname, &st) < 0)
-    {
-      printf("Private key file %s does not exist.\n", privname);
-      (*agent_completion)(SSH_AGENT_ERROR_OK, (void *)agent);
-      return;
-    }
-  
-  /* Read the public key blob. */
-  magic = ssh2_key_blob_read(user, pubname, &saved_comment, &certs, &certs_len,
-                            NULL);
-  if (magic != SSH_KEY_MAGIC_PUBLIC)
-    {
-      printf("Bad public key file %s\n", pubname);
-      (*agent_completion)(SSH_AGENT_ERROR_OK, (void *)agent);
-      return;
-    }
-  
-  if (action == ADD)
-    {
-      /* Loop until we manage to load the file, or a maximum number of
-         attempts have been made.  First try with an empty passphrase. */
-      pass = ssh_xstrdup("");
-      query_cnt = 0;
-      while ((key = ssh_privkey_read(user, privname, pass, &comment, NULL)) == 
-             NULL)
+      /* Construct the names of the public and private key files. */
+      if (strlen(filename) > 4 &&
+          strcmp(filename + strlen(filename) - 4, ".pub") == 0)
         {
-          char buf[1024];
-          FILE *f;
-      
-          /* Free the old passphrase. */
-          memset(pass, 0, strlen(pass));
-          ssh_xfree(pass);
-          
-          query_cnt++;
-          if (query_cnt > 5)
+          snprintf(pubname, sizeof(pubname), "%s", filename);
+          snprintf(privname, sizeof(privname), "%s", filename);
+          privname[strlen(privname) - 4] = '\0';
+        }
+      else
+        {
+          snprintf(pubname, sizeof(pubname), "%s.pub", filename);
+          snprintf(privname, sizeof(privname), "%s", filename);
+        }
+    
+      if (action == ADD)
+        printf("Adding identity: %s\n", pubname);
+      else if (action == DELETE)
+        printf("Deleting identity: %s\n", pubname);
+    
+      if (stat(pubname, &st) < 0)
+        {
+          printf("Public key file %s does not exist.\n", pubname);
+          (*agent_completion)(SSH_AGENT_ERROR_OK, (void *)agent);
+          return;
+        }
+    
+      if (stat(privname, &st) < 0)
+        {
+          printf("Private key file %s does not exist.\n", privname);
+          (*agent_completion)(SSH_AGENT_ERROR_OK, (void *)agent);
+          return;
+        }
+    
+      /* Read the public key blob. */
+      magic = ssh2_key_blob_read(user, 
+                                 pubname,
+                                 &saved_comment,
+                                 &certs, 
+                                 &certs_len,
+                                 NULL);
+      if (magic != SSH_KEY_MAGIC_PUBLIC)
+        {
+          printf("Bad public key file %s\n", pubname);
+          (*agent_completion)(SSH_AGENT_ERROR_OK, (void *)agent);
+          return;
+        }
+    
+      if (action == ADD)
+        {
+          /* Loop until we manage to load the file, or a maximum number of
+             attempts have been made.  First try with an empty passphrase. */
+          pass = ssh_xstrdup("");
+          query_cnt = 0;
+          while ((key = ssh_privkey_read(user, 
+                                         privname,
+                                         pass, 
+                                         &comment, 
+                                         NULL)) == NULL)
             {
-              fprintf(stderr,
-                      "You don't seem to know the correct passphrase.\n");
-              exit(EXIT_STATUS_BADPASS);
-            }
-          
-          /* Ask for a passphrase. */
-          if (!use_stdin && getenv("DISPLAY") && !isatty(fileno(stdin)))
-            {
-              snprintf(buf, sizeof(buf),
-                       "ssh-askpass2 '%sEnter passphrase for %.100s'", 
-                       ((query_cnt <= 1) ? 
-                        "" : 
-                        "You entered wrong passphrase.  "), 
-                       saved_comment);
-              f = popen(buf, "r");
-              if (!fgets(buf, sizeof(buf), f))
+              char buf[1024];
+              FILE *f;
+            
+              /* Free the old passphrase. */
+              memset(pass, 0, strlen(pass));
+              ssh_xfree(pass);
+            
+              query_cnt++;
+              if (query_cnt > 5)
                 {
-                  pclose(f);
-                  ssh_xfree(saved_comment);
+                  fprintf(stderr,
+                          "You don't seem to know the correct passphrase.\n");
                   exit(EXIT_STATUS_BADPASS);
                 }
-              pclose(f);
-              if (strchr(buf, '\n'))
-                *strchr(buf, '\n') = 0;
-              pass = ssh_xstrdup(buf);
+            
+              /* Ask for a passphrase. */
+              if (!use_stdin && getenv("DISPLAY") && !isatty(fileno(stdin)))
+                {
+                  snprintf(buf, sizeof(buf),
+                           "ssh-askpass2 '%sEnter passphrase for %.100s'", 
+                           ((query_cnt <= 1) ? 
+                            "" : 
+                            "You entered wrong passphrase.  "), 
+                           saved_comment);
+                  f = popen(buf, "r");
+                  if (!fgets(buf, sizeof(buf), f))
+                    {
+                      pclose(f);
+                      ssh_xfree(saved_comment);
+                      exit(EXIT_STATUS_BADPASS);
+                    }
+                  pclose(f);
+                  if (strchr(buf, '\n'))
+                    *strchr(buf, '\n') = 0;
+                  pass = ssh_xstrdup(buf);
+                }
+              else
+                {
+                  if (query_cnt <= 1)
+                    printf("Need passphrase for %s (%s).\n", 
+                           privname, saved_comment);
+                  else
+                    printf("Bad passphrase.\n");
+                  pass = ssh_read_passphrase("Enter passphrase: ", use_stdin);
+                  if (pass == NULL || strcmp(pass, "") == 0)
+                    {
+                      ssh_xfree(saved_comment);
+                      ssh_xfree(pass);
+                      exit(EXIT_STATUS_BADPASS);
+                    }
+                }
+            }
+          memset(pass, 0, strlen(pass));
+          ssh_xfree(pass);
+          ssh_xfree(saved_comment);
+          /* Construct a comment for the key by combining file name and
+             comment in the file. */
+          if ((saved_comment = strrchr(privname, '/')) != NULL)
+            saved_comment++;
+          else
+            saved_comment = privname;
+          saved_comment = ssh_string_concat_3(saved_comment, ": ", comment);
+        }
+      else
+        {
+          /* Construct a comment for the key by combining file name and
+             comment in the file. */
+          if ((saved_comment = strrchr(privname, '/')) != NULL)
+            saved_comment++;
+          else
+            saved_comment = privname;
+          if (comment)
+            saved_comment = ssh_string_concat_3(saved_comment, ": ", comment);
+          else
+            saved_comment = ssh_xstrdup(saved_comment);
+        }
+    
+      if (action == ADD)
+        {
+          /* Send the key to the authentication agent. */
+          if (have_attrs)
+            ssh_agent_add_with_attrs(agent, key, certs, certs_len, 
+                                     saved_comment, path_limit, 
+                                     path_constraint, use_limit,
+                                     forbid_compat, key_timeout,
+                                     agent_completion, (void *)agent);
+          else
+            ssh_agent_add(agent, key, certs, certs_len, saved_comment,
+                          agent_completion, (void *)agent);
+          ssh_private_key_free(key);
+        }
+      else if (action == DELETE)
+        {
+          ssh_agent_delete(agent, certs, certs_len, saved_comment,
+                           agent_completion, (void *)agent);
+        }
+      ssh_xfree(saved_comment);
+    }
+#ifdef WITH_PGP
+  else
+    {
+      unsigned char *blob, *public_blob;
+      size_t blob_len, public_blob_len;
+      Boolean found;
+      unsigned long id;
+      char *endptr;
+      SshPgpSecretKey pgp_key;
+      SshPrivateKey key;
+      char buf[1024];
+      FILE *f;
+
+      comment = NULL;
+      switch (pgp_mode)
+        {
+        case PGP_KEY_NAME:
+          found = ssh2_find_pgp_secret_key_with_name(user,
+                                                     pgp_keyring,
+                                                     filename,
+                                                     &blob,
+                                                     &blob_len,
+                                                     &comment);
+          break;
+          
+        case PGP_KEY_FINGERPRINT:
+          found = ssh2_find_pgp_secret_key_with_fingerprint(user,
+                                                            pgp_keyring,
+                                                            filename,
+                                                            &blob,
+                                                            &blob_len,
+                                                            &comment);
+          break;
+          
+        case PGP_KEY_ID:
+          id = strtoul(filename, &endptr, 0);
+          if ((*filename != '\0') && (*endptr == '\0'))
+            {
+              found = ssh2_find_pgp_secret_key_with_id(user,
+                                                       pgp_keyring,
+                                                       id,
+                                                       &blob,
+                                                       &blob_len,
+                                                       &comment);
             }
           else
             {
-              if (query_cnt <= 1)
-                printf("Need passphrase for %s (%s).\n", 
-                       privname, saved_comment);
-              else
-                printf("Bad passphrase.\n");
-              pass = ssh_read_passphrase("Enter passphrase: ", use_stdin);
-              if (pass == NULL || strcmp(pass, "") == 0)
+              fprintf(stderr, "%s: invalid pgp key id \"%s\".\n", 
+                      av0, filename);
+              found = FALSE;
+            }
+          break;
+          
+        default:
+          ssh_fatal("internal error");
+        }
+      if (! found)
+        {
+          fprintf(stderr, "%s: pgp key \"%s\" not found.\n", 
+                  av0, filename);
+          (*agent_completion)(SSH_AGENT_ERROR_OK, (void *)agent);
+          return;
+        }
+      if (ssh_pgp_secret_key_decode(blob, blob_len, &pgp_key) == 0)
+        {
+          fprintf(stderr, "%s: unable to decode pgp key \"%s\".\n", 
+                  av0, filename);
+          memset(blob, 'F', blob_len);
+          ssh_xfree(blob);
+          (*agent_completion)(SSH_AGENT_ERROR_OK, (void *)agent);
+          return;
+        }
+
+      if ((public_blob_len = ssh_encode_pubkeyblob(pgp_key->public_key->key,
+                                                   &public_blob)) == 0)
+        {
+          fprintf(stderr, "%s: unable to encode pgp key \"%s\".\n", 
+                  av0, filename);
+          ssh_pgp_secret_key_free(pgp_key);
+          memset(blob, 'F', blob_len);
+          ssh_xfree(blob);
+          (*agent_completion)(SSH_AGENT_ERROR_OK, (void *)agent);
+          return;
+        }
+      if (action == ADD)
+        {
+          query_cnt = 0;
+          while ((pgp_key->key == NULL) &&
+                 (pgp_key->decryption_failed == TRUE))
+            {
+              query_cnt++;
+              if (query_cnt > 5)
                 {
-                  ssh_xfree(saved_comment);
-                  ssh_xfree(pass);
+                  fprintf(stderr,
+                          "You don't seem to know the correct passphrase.\n");
                   exit(EXIT_STATUS_BADPASS);
                 }
+              /* Ask for a passphrase. */
+              if (!use_stdin && getenv("DISPLAY") && !isatty(fileno(stdin)))
+                {
+                  snprintf(buf, sizeof(buf),
+                           "ssh-askpass2 '%sEnter passphrase for \"%.100s\"'", 
+                           ((query_cnt <= 1) ? 
+                            "" : 
+                            "You entered wrong passphrase.  "), 
+                           comment);
+                  f = popen(buf, "r");
+                  if (!fgets(buf, sizeof(buf), f))
+                    {
+                      pclose(f);
+                      fprintf(stderr, "No passphrase.\n");
+                      exit(EXIT_STATUS_BADPASS);
+                    }
+                  pclose(f);
+                  if (strchr(buf, '\n'))
+                    *strchr(buf, '\n') = 0;
+                  pass = ssh_xstrdup(buf);
+                }
+              else
+                {
+                  if (query_cnt <= 1)
+                    printf("Need passphrase for \"%s\".\n", comment);
+                  else
+                    printf("Bad passphrase.\n");
+                  pass = ssh_read_passphrase("Enter passphrase: ", use_stdin);
+                  if (pass == NULL || strcmp(pass, "") == 0)
+                    {
+                      ssh_xfree(pass);
+                      fprintf(stderr, "No passphrase.\n");
+                      exit(EXIT_STATUS_BADPASS);
+                    }
+                }
+              ssh_pgp_secret_key_free(pgp_key);
+              if (ssh_pgp_secret_key_decode_with_passphrase(blob, 
+                                                            blob_len, 
+                                                            pass,
+                                                            &pgp_key) == 0)
+                {
+                  memset(pass, 0, strlen(pass));
+                  ssh_xfree(pass);
+                  fprintf(stderr, "%s: unable to decode pgp key \"%s\".\n", 
+                          av0, filename);
+                  memset(blob, 'F', blob_len);
+                  ssh_xfree(blob);
+                  ssh_xfree(public_blob);
+                  (*agent_completion)(SSH_AGENT_ERROR_OK, (void *)agent);
+                  return;
+                }
+              memset(pass, 0, strlen(pass));
+              ssh_xfree(pass);
             }
+          if (pgp_key->key == NULL)
+            {
+              fprintf(stderr, "%s: unable to decode pgp key \"%s\".\n", 
+                      av0, filename);
+              ssh_xfree(public_blob);
+              ssh_pgp_secret_key_free(pgp_key);
+              (*agent_completion)(SSH_AGENT_ERROR_OK, (void *)agent);
+              return;
+            }
+          memset(blob, 'F', blob_len);
+          ssh_xfree(blob);
+          if (ssh_private_key_copy(pgp_key->key, &key) != SSH_CRYPTO_OK)
+            {
+              fprintf(stderr, "%s: unable to export pgp key \"%s\".\n", 
+                      av0, filename);
+              ssh_pgp_secret_key_free(pgp_key);
+              (*agent_completion)(SSH_AGENT_ERROR_OK, (void *)agent);
+              return;
+            }
+          ssh_pgp_secret_key_free(pgp_key);
+          if (have_attrs)
+            ssh_agent_add_with_attrs(agent, key, 
+                                     public_blob, public_blob_len, 
+                                     comment, path_limit, 
+                                     path_constraint, use_limit,
+                                     forbid_compat, key_timeout,
+                                     agent_completion, (void *)agent);
+          else
+            ssh_agent_add(agent, key, 
+                          public_blob, public_blob_len, comment, 
+                          agent_completion, (void *)agent);
+          ssh_xfree(comment);
+          ssh_xfree(public_blob);
+          ssh_private_key_free(key);
+          return;
         }
-      memset(pass, 0, strlen(pass));
-      ssh_xfree(pass);
-      ssh_xfree(saved_comment);
-      /* Construct a comment for the key by combining file name and comment in
-         the file. */
-      snprintf(privname, sizeof(privname), "%s: %s", pubname, comment);
-      ssh_xfree(comment);
+      else if (action == DELETE)
+        {
+          ssh_agent_delete(agent, 
+                           public_blob, 
+                           public_blob_len, 
+                           filename,
+                           agent_completion,
+                           (void *)agent);
+          ssh_pgp_secret_key_free(pgp_key);
+          memset(blob, 'F', blob_len);
+          ssh_xfree(blob);
+          ssh_xfree(public_blob);
+          return;
+        }
     }
-  else
-    {
-      /* Construct a comment for the key by combining file name and comment in
-         the file. */
-      snprintf(privname, sizeof(privname), "%s: %s", pubname, saved_comment);
-      ssh_xfree(saved_comment);
-    }
-
-  if (action == ADD)
-    {
-      /* Send the key to the authentication agent. */
-      if (have_attrs)
-        ssh_agent_add_with_attrs(agent, key, certs, certs_len, privname,
-                                 path_limit, path_constraint, use_limit,
-                                 forbid_compat, key_timeout,
-                                 agent_completion, (void *)agent);
-      else
-        ssh_agent_add(agent, key, certs, certs_len, privname,
-                      agent_completion, (void *)agent);
-      ssh_private_key_free(key);
-    }
-  else if (action == DELETE)
-    {
-      ssh_agent_delete(agent, certs, certs_len, privname,
-                       agent_completion, (void *)agent);
-    }
+#endif /* WITH_PGP */
 }
 
 void agent_completion(SshAgentError result, void *context)
@@ -450,7 +701,7 @@ void agent_open_callback(SshAgent agent, void *context)
 void usage(void);
 void usage()
 {
-  fprintf(stderr, "Usage: ssh-add [-l] [-d] [-D] [-p] [-t key_exp] [-f hop_limit] [-1] [files...]\n");
+  fprintf(stderr, "Usage: %s [-l] [-d] [-D] [-p] [-t key_exp] [-f hop_limit] [-1] [files...]\n", av0);
 }
 
 /* This is the main program for the agent. */
@@ -463,10 +714,20 @@ int main(int ac, char **av)
   Boolean dynamic_array = FALSE;
   struct dirent * cand;
 
+  /* Save program name. */
+  if (strchr(av[0], '/'))
+    av0 = strrchr(av[0], '/') + 1;
+  else
+    av0 = av[0];
+
   user = ssh_user_initialize(NULL, FALSE);
-  
+
+#ifdef WITH_PGP
+  pgp_keyring = ssh_xstrdup(SSH_PGP_SECRET_KEY_FILE);
+#endif /* WITH_PGP */
+
   action = ADD;
-  while ((opt = ssh_getopt(ac, av, "ldDput:f:F:1LU", NULL)) != EOF)
+  while ((opt = ssh_getopt(ac, av, "ldDput:f:F:1LUNPI", NULL)) != EOF)
     {
       if (!ssh_optval)
         {
@@ -475,25 +736,66 @@ int main(int ac, char **av)
         }
       switch (opt)
         {
+        case 'N':
+#ifdef WITH_PGP
+          pgp_mode = PGP_KEY_NAME;
+#else /* WITH_PGP */
+          fprintf(stderr, "%s: PGP keys not supported.\n", av0);
+          exit(EXIT_STATUS_ERROR);
+#endif /* WITH_PGP */
+          break;
+
+        case 'P':
+#ifdef WITH_PGP
+          pgp_mode = PGP_KEY_FINGERPRINT;
+#else /* WITH_PGP */
+          fprintf(stderr, "%s: PGP keys not supported.\n", av0);
+          exit(EXIT_STATUS_ERROR);
+#endif /* WITH_PGP */
+          break;
+
+        case 'I':
+#ifdef WITH_PGP
+          pgp_mode = PGP_KEY_ID;
+#else /* WITH_PGP */
+          fprintf(stderr, "%s: PGP keys not supported.\n", av0);
+          exit(EXIT_STATUS_ERROR);
+#endif /* WITH_PGP */
+          break;
+
+        case 'R':
+#ifdef WITH_PGP
+          ssh_xfree(pgp_keyring);
+          pgp_keyring = ssh_xstrdup(ssh_optarg);
+#else /* WITH_PGP */
+          fprintf(stderr, "%s: PGP keys not supported.\n", av0);
+          exit(EXIT_STATUS_ERROR);
+#endif /* WITH_PGP */
+          break;
+
         case 'l':
           action = LIST;
           break;
+
         case 'p':
           use_stdin = TRUE;
           break;
+
         case 'd':
           if (action == ADD_URL)
             action = DELETE_URL;
           else
             action = DELETE;
           break;
+
         case 'D':
           action = DELETE_ALL;
           break;
+
         case 't':
           if (ssh_optargnum)
             {
-              key_timeout = (time_t)(ssh_optargval * 60);
+              key_timeout = (SshTime)(ssh_optargval * 60);
             }
           else
             {
@@ -502,6 +804,7 @@ int main(int ac, char **av)
             }
           have_attrs = TRUE;
           break;
+
         case 'f':
           if (ssh_optargnum)
             {
@@ -514,31 +817,50 @@ int main(int ac, char **av)
             }
           have_attrs = TRUE;
           break;
+
         case 'F':
           path_constraint = ssh_xstrdup(ssh_optarg);
           have_attrs = TRUE;
           break;
+
         case '1':
           forbid_compat = TRUE;
           have_attrs = TRUE;
           break;
+
         case 'u':
           if (action == DELETE)
             action = DELETE_URL;
           else
             action = ADD_URL;
           break;
+
         case 'L':
           action = LOCK;
           break;
+
         case 'U':
           action = UNLOCK;
           break;
+
         default:
           usage();
           exit(EXIT_STATUS_ERROR);
         }
     }
+
+#ifdef WITH_PGP
+  if (pgp_keyring[0] != '/')
+    {
+      char buf[1024];
+      snprintf(buf, sizeof (buf), "%s/%s/%s", 
+               ssh_user_dir(user), 
+               SSH_USER_DIR,
+               pgp_keyring);
+      ssh_xfree(pgp_keyring);
+      pgp_keyring = ssh_xstrdup(buf);
+    }
+#endif /* WITH_PGP */
 
   files = &av[ssh_optind];
   num_files = ac - ssh_optind;
@@ -547,6 +869,14 @@ int main(int ac, char **av)
 
 #define ID_PREFIX "id_"
   
+#ifdef WITH_PGP
+  if ((ac == 1) && (num_files == 0) && (pgp_mode != PGP_KEY_NONE))
+    {
+      fprintf(stderr, "%s: Nothing to do!",  av0);
+      exit(EXIT_STATUS_ERROR);
+    }
+#endif /* WITH_PGP */
+
   if (ac == 1 && num_files == 0)
     {
       /* len includes '/' and '\0'*/
@@ -556,8 +886,11 @@ int main(int ac, char **av)
       
       ssh2dir = opendir(ssh2dirname);
 
-      if (!ssh2dir)
-          ssh_fatal("Could not open directory \"%s\".", ssh2dirname);
+      if (! ssh2dir)
+        {
+          fprintf(stderr, "%s: Can't open directory \"%s\"", av0, ssh2dirname);
+          exit(EXIT_STATUS_ERROR);
+        }
           
       while ((cand = readdir(ssh2dir)) != NULL)
         {

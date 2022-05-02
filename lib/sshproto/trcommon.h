@@ -16,7 +16,7 @@ Common (client+server) internal definitions for the transport layer protocol.
 */
 
 /*
- * $Id: trcommon.h,v 1.19 1998/11/13 18:43:33 tri Exp $
+ * $Id: trcommon.h,v 1.22 1999/04/29 13:38:42 huima Exp $
  * $Log: trcommon.h,v $
  * $EndLog$
  */
@@ -29,7 +29,7 @@ Common (client+server) internal definitions for the transport layer protocol.
 #include "sshstream.h"
 #include "sshbuffer.h"
 #include "bufzip.h"
-#include "gmp.h"
+#include "sshmp.h" /* was "gmp.h" */
 
 #define SSH_VERSION_STRING              "SSH-2.0-%.200s"
 #define SSH_VERSION_STRING_COMPAT       "SSH-1.99-%.200s"
@@ -194,7 +194,8 @@ typedef struct
   void *key_check_context;
   Boolean key_check_returned;
   Boolean key_check_result;
-
+  void *key_check_callback_context;
+  
   /* For server only. */
   SshPrivateKey private_host_key;
   SshPrivateKey private_server_key;
@@ -202,12 +203,12 @@ typedef struct
 
   /* For dh methods: the group, "secret" and the exchange buffer */
 
-  mpz_t dh_p;
-  mpz_t dh_g;
-  mpz_t dh_e;
-  mpz_t dh_f;
-  mpz_t dh_k;
-  mpz_t dh_secret;
+  SshIntC dh_p;
+  SshIntC dh_g;
+  SshIntC dh_e;
+  SshIntC dh_f;
+  SshIntC dh_k;
+  SshIntC dh_secret;
 
   /* Compatibility with older ssh-2 versions.  Variables in this section
      are set to defaults in ssh_tr_create and filled in properly in
@@ -220,6 +221,10 @@ typedef struct
   /* Key generation bug, which is in versions ssh-2.0.10 and earlier. */
   Boolean ssh_old_keygen_bug_compat;
 
+  /* Draft incompatibility bug in publickey authentication, which is
+     in versions ssh-2.0.12 and earlier. */
+  Boolean ssh_old_publickey_bug_compat;
+  
 } *SshTransportCommon;
 
 

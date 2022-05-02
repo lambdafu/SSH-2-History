@@ -47,6 +47,7 @@ libsshcrypt_a_SOURCES = \
   genrand.c \
   namelist.c \
   keyblob.c \
+  ssh2pubkeyencode.c \
   libmonitor.c
 
 list_libssh_a_objects:
@@ -55,7 +56,6 @@ list_libssh_a_objects:
 include_HEADERS = \
   sshcrypt.h \
   namelist.h \
-  keyblob.h \
   sshcrypti.h \
   sshrotate.h \
   sha.h \
@@ -71,6 +71,8 @@ include_HEADERS = \
   dlglue.h \
   dlfix.h \
   bufzip.h \
+  keyblob.h \
+  ssh2pubkeyencode.h \
   libmonitor.h
 
 

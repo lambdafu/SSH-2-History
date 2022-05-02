@@ -114,7 +114,8 @@ void ssh_auths_call_method(SshAuthServer auth, SshAuthServerOperation op,
 void ssh_auths_send_failure(SshAuthServer auth, Boolean partial_success)
 {
   ssh_cross_down_send_encode(auth->down, SSH_CROSS_PACKET,
-                             SSH_FORMAT_CHAR, SSH_MSG_USERAUTH_FAILURE,
+                             SSH_FORMAT_CHAR,
+                             (unsigned int) SSH_MSG_USERAUTH_FAILURE,
                              SSH_FORMAT_UINT32_STR, 
                               auth->continuations, strlen(auth->continuations),
                              SSH_FORMAT_BOOLEAN, partial_success,
@@ -220,7 +221,8 @@ void ssh_auths_success(SshAuthServer auth)
 
   /* Send SSH_MSG_USERAUTH_SUCCESS. */
   ssh_cross_down_send_encode(auth->down, SSH_CROSS_PACKET,
-                             SSH_FORMAT_CHAR, SSH_MSG_USERAUTH_SUCCESS,
+                             SSH_FORMAT_CHAR,
+                             (unsigned int) SSH_MSG_USERAUTH_SUCCESS,
                              SSH_FORMAT_END);
 
   /* Send up the buffered STARTUP packet. */

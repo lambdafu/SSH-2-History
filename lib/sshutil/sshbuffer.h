@@ -15,7 +15,7 @@ append data and consume it from either end.
 */
 
 /*
- * $Id: sshbuffer.h,v 1.2 1999/01/18 13:14:07 mtr Exp $
+ * $Id: sshbuffer.h,v 1.3 1999/03/30 14:10:08 sjl Exp $
  * $Log: sshbuffer.h,v $
  * $EndLog$
  */
@@ -70,14 +70,6 @@ void ssh_buffer_append_space(SshBuffer *buffer,
    list must be terminated with a NULL pointer. */
 
 void ssh_buffer_append_cstrs(SshBuffer *buffer, ...);
-
-/* Inserts region of size `len' bytes into `buffer' at position pointed
-   by `offset'. Adjusts `offset' if buffer data gets relocated.
-   Copies `len' bytes from `data' into this new region if `data' is not
-   NULL.  XXX this function may go away. */
-
-void ssh_buffer_insert(SshBuffer *buffer, unsigned char **offset,
-                       unsigned char *data, size_t len);
 
 /* Returns the number of bytes of data in the buffer. */
 

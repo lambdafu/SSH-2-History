@@ -26,6 +26,8 @@
 #include "sshuserfiles.h"
 #include "sshmsgs.h"
 #include "sshcipherlist.h"
+#include "sshgetopt.h"
+#include "sshdsprintf.h"
 
 #ifdef SSH_CHANNEL_SESSION
 #include "sshchsession.h"
@@ -37,6 +39,33 @@
 
 #define SSH_DEBUG_MODULE "Ssh2Client"
 
+/* Define this to test trkex-keycheck callbacks. (gives a two-second
+   time-out.*/
+
+#undef TEST_KEYCHECK
+#ifdef TEST_KEYCHECK
+#include "sshtimeouts.h"
+
+typedef struct SshKeyCheckTestContextRec
+{
+  void (*callback)(Boolean result,
+                   void *result_context);
+  Boolean result;
+  void *result_context;
+} *SshKeyCheckTestContext;
+
+void test_timeout(void *context)
+{
+  SshKeyCheckTestContext ctx = (SshKeyCheckTestContext) context;
+
+  fprintf(stderr, "Delay ended, hiirr wee aar. (Calling result-callback.)\n");
+  (*ctx->callback)(ctx->result, ctx->result_context);
+
+  ssh_xfree(ctx);
+  
+}
+#endif /* TEST_KEYCHECK */
+     
 /* Callback function that is used to check the validity of the server
    host key.
      `server_name'  The server name as passed in when the protocol
@@ -66,9 +95,10 @@ void ssh_client_key_check(const char *server_name,
   unsigned char *blob2;
   size_t blob2_len;
   int i, j;
-  time_t now;
+  SshTime now;
   unsigned long magic;
   struct stat st;
+  char *time_str;
 
   assert(context != NULL);
 
@@ -140,11 +170,13 @@ void ssh_client_key_check(const char *server_name,
     case SSH_KEY_MAGIC_FAIL:
       ssh_warning("Accepting host %s key without checking.",
                 server_name);
-      now = time(NULL);
+      now = ssh_time();
+      time_str = ssh_readable_time_string(now, TRUE);
       snprintf(comment, sizeof(comment)-1, 
                "host key for %s, accepted by %s %s", 
-               server_name, ssh_user_name(client->user_data), ctime(&now));
-      comment[strlen(comment)-1] = '\0';
+               server_name, ssh_user_name(client->user_data),
+               time_str);
+      ssh_xfree(time_str);
 
       if (ssh2_key_blob_write(client->user_data, filen, 0600,
                              SSH_KEY_MAGIC_PUBLIC,
@@ -167,10 +199,6 @@ void ssh_client_key_check(const char *server_name,
                 server_name);
       ssh_warning("Remove %s and try again if you think that this is normal.",
                 filen);
-      /* XXX we throw ssh_fatal here to avoid SIGSEGV at later time. (it's
-         most definitely a bug.) */
-
-      ssh_fatal("host key was illegal.");
 
       memset(blob2, 0, blob2_len);
       ssh_xfree(blob2);
@@ -179,7 +207,15 @@ void ssh_client_key_check(const char *server_name,
       (*client->common->disconnect)(SSH_DISCONNECT_HOST_KEY_NOT_VERIFIABLE, 
                                     "Illegal host key.", 
                                     client->common->context);
+
+#if 0
+      /* XXX We don't call the result callback, as it would result in
+         a SIGSEGV. This is because *client->common->disconnect calls
+         ssh_conn_destroy, which basically screws everything up for
+         anything else to be done (it destroys the protocol context,
+         the underlying stream, etc etc.)*/
       (*result_cb)(FALSE, result_context);
+#endif /* 0 */
       return;
     }
 
@@ -190,7 +226,23 @@ void ssh_client_key_check(const char *server_name,
     }
 
   ssh_debug("Host key found from the database.");
+
+#ifdef TEST_KEYCHECK
+  {
+    SshKeyCheckTestContext ctx;
+
+    ctx = ssh_xcalloc(1, sizeof(struct SshKeyCheckTestContextRec));
+    ctx->callback = result_cb;
+    ctx->result = TRUE;
+    ctx->result_context = result_context;
+    ssh_register_timeout(2L, 0L, test_timeout, ctx);
+    fprintf(stderr,
+            "Entering (atleast) two second delay in "
+            "ssh_client_key_check()...\n");
+  }
+#else
   (*result_cb)(TRUE, result_context);
+#endif
 }
 
 /* Fetches values for the transport parameters (e.g., encryption algorithms)
@@ -240,77 +292,137 @@ Boolean ssh_client_update_transport_params(SshConfig config,
 void ssh_client_version_check(const char *version, void *context)
 {
   SshClient client = (SshClient)context;
-  char *args[100], *aa;
-  int i, arg;
+  char **args = NULL;
+  int args_alloced = 20;  
+  int args_used = 0;  
+  int i;
   extern char **environ;
-
+  char *host = NULL;
+  int option;
+  
   ssh_debug("Remote version: %s", version);
 
   if (strncmp(version, "SSH-1.", 6) == 0 &&
       strncmp(version, "SSH-1.99", 8) != 0 &&
       client->config->ssh1compatibility == TRUE &&
       client->config->ssh1_path != NULL &&
-      client->config->ssh1_args != NULL)
+      client->config->ssh1_argv != NULL)
     {
       ssh_warning("Executing %s for ssh1 compatibility.",
-                client->config->ssh1_path);
+                  client->config->ssh1_path);
 
       /* Close the old connection to the server. */
       close(client->config->ssh1_fd);
+      
+      args = ssh_xcalloc(args_alloced, sizeof(*args));
 
-      /* Prepare arguments for the ssh1 client. */
-      /* XXX this is bull */
-      arg = 0;
-      args[arg++] = "ssh";
-      for (i = 1; client->config->ssh1_args[i]; i++)
+      args[0] = ssh_xstrdup("ssh");
+      args_used++;
+        
+      /* Clear the getopt data. */
+      ssh_getopt_init_data(&ssh_getopt_default_data);
+
+      ssh_opterr = 0;
+      ssh_optallowplus = 1;
+      ssh_optind = 1;
+        
+      while(1)
         {
-          if (arg >= sizeof(args)/sizeof(args[0]) - 2)
-            ssh_fatal("Too many arguments for compatibility ssh1.");
-          aa = client->config->ssh1_args[i];
-          if (strcmp(aa, "-l") == 0 ||
-              strcmp(aa, "-i") == 0 ||
-              strcmp(aa, "-e") == 0 ||
-              strcmp(aa, "-c") == 0 ||
-              strcmp(aa, "-p") == 0 ||
-              strcmp(aa, "-R") == 0 ||
-              strcmp(aa, "-o") == 0 ||
-              strcmp(aa, "-L") == 0)
+          if (args_alloced < args_used + 10)
+            args = ssh_xrealloc(args,
+                                (args_alloced + 10)*sizeof(*args));
+            
+          option = ssh_getopt(client->config->ssh1_argc,
+                              client->config->ssh1_argv,
+                              SSH2_GETOPT_ARGUMENTS, NULL);
+          
+          if ((option == -1) && (host == NULL))
             {
-              args[arg++] = aa;
-              if (client->config->ssh1_args[i + 1])
-                args[arg++] = client->config->ssh1_args[++i];
+              host = client->config->ssh1_argv[ssh_optind];
+                
+              if (!host)
+                ssh_fatal("No host name found from args to ssh1."
+                          "(e.g. ssh1-argv struct has been corrupted.)");
+                
+              args[args_used] = ssh_xstrdup(host);
+              args_used++;
+              
+              ssh_optind++;
+              SSH_DEBUG(3, ("ssh1_args: remote host = \"%s\"", host));
+              ssh_optreset = 1;
+              option = ssh_getopt(client->config->ssh1_argc,
+                                  client->config->ssh1_argv,
+                                  SSH2_GETOPT_ARGUMENTS,NULL);
             }
-          else
-            if (strcmp(aa, "-d") == 0)
-              {
-                args[arg++] = "-v";
-                if (client->config->ssh1_args[i + 1])
-                  i++; /* Skip the level. */
-              }
-            else
-              if (strcmp(aa, "-n") == 0 ||
-                  strcmp(aa, "-a") == 0 ||
-                  strcmp(aa, "-x") == 0 ||
-                  strcmp(aa, "-t") == 0 ||
-                  strcmp(aa, "-v") == 0 ||
-                  strcmp(aa, "-V") == 0 ||
-                  strcmp(aa, "-q") == 0 ||
-                  strcmp(aa, "-f") == 0 ||
-                  strcmp(aa, "-P") == 0 ||
-                  strcmp(aa, "-C") == 0 ||
-                  strcmp(aa, "-g") == 0)
-                args[arg++] = aa;
-              else
-                if (aa[0] != '-')
-                  args[arg++] = aa;
-        }
-      args[arg++] = NULL;
+          if (option == -1)
+            {
+              /* Rest ones are the command and arguments. */
+              if (client->config->ssh1_argc > ssh_optind)
+                {
+                  for (i = 0;
+                       i < (client->config->ssh1_argc - ssh_optind); i++)
+                    {
+                      args[args_used] = ssh_xstrdup(client->config->
+                                                    ssh1_argv[ssh_optind
+                                                             + i]);
+                      args_used++;
+                        
+                      if (args_alloced < args_used + 10)
+                        args =
+                          ssh_xrealloc(args,
+                                       (args_alloced
+                                        + 10)*sizeof(*args));
+                    }
+                }
+              break;
+            }
 
-#if 0
-      printf("args:\n");
+          switch(option)
+            {
+              /* Ignored. */
+            case 'S':
+            case 's':
+            case 'F':
+              continue;
+              /* Strip argument. */ 
+            case 'd':
+              /* Options without arguments. */
+            case 'a':
+            case 'C':
+            case 'v':
+            case 'f':
+            case 'h':
+            case 'n':
+            case 'P':
+            case 'q':
+            case 'k':
+            case '8':
+            case 'g':
+            case 'V':
+              ssh_dsprintf(&args[args_used], "-%c", option);
+              args_used++;
+              continue;
+              /* Options with arguments. */
+            case 'i':
+            case 'o': /* XXX conf options are different in ssh2 and ssh1 */
+            case 'l':
+            case 'e':
+            case 'p':
+            case 'L':
+            case 'R':
+            case 'c': /* XXX ciphers are different in ssh2 and ssh1 */
+              ssh_dsprintf(&args[args_used], "-%c", option);
+              args_used++;
+              args[args_used] = ssh_xstrdup(ssh_optarg);
+              args_used++;                
+              continue;
+            }
+        }
+
+      args[args_used] = NULL;
+      
       for (i = 0; args[i]; i++)
-        printf("  %s\n", args[i]);
-#endif
+        SSH_TRACE(2, ("args[%d] = %s", i, args[i]));
 
       /* Use ssh1 to connect. */
       execve(client->config->ssh1_path, args, environ);
@@ -379,6 +491,9 @@ SshClient ssh_client_wrap(SshStream stream, SshConfig config,
                                       ssh_client_version_check : NULL,
                                     (void *)client);
 
+  
+  ssh_transport_get_compatibility_flags(trans, &client->compat_flags);
+
   /* Create the authentication methods array. */
   client->methods = ssh_client_authentication_initialize();
   
@@ -411,6 +526,7 @@ void ssh_client_destroy(SshClient client)
     { 
       client->being_destroyed = TRUE;
       ssh_common_destroy(client->common);
+      ssh_xfree(client->compat_flags);
       ssh_client_authentication_uninitialize(client->methods);
       memset(client, 'F', sizeof(*client));
       ssh_xfree(client);

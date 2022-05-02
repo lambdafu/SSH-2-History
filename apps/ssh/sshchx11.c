@@ -199,7 +199,8 @@ void ssh_channel_x11_send_request(SshCommon common, int session_channel_id)
   unsigned int data_len;
   unsigned int value;
   char *new_data;
-  int i, screen_number;
+  int i;
+  SshUInt32 screen_number;
   const char *cp;
   SshBuffer buffer;
   SshChannelTypeX11 ct;
@@ -432,6 +433,7 @@ Boolean ssh_channel_x11_process_request(void *session_placeholder,
   struct stat st;
   SshChannelX11Session session;
   SshChannelTypeX11 ct;
+  SshUInt32 temp;
   
   SSH_DEBUG(6, ("request_x11"));
 
@@ -452,13 +454,15 @@ Boolean ssh_channel_x11_process_request(void *session_placeholder,
                          &session->auth_protocol, NULL,
                        SSH_FORMAT_UINT32_STR,
                          &session->auth_cookie, NULL,
-                       SSH_FORMAT_UINT32, &session->screen_number,
+                       SSH_FORMAT_UINT32, &temp,
                        SSH_FORMAT_END) != len)
     {
       SSH_DEBUG(0, ("request_x11: bad data"));
       return FALSE;
     }
 
+  session->screen_number = temp;
+  
   /* Check whether we have xauth installed on this machine (in case
      the binary was moved from elsewhere). */
   if (stat(XAUTH_PATH, &st) < 0)

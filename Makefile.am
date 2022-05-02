@@ -54,6 +54,9 @@ dist-ssh-noncommercial:
 dist-ssh-internal:
 	$(MAKE) make-dist dist=ssh-internal
 
+dist-ssh-netload:
+	$(MAKE) make-dist dist=ssh-netload
+
 dist-ssh-aa:
 	$(MAKE) make-dist dist=ssh-aa
 

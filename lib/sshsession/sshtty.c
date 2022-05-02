@@ -26,19 +26,21 @@ static struct sgttyb saved_tio;
 /* Returns the user's terminal to normal mode if it had been put in raw 
    mode. */
 
-void ssh_leave_raw_mode()
+void ssh_leave_raw_mode(int fd)
 {
+  if (fd < 0)
+    fd = fileno(stdin);
   if (!ssh_in_raw_mode)
     return;
   ssh_in_raw_mode = FALSE;
-  if (isatty(fileno(stdin)))
+  if (isatty(fd))
     {
 #ifdef USING_TERMIOS
-      if (tcsetattr(fileno(stdin), TCSADRAIN, &saved_tio) < 0)
+      if (tcsetattr(fd, TCSADRAIN, &saved_tio) < 0)
         perror("tcsetattr");
 #endif /* USING_TERMIOS */
 #ifdef USING_SGTTY
-      if (ioctl(fileno(stdin), TIOCSETP, &saved_tio) < 0)
+      if (ioctl(fd, TIOCSETP, &saved_tio) < 0)
         perror("ioctl(stdin, TIOCSETP, ...)");
 #endif /* USING_SGTTY */
     }
@@ -46,14 +48,16 @@ void ssh_leave_raw_mode()
 
 /* Puts the user\'s terminal in raw mode. */
 
-void ssh_enter_raw_mode()
+void ssh_enter_raw_mode(int fd)
 {
-  if (isatty(fileno(stdin)))
+  if (fd < 0)
+    fd = fileno(stdin);
+  if (isatty(fd))
     {
 #ifdef USING_TERMIOS
       struct termios tio;
 
-      if (tcgetattr(fileno(stdin), &tio) < 0)
+      if (tcgetattr(fd, &tio) < 0)
         perror("tcgetattr");
       saved_tio = tio;
       tio.c_iflag |= IGNPAR;
@@ -65,44 +69,48 @@ void ssh_enter_raw_mode()
       tio.c_oflag &= ~OPOST;
       tio.c_cc[VMIN] = 1;
       tio.c_cc[VTIME] = 0;
-      if (tcsetattr(fileno(stdin), TCSADRAIN, &tio) < 0)
+      if (tcsetattr(fd, TCSADRAIN, &tio) < 0)
         perror("tcsetattr");
       ssh_in_raw_mode = TRUE;
 #endif /* USING_TERMIOS */
 #ifdef USING_SGTTY
       struct sgttyb tio;
 
-      if (ioctl(fileno(stdin), TIOCGETP, &tio) < 0)
+      if (ioctl(fd, TIOCGETP, &tio) < 0)
         perror("ioctl(stdin, TIOCGETP, ...)");
       saved_tio = tio;
       tio.sg_flags &= ~(CBREAK | ECHO | CRMOD | LCASE | TANDEM);
       tio.sg_flags |= (RAW | ANYP);
-      if (ioctl(fileno(stdin), TIOCSETP, &tio) < 0)
+      if (ioctl(fd, TIOCSETP, &tio) < 0)
         perror("ioctl(stdin, TIOCSETP, ...)");
       ssh_in_raw_mode = TRUE;
 #endif /* USING_SGTTY */
     }
 }  
 
-/* Puts stdin terminal in non-blocking mode. */
+/* Puts terminal in non-blocking mode. */
 
-void ssh_leave_non_blocking()
+void ssh_leave_non_blocking(int fd)
 {
+  if (fd < 0)
+    fd = fileno(stdin);
   if (ssh_in_non_blocking_mode)
     {
-      (void)fcntl(fileno(stdin), F_SETFL, 0);
+      (void)fcntl(fd, F_SETFL, 0);
       ssh_in_non_blocking_mode = FALSE;
     }
 }
 
-/* Restores stdin to blocking mode. */
+/* Restores terminal to blocking mode. */
 
-void ssh_enter_non_blocking()
+void ssh_enter_non_blocking(int fd)
 {
+  if (fd < 0)
+    fd = fileno(stdin);
   ssh_in_non_blocking_mode = TRUE;
 #if defined(O_NONBLOCK) && !defined(O_NONBLOCK_BROKEN)
-  (void)fcntl(fileno(stdin), F_SETFL, O_NONBLOCK);
+  (void)fcntl(fd, F_SETFL, O_NONBLOCK);
 #else /* O_NONBLOCK && !O_NONBLOCK_BROKEN */
-  (void)fcntl(fileno(stdin), F_SETFL, O_NDELAY);
+  (void)fcntl(fd, F_SETFL, O_NDELAY);
 #endif /* O_NONBLOCK && !O_NONBLOCK_BROKEN */
 }

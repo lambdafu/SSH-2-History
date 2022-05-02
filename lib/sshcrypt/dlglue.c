@@ -14,18 +14,18 @@
   */
 
 /*
- * $Id: dlglue.c,v 1.18 1998/11/06 14:20:40 mkojo Exp $
+ * $Id: dlglue.c,v 1.21 1999/04/29 13:37:55 huima Exp $
  * $Log: dlglue.c,v $
  * $EndLog$
  */
 
 #include "sshincludes.h"
-#include "gmp.h"
+#include "sshmp.h" /* was "gmp.h" */
 #include "sshcrypt.h"
 #include "sshcrypti.h"
 #include "genmp.h"
 #include "sshgetput.h"
-#include "cstack.h"
+#include "sshcstack.h"
 #include "dlfix.h"
 #include "dlglue.h"
 #include "sshencode.h"
@@ -37,8 +37,8 @@
 /* Randomizer */
   
 SSH_CSTACK_BEGIN( SshDLStackRandomizer )
-  MP_INT k;
-  MP_INT gk;
+  SshInt k;
+  SshInt gk;
 SSH_CSTACK_END( SshDLStackRandomizer );
   
 /* Allocation and deletion of stack elements. */
@@ -46,14 +46,14 @@ SSH_CSTACK_END( SshDLStackRandomizer );
 /* Randomizer */
 
 SSH_CSTACK_DESTRUCTOR_BEGIN( SshDLStackRandomizer, stack )
-  mpz_clear(&stack->k);
-  mpz_clear(&stack->gk);
+  ssh_mp_clear(&stack->k);
+  ssh_mp_clear(&stack->gk);
 SSH_CSTACK_DESTRUCTOR_END( SshDLStackRandomizer, stack )
 
 SSH_CSTACK_CONSTRUCTOR_BEGIN( SshDLStackRandomizer, stack, context,
                               SSH_DLP_STACK_RANDOMIZER )
-  mpz_init(&stack->k);
-  mpz_init(&stack->gk); 
+  ssh_mp_init(&stack->k);
+  ssh_mp_init(&stack->gk); 
 SSH_CSTACK_CONSTRUCTOR_END( SshDLStackRandomizer, stack )
 
 /********************** Discrete Logarithm ********************/
@@ -78,9 +78,9 @@ typedef struct SshDLParamRec
   const char *predefined;
 
   /* Actual parameter information. */
-  MP_INT p;
-  MP_INT g;
-  MP_INT q;
+  SshInt p;
+  SshInt g;
+  SshInt q;
 
   /* Information about the policy when generating random numbers. */
   unsigned int exponent_entropy;
@@ -103,9 +103,9 @@ void ssh_dlp_init_param(SshDLParam *param)
   /* We assume that this parameter set is not predefined. */
   param->predefined = NULL;
   
-  mpz_init(&param->p);
-  mpz_init(&param->g);
-  mpz_init(&param->q);
+  ssh_mp_init(&param->p);
+  ssh_mp_init(&param->g);
+  ssh_mp_init(&param->q);
 
   /* Handle the entropy! Lets denote by zero that most secure settings
      should be used. */
@@ -132,9 +132,9 @@ void ssh_dlp_clear_param(SshDLParam *param)
   /* Free stack. */
   ssh_cstack_free(param->stack);
   
-  mpz_clear(&param->p);
-  mpz_clear(&param->g);
-  mpz_clear(&param->q);
+  ssh_mp_clear(&param->p);
+  ssh_mp_clear(&param->g);
+  ssh_mp_clear(&param->q);
 
   /* Clean pointers. */
   param->next  = NULL;
@@ -149,9 +149,9 @@ SshDLParam *ssh_dlp_param_list_add(SshDLParam *param)
   temp = ssh_dlp_param_list;
   while (temp)
     {
-      if (mpz_cmp(&temp->p, &param->p) == 0 &&
-          mpz_cmp(&temp->q, &param->q) == 0 &&
-          mpz_cmp(&temp->g, &param->g) == 0 &&
+      if (ssh_mp_cmp(&temp->p, &param->p) == 0 &&
+          ssh_mp_cmp(&temp->q, &param->q) == 0 &&
+          ssh_mp_cmp(&temp->g, &param->g) == 0 &&
 
           /* Must also check the policies! */
           temp->exponent_entropy == param->exponent_entropy)
@@ -176,7 +176,7 @@ SshDLParam *ssh_dlp_param_list_add(SshDLParam *param)
 size_t ssh_dlp_param_decode(const unsigned char *buf, size_t len,
                             va_list *ap)
 {
-  unsigned long *value;
+  SshUInt32 *value;
   SshDLParam *param;
   size_t ret_value;
   char *predefined;
@@ -185,7 +185,7 @@ size_t ssh_dlp_param_decode(const unsigned char *buf, size_t len,
     return 0;
 
   param = va_arg(*ap, SshDLParam *);
-  value = va_arg(*ap, unsigned long*);
+  value = va_arg(*ap, SshUInt32*);
 
   if (*value == 0)
     {
@@ -222,7 +222,7 @@ Boolean ssh_dlp_param_import(const unsigned char *buf,
                              void **parameters)
 {
   SshDLParam *param, *temp;
-  unsigned long value;
+  SshUInt32 value;
   
   param = ssh_xmalloc(sizeof(*param));
   ssh_dlp_init_param(param);
@@ -262,7 +262,7 @@ void ssh_dlp_param_encode(SshBuffer *buffer, va_list *ap)
   if (param->predefined)
     {
       ssh_encode_buffer(buffer,
-                        SSH_FORMAT_UINT32, (unsigned long)1,
+                        SSH_FORMAT_UINT32, (SshUInt32) 1,
                         SSH_FORMAT_UINT32_STR, param->predefined,
                         strlen(param->predefined),
                         SSH_FORMAT_END);
@@ -270,7 +270,7 @@ void ssh_dlp_param_encode(SshBuffer *buffer, va_list *ap)
   else
     {
       ssh_encode_buffer(buffer,
-                        SSH_FORMAT_UINT32, (unsigned long)0,
+                        SSH_FORMAT_UINT32, (SshUInt32) 0,
                         SSH_FORMAT_MP_INT, &param->p,
                         SSH_FORMAT_MP_INT, &param->g,
                         SSH_FORMAT_MP_INT, &param->q,
@@ -353,7 +353,7 @@ retry:
 typedef struct SshDLPublicKeyRec
 {
   SshDLParam *param;
-  MP_INT y;
+  SshInt y;
 } SshDLPublicKey;
 
 /* Private key:
@@ -366,8 +366,8 @@ typedef struct SshDLPublicKeyRec
 typedef struct SshDLPrivateKeyRec
 {
   SshDLParam *param;
-  MP_INT x;
-  MP_INT y;
+  SshInt x;
+  SshInt y;
 } SshDLPrivateKey;
 
 /* Discrete Logarithms key control functions. */
@@ -377,12 +377,12 @@ void ssh_dlp_init_public_key(SshDLPublicKey *pub_key, SshDLParam *param)
   /* Reference count, parameter indexed from here also. */
   param->reference_count++;
   pub_key->param = param;
-  mpz_init(&pub_key->y);
+  ssh_mp_init(&pub_key->y);
 }
 
 void ssh_dlp_clear_public_key(SshDLPublicKey *pub_key)
 {
-  mpz_clear(&pub_key->y);
+  ssh_mp_clear(&pub_key->y);
   ssh_dlp_param_free(pub_key->param);
 }
 
@@ -391,14 +391,14 @@ void ssh_dlp_init_private_key(SshDLPrivateKey *prv_key, SshDLParam *param)
   /* Reference count, parameter indexed from here also. */
   param->reference_count++;
   prv_key->param = param;
-  mpz_init(&prv_key->y);
-  mpz_init(&prv_key->x);
+  ssh_mp_init(&prv_key->y);
+  ssh_mp_init(&prv_key->x);
 }
 
 void ssh_dlp_clear_private_key(SshDLPrivateKey *prv_key)
 {
-  mpz_clear(&prv_key->y);
-  mpz_clear(&prv_key->x);
+  ssh_mp_clear(&prv_key->y);
+  ssh_mp_clear(&prv_key->x);
   ssh_dlp_param_free(prv_key->param);
 }
 
@@ -410,12 +410,12 @@ Boolean ssh_dlp_public_key_import(const unsigned char *buf,
 {
   SshDLPublicKey *pub_key;
   SshDLParam *param, *temp;
-  MP_INT y;
-  unsigned long value;
+  SshInt y;
+  SshUInt32 value;
 
   param = ssh_xmalloc(sizeof(*param));
   ssh_dlp_init_param(param);
-  mpz_init(&y);
+  ssh_mp_init(&y);
   
   if (ssh_decode_array(buf, len,
                        SSH_FORMAT_UINT32, &value,
@@ -441,8 +441,8 @@ Boolean ssh_dlp_public_key_import(const unsigned char *buf,
   pub_key = ssh_xmalloc(sizeof(*pub_key));
   ssh_dlp_init_public_key(pub_key, param);
 
-  mpz_set(&pub_key->y, &y);
-  mpz_clear(&y);
+  ssh_mp_set(&pub_key->y, &y);
+  ssh_mp_clear(&y);
   
   /* Reading was successful. */
   *public_key = (void *)pub_key;
@@ -478,7 +478,7 @@ void ssh_dlp_public_key_copy(void *public_key_src, void **public_key_dest)
 
   ssh_dlp_init_public_key(pub_dest, pub_src->param);
   
-  mpz_set(&pub_dest->y, &pub_src->y);
+  ssh_mp_set(&pub_dest->y, &pub_src->y);
   *public_key_dest = (void *)pub_dest;
 }
 
@@ -503,12 +503,12 @@ Boolean ssh_dlp_private_key_import(const unsigned char *buf,
 {
   SshDLPrivateKey *prv_key;
   SshDLParam *param, *temp;
-  MP_INT x, y;
-  unsigned long value;
+  SshInt x, y;
+  SshUInt32 value;
 
   /* Temporary variables. */
-  mpz_init(&x);
-  mpz_init(&y);
+  ssh_mp_init(&x);
+  ssh_mp_init(&y);
   
   param = ssh_xmalloc(sizeof(*param));
   ssh_dlp_init_param(param);
@@ -521,8 +521,8 @@ Boolean ssh_dlp_private_key_import(const unsigned char *buf,
                        SSH_FORMAT_MP_INT, &x,
                        SSH_FORMAT_END) == 0)
     {
-      mpz_clear(&x);
-      mpz_clear(&y);
+      ssh_mp_clear(&x);
+      ssh_mp_clear(&y);
       ssh_dlp_clear_param(param);
       ssh_xfree(param);
       return FALSE;
@@ -541,10 +541,10 @@ Boolean ssh_dlp_private_key_import(const unsigned char *buf,
   prv_key = ssh_xmalloc(sizeof(*prv_key));
   ssh_dlp_init_private_key(prv_key, param);
 
-  mpz_set(&prv_key->x, &x);
-  mpz_set(&prv_key->y, &y);
-  mpz_clear(&x);
-  mpz_clear(&y);
+  ssh_mp_set(&prv_key->x, &x);
+  ssh_mp_set(&prv_key->y, &y);
+  ssh_mp_clear(&x);
+  ssh_mp_clear(&y);
   
   /* Reading was successful. */
   *private_key = (void *)prv_key;
@@ -581,8 +581,8 @@ void ssh_dlp_private_key_copy(void *private_key_src, void **private_key_dest)
   SshDLPrivateKey *prv_dest = ssh_xmalloc(sizeof(*prv_dest));
 
   ssh_dlp_init_private_key(prv_dest, prv_src->param);
-  mpz_set(&prv_dest->x, &prv_src->x);
-  mpz_set(&prv_dest->y, &prv_src->y);
+  ssh_mp_set(&prv_dest->x, &prv_src->x);
+  ssh_mp_set(&prv_dest->y, &prv_src->y);
 
   *private_key_dest = (void *)prv_dest;
 }
@@ -594,7 +594,7 @@ void ssh_dlp_private_key_derive_public_key(const void *private_key,
   const SshDLPrivateKey *prv_key = private_key;
 
   ssh_dlp_init_public_key(pub_key, prv_key->param);
-  mpz_set(&pub_key->y, &prv_key->y);
+  ssh_mp_set(&pub_key->y, &prv_key->y);
 
   *public_key = (void *)pub_key;
 }
@@ -636,9 +636,9 @@ retry:
                               param->exponent_entropy);
   else
     ssh_mp_mod_random(&stack->k, &param->q, state);
-  if (mpz_cmp_ui(&stack->k, 0) == 0)
+  if (ssh_mp_cmp_ui(&stack->k, 0) == 0)
     goto retry;
-  mpz_powm(&stack->gk, &param->g, &stack->k, &param->p);
+  ssh_mp_powm(&stack->gk, &param->g, &stack->k, &param->p);
 
   /* Push to stack list, in parameter context. No it is visible for
      all, private keys, public keys and parameters. */
@@ -699,7 +699,7 @@ Boolean ssh_dlp_param_import_randomizer(void *parameters,
 typedef struct SshDlpInitCtxRec
 {
   SshRandomState state;
-  MP_INT p, g, q, x, y;
+  SshInt p, g, q, x, y;
   unsigned int size;
   unsigned int exponent_entropy;
   const char *predefined;
@@ -717,11 +717,11 @@ void *ssh_dlp_action_init(SshRandomState state)
   ctx->flag = DLP_FLAG_IGNORE;
   ctx->predefined = NULL;
   
-  mpz_init_set_ui(&ctx->p, 0);
-  mpz_init_set_ui(&ctx->g, 0);
-  mpz_init_set_ui(&ctx->q, 0);
-  mpz_init_set_ui(&ctx->x, 0);
-  mpz_init_set_ui(&ctx->y, 0);
+  ssh_mp_init_set_ui(&ctx->p, 0);
+  ssh_mp_init_set_ui(&ctx->g, 0);
+  ssh_mp_init_set_ui(&ctx->q, 0);
+  ssh_mp_init_set_ui(&ctx->x, 0);
+  ssh_mp_init_set_ui(&ctx->y, 0);
 
   return (void *)ctx;
 }
@@ -734,11 +734,11 @@ void *ssh_dlp_action_public_key_init(void)
 void ssh_dlp_action_free(void *context)
 {
   SshDLPInitCtx *ctx = context;
-  mpz_clear(&ctx->p);
-  mpz_clear(&ctx->q);
-  mpz_clear(&ctx->g);
-  mpz_clear(&ctx->x);
-  mpz_clear(&ctx->y);
+  ssh_mp_clear(&ctx->p);
+  ssh_mp_clear(&ctx->q);
+  ssh_mp_clear(&ctx->g);
+  ssh_mp_clear(&ctx->x);
+  ssh_mp_clear(&ctx->y);
   ssh_xfree(ctx);
 }
 
@@ -750,7 +750,7 @@ unsigned int ssh_dlp_action_put(void *context, va_list *ap,
   
   SshDLPInitCtx *ctx = context;
   SshDLParam *param;
-  MP_INT *temp;
+  SshInt *temp;
   switch (format)
     {
     case SSH_PKF_SIZE:
@@ -767,37 +767,37 @@ unsigned int ssh_dlp_action_put(void *context, va_list *ap,
         ctx->exponent_entropy = 0;
       break;
     case SSH_PKF_PRIME_P:
-      temp = va_arg(*ap, MP_INT *);
-      mpz_set(&ctx->p, temp);
+      temp = va_arg(*ap, SshInt *);
+      ssh_mp_set(&ctx->p, temp);
       break;
     case SSH_PKF_PRIME_Q:
-      temp = va_arg(*ap, MP_INT *);
-      mpz_set(&ctx->q, temp);
+      temp = va_arg(*ap, SshInt *);
+      ssh_mp_set(&ctx->q, temp);
       break;
     case SSH_PKF_GENERATOR_G:
-      temp = va_arg(*ap, MP_INT *);
-      mpz_set(&ctx->g, temp);
+      temp = va_arg(*ap, SshInt *);
+      ssh_mp_set(&ctx->g, temp);
       break;
     case SSH_PKF_SECRET_X:
       if (type & (SSH_CRYPTO_TYPE_PUBLIC_KEY | SSH_CRYPTO_TYPE_PK_GROUP))
         return 0;
-      temp = va_arg(*ap, MP_INT *);
-      mpz_set(&ctx->x, temp);
+      temp = va_arg(*ap, SshInt *);
+      ssh_mp_set(&ctx->x, temp);
       break;
     case SSH_PKF_PUBLIC_Y:
       if (type & SSH_CRYPTO_TYPE_PK_GROUP)
         return 0;
-      temp = va_arg(*ap, MP_INT *);
-      mpz_set(&ctx->y, temp);
+      temp = va_arg(*ap, SshInt *);
+      ssh_mp_set(&ctx->y, temp);
       break;
     case SSH_PKF_GROUP:
       /* Check that wrapper was used. */
       if (input_context == NULL)
         return 0;
       param = (SshDLParam *)input_context;
-      mpz_set(&ctx->p, &param->p);
-      mpz_set(&ctx->g, &param->g);
-      mpz_set(&ctx->q, &param->q);
+      ssh_mp_set(&ctx->p, &param->p);
+      ssh_mp_set(&ctx->g, &param->g);
+      ssh_mp_set(&ctx->q, &param->q);
       break;
     case SSH_PKF_PREDEFINED_GROUP:
       ctx->predefined = va_arg(*ap, const char *);
@@ -824,7 +824,7 @@ unsigned int ssh_dlp_action_private_key_get(void *context, va_list *ap,
                                             SshPkFormat format)
 {
   SshDLPrivateKey *prv = context;
-  MP_INT *temp;
+  SshInt *temp;
   unsigned int *size;
   switch (format)
     {
@@ -844,24 +844,24 @@ unsigned int ssh_dlp_action_private_key_get(void *context, va_list *ap,
         *size = prv->param->exponent_entropy;
       break;
     case SSH_PKF_PRIME_P:
-      temp = va_arg(*ap, MP_INT *);
-      mpz_set(temp, &prv->param->p);
+      temp = va_arg(*ap, SshInt *);
+      ssh_mp_set(temp, &prv->param->p);
       break;
     case SSH_PKF_PRIME_Q:
-      temp = va_arg(*ap, MP_INT *);
-      mpz_set(temp, &prv->param->q);
+      temp = va_arg(*ap, SshInt *);
+      ssh_mp_set(temp, &prv->param->q);
       break;
     case SSH_PKF_GENERATOR_G:
-      temp = va_arg(*ap, MP_INT *);
-      mpz_set(temp, &prv->param->g);
+      temp = va_arg(*ap, SshInt *);
+      ssh_mp_set(temp, &prv->param->g);
       break;
     case SSH_PKF_SECRET_X:
-      temp = va_arg(*ap, MP_INT *);
-      mpz_set(temp, &prv->x);
+      temp = va_arg(*ap, SshInt *);
+      ssh_mp_set(temp, &prv->x);
       break;
     case SSH_PKF_PUBLIC_Y:
-      temp = va_arg(*ap, MP_INT *);
-      mpz_set(temp, &prv->y);
+      temp = va_arg(*ap, SshInt *);
+      ssh_mp_set(temp, &prv->y);
       break;
     default:
       return 0;
@@ -885,7 +885,7 @@ unsigned int ssh_dlp_action_public_key_get(void *context, va_list *ap,
                                            SshPkFormat format)
 {
   SshDLPublicKey *pub = context;
-  MP_INT *temp;
+  SshInt *temp;
   unsigned int *size;
   switch (format)
     {
@@ -905,20 +905,20 @@ unsigned int ssh_dlp_action_public_key_get(void *context, va_list *ap,
         *size = pub->param->exponent_entropy;
       break;
     case SSH_PKF_PRIME_P:
-      temp = va_arg(*ap, MP_INT *);
-      mpz_set(temp, &pub->param->p);
+      temp = va_arg(*ap, SshInt *);
+      ssh_mp_set(temp, &pub->param->p);
       break;
     case SSH_PKF_PRIME_Q:
-      temp = va_arg(*ap, MP_INT *);
-      mpz_set(temp, &pub->param->q);
+      temp = va_arg(*ap, SshInt *);
+      ssh_mp_set(temp, &pub->param->q);
       break;
     case SSH_PKF_GENERATOR_G:
-      temp = va_arg(*ap, MP_INT *);
-      mpz_set(temp, &pub->param->g);
+      temp = va_arg(*ap, SshInt *);
+      ssh_mp_set(temp, &pub->param->g);
       break;
     case SSH_PKF_PUBLIC_Y:
-      temp = va_arg(*ap, MP_INT *);
-      mpz_set(temp, &pub->y);
+      temp = va_arg(*ap, SshInt *);
+      ssh_mp_set(temp, &pub->y);
       break;
     default:
       return 0;
@@ -942,7 +942,7 @@ unsigned int ssh_dlp_action_param_get(void *context, va_list *ap,
                                       SshPkFormat format)
 {
   SshDLParam *param = context;
-  MP_INT *temp;
+  SshInt *temp;
   unsigned int *size;
   switch (format)
     {
@@ -962,16 +962,16 @@ unsigned int ssh_dlp_action_param_get(void *context, va_list *ap,
         *size = param->exponent_entropy;
       break;
     case SSH_PKF_PRIME_P:
-      temp = va_arg(*ap, MP_INT *);
-      mpz_set(temp, &param->p);
+      temp = va_arg(*ap, SshInt *);
+      ssh_mp_set(temp, &param->p);
       break;
     case SSH_PKF_PRIME_Q:
-      temp = va_arg(*ap, MP_INT *);
-      mpz_set(temp, &param->q);
+      temp = va_arg(*ap, SshInt *);
+      ssh_mp_set(temp, &param->q);
       break;
     case SSH_PKF_GENERATOR_G:
-      temp = va_arg(*ap, MP_INT *);
-      mpz_set(temp, &param->g);
+      temp = va_arg(*ap, SshInt *);
+      ssh_mp_set(temp, &param->g);
       break;
     default:
       return 0;
@@ -1013,7 +1013,7 @@ void *ssh_dlp_action_make(void *context, int type)
       break;
     case 1:
       /* Verify that the public key was really given! */
-      if (mpz_cmp_ui(&ctx->y, 0) == 0)
+      if (ssh_mp_cmp_ui(&ctx->y, 0) == 0)
         return NULL;
       break;
     case 2:
@@ -1024,9 +1024,9 @@ void *ssh_dlp_action_make(void *context, int type)
   if (ctx->predefined == NULL)
     {
       /* Set parameters. */
-      if (mpz_cmp_ui(&ctx->p, 0) == 0 ||
-          mpz_cmp_ui(&ctx->q, 0) == 0 ||
-          mpz_cmp_ui(&ctx->g, 0) == 0)
+      if (ssh_mp_cmp_ui(&ctx->p, 0) == 0 ||
+          ssh_mp_cmp_ui(&ctx->q, 0) == 0 ||
+          ssh_mp_cmp_ui(&ctx->g, 0) == 0)
         {
           if (ctx->size)
             param = ssh_dlp_param_generate(ctx->size, q_size,
@@ -1038,9 +1038,9 @@ void *ssh_dlp_action_make(void *context, int type)
         {
           param = ssh_xmalloc(sizeof(*param));
           ssh_dlp_init_param(param);
-          mpz_set(&param->p, &ctx->p);
-          mpz_set(&param->q, &ctx->q);
-          mpz_set(&param->g, &ctx->g);
+          ssh_mp_set(&param->p, &ctx->p);
+          ssh_mp_set(&param->q, &ctx->q);
+          ssh_mp_set(&param->g, &ctx->g);
           
           temp = ssh_dlp_param_list_add(param);
           if (temp)
@@ -1087,7 +1087,7 @@ void *ssh_dlp_action_make(void *context, int type)
       /* The public key stuff. */
       pub_key = ssh_xmalloc(sizeof(*pub_key));
       ssh_dlp_init_public_key(pub_key, param);
-      mpz_set(&pub_key->y, &ctx->y);
+      ssh_mp_set(&pub_key->y, &ctx->y);
       return (void *)pub_key;
       break;
     case 2:
@@ -1096,8 +1096,8 @@ void *ssh_dlp_action_make(void *context, int type)
       ssh_dlp_init_private_key(prv_key, param);
       
       /* Set private and public keys. */
-      if (mpz_cmp_ui(&ctx->x, 0) == 0 ||
-          mpz_cmp_ui(&ctx->y, 0) == 0)
+      if (ssh_mp_cmp_ui(&ctx->x, 0) == 0 ||
+          ssh_mp_cmp_ui(&ctx->y, 0) == 0)
         {
           /* Generate secret key. Note, here we definitely don't want to
              use the restriction of random number size for the exponent.
@@ -1110,7 +1110,7 @@ void *ssh_dlp_action_make(void *context, int type)
           ssh_mp_mod_random(&prv_key->x, &prv_key->param->q, ctx->state);
           
           /* Compute public key. */
-          mpz_powm(&prv_key->y, &prv_key->param->g, &prv_key->x,
+          ssh_mp_powm(&prv_key->y, &prv_key->param->g, &prv_key->x,
                    &prv_key->param->p);
         }
       else
@@ -1119,8 +1119,8 @@ void *ssh_dlp_action_make(void *context, int type)
              because some application thinks it can generate better
              keys than us. Well, we're not too proud, thus lets use
              them as is. XXX No checking is performed here. */
-          mpz_set(&prv_key->x, &ctx->x);
-          mpz_set(&prv_key->y, &ctx->y);
+          ssh_mp_set(&prv_key->x, &ctx->x);
+          ssh_mp_set(&prv_key->y, &ctx->y);
         }
       return (void *)prv_key;
       break;
@@ -1163,13 +1163,13 @@ void hexdump(const unsigned char *buf, size_t len)
 }
 #endif
 #if 0
-void mprint(const char *str, MP_INT *n)
+void mprint(const char *str, SshInt *n)
 {
   printf("%s : ", str);
-  mpz_out_str(NULL, 10, n);
+  ssh_mp_out_str(NULL, 10, n);
   printf("\n");
   printf("%s : 0x", str);
-  mpz_out_str(NULL, 16, n);
+  ssh_mp_out_str(NULL, 16, n);
   printf("\n");
 }
 #endif
@@ -1189,7 +1189,7 @@ Boolean ssh_dlp_dsa_public_key_verify(const void *public_key,
   const SshDLPublicKey *pub_key = public_key;
   unsigned int len = ssh_mp_byte_size(&pub_key->param->q);
   unsigned int vlen;
-  MP_INT v, w, s, r, e, invs, u1, u2;
+  SshInt v, w, s, r, e, invs, u1, u2;
   void *hash_context;
   unsigned char *digest;
   /* Assume failure. */
@@ -1202,14 +1202,14 @@ Boolean ssh_dlp_dsa_public_key_verify(const void *public_key,
   if (vlen > len)
     return FALSE;
 
-  mpz_init(&v);
-  mpz_init(&w);
-  mpz_init(&e);
-  mpz_init(&s);
-  mpz_init(&r);
-  mpz_init(&u1);
-  mpz_init(&u2);
-  mpz_init(&invs);
+  ssh_mp_init(&v);
+  ssh_mp_init(&w);
+  ssh_mp_init(&e);
+  ssh_mp_init(&s);
+  ssh_mp_init(&r);
+  ssh_mp_init(&u1);
+  ssh_mp_init(&u2);
+  ssh_mp_init(&invs);
 
   /* Verify the signature. */
 
@@ -1236,7 +1236,7 @@ Boolean ssh_dlp_dsa_public_key_verify(const void *public_key,
   
   /* Reduce to correct length. */
   ssh_buf_to_mp(&e, digest, hash_def->digest_length);
-  mpz_mod(&e, &e, &pub_key->param->q);
+  ssh_mp_mod(&e, &e, &pub_key->param->q);
 
   if (need_hashing)
     {
@@ -1246,16 +1246,16 @@ Boolean ssh_dlp_dsa_public_key_verify(const void *public_key,
 
   /* Convert and reduce signature. */
   ssh_buf_to_mp(&r, signature, vlen);
-  if (mpz_cmp(&r, &pub_key->param->q) >= 0 ||
-      mpz_cmp_ui(&r, 0) <= 0)
+  if (ssh_mp_cmp(&r, &pub_key->param->q) >= 0 ||
+      ssh_mp_cmp_ui(&r, 0) <= 0)
     {
       rv = FALSE;
       goto failed;
     }
   
   ssh_buf_to_mp(&s, signature + vlen, vlen);
-  if (mpz_cmp(&s, &pub_key->param->q) >= 0 ||
-      mpz_cmp_ui(&s, 0) <= 0)
+  if (ssh_mp_cmp(&s, &pub_key->param->q) >= 0 ||
+      ssh_mp_cmp_ui(&s, 0) <= 0)
     {
       rv = FALSE;
       goto failed;
@@ -1270,33 +1270,33 @@ Boolean ssh_dlp_dsa_public_key_verify(const void *public_key,
    */
 
   ssh_mp_mod_invert(&invs, &s, &pub_key->param->q);
-  mpz_mul(&u1, &invs, &e);
-  mpz_mod(&u1, &u1, &pub_key->param->q);
-  mpz_mul(&u2, &invs, &r);
-  mpz_mod(&u2, &u2, &pub_key->param->q);
+  ssh_mp_mul(&u1, &invs, &e);
+  ssh_mp_mod(&u1, &u1, &pub_key->param->q);
+  ssh_mp_mul(&u2, &invs, &r);
+  ssh_mp_mod(&u2, &u2, &pub_key->param->q);
 
   /* Exponentiate . */
-  mpz_powm(&v, &pub_key->param->g, &u1, &pub_key->param->p);
-  mpz_powm(&w, &pub_key->y, &u2, &pub_key->param->p);
+  ssh_mp_powm(&v, &pub_key->param->g, &u1, &pub_key->param->p);
+  ssh_mp_powm(&w, &pub_key->y, &u2, &pub_key->param->p);
  
-  mpz_mul(&v, &v, &w);
-  mpz_mod(&v, &v, &pub_key->param->p);
-  mpz_mod(&v, &v, &pub_key->param->q);
+  ssh_mp_mul(&v, &v, &w);
+  ssh_mp_mod(&v, &v, &pub_key->param->p);
+  ssh_mp_mod(&v, &v, &pub_key->param->q);
   
   /* Check validy. If and only if v = r then successful. */
-  if (mpz_cmp(&v, &r) == 0)
+  if (ssh_mp_cmp(&v, &r) == 0)
     rv = TRUE;
 
 failed:
   /* Clean memory. */
-  mpz_clear(&v);
-  mpz_clear(&w);
-  mpz_clear(&e);
-  mpz_clear(&s);
-  mpz_clear(&r);
-  mpz_clear(&invs);
-  mpz_clear(&u1);
-  mpz_clear(&u2);
+  ssh_mp_clear(&v);
+  ssh_mp_clear(&w);
+  ssh_mp_clear(&e);
+  ssh_mp_clear(&s);
+  ssh_mp_clear(&r);
+  ssh_mp_clear(&invs);
+  ssh_mp_clear(&u1);
+  ssh_mp_clear(&u2);
 
   return rv;
 }
@@ -1326,7 +1326,7 @@ Boolean ssh_dlp_dsa_private_key_sign(const void *private_key,
 {
   const SshDLPrivateKey *prv_key = private_key;
   SshDLStackRandomizer *stack;
-  MP_INT k, e, r, invk, s;
+  SshInt k, e, r, invk, s;
   unsigned int len = ssh_mp_byte_size(&prv_key->param->q);
   unsigned char *digest;
   void *hash_context;
@@ -1351,15 +1351,15 @@ Boolean ssh_dlp_dsa_private_key_sign(const void *private_key,
         return FALSE;
     }
 
-  mpz_init(&k);
-  mpz_init(&e);
-  mpz_init(&r);
-  mpz_init(&invk);
-  mpz_init(&s);
+  ssh_mp_init(&k);
+  ssh_mp_init(&e);
+  ssh_mp_init(&r);
+  ssh_mp_init(&invk);
+  ssh_mp_init(&s);
       
   /* Reduce */
   ssh_buf_to_mp(&e, digest, hash_def->digest_length);
-  mpz_mod(&e, &e, &prv_key->param->q);
+  ssh_mp_mod(&e, &e, &prv_key->param->q);
 
   if (need_hashing)
     {
@@ -1386,33 +1386,33 @@ retry0:
       else
         ssh_mp_mod_random(&k, &prv_key->param->q, state);
       
-      if (mpz_cmp_ui(&k, 0) == 0)
+      if (ssh_mp_cmp_ui(&k, 0) == 0)
         goto retry1;
-      mpz_powm(&r, &prv_key->param->g, &k, &prv_key->param->p);
+      ssh_mp_powm(&r, &prv_key->param->g, &k, &prv_key->param->p);
     }
   else
     {
-      mpz_set(&k, &stack->k);
-      mpz_set(&r, &stack->gk);
+      ssh_mp_set(&k, &stack->k);
+      ssh_mp_set(&r, &stack->gk);
       /* This is legal, uses the destructor we have defined. */
       ssh_cstack_free(stack);
     }
         
   /* Compute: r = (g^(k mod q) mod p) mod q */
-  mpz_mod(&r, &r, &prv_key->param->q);
-  if (mpz_cmp_ui(&r, 0) == 0)
+  ssh_mp_mod(&r, &r, &prv_key->param->q);
+  if (ssh_mp_cmp_ui(&r, 0) == 0)
     goto retry0;
   
   /* Invert. */
   ssh_mp_mod_invert(&invk, &k, &prv_key->param->q);
   
   /* Compute signature s = k^-1(e + xr). */
-  mpz_mul(&s, &r, &prv_key->x);
-  mpz_add(&s, &s, &e);
-  mpz_mul(&s, &s, &invk);
-  mpz_mod(&s, &s, &prv_key->param->q);
+  ssh_mp_mul(&s, &r, &prv_key->x);
+  ssh_mp_add(&s, &s, &e);
+  ssh_mp_mul(&s, &s, &invk);
+  ssh_mp_mod(&s, &s, &prv_key->param->q);
 
-  if (mpz_cmp_ui(&s, 0) == 0)
+  if (ssh_mp_cmp_ui(&s, 0) == 0)
     goto retry0;
   
   /* Linearize signature. */
@@ -1421,11 +1421,11 @@ retry0:
   *signature_length_return = len * 2;
 
   /* Clear temps. */
-  mpz_clear(&k);
-  mpz_clear(&e);
-  mpz_clear(&r);
-  mpz_clear(&invk);
-  mpz_clear(&s);
+  ssh_mp_clear(&k);
+  ssh_mp_clear(&e);
+  ssh_mp_clear(&r);
+  ssh_mp_clear(&invk);
+  ssh_mp_clear(&s);
 
   return TRUE;
 }
@@ -1434,7 +1434,7 @@ retry0:
 /************************ Key exchange **************************/
 
 
-void *ssh_dlp_mp_out(MP_INT *k)
+void *ssh_dlp_mp_out(SshInt *k)
 {
   unsigned char *buf;
   unsigned int len = ssh_mp_byte_size(k);
@@ -1444,7 +1444,7 @@ void *ssh_dlp_mp_out(MP_INT *k)
   return buf;
 }
 
-void ssh_dlp_mp_in(MP_INT *k, void *ptr)
+void ssh_dlp_mp_in(SshInt *k, void *ptr)
 {
   unsigned char *buf = ptr;
   unsigned int len;
@@ -1469,9 +1469,9 @@ ssh_dlp_diffie_hellman_shared_secret_length(const void *parameters)
   return ssh_mp_byte_size(&param->p);
 }
 
-void ssh_dlp_diffie_hellman_internal_generate(MP_INT *ret,
+void ssh_dlp_diffie_hellman_internal_generate(SshInt *ret,
                                               SshDLParam *param,
-                                              MP_INT *k,
+                                              SshInt *k,
                                               SshRandomState state)
 {
   SshDLStackRandomizer *stack_r;
@@ -1489,12 +1489,12 @@ void ssh_dlp_diffie_hellman_internal_generate(MP_INT *ret,
                                   state, param->exponent_entropy);
       else
         ssh_mp_mod_random(k, &param->q, state);
-      mpz_powm(ret, &param->g, k, &param->p);
+      ssh_mp_powm(ret, &param->g, k, &param->p);
     }
   else
     {
-      mpz_set(ret, &stack_r->gk);
-      mpz_set(k, &stack_r->k);
+      ssh_mp_set(ret, &stack_r->gk);
+      ssh_mp_set(k, &stack_r->k);
       ssh_cstack_free(stack_r);
     }
 }
@@ -1507,15 +1507,15 @@ Boolean ssh_dlp_diffie_hellman_generate(void *parameters,
                                         SshRandomState state)
 {
   const SshDLParam *param = parameters;
-  MP_INT e;
-  MP_INT k;
+  SshInt e;
+  SshInt k;
   unsigned int len = ssh_mp_byte_size(&param->p);
   
   if (exchange_length < len)
     return FALSE;
 
-  mpz_init(&k);
-  mpz_init(&e);
+  ssh_mp_init(&k);
+  ssh_mp_init(&e);
   
   ssh_dlp_diffie_hellman_internal_generate(&e, (SshDLParam *)param,
                                            &k, state);
@@ -1531,24 +1531,24 @@ Boolean ssh_dlp_diffie_hellman_generate(void *parameters,
   ssh_mp_to_buf(exchange, len, &e);
   *return_length = len;
 
-  mpz_clear(&e);
+  ssh_mp_clear(&e);
 
   *diffie_hellman = ssh_dlp_mp_out(&k);
-  mpz_clear(&k);
+  ssh_mp_clear(&k);
   
   return TRUE;
 }
 
-Boolean ssh_dlp_diffie_hellman_internal_final(MP_INT *ret,
-                                              MP_INT *input,
+Boolean ssh_dlp_diffie_hellman_internal_final(SshInt *ret,
+                                              SshInt *input,
                                               const SshDLParam *param,
-                                              MP_INT *k)
+                                              SshInt *k)
                                               
 {
   /* Reduce. */
-  mpz_mod(ret, input, &param->p);
+  ssh_mp_mod(ret, input, &param->p);
   /* Diffie-Hellman part. */
-  mpz_powm(ret, ret, k, &param->p);
+  ssh_mp_powm(ret, ret, k, &param->p);
   return TRUE;
 }
 
@@ -1561,7 +1561,7 @@ Boolean ssh_dlp_diffie_hellman_final(void *parameters,
                                      size_t *return_length)
 {
   const SshDLParam *param = parameters;
-  MP_INT v, k;
+  SshInt v, k;
   unsigned int len = ssh_mp_byte_size(&param->p);
   
 #if 0
@@ -1571,8 +1571,8 @@ Boolean ssh_dlp_diffie_hellman_final(void *parameters,
   if (secret_length < len)
     return FALSE;
 
-  mpz_init(&v);
-  mpz_init(&k);
+  ssh_mp_init(&v);
+  ssh_mp_init(&k);
 
   /* Import the secret. */
   ssh_dlp_mp_in(&k, diffie_hellman);
@@ -1589,7 +1589,7 @@ Boolean ssh_dlp_diffie_hellman_final(void *parameters,
   /* Compute v further. */
   if (ssh_dlp_diffie_hellman_internal_final(&v, &v, param, &k) == FALSE)
     {
-      mpz_clear(&v);
+      ssh_mp_clear(&v);
       return FALSE;
     }
 
@@ -1598,14 +1598,14 @@ Boolean ssh_dlp_diffie_hellman_final(void *parameters,
 #endif
   
   ssh_xfree(diffie_hellman);
-  mpz_clear(&k);
+  ssh_mp_clear(&k);
   
   /* Linearize. */
   ssh_mp_to_buf(secret, len, &v);
   *return_length = len;
 
   /* Clear memory. */
-  mpz_clear(&v);
+  ssh_mp_clear(&v);
   return TRUE;
 }
 
@@ -1629,7 +1629,7 @@ Boolean ssh_dlp_unified_diffie_hellman_final(const void *public_key,
 {
   const SshDLPrivateKey *prv_key = private_key;
   const SshDLPublicKey *pub_key = public_key;
-  MP_INT v, w, k;
+  SshInt v, w, k;
   unsigned int len = ssh_mp_byte_size(&prv_key->param->p);
 
   if (exchange_length < len)
@@ -1637,8 +1637,8 @@ Boolean ssh_dlp_unified_diffie_hellman_final(const void *public_key,
   if (secret_length < len)
     return FALSE;
   
-  mpz_init(&v);
-  mpz_init(&k);
+  ssh_mp_init(&v);
+  ssh_mp_init(&k);
 
   ssh_dlp_mp_in(&k, diffie_hellman);
   
@@ -1649,17 +1649,17 @@ Boolean ssh_dlp_unified_diffie_hellman_final(const void *public_key,
                                             prv_key->param,
                                             &k) != TRUE)
     {
-      mpz_clear(&v);
+      ssh_mp_clear(&v);
       return FALSE;
     }
 
   ssh_xfree(diffie_hellman);
-  mpz_clear(&k);
+  ssh_mp_clear(&k);
 
-  mpz_init(&w);
+  ssh_mp_init(&w);
   
   /* Unified Diffie-Hellman part. */
-  mpz_powm(&w, &pub_key->y, &prv_key->x, &prv_key->param->p);
+  ssh_mp_powm(&w, &pub_key->y, &prv_key->x, &prv_key->param->p);
 
   /* Linearize (this _could_ feature some sort of hashing but we assume
      it could be left for higher level). */
@@ -1668,8 +1668,8 @@ Boolean ssh_dlp_unified_diffie_hellman_final(const void *public_key,
   
   *return_length = len * 2;
 
-  mpz_clear(&v);
-  mpz_clear(&w);
+  ssh_mp_clear(&v);
+  ssh_mp_clear(&w);
   
   return TRUE;
 }
@@ -1768,7 +1768,7 @@ Boolean ssh_dlp_kex_dh_elgamal_phase2(unsigned char *input_packet,
 {
   DLPrivateKey *prv_key = private_key;
   DLParam *param = prv_key->param;
-  MP_INT v, ;
+  SshInt v, ;
   unsigned int len = gen_mp_byte_size(&param->p);
   unsigned int tmp_len;
   unsigned int other_length;
@@ -1794,7 +1794,7 @@ Boolean ssh_dlp_kex_dh_elgamal_phase2(unsigned char *input_packet,
   memcpy(packet_buffer + 4, identifier, id_length);
 
   /* Next compute this sides Diffie-Hellman. */
-  mpz_init(&v);
+  ssh_mp_init(&v);
 
   ssh_dlp_diffie_hellman_internal_generate(&v, param, state);
 
@@ -1809,7 +1809,7 @@ Boolean ssh_dlp_kex_dh_elgamal_phase2(unsigned char *input_packet,
 
   if (ssh_dlp_diffie_hellman_internal_final(&v, param) != TRUE)
     {
-      mpz_clear(&v);
+      ssh_mp_clear(&v);
       return FALSE;
     }
   
@@ -1848,10 +1848,10 @@ Boolean ssh_dlp_kex_dh_elgamal_phase2(unsigned char *input_packet,
     ssh_fatal("internal error.");
   
   mpz_mod_invert(&kinv, &stack->k, &param->q);
-  mpz_mul(&s, &prv_key->x, &r);
-  mpz_mod(&s, &s, &param->q);
-  mpz_add_ui(&s, &s, 1);
-  mpz_mul(&s, &s, &kinv);
+  ssh_mp_mul(&s, &prv_key->x, &r);
+  ssh_mp_mod(&s, &s, &param->q);
+  ssh_mp_add_ui(&s, &s, 1);
+  ssh_mp_mul(&s, &s, &kinv);
   
   /* */
   
@@ -1863,7 +1863,7 @@ Boolean ssh_dlp_kex_dh_elgamal_phase2(unsigned char *input_packet,
   *return_length = len;
 
   /* Clear memory. */
-  mpz_clear(&v);
+  ssh_mp_clear(&v);
   ssh_cstack_free(stack);
   
   return TRUE; 

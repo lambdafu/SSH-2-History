@@ -4,7 +4,7 @@ sshcrup.h
 
   Authors:
         Tatu Ylonen <ylo@ssh.fi>
-	Tero Kivinen <kivinen@ssh.fi>
+        Tero Kivinen <kivinen@ssh.fi>
         Markku-Juhani Saarinen <mjos@ssh.fi>
         Timo J. Rinne <tri@ssh.fi>
         Sami Lehtinen <sjl@ssh.fi>
@@ -21,7 +21,7 @@ like a normal stream).
 
 #include "sshincludes.h"
 #include "sshbuffer.h"
-#include "bufaux.h"
+#include "sshbufaux.h"
 #include "sshgetput.h"
 #include "sshstream.h"
 #include "sshmsgs.h"
@@ -29,8 +29,8 @@ like a normal stream).
 #include "sshencode.h"
 #include "sshcross.h"
 
-#define ALLOW_AFTER_BUFFER_FULL		(10000 + 5)
-#define BUFFER_MAX_SIZE			50000
+#define ALLOW_AFTER_BUFFER_FULL         (10000 + 5)
+#define BUFFER_MAX_SIZE                 50000
 
 typedef struct SshCrossUpRec {
   /* SshBuffer for a partial incoming packet. */
@@ -115,9 +115,9 @@ void ssh_cross_up_restart_output(SshCrossUp up)
   if (up->up_write_blocked)
     {
       /* Schedule an event from which we'll call the callback.  The event
-	 is cancelled if the stream is destroyed. */
+         is cancelled if the stream is destroyed. */
       ssh_register_timeout(0L, 0L, ssh_cross_up_signal_output_proc,
-			   (void *)up);
+                           (void *)up);
       up->up_write_blocked = FALSE;
     }
 }
@@ -131,7 +131,7 @@ void ssh_cross_up_restart_input(SshCrossUp up)
   if (up->up_read_blocked)
     {
       /* Schedule an event from which we'll call the callback.  The event
-	 is cancelled if the stream is destroyed. */
+         is cancelled if the stream is destroyed. */
       ssh_register_timeout(0L, 0L, ssh_cross_up_signal_input_proc, (void *)up);
       up->up_read_blocked = FALSE;
     }
@@ -146,7 +146,7 @@ void ssh_cross_up_restart_send(SshCrossUp up)
   if (up->send_blocked)
     {
       /* Schedule an event from which we'll call the callback.  The event
-	 is cancelled if the stream is destroyed. */
+         is cancelled if the stream is destroyed. */
       ssh_register_timeout(0L, 0L, ssh_cross_up_signal_send_proc, (void *)up);
       up->send_blocked = FALSE;
     }
@@ -169,16 +169,16 @@ int ssh_cross_up_read(void *context, unsigned char *buf, size_t size)
     {
       /* If shortcircuiting, pass it to the shortcircuit stream. */
       if (up->shortcircuit_stream)
-	return ssh_stream_read(up->shortcircuit_stream, buf, size);
+        return ssh_stream_read(up->shortcircuit_stream, buf, size);
 
       /* Return EOF or "no more data available yet". */
       if (up->outgoing_eof)
-	return 0;
+        return 0;
       else
-	{
-	  up->up_read_blocked = TRUE;
-	  return -1;
-	}
+        {
+          up->up_read_blocked = TRUE;
+          return -1;
+        }
     }
   
   /* Move data to the caller's buffer. */
@@ -197,7 +197,7 @@ int ssh_cross_up_read(void *context, unsigned char *buf, size_t size)
    packet is received at once, and a partial packet is received.  */
 
 int ssh_cross_up_write(void *context, const unsigned char *buf,
-		       size_t size)
+                       size_t size)
 {
   SshCrossUp up = (SshCrossUp)context;
   size_t offset, payload_len, len;
@@ -214,24 +214,24 @@ int ssh_cross_up_write(void *context, const unsigned char *buf,
 
 normal:
   while (up->can_receive && !up->incoming_eof && offset < size &&
-	 !up->shortcircuit_stream)
+         !up->shortcircuit_stream)
     {
       /* If already processing a partial packet, continue it now. */
       if (ssh_buffer_len(&up->incoming) > 0)
-	goto partial;
+        goto partial;
       
       /* If only partial packet available, do special proccessing. */
       if (size - offset < 4)
-	goto partial;  /* Need partial packet processing. */
+        goto partial;  /* Need partial packet processing. */
       payload_len = SSH_GET_32BIT(buf + offset);
 
       if (size - offset < 4 + payload_len)
-	goto partial;  /* Need partial packet processing. */
+        goto partial;  /* Need partial packet processing. */
       
       /* The entire packet is available; pass it to the callback. */
       if (up->received_packet)
-	(*up->received_packet)((SshCrossPacketType)buf[offset + 4],
-			       buf + offset + 5, payload_len - 1, up->context);
+        (*up->received_packet)((SshCrossPacketType)buf[offset + 4],
+                               buf + offset + 5, payload_len - 1, up->context);
       offset += 4 + payload_len;
     }
   /* We cannot take more data now.  If we processed some data, return
@@ -251,7 +251,7 @@ partial:
     {
       len = 4 - len;
       if (size - offset < len)
-	len = size - offset;
+        len = size - offset;
       ssh_buffer_append(&up->incoming, buf + offset, len);
       offset += len;
     }
@@ -277,8 +277,8 @@ partial:
   ucp = ssh_buffer_ptr(&up->incoming);
   if (up->received_packet)
     (*up->received_packet)((SshCrossPacketType)ucp[4], ucp + 5, 
-			   payload_len - 1,
-			   up->context);
+                           payload_len - 1,
+                           up->context);
   
   /* Clear the incoming partial packet buffer and resume normal processing. */
   ssh_buffer_clear(&up->incoming);
@@ -313,7 +313,7 @@ void ssh_cross_up_output_eof(void *context)
    with the stream. */
 
 void ssh_cross_up_set_callback(void *context, SshStreamCallback callback,
-			       void *callback_context)
+                               void *callback_context)
 {
   SshCrossUp up = (SshCrossUp)context;
 
@@ -328,7 +328,7 @@ void ssh_cross_up_set_callback(void *context, SshStreamCallback callback,
   /* If shortcircuiting, set the callbacks for the shortcircuited stream. */
   if (up->shortcircuit_stream)
     ssh_stream_set_callback(up->shortcircuit_stream, callback,
-			    callback_context);
+                            callback_context);
 }
 
 /* Destroys the stream.  This is called when the application destroys the
@@ -384,10 +384,10 @@ const SshStreamMethodsTable ssh_cross_up_methods =
    needed. */
 
 SshStream ssh_cross_up_create(SshCrossPacketProc received_packet,
-			      SshCrossEofProc received_eof,
-			      SshCrossCanSendNotify can_send,
-			      SshCrossUpDestroyProc destroy,
-			      void *context)
+                              SshCrossEofProc received_eof,
+                              SshCrossCanSendNotify can_send,
+                              SshCrossUpDestroyProc destroy,
+                              void *context)
 {
   SshCrossUp up;
   
@@ -493,8 +493,8 @@ Boolean ssh_cross_up_can_send(SshStream up_stream)
    specified for ssh_encode_cross_packet. */
 
 void ssh_cross_up_send_encode_va(SshStream up_stream,
-			      SshCrossPacketType type,
-			      va_list va)
+                              SshCrossPacketType type,
+                              va_list va)
 {
   SshCrossUp up;
 
@@ -514,15 +514,15 @@ void ssh_cross_up_send_encode_va(SshStream up_stream,
   /* Sanity check that we didn't exceed max buffer size. */
   if (ssh_buffer_len(&up->outgoing) > BUFFER_MAX_SIZE)
     ssh_debug("ssh_cross_up_send: buffer max size exceeded: size %ld",
-	      (long)ssh_buffer_len(&up->outgoing));
+              (long)ssh_buffer_len(&up->outgoing));
 }
 
 /* Sends a cross-layer packet up, encoding the contents of the packet as
    specified for ssh_encode_cross_packet. */
 
 void ssh_cross_up_send_encode(SshStream up_stream,
-			      SshCrossPacketType type,
-			      ...)
+                              SshCrossPacketType type,
+                              ...)
 {
   va_list va;
 
@@ -537,19 +537,19 @@ void ssh_cross_up_send_encode(SshStream up_stream,
    returns TRUE. */
 
 void ssh_cross_up_send(SshStream up_stream, SshCrossPacketType type,
-		       const unsigned char *data, size_t len)
+                       const unsigned char *data, size_t len)
 {
   ssh_cross_up_send_encode(up_stream, type,
-			   SSH_FORMAT_DATA, data, len,
-			   SSH_FORMAT_END);
+                           SSH_FORMAT_DATA, data, len,
+                           SSH_FORMAT_END);
 }
 
 /* Sends a disconnect packet up. */
 
 void ssh_cross_up_send_disconnect_va(SshStream up_stream,
-				     Boolean locally_generated,
-				     unsigned int reason_code,
-				     const char *reason_format, va_list va)
+                                     Boolean locally_generated,
+                                     unsigned int reason_code,
+                                     const char *reason_format, va_list va)
 {
   char buf[256];
   const char lang[] = "en";
@@ -560,26 +560,26 @@ void ssh_cross_up_send_disconnect_va(SshStream up_stream,
   /* Wrap the data into a cross layer packet and append to the outgoing
      stream. */
   ssh_cross_up_send_encode(up_stream, SSH_CROSS_DISCONNECT,
-			   SSH_FORMAT_BOOLEAN, locally_generated,
-			   SSH_FORMAT_UINT32, reason_code,
-			   SSH_FORMAT_UINT32_STR, buf, strlen(buf),
-			   SSH_FORMAT_UINT32_STR, lang, strlen(lang),
-			   SSH_FORMAT_END);
+                           SSH_FORMAT_BOOLEAN, locally_generated,
+                           SSH_FORMAT_UINT32, (SshUInt32) reason_code,
+                           SSH_FORMAT_UINT32_STR, buf, strlen(buf),
+                           SSH_FORMAT_UINT32_STR, lang, strlen(lang),
+                           SSH_FORMAT_END);
 }
 
 /* Sends a disconnect packet up. */
 
 void ssh_cross_up_send_disconnect(SshStream up_stream,
-				  Boolean locally_generated,
-				  unsigned int reason_code,
-				  const char *reason_format, ...)
+                                  Boolean locally_generated,
+                                  unsigned int reason_code,
+                                  const char *reason_format, ...)
 {
   va_list va;
 
   /* Format the reason string. */
   va_start(va, reason_format);
   ssh_cross_up_send_disconnect_va(up_stream, locally_generated, reason_code,
-				  reason_format, va);
+                                  reason_format, va);
   va_end(va);
 }
 
@@ -587,7 +587,7 @@ void ssh_cross_up_send_disconnect(SshStream up_stream,
    should not contain a newline. */
 
 void ssh_cross_up_send_debug_va(SshStream up_stream, Boolean always_display,
-				const char *format, va_list va)
+                                const char *format, va_list va)
 {
   char buf[256];
   const char lang[] = "en";
@@ -598,17 +598,17 @@ void ssh_cross_up_send_debug_va(SshStream up_stream, Boolean always_display,
   /* Wrap the data into a cross layer packet and append to the outgoing
      stream. */
   ssh_cross_up_send_encode(up_stream, SSH_CROSS_DEBUG,
-			   SSH_FORMAT_BOOLEAN, always_display, 
-			   SSH_FORMAT_UINT32_STR, buf, strlen(buf),
-			   SSH_FORMAT_UINT32_STR, lang, strlen(lang),
-			   SSH_FORMAT_END);
+                           SSH_FORMAT_BOOLEAN, always_display, 
+                           SSH_FORMAT_UINT32_STR, buf, strlen(buf),
+                           SSH_FORMAT_UINT32_STR, lang, strlen(lang),
+                           SSH_FORMAT_END);
 }
 
 /* Sends a debug message up.  The format is as in printf.  The message
    should not contain a newline. */
 
 void ssh_cross_up_send_debug(SshStream up_stream, Boolean always_display,
-			     const char *format, ...)
+                             const char *format, ...)
 {
   va_list va;
 

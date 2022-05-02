@@ -19,12 +19,16 @@
 #include "sshencode.h"
 #include "sshauth.h"
 #include "readpass.h"
-#include "pubkeyencode.h"
+#include "ssh2pubkeyencode.h"
 #include "sshuserfiles.h"
 #include "sshmsgs.h"
 #include "sshclient.h"
 #include "sshdebug.h"
 #include "sshagent.h"
+#ifdef WITH_PGP
+#include "sshpgp.h"
+#include "ssh2pgp.h"
+#endif /* WITH_PGP */
 
 #define SSH_DEBUG_MODULE "Ssh2AuthPubKeyClient"
 
@@ -35,16 +39,33 @@ typedef struct SshClientPubkeyAuthCandidateRec
 {
   /* Type of this candidate.  The key may be available either from a
      key file, or from the authentication agent. */
-  enum { CANDIDATE_KEYFILE, CANDIDATE_AGENT } type;
+  enum { CANDIDATE_KEYFILE, 
+#ifdef WITH_PGP
+         CANDIDATE_PGPKEY,
+#endif /* WITH_PGP */
+         CANDIDATE_AGENT
+  } type;
 
   /* The public key blob for this candidate (may contain certificates).
      This field is allocated using ssh_xmalloc. */
   unsigned char *pubkeyblob;
   size_t pubkeyblob_len;
 
+  /* the public key algorithm for this key (the type of the key) */
+  unsigned char *pubkey_alg;
+  
   /* Name of the file containing the private key, if of type
-     CANDIDATE_KEYFILE.  This string is allocated using ssh_xmalloc, or is NULL. */
+     CANDIDATE_KEYFILE.  This string is allocated using ssh_xmalloc,
+     or is NULL. */
   char *privkeyfile;
+
+#ifdef WITH_PGP
+  /* If type is CANDIDATE_PGPKEY, the following variables contain 
+     secret keyblob in pgp packet format. */
+  unsigned char *pgp_seckey;
+  size_t pgp_seckey_len;
+  char *pgp_keyname;
+#endif /* WITH_PGP */
 } *SshClientPubkeyAuthCandidate;
   
 /* A context for public key authentication, this is stored in 
@@ -93,7 +114,12 @@ void ssh_client_auth_pubkey_free_ctx(SshClientPubkeyAuth state)
   for (i = 0; i < state->num_candidates; i++)
     {
       ssh_xfree(state->candidates[i].pubkeyblob);
-      ssh_xfree(state->candidates[i].privkeyfile);
+      ssh_xfree(state->candidates[i].privkeyfile);      
+      ssh_xfree(state->candidates[i].pubkey_alg);
+#ifdef WITH_PGP
+      ssh_xfree(state->candidates[i].pgp_seckey);
+      ssh_xfree(state->candidates[i].pgp_keyname);
+#endif /* WITH_PGP */
     }
   ssh_xfree(state->candidates);
   ssh_xfree(state->user);
@@ -105,16 +131,34 @@ void ssh_client_auth_pubkey_free_ctx(SshClientPubkeyAuth state)
 /* Constructs a SSH_MSG_USERAUTH_REQUEST that basically asks if a 
    given private key can be used for login. Returns NULL on failure. */
 
-SshBuffer *ssh_client_auth_pubkey_try_key_packet(SshClientPubkeyAuthCandidate c)
+SshBuffer *ssh_client_auth_pubkey_try_key_packet(SshClientPubkeyAuthCandidate c,
+                                                 Boolean draft_incompatibility)
 {
   SshBuffer *b;
 
   /* Format the request packet. */
   b = ssh_buffer_allocate();
-  ssh_encode_buffer(b,
-                    SSH_FORMAT_BOOLEAN, FALSE,
-                    SSH_FORMAT_UINT32_STR, c->pubkeyblob, c->pubkeyblob_len,
-                    SSH_FORMAT_END);
+
+  if (!draft_incompatibility)
+    {
+      ssh_encode_buffer(b,
+                        SSH_FORMAT_BOOLEAN, FALSE,
+                        SSH_FORMAT_UINT32_STR, c->pubkey_alg,
+                        strlen((char *)c->pubkey_alg),
+                        SSH_FORMAT_UINT32_STR, c->pubkeyblob, c->pubkeyblob_len,
+                        SSH_FORMAT_END);
+    }
+  else
+    {      
+      /* Remote end has publickey draft incompatibility bug. */
+      ssh_encode_buffer(b,
+                        SSH_FORMAT_BOOLEAN, FALSE,
+                        /* Against the draft. Here should be string
+                           'publickey algorithm'*/
+                        SSH_FORMAT_UINT32_STR, c->pubkeyblob, c->pubkeyblob_len,
+                        SSH_FORMAT_END);
+    }
+  
   return b;
 }                                             
 
@@ -143,12 +187,30 @@ void ssh_client_auth_pubkey_sign_complete(SshAgentError error,
 
   /* Construct the body of the message to send to the server. */
   b = ssh_buffer_allocate();
-  ssh_encode_buffer(b,
-                    SSH_FORMAT_BOOLEAN, TRUE,
-                    SSH_FORMAT_UINT32_STR, c->pubkeyblob, c->pubkeyblob_len,
-                    SSH_FORMAT_UINT32_STR, result, len,
-                    SSH_FORMAT_END);
 
+  if (!(*state->client->compat_flags->publickey_draft_incompatility))
+    {
+        ssh_encode_buffer(b,
+                          SSH_FORMAT_BOOLEAN, TRUE,
+                          SSH_FORMAT_UINT32_STR, c->pubkey_alg,
+                          strlen(c->pubkey_alg),
+                          SSH_FORMAT_UINT32_STR, c->pubkeyblob,
+                          c->pubkeyblob_len,
+                          SSH_FORMAT_UINT32_STR, result, len,
+                          SSH_FORMAT_END);
+    }
+  else
+    {      
+      /* Remote end has publickey draft incompatibility bug. */
+      ssh_encode_buffer(b,
+                        SSH_FORMAT_BOOLEAN, TRUE,
+                        /* Against the draft. Here should be string
+                           'publickey algorithm'*/
+                        SSH_FORMAT_UINT32_STR, c->pubkeyblob, c->pubkeyblob_len,
+                        SSH_FORMAT_UINT32_STR, result, len,
+                        SSH_FORMAT_END);
+      }
+    
   /* Detach the state structure from the state_placeholder. */
   *state->state_placeholder = NULL;
   
@@ -204,6 +266,85 @@ SshPrivateKey ssh_authc_pubkey_privkey_read(SshUser user,
 
   return NULL;
 }
+
+#ifdef WITH_PGP
+SshPrivateKey ssh_authc_pubkey_pgpprivkey_import(unsigned char *blob,
+                                                 size_t blob_len,
+                                                 const char *passphrase,
+                                                 const char *comment)
+{
+  SshPgpSecretKey pgpkey;
+  SshPrivateKey key;
+  size_t dlen;
+  char buf[256];
+  char *pass;
+
+  if (passphrase == NULL)
+    dlen = ssh_pgp_secret_key_decode(blob, 
+                                     blob_len,
+                                     &pgpkey);
+  else
+    dlen = ssh_pgp_secret_key_decode_with_passphrase(blob, 
+                                                     blob_len, 
+                                                     passphrase,
+                                                     &pgpkey);
+  if (dlen == 0)
+    {
+      return NULL;
+    }
+  if (pgpkey->key != NULL)
+    {
+      if (ssh_private_key_copy(pgpkey->key, &key) != SSH_CRYPTO_OK)
+        {
+          ssh_pgp_secret_key_free(pgpkey);
+          return NULL;
+        }
+      ssh_pgp_secret_key_free(pgpkey);
+      return key;
+    }
+  else
+    {
+      ssh_pgp_secret_key_free(pgpkey);
+    }
+  snprintf(buf, sizeof (buf),
+           "Passphrase for pgp key%s%s%s: ",
+           comment ? " \"" : "",
+           comment ? comment : "",
+           comment ? "\"" : "");
+  pass = ssh_read_passphrase(buf , FALSE);
+  if (pass && *pass)
+    {
+      dlen = ssh_pgp_secret_key_decode_with_passphrase(blob, 
+                                                       blob_len, 
+                                                       pass,
+                                                       &pgpkey);
+      memset(pass, 'F', strlen(pass));
+      ssh_xfree(pass);
+      if (dlen == 0)
+        {
+          return NULL;
+        }
+      if (pgpkey->key != NULL)
+        {
+          if (ssh_private_key_copy(pgpkey->key, &key) != SSH_CRYPTO_OK)
+            {
+              ssh_pgp_secret_key_free(pgpkey);
+              return NULL;
+            }
+          ssh_pgp_secret_key_free(pgpkey);
+          return key;
+        }
+      else
+        {
+          ssh_pgp_secret_key_free(pgpkey);
+          return NULL;
+        }
+    }
+  return NULL;
+}
+#endif /* WITH_PGP */
+
+
 /* Constructs the data to be signed in a public key authentication request.
    Eventually calls state->completion when done. Returns FALSE if reading
    private key was successful and there are candidates left, TRUE if
@@ -220,24 +361,61 @@ Boolean ssh_client_auth_pubkey_send_signature(SshClientPubkeyAuth state,
   SshCryptoStatus code;
   unsigned char *signaturebuf, *packet;
   char * key_comment = NULL;
+  char *pubkeytype;
   
   size_t signaturebuflen, signaturelen, packet_len;
 
   SSH_TRACE(2, ("ssh_client_auth_pubkey_send_signature"));
 
-  c = &state->candidates[state->last_tried_candidate];
-     
-  /* Costruct a throw-away SSH_MSG_USERAUTH_REQUEST message for signing. */
-  packet_len = ssh_encode_alloc(&packet,
-                                SSH_FORMAT_DATA, session_id, session_id_len,
-                                SSH_FORMAT_CHAR, SSH_MSG_USERAUTH_REQUEST,
-                                SSH_FORMAT_UINT32_STR, user, strlen(user),
-                                SSH_FORMAT_UINT32_STR, SSH_USERAUTH_SERVICE,
-                                  strlen(SSH_USERAUTH_SERVICE),
-                                SSH_FORMAT_BOOLEAN, TRUE,
-                                SSH_FORMAT_UINT32_STR, c->pubkeyblob,
-                                  c->pubkeyblob_len,
-                                SSH_FORMAT_END);
+  c = &state->candidates[state->last_tried_candidate];     
+
+  /* Construct a throw-away SSH_MSG_USERAUTH_REQUEST message for signing. */
+
+  if (!(*state->client->compat_flags->publickey_draft_incompatility))
+    {
+
+      /* Get the public key type. */
+      pubkeytype = ssh_pubkeyblob_type(c->pubkeyblob, c->pubkeyblob_len);
+      
+      packet_len = ssh_encode_alloc(&packet,
+                                    SSH_FORMAT_DATA, session_id, session_id_len,
+                                    SSH_FORMAT_CHAR,
+                                    (unsigned int) SSH_MSG_USERAUTH_REQUEST,
+                                    SSH_FORMAT_UINT32_STR, user, strlen(user),
+                                    SSH_FORMAT_UINT32_STR, SSH_USERAUTH_SERVICE,
+                                    strlen(SSH_USERAUTH_SERVICE),
+                                    SSH_FORMAT_UINT32_STR, SSH_AUTH_PUBKEY,
+                                    strlen(SSH_AUTH_PUBKEY),
+                                    SSH_FORMAT_BOOLEAN, TRUE,
+                                    SSH_FORMAT_UINT32_STR, pubkeytype,
+                                    strlen(pubkeytype),
+                                    SSH_FORMAT_UINT32_STR, c->pubkeyblob,
+                                    c->pubkeyblob_len,
+                                    SSH_FORMAT_END);
+      
+      ssh_xfree(pubkeytype);
+    }
+  else
+    {      
+      /* Remote end has publickey draft incompatibility bug. */
+      packet_len = ssh_encode_alloc(&packet,
+                                    SSH_FORMAT_DATA, session_id, session_id_len,
+                                    SSH_FORMAT_CHAR,
+                                    (unsigned int) SSH_MSG_USERAUTH_REQUEST,
+                                    SSH_FORMAT_UINT32_STR, user, strlen(user),
+                                    SSH_FORMAT_UINT32_STR, SSH_USERAUTH_SERVICE,
+                                    strlen(SSH_USERAUTH_SERVICE),
+                                    /* against the draft. Here should
+                                       be 'string "publickey"'*/
+                                    SSH_FORMAT_BOOLEAN, TRUE,
+                                    /* against the draft. Here should
+                                       be 'string public key algorith
+                                       name'*/
+                                    SSH_FORMAT_UINT32_STR, c->pubkeyblob,
+                                    c->pubkeyblob_len,
+                                    SSH_FORMAT_END);
+  
+    }
 
   /* Now sign the buffer.  How to do this depends on the type of the key. */
   switch (c->type)
@@ -259,15 +437,36 @@ Boolean ssh_client_auth_pubkey_send_signature(SshClientPubkeyAuth state,
       return FALSE;
 
     case CANDIDATE_KEYFILE:
-      SSH_TRACE(2, ("ssh_client_auth_pubkey_send_signature: reading %s",
-		    c->privkeyfile));
+#ifdef WITH_PGP
+    case CANDIDATE_PGPKEY:
+#endif /* WITH_PGP */
 
-      privkey = ssh_authc_pubkey_privkey_read(state->client->user_data,
-                                              c->privkeyfile,
-                                              NULL,
-                                              &key_comment);
-      ssh_xfree(key_comment);
+      switch (c->type)
+        {
+        case CANDIDATE_KEYFILE:
+          SSH_TRACE(2, ("ssh_client_auth_pubkey_send_signature: reading %s",
+                        c->privkeyfile));
+          privkey = ssh_authc_pubkey_privkey_read(state->client->user_data,
+                                                  c->privkeyfile,
+                                                  NULL,
+                                                  &key_comment);
+          ssh_xfree(key_comment);
+          break;
       
+#ifdef WITH_PGP
+        case CANDIDATE_PGPKEY:
+          SSH_TRACE(2, 
+                    ("ssh_client_auth_pubkey_send_signature: import pgpkey"));
+          privkey = ssh_authc_pubkey_pgpprivkey_import(c->pgp_seckey,
+                                                       c->pgp_seckey_len,
+                                                       NULL,
+                                                       c->pgp_keyname);
+          break;
+#endif /* WITH_PGP */
+
+        default:
+          SSH_NOTREACHED;
+        }
       if (privkey == NULL)
         {
           /* The user probably gave the wrong passphrase. If this is the
@@ -353,7 +552,9 @@ void ssh_client_auth_pubkey_try_this_candidate(SshClientPubkeyAuth state)
 
       /* Construct the first challenge packet */
       c = &state->candidates[state->last_tried_candidate];
-      b = ssh_client_auth_pubkey_try_key_packet(c);
+      b = ssh_client_auth_pubkey_try_key_packet(c,
+                                                *state->client->compat_flags->
+                                                publickey_draft_incompatility);
     }
   while (b == NULL);
 
@@ -371,6 +572,13 @@ void ssh_client_auth_pubkey_add_agent(SshClientPubkeyAuth state,
                                       size_t certs_len)
 {
   SshClientPubkeyAuthCandidate c;
+  char *pubkey_alg;
+
+  if (certs_len == 0)
+    return; /* Skip the URL keys. */
+  pubkey_alg = ssh_pubkeyblob_type(certs, certs_len);
+  if (pubkey_alg == NULL)
+    return; /* Skip unknown pk alg types. */
 
   /* Extend the candidates array. */
   state->candidates =
@@ -385,8 +593,12 @@ void ssh_client_auth_pubkey_add_agent(SshClientPubkeyAuth state,
   c->pubkeyblob = ssh_xmalloc(certs_len);
   memcpy(c->pubkeyblob, certs, certs_len);
   c->pubkeyblob_len = certs_len;
+  c->pubkey_alg = pubkey_alg;
   c->privkeyfile = NULL;
-
+#ifdef WITH_PGP
+  c->pgp_keyname = NULL;
+  c->pgp_seckey = NULL;
+#endif
   /* Increase the number of candidates. */
   state->num_candidates++;
 }
@@ -401,6 +613,7 @@ void ssh_client_auth_pubkey_add_keyfile(SshClientPubkeyAuth state,
   char buf[500];
   unsigned char *certs;
   size_t certs_len;
+  char *pubkey_alg;
 
   /* Read the public key blob from the file. */
   snprintf(buf, sizeof(buf), "%s.pub", privkeyfile);
@@ -409,6 +622,14 @@ void ssh_client_auth_pubkey_add_keyfile(SshClientPubkeyAuth state,
   if (magic != SSH_KEY_MAGIC_PUBLIC)
     {
       ssh_warning("Could not read public key file %s", buf);
+      return;
+    }
+
+  pubkey_alg = ssh_pubkeyblob_type(certs, certs_len);
+  if (pubkey_alg == NULL)
+    {
+      ssh_warning("Could not use public key file %s", buf);
+      ssh_xfree(certs);
       return;
     }
 
@@ -424,11 +645,114 @@ void ssh_client_auth_pubkey_add_keyfile(SshClientPubkeyAuth state,
   c->type = CANDIDATE_KEYFILE;
   c->pubkeyblob = certs;
   c->pubkeyblob_len = certs_len;
+  c->pubkey_alg = pubkey_alg;
   c->privkeyfile = ssh_xstrdup(privkeyfile);
+#ifdef WITH_PGP
+  c->pgp_keyname = NULL;
+  c->pgp_seckey = NULL;
+#endif
 
   /* Increase the number of candidates. */
   state->num_candidates++;
 }
+
+#ifdef WITH_PGP
+void ssh_client_auth_pubkey_add_pgpkey(SshClientPubkeyAuth state,
+                                       const char *keyring,
+                                       const char *name,
+                                       const char *fingerprint,
+                                       SshUInt32 id)
+{
+  SshClientPubkeyAuthCandidate c;
+  unsigned char *blob;
+  size_t blob_len;
+  unsigned char *public_blob;
+  size_t public_blob_len;
+  Boolean found;
+  SshPgpSecretKey secret_key;
+  char *comment = NULL;
+  char *pubkey_alg;
+
+  if (name)
+    found = ssh2_find_pgp_secret_key_with_name(state->client->user_data,
+                                               keyring,
+                                               name,
+                                               &blob,
+                                               &blob_len,
+                                               &comment);
+  else if (fingerprint)
+    found = ssh2_find_pgp_secret_key_with_fingerprint(state->client->user_data,
+                                                      keyring,
+                                                      fingerprint,
+                                                      &blob,
+                                                      &blob_len,
+                                                      &comment);
+  else
+    found = ssh2_find_pgp_secret_key_with_id(state->client->user_data,
+                                             keyring,
+                                             id,
+                                             &blob,
+                                             &blob_len,
+                                             &comment);
+  if (! found)
+    {
+      ssh_warning("Could not find pgp key");
+      return;
+    }
+  if (ssh_pgp_secret_key_decode(blob, blob_len, &secret_key) == 0)
+    {
+      ssh_warning("Could not decode pgp key");
+      memset(blob, 'F', blob_len);
+      ssh_xfree(blob);
+      ssh_xfree(comment);
+      return;
+    }
+  if ((public_blob_len = ssh_encode_pubkeyblob(secret_key->public_key->key,
+                                               &public_blob)) == 0)
+    {
+      ssh_warning("Could not encode pgp key to ssh2 keyblob");
+      memset(blob, 'F', blob_len);
+      ssh_xfree(blob);
+      ssh_xfree(comment);
+      return;
+    }
+  ssh_pgp_secret_key_free(secret_key);
+
+  pubkey_alg = ssh_pubkeyblob_type(public_blob, public_blob_len);
+  if (pubkey_alg == NULL)
+    {
+      ssh_warning("Could not get pk algorithm name from pgp key");
+      ssh_xfree(public_blob);
+      memset(blob, 'F', blob_len);
+      ssh_xfree(blob);
+      ssh_xfree(comment);
+      return;
+    }
+
+  /* Extend the candidates array. */
+  state->candidates =
+    ssh_xrealloc(state->candidates,
+                 (state->num_candidates + 1) * sizeof(state->candidates[0]));
+
+  /* Get a pointer to the new candidate. */
+  c = &state->candidates[state->num_candidates];
+
+  /* Initialize the new candidate, copying memory for the certificate blob. */
+  c->type = CANDIDATE_PGPKEY;
+  c->pubkeyblob = public_blob;
+  c->pubkeyblob_len = public_blob_len;
+  c->pubkey_alg = pubkey_alg;
+  c->privkeyfile = NULL;
+  c->pgp_keyname = comment;
+  c->pgp_seckey = blob;
+  c->pgp_seckey_len = blob_len;
+
+  /* Increase the number of candidates. */
+  state->num_candidates++;
+
+  return;
+}
+#endif /* WITH_PGP */
 
 /* This completion function is called during the initialization of public
    key authentication when a list of keys supported by the agent has been
@@ -441,10 +765,10 @@ void ssh_client_auth_pubkey_agent_list_complete(SshAgentError error,
 {
   SshClientPubkeyAuth state = (SshClientPubkeyAuth)context;
   unsigned int i;
-  char **privkeyfiles;
+  struct SshConfigPrivateKey **privkey;
 
   SSH_DEBUG(3, ("ssh_client_auth_pubkey_agent_list_complete err %d num %d",
-		(int)error, (int)num_keys));
+                (int)error, (int)num_keys));
 
   /* Display a warning if we couldn't get the list. */
   if (error != SSH_AGENT_ERROR_OK)
@@ -458,19 +782,51 @@ void ssh_client_auth_pubkey_agent_list_complete(SshAgentError error,
     ssh_client_auth_pubkey_add_agent(state, keys[i].certs, keys[i].certs_len);
 
   /* Construct a list of private key files that may be used to log in. */
-  privkeyfiles = ssh_privkey_list(state->client->user_data, 
-                                  state->client->common->server_host_name,
-                                  state->client->common->config);
+  privkey = ssh_privkey_list(state->client->user_data, 
+                             state->client->common->server_host_name,
+                             state->client->common->config);
 
   /* If there are no suitable keys on our part, terminate early. */
-  if (privkeyfiles != NULL)
+  if (privkey != NULL)
     {
-      for (i = 0; privkeyfiles[i]; i++)
+      for (i = 0; privkey[i]; i++)
         {
-          ssh_client_auth_pubkey_add_keyfile(state, privkeyfiles[i]);
-          ssh_xfree(privkeyfiles[i]);
+          if (privkey[i]->keyfile)
+            {
+              SSH_DEBUG(2, ("adding keyfile \"%s\" to candidates", 
+                            privkey[i]->keyfile));
+              ssh_client_auth_pubkey_add_keyfile(state, privkey[i]->keyfile);
+            }
+#ifdef WITH_PGP
+          else if (privkey[i]->pgp_keyring)
+            {
+              SSH_DEBUG(2, 
+                        ("adding pgpkeyfile f=\"%s\" n=\"%s\" p=\"%s\" "
+                         "i=0x%08lx to candidates", 
+                         privkey[i]->pgp_keyring,
+                         (privkey[i]->pgp_name ? 
+                          privkey[i]->pgp_name : 
+                          ""),
+                         (privkey[i]->pgp_fingerprint ? 
+                          privkey[i]->pgp_fingerprint : 
+                          ""),
+                         privkey[i]->pgp_id));
+              ssh_client_auth_pubkey_add_pgpkey(state,
+                                                privkey[i]->pgp_keyring,
+                                                privkey[i]->pgp_name,
+                                                privkey[i]->pgp_fingerprint,
+                                                privkey[i]->pgp_id);
+            }
+#endif /* WITH_PGP */
+          ssh_xfree(privkey[i]->keyfile);
+#ifdef WITH_PGP
+          ssh_xfree(privkey[i]->pgp_keyring);
+          ssh_xfree(privkey[i]->pgp_name);
+          ssh_xfree(privkey[i]->pgp_fingerprint);
+#endif /* WITH_PGP */
+          ssh_xfree(privkey[i]);
         }
-      ssh_xfree(privkeyfiles);
+      ssh_xfree(privkey);
     }
 
   /* Set the candidate to try.  Note that this may be equal to the number
@@ -491,7 +847,7 @@ void ssh_client_auth_pubkey_agent_open_complete(SshAgent agent, void *context)
   SshClientPubkeyAuth state = (SshClientPubkeyAuth)context;
 
   SSH_DEBUG(4, ("ssh_client_auth_pubkey_agent_open_complete agent=0x%lx",
-		(unsigned long)agent));
+                (unsigned long)agent));
   
   if (agent)
     {

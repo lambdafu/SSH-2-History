@@ -16,7 +16,7 @@ easy to do packet-based communications over a SshStream.
 
 #include "sshincludes.h"
 #include "sshbuffer.h"
-#include "bufaux.h"
+#include "sshbufaux.h"
 #include "sshgetput.h"
 #include "sshstream.h"
 #include "sshtimeouts.h"

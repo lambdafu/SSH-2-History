@@ -25,7 +25,7 @@ cryptography and data security, including the following:
 */
 
 /*
- * $Id: des.c,v 1.23 1998/12/03 19:48:13 mkojo Exp $
+ * $Id: des.c,v 1.24 1999/02/16 12:48:01 sjl Exp $
  * $Log: des.c,v $
  * $EndLog$
  */
@@ -647,7 +647,6 @@ Boolean ssh_des_init_with_key_check(void *ptr,
                                     Boolean for_encryption)
 {
   SshDESContext *ctx = (SshDESContext *)ptr;
-  unsigned char normal_key[8];
   int i;
 
   if (keylen != 8)

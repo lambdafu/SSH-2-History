@@ -1,17 +1,17 @@
 /*
  * Author: Tero Kivinen <kivinen@iki.fi>
- * 
+ *
  * Copyright (c) 1996 SSH Communications Security Oy <info@ssh.fi>
  */
 /*
  *        Program: sshreadline
  *        $Source: /ssh/CVS/src/lib/sshreadline/sshreadline.c,v $
- *        $Author: sjl $
+ *        $Author: tmo $
  *
  *        Creation          : 19:47 Mar 12 1997 kivinen
  *        Last Modification : 18:07 Oct  8 1998 kivinen
- *        Last check in     : $Date: 1999/01/18 10:48:05 $
- *        Revision number   : $Revision: 1.13 $
+ *        Last check in     : $Date: 1999/05/06 08:17:59 $
+ *        Revision number   : $Revision: 1.17 $
  *        State             : $State: Exp $
  *        Version           : 1.665
  *
@@ -45,6 +45,9 @@
 # endif /* HAVE_USR_XPG4_INCLUDE_TERM_H */
 #endif /* HAVE_TERMCAP_H */
 #include <sys/ioctl.h>
+
+#include "sshstream.h"
+#include "sshunixfdstream.h"
 
 #define SSH_READLINE_MAX_UNDO_DEPTH 256
 
@@ -112,6 +115,9 @@ typedef struct ReadLineRec {
   int last_command_cut;
   ReadLineKeyMap keymap;
   Term *tc;
+  Boolean eloop;
+  SshStream stream;
+  SshRLCallback callback;
 } ReadLine;
 
 /*
@@ -122,7 +128,7 @@ int ssh_rl_set_tty_modes(ReadLine *rl)
 {
   struct termios new_term;
   struct winsize win;
-        
+
   /* Set tty modes */
   if (tcgetattr(rl->fd, &rl->term) < 0)
     {
@@ -157,7 +163,7 @@ int ssh_rl_set_tty_modes(ReadLine *rl)
     {
       rl->row_length = 80;
     }
-  
+
   return 0;
 }
 
@@ -168,7 +174,7 @@ int ssh_rl_set_tty_modes(ReadLine *rl)
 int ssh_rl_restore_tty_modes(ReadLine *rl)
 {
   fcntl(rl->fd, F_SETFL, rl->fcntl_flags);
-  
+
   if (tcsetattr(rl->fd, TCSAFLUSH, &rl->term) < 0)
     {
       ssh_warning("Warning: tcsetattr failed in ssh_rl_restore_tty_modes: %.200s",
@@ -190,12 +196,12 @@ void ssh_rl_store_undo(ReadLine *rl)
               rl->max_undo_depth - 1);
       memmove(rl->undo_cursors, rl->undo_cursors + 1, sizeof(int) *
               rl->max_undo_depth - 1);
+      rl->undo_length--;
     }
   rl->line[rl->end] = '\0';
   rl->undo[rl->undo_length] = ssh_xstrdup(rl->line);
   rl->undo_cursors[rl->undo_length] = rl->cursor;
-  if (rl->undo_length != rl->max_undo_depth)
-    rl->undo_length++;
+  rl->undo_length++;
   rl->undo_position = -1;
   rl->undo_direction = -1;
 }
@@ -207,14 +213,14 @@ void ssh_rl_enlarge_to(ReadLine *rl, int length)
 {
   if (rl->line_alloc > length)
     return;
-  
+
   rl->line_alloc = length + 10;
   rl->line = ssh_xrealloc(rl->line, rl->line_alloc);
   rl->display_line = ssh_xrealloc(rl->display_line, rl->line_alloc);
 }
 
 /*
- * Send string to terminal 
+ * Send string to terminal
  */
 void ssh_rl_send_string(ReadLine *rl, const unsigned char *txt,
                         int len)
@@ -243,7 +249,7 @@ void ssh_rl_send_code_n(ReadLine *rl, const unsigned char *code,
   unsigned char buffer[256];
   const char *fmt;
   int i;
-  
+
   /* Skip padding */
   for( ; *code && isdigit(*code); code++)
     ;
@@ -326,15 +332,15 @@ void ssh_rl_move_cursor(ReadLine *rl, int new_pos)
 {
   int cursor_row, new_row, cursor_column, new_column;
   int i;
-  
+
   if (new_pos == rl->display_cursor)
     return;
-  
+
   new_row = new_pos / rl->row_length;
   cursor_row = rl->display_cursor / rl->row_length;
   new_column = new_pos % rl->row_length;
   cursor_column = rl->display_cursor % rl->row_length;
-  
+
   /* On different row? */
   if (new_row != cursor_row)
     {
@@ -348,7 +354,7 @@ void ssh_rl_move_cursor(ReadLine *rl, int new_pos)
               ssh_rl_send_code_n(rl, rl->tc->term_move_cursor_up_n,
                                  cursor_row - new_row);
             }
-          else 
+          else
             {
               for(i = 0; i < cursor_row - new_row; i++)
                 ssh_rl_send_code(rl, rl->tc->term_move_cursor_up);
@@ -364,7 +370,7 @@ void ssh_rl_move_cursor(ReadLine *rl, int new_pos)
               ssh_rl_send_code_n(rl, rl->tc->term_move_cursor_down_n,
                                  new_row - cursor_row);
             }
-          else 
+          else
             {
               for(i = 0; i < new_row - cursor_row; i++)
                 ssh_rl_send_code(rl, rl->tc->term_move_cursor_down);
@@ -406,7 +412,7 @@ void ssh_rl_move_cursor(ReadLine *rl, int new_pos)
                   ssh_rl_send_code_n(rl, rl->tc->term_move_cursor_right_n,
                                      new_column - cursor_column);
                 }
-              else 
+              else
                 {
                   for(i = 0; i < new_column - cursor_column; i++)
                     ssh_rl_send_code(rl, rl->tc->term_move_cursor_right);
@@ -472,12 +478,12 @@ void ssh_rl_redraw_display(ReadLine *rl)
 {
   int common_start, common_end, line_len, display_len;
   int i;
-  
+
   line_len = rl->end;
   rl->line[rl->end] = '\0';
   display_len = strlen((char *) rl->display_line);
   /* Skip common part */
-  for(common_start = 0; common_start < line_len && common_start < display_len 
+  for(common_start = 0; common_start < line_len && common_start < display_len
         && rl->line[common_start] == rl->display_line[common_start];
       common_start++)
     ;
@@ -499,7 +505,7 @@ void ssh_rl_redraw_display(ReadLine *rl)
         {
           /* Move cursor to start of different part */
           ssh_rl_move_cursor(rl, rl->prompt_len + common_start);
-          
+
           if (line_len + rl->prompt_len < rl->row_length)
             {
               /* The line fits in one row, use delete capabilities */
@@ -521,10 +527,10 @@ void ssh_rl_redraw_display(ReadLine *rl)
             }
           else /* More than one line, draw till end of line */
             common_end = 0;
-          
+
           ssh_rl_write_string(rl, rl->line + common_start,
                               line_len - common_end - common_start);
-          
+
           if (common_end == 0)
             {
               /* More than 1 line deleted */
@@ -572,7 +578,7 @@ void ssh_rl_redraw_display(ReadLine *rl)
         {
           /* Move cursor to start of different part */
           ssh_rl_move_cursor(rl, rl->prompt_len + common_start);
-          
+
           if (line_len + rl->prompt_len < rl->row_length)
             {
               /* The line fits in one row, use insert capabilities */
@@ -594,7 +600,7 @@ void ssh_rl_redraw_display(ReadLine *rl)
             }
           else /* More than one line, draw till end of line */
             common_end = 0;
-          
+
           ssh_rl_write_string(rl, rl->line + common_start,
                               line_len - common_end - common_start);
         }
@@ -634,7 +640,7 @@ int ssh_rl_find(ReadLine *rl, int start_pos, ReadLineUnit unit,
             start_pos++;
           return start_pos;
         }
-      
+
       /* Find next possible place */
       for(; start_pos > 0 && isspace(rl->line[start_pos]); start_pos--)
         ;
@@ -712,7 +718,7 @@ void ssh_rl_run(ReadLine *rl, int st, int en,
                 void (*func)(ReadLine *rl, int pos))
 {
   int i;
-  
+
   for(i = st; i < en; i++)
     {
       (*func)(rl, i);
@@ -745,21 +751,26 @@ int ssh_rl_loop(ReadLine *rl)
 {
   unsigned char buffer[10];
   int ret, i, j;
-  char tmp, *p;
+  char *p;
+  int tmp;
   int len, pos;
   int start1, start2, end1, end2;
 
-  ssh_rl_store_undo(rl);
+  if (!rl->eloop)
+    ssh_rl_store_undo(rl);
+
   do {
     ssh_rl_redraw_display(rl);
     ret = read(rl->fd, buffer, sizeof(buffer));
     if (ret == 0)
       return -1;
+
     if (ret < 0)
       {
-        ssh_warning("Warning: read failed in ssh_rl_loop: %.200s",
-                    strerror(errno));
-        return -1;
+        if (rl->eloop)
+          return 1;
+        else
+          return -1;
       }
     for(i = 0; i < ret; i++)
       {
@@ -872,7 +883,7 @@ int ssh_rl_loop(ReadLine *rl)
                     memmove(rl->yank, rl->line + rl->cursor, len);
                     rl->yank[len] = '\0';
                   }
-                  
+
                 rl->end = rl->cursor;
                 if (rl->mark > rl->cursor)
                   rl->mark = -1;
@@ -926,13 +937,13 @@ int ssh_rl_loop(ReadLine *rl)
                     if (rl->cursor == 0)
                       break;
                     j = rl->cursor;
-                    
+
                     /* Skip whitespace */
                     if (isspace(rl->line[j - 1]))
                       for(; j > 0; j--)
                         if (!isspace(rl->line[j - 1]))
                           break;
-                    
+
                     /* If the next char is alphanumeric, remove all
                        alphanumeric characters */
                     if (isalnum(rl->line[j - 1]))
@@ -1244,7 +1255,12 @@ int ssh_rl_loop(ReadLine *rl)
               }
           }
       }
-  } while (1);
+  } while (rl->eloop == FALSE);
+
+  if (rl->eloop)
+    ssh_rl_redraw_display(rl);
+
+  return 1;
 }
 
 /*
@@ -1254,7 +1270,7 @@ void ssh_rl_initialize_termcap(ReadLine *rl)
 {
   char tcbuffer[1024], *term, *term_buffer_ptr;
   Boolean use_builtin = FALSE;
-  
+
   if (ssh_last_term == NULL)
     {
       ssh_last_term = ssh_xmalloc(sizeof(Term));
@@ -1358,6 +1374,174 @@ void ssh_rl_initialize_termcap(ReadLine *rl)
   rl->tc = ssh_last_term;
 }
 
+
+
+void iocb(SshStreamNotification notify, void *context)
+{
+  ReadLine *rl = (ReadLine *)context;
+  int lr, rm, i;
+
+  switch (notify)
+    {
+    case SSH_STREAM_DISCONNECTED:
+      goto disconnect;
+
+    case SSH_STREAM_CAN_OUTPUT:
+      ssh_rl_redraw_display(rl);
+      break;
+
+    case SSH_STREAM_INPUT_AVAILABLE:
+      if ((lr = ssh_rl_loop(rl)) <= 0)
+        {
+          rm = ssh_rl_restore_tty_modes(rl);
+
+          if ((lr < 0) || (rm < 0))
+            {
+            disconnect:
+              for(i = 0; i < rl->undo_length; i++)
+                ssh_xfree(rl->undo[i]);
+              rl->undo_length = 0;
+              if (rl->yank != NULL)
+                ssh_xfree(rl->yank);
+              ssh_xfree(rl->undo); rl->undo = NULL;
+              ssh_xfree(rl->undo_cursors); rl->undo_cursors = NULL;
+              ssh_xfree(rl->line);
+              if (rl->callback)
+                (*rl->callback)(rl->fd, NULL);
+              ssh_rl_redraw_display(rl);
+              ssh_xfree(rl);
+              return;
+            }
+          for(i = 0; i < rl->undo_length; i++)
+            ssh_xfree(rl->undo[i]);
+          rl->undo_length = 0;
+          if (rl->yank != NULL)
+            ssh_xfree(rl->yank);
+          ssh_xfree(rl->undo); rl->undo = NULL;
+          ssh_xfree(rl->undo_cursors); rl->undo_cursors = NULL;
+          rl->line[rl->end] = '\0';
+          ssh_stream_destroy(rl->stream);
+          if (rl->callback)
+            (*rl->callback)(rl->fd, rl->line);
+          ssh_rl_redraw_display(rl);
+          ssh_xfree(rl->line);
+          ssh_xfree(rl);
+        }
+      else
+        ssh_stream_set_callback(rl->stream, iocb, (void *)rl);
+      break;
+    }
+}
+
+
+int ssh_readline_eloop(const unsigned char *prompt,
+                       const unsigned char *def,
+                       int fd,
+                       SshRLCallback callback)
+{
+  ReadLine *rl;
+  const unsigned char *tmp, *nl, *cr;
+
+  rl = ssh_xcalloc(1, sizeof(ReadLine));
+
+  rl->callback = callback;
+  rl->eloop = TRUE;
+  rl->fd = fd;
+  rl->mark = -1;
+  rl->last_command_cut = 0;
+  rl->yank = NULL;
+  rl->keymap = SSH_READLINE_NORMAL_KEYMAP;
+  rl->max_undo_depth = SSH_READLINE_MAX_UNDO_DEPTH;
+  rl->undo = ssh_xcalloc(rl->max_undo_depth, sizeof(char *));
+  rl->undo_cursors = ssh_xcalloc(rl->max_undo_depth, sizeof(int));
+  rl->undo[0] = ssh_xstrdup("");
+  rl->undo_cursors[0] = 0;
+  rl->undo_length = 1;
+  rl->undo_position = 0;
+  rl->undo_direction = -1;
+  rl->row_length = 80;
+  if (prompt == NULL)
+    prompt = (unsigned char *) "";
+  rl->prompt = prompt;
+  tmp = (unsigned char *) strrchr((const char *) rl->prompt, '\n');
+  if (tmp != NULL)
+    rl->prompt = tmp + 1;
+  tmp = (unsigned char *) strrchr((const char *) rl->prompt, '\r');
+  if (tmp != NULL)
+    rl->prompt = tmp + 1;
+  rl->prompt_len = strlen((char *) rl->prompt);
+
+  ssh_rl_initialize_termcap(rl);
+  if (ssh_rl_set_tty_modes(rl) < 0)
+    {
+      ssh_xfree(rl->undo_cursors);
+      ssh_xfree(rl->undo);
+      ssh_xfree(rl);
+      return -1;
+    }
+
+  rl->display_cursor = 0;
+  tmp = prompt;
+  while (1)
+    {
+      nl = (unsigned char *) strchr((const char *) tmp, '\n');
+      cr = (unsigned char *) strchr((const char *) tmp, '\r');
+      if (nl == NULL && cr == NULL)
+        break;
+      if (nl != NULL && cr != NULL)
+        {
+          if (nl < cr)
+            cr = NULL;
+          else
+            nl = NULL;
+        }
+      if (nl != NULL)
+        {
+          ssh_rl_write_string(rl, tmp, nl - tmp);
+          ssh_rl_send_string(rl, (unsigned char *) "\r\n", 2);
+          rl->display_cursor = 0;
+          tmp = nl + 1;
+          if (*tmp == '\r')
+            tmp++;
+        }
+      else
+        {
+          ssh_rl_write_string(rl, tmp, cr - tmp);
+          if (*(cr + 1) == '\n')
+            {
+              ssh_rl_send_string(rl, (unsigned char *) "\r\n", 2);
+              cr++;
+            }
+          else
+            ssh_rl_send_string(rl, (unsigned char *) "\r", 1);
+          rl->display_cursor = 0;
+          tmp = cr + 1;
+        }
+    }
+  ssh_rl_write_string(rl, tmp, rl->prompt_len);
+
+  if (def)
+    {
+      rl->line_alloc = strlen(def) + 1;
+      rl->line = ssh_xstrdup(def);
+    }
+  else
+    {
+      rl->line_alloc = 80;
+      rl->line = ssh_xmalloc(rl->line_alloc);
+      rl->line[0] = '\0';
+    }
+
+  rl->display_line = ssh_xmalloc(rl->line_alloc);
+  rl->display_line[0] = '\0';
+  rl->end = rl->cursor = strlen((char *) rl->line);
+
+  rl->stream = ssh_stream_fd_wrap(fd, FALSE);
+  ssh_stream_set_callback(rl->stream, iocb, (void *)rl);
+
+  return 0;
+}
+
 /*
  * Read line from user. The tty at file descriptor FD is put to raw
  * mode and data is read until CR is received. The PROMPT is used to prompt
@@ -1367,7 +1551,7 @@ void ssh_rl_initialize_termcap(ReadLine *rl)
  * new mallocated string.
  *
  * The ssh_readline will return the number of characters returned in line
- * buffer. If eof or other error is noticed the return value is -1. 
+ * buffer. If eof or other error is noticed the return value is -1.
  */
 int ssh_readline(const unsigned char *prompt,
                  unsigned char **line,
@@ -1382,7 +1566,8 @@ int ssh_readline(const unsigned char *prompt,
     ssh_fatal("Fatal: ssh_readline LINE is NULL");
 
   rl = ssh_xcalloc(1, sizeof(ReadLine));
-  
+
+  rl->eloop = FALSE;
   rl->fd = fd;
   rl->mark = -1;
   rl->last_command_cut = 0;
@@ -1459,7 +1644,7 @@ int ssh_readline(const unsigned char *prompt,
         }
     }
   ssh_rl_write_string(rl, tmp, rl->prompt_len);
-          
+
   if (*line != NULL)
     {
       rl->line_alloc = strlen((char *) *line) + 1;

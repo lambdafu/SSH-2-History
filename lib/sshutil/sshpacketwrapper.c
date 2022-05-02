@@ -15,7 +15,7 @@ callbacks, making it easy to do packet-based communications over a SshStream.
 
 #include "sshincludes.h"
 #include "sshbuffer.h"
-#include "bufaux.h"
+#include "sshbufaux.h"
 #include "sshgetput.h"
 #include "sshstream.h"
 #include "sshencode.h"
@@ -25,7 +25,7 @@ callbacks, making it easy to do packet-based communications over a SshStream.
 #define SSH_DEBUG_MODULE "SshPacketWrapper"
 
 #define ALLOW_AFTER_BUFFER_FULL         (10000 + 5)
-#define BUFFER_MAX_SIZE                 50000
+#define BUFFER_MAX_SIZE                 65536
 
 
 struct SshPacketWrapperRec
@@ -360,10 +360,13 @@ void ssh_packet_wrapper_callback(SshStreamNotification op, void *context)
    somewhere before one of the callbacks gets called.  Destroying the
    SshPacketWrapper object is legal in any callback.
 
-   The stream will be ready to receive packets immediately.  If receiving
-   packets immediately is not desirable, ssh_packet_wrapper_can_receive
-   should be called immediately after creation to prevent receiving
-   packets. */
+   The stream will be ready to receive packets immediately.  If
+   receiving packets immediately is not desirable,
+   ssh_packet_wrapper_can_receive should be called immediately after
+   creation to prevent receiving packets.  Note: Even though the
+   ssh_packet_wrapper_can_send returns TRUE, the can_send callback may
+   be called, so care should be taken not to send the same data
+   multiple times. */
 
 SshPacketWrapper ssh_packet_wrap(SshStream down_stream,
                                  SshPacketReceiveProc received_packet,

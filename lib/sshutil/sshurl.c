@@ -1,6 +1,6 @@
 /*
  * Author: Tero Kivinen <kivinen@iki.fi>
- * 
+ *
  * Copyright (c) 1998 Tero Kivinen <kivinen@ssh.fi>, Espoo, Finland
  * Copyright (c) 1998 SSH Communications Security Oy <info@ssh.fi>
  *                   All rights reserved
@@ -8,19 +8,19 @@
 /*
  *        Program: Urlparse
  *        $Source: /ssh/CVS/src/lib/sshutil/sshurl.c,v $
- *        $Author: kivinen $
+ *        $Author: mtr $
  *
  *        Creation          : 10:04 Jul 10 1998 kivinen
  *        Last Modification : 17:45 Jan 28 1999 kivinen
- *        Last check in     : $Date: 1999/01/28 16:10:05 $
- *        Revision number   : $Revision: 1.2 $
+ *        Last check in     : $Date: 1999/01/29 13:10:04 $
+ *        Revision number   : $Revision: 1.4 $
  *        State             : $State: Exp $
  *        Version           : 1.231
  *
  *        Description       : Library to parse urls
  */
 /*
- * $Id: sshurl.c,v 1.2 1999/01/28 16:10:05 kivinen Exp $
+ * $Id: sshurl.c,v 1.4 1999/01/29 13:10:04 mtr Exp $
  * $EndLog$
  */
 
@@ -36,7 +36,7 @@
  * If the incorrect url format "www.ssh.fi" is given then returns FALSE and
  * sets host to contain whole url. If some piece of url is not given it is
  * set to NULL. If some of the pieces are not needed they can be NULL and
- * those pieces will be skipped. 
+ * those pieces will be skipped.
  */
 Boolean ssh_url_parse(const char *url, char **scheme, char **host,
                       char **port, char **username, char **password,
@@ -125,7 +125,7 @@ Boolean ssh_url_parse(const char *url, char **scheme, char **host,
       if (host != NULL)
         *host = ssh_xmemdup(start, p - start);
       start = p;
-      
+
       if (*p == ':')
         {
           start = ++p;
@@ -135,7 +135,7 @@ Boolean ssh_url_parse(const char *url, char **scheme, char **host,
 
           if (port != NULL)
             *port = ssh_xmemdup(start, p - start);
-          
+
           start = p;
         }
     }
@@ -179,7 +179,7 @@ Boolean ssh_url_decode_bin(char *url, size_t len,
 
   if (url_out != NULL)
     {
-      *url_out = ssh_xstrdup(url);
+      *url_out = ssh_xmemdup(url, len);
       url = *url_out;
     }
 
@@ -255,7 +255,7 @@ Boolean ssh_url_parse_and_decode(const char *url, char **scheme, char **host,
                                  char **path)
 {
   Boolean ok;
-  
+
   ok = ssh_url_parse(url, scheme, host, port, username, password, path);
 
   if (scheme && *scheme)
@@ -319,11 +319,13 @@ Boolean ssh_url_parse_one_item(SshMapping mapping, const char *item,
     {
       char *p;
 
-      /* Concatenate strings, and make it null terminated */
-      p = ssh_xmalloc(old_value_len + decoded_value_len + 1);
+      /* Concatenate strings and separate items with a '\n' character.
+         Make the result null terminated */
+      p = ssh_xmalloc(old_value_len + decoded_value_len + 2);
       memmove(p, old_value, old_value_len);
-      memmove(p + old_value_len, decoded_value, decoded_value_len + 1);
-      decoded_value_len = old_value_len + decoded_value_len;
+      p[old_value_len] = '\n';
+      memmove(p + old_value_len + 1, decoded_value, decoded_value_len + 1);
+      decoded_value_len = old_value_len + decoded_value_len + 1;
       ssh_xfree(decoded_value);
       decoded_value = p;
     }
@@ -333,16 +335,22 @@ Boolean ssh_url_parse_one_item(SshMapping mapping, const char *item,
 }
 
 /*
- * Decode http post data which have format
- * name=value&name=value&...&name=value
- * Returns a Mapping that has all the name and value pairs stored. It
- * also decodes all the %-encodings from the name and values after
- * splitting them.
- * Returned mapping is storing only pointers to the variable length strings,
- * and it has internal destructor, so calling ssh_mapping_free will destroy
- * it and its contents.
- * Returns TRUE if everything went ok, and FALSE if there was a decoding error
- * while processing the url. 
+ * Decode http post data which have format:
+ *
+ *   name=value&name=value&...&name=value
+ *
+ * Returns a Mapping that has all the name and value pairs stored. If
+ * the same name appears more than once in the URL, the values are
+ * concatenated into one string and the individual values are
+ * separated with a newline character.  The function also decodes all
+ * the %-encodings from the name and values after splitting them.
+ *
+ * Returned mapping is storing only pointers to the variable length
+ * strings, and it has internal destructor, so calling
+ * ssh_mapping_free will destroy it and its contents.
+ *
+ * Returns TRUE if everything went ok, and FALSE if there was a
+ * decoding error while processing the url.
  */
 Boolean ssh_url_parse_post_form(const char *url, SshMapping *mapping)
 {
@@ -370,18 +378,26 @@ Boolean ssh_url_parse_post_form(const char *url, SshMapping *mapping)
 
 
 /*
- * Decode http get url which have format
- * /path?name=value&name=value&...&name=value
- * Returns path in the beginning and Mapping that has all the name
- * and value pairs stored. It also decodes all the %-encodings from the
+ * Decode http get url which have format:
+ *
+ *   /path?name=value&name=value&...&name=value
+ *
+ * The function returns the path in the beginning and a Mapping that
+ * has all the name and value pairs stored.  If the same name appears
+ * more than once in the URL, the values are concatenated into one
+ * string and the individual values are separated with a newline
+ * character.  The function also decodes all the %-encodings from the
  * name and values after splitting them.
- * If `path' is not NULL then mallocated copy of decoded path component
- * is stored there.
- * Returned mapping is storing only pointers to the variable length strings,
- * and it has internal destructor, so calling ssh_mapping_free will destroy
- * it and its contents.
- * Returns TRUE if everything went ok, and FALSE if there was a decoding error
- * while processing the url. 
+ *
+ * If `path' is not NULL then a mallocated copy of decoded path
+ * component is stored there.
+ *
+ * The returned mapping is storing only pointers to the variable
+ * length strings, and it has internal destructor, so calling
+ * ssh_mapping_free will destroy it and its contents.
+ *
+ * Returns TRUE if everything went ok, and FALSE if there was a
+ * decoding error while processing the url.
  */
 Boolean ssh_url_parse_form(const char *url,
                            char **path,
@@ -401,7 +417,7 @@ Boolean ssh_url_parse_form(const char *url,
     }
   else
     {
-      Boolean ok1 = TRUE, ok2 = TRUE; 
+      Boolean ok1 = TRUE, ok2 = TRUE;
 
       if (path != NULL)
         ok1 = ssh_url_decode_bin((char *) url, p - url, path, path_length);

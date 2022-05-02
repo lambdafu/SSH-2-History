@@ -14,14 +14,14 @@
   */
 
 /*
- * $Id: keyblob.c,v 1.11 1999/01/21 12:38:21 tri Exp $
+ * $Id: keyblob.c,v 1.15 1999/05/04 00:14:12 kivinen Exp $
  * $Log: keyblob.c,v $
  * $EndLog$
  */
 
 #include "sshincludes.h"
-#include "base64.h"
-#include "crc32.h"
+#include "sshbase64.h"
+#include "sshcrc32.h"
 #include "sshbuffer.h"
 #include "keyblob.h"
 #include "sshgetput.h"
@@ -108,7 +108,7 @@ unsigned char *ssh_key_blob_read_from_string(const char *str,
   const char *p, *compare, *again, *headers_beg, *headers_end;
   unsigned char *p2;
   Boolean public;
-  unsigned long crc32;
+  SshUInt32 crc32;
 
   if (version_major != NULL)
     *version_major = 0;
@@ -299,13 +299,6 @@ unsigned char *ssh_key_blob_read(FILE *fp, size_t *blob_len, char **comments)
                                     NULL,
                                     NULL,
                                     NULL);
-
-  if (r)
-    if (*comments)
-      fprintf(stderr, ">>>comments>>>%s<<<\n", *comments);
-    else
-      fprintf(stderr, ">>>comments>>> *** NONE *** <<<\n");
-      
 
   ssh_xfree(buffer);
   return r;

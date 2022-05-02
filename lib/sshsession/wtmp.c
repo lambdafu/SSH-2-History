@@ -15,9 +15,9 @@ In particular, this updates:
 
 */
 
-/* This appears to be needed to make wtmpx work on glibc 2.0.100+. */
-#ifndef __USE_GNU
-#define __USE_GNU
+/* required to get WTMPX_FILE and updwtmpx() in newer glibc */
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
 #endif
 
 #include "sshsessionincludes.h"
@@ -43,6 +43,9 @@ In particular, this updates:
 #endif /* HAVE_USERSEC_H */
 #include <sys/socket.h>
 #include <netinet/in.h>  /* for in_addr */
+#ifdef HAVE_ARPA_INET_H
+#include <arpa/inet.h>
+#endif /* HAVE_ARPA_INET_H */
 #include "sshuser.h"
 
 /* Internal function, defined in sshunixtcp.c */
@@ -56,9 +59,9 @@ extern Boolean ssh_string_to_addr(const char *s, struct in_addr *addr);
    returned in hostbuf. */
 
 #ifdef LASTLOG_IS_DIR
-time_t ssh_user_get_last_login_time(SshUser user,
-                                    char *hostbuf,
-                                    unsigned int hostbufsize)
+SshTime ssh_user_get_last_login_time(SshUser user,
+                                     char *hostbuf,
+                                     unsigned int hostbufsize)
 {
 #if defined(HAVE_LASTLOG_H) || defined(HAVE_LASTLOG)
   struct lastlog ll;
@@ -104,9 +107,9 @@ time_t ssh_user_get_last_login_time(SshUser user,
 
 #else /* LASTLOG_IS_DIR */
 
-time_t ssh_user_get_last_login_time(SshUser user,
-                                    char *hostbuf,
-                                    unsigned int hostbufsize)
+SshTime ssh_user_get_last_login_time(SshUser user,
+                                     char *hostbuf,
+                                     unsigned int hostbufsize)
 {
 #if defined(HAVE_LASTLOG_H) || defined(HAVE_LASTLOG)
 
@@ -228,7 +231,7 @@ void ssh_user_record_login(SshUser user, pid_t pid, const char *ttyname,
 #endif /* __sgi */
 #endif /* HAVE_ID_IN_UTMP */
   strncpy(u.ut_line, ttyname + 5, sizeof(u.ut_line));
-  u.ut_time = time(NULL);
+  u.ut_time = ssh_time();
 #ifdef HAVE_NAME_IN_UTMP
   strncpy(u.ut_name, user ? ssh_user_name(user) : "", sizeof(u.ut_name));
 #else /* HAVE_NAME_IN_UTMP */
@@ -244,13 +247,13 @@ void ssh_user_record_login(SshUser user, pid_t pid, const char *ttyname,
   if (ip && *ip)
     {
       struct in_addr sin_addr;
-      ssh_string_to_addr(ip, &sin_addr);
-      memcpy(&u.ut_addr, &sin_addr, sizeof(u.ut_addr));
+      /* if address is valid, put it in the struct. */
+      if(!inet_aton(ip, &sin_addr))
+        memcpy(&u.ut_addr, &sin_addr, sizeof(u.ut_addr));
     }
   else
     memset(&u.ut_addr, 0, sizeof(u.ut_addr));
 #endif
-
   /* Figure out the file names. */
 #ifdef _PATH_UTMP
   utmp = _PATH_UTMP;
@@ -337,10 +340,10 @@ void ssh_user_record_login(SshUser user, pid_t pid, const char *ttyname,
     struct utmpx ux, *uxp;
     memset(&ux, 0, sizeof(ux));
     strncpy(ux.ut_line, ttyname + 5, sizeof(ux.ut_line));
+    setutxent(); /* open the database and reset to first position */
     if (user == NULL)
       {
         /* logout; find previous entry for pid and zonk it */
-        setutxent();
         while ((uxp = getutxent()))
           {
             if (uxp->ut_pid != pid)
@@ -348,7 +351,6 @@ void ssh_user_record_login(SshUser user, pid_t pid, const char *ttyname,
             ux = *uxp;
             break;
           }
-        endutxent();
       }
     else
       {
@@ -357,44 +359,45 @@ void ssh_user_record_login(SshUser user, pid_t pid, const char *ttyname,
         if (uxp)
           ux = *uxp;
         strncpy(ux.ut_user, ssh_user_name(user), sizeof(ux.ut_user));
+        ux.ut_type = USER_PROCESS;
       }
-#if defined(__sgi) || defined(SCO)
+    endutxent();
+#if defined(__sgi) || defined(SCO) || defined(linux)
     strncpy(ux.ut_id, ttyname + 8, sizeof(ux.ut_id)); /* /dev/ttyq99 -> q99 */
-#else /* __sgi */
+#else /* __sgi || SCO || linux */
     if (sizeof(ux.ut_id) > 4)
-      strncpy(ux.ut_id, ttyname + 5, sizeof(ux.ut_id));
-    else {
-      char buf[20];
-#ifdef HAVE_MINOR
-      struct stat st;
-      
-      buf[0] = 0;
-      if (stat(ttyname, &st) == 0) {
-        /* allow for 1000 /dev/pts devices */
-        snprintf(buf, sizeof (buf), "P%03d", (int)minor(st.st_rdev));
-        
+      { 
+        strncpy(ux.ut_id, ttyname + 5, sizeof(ux.ut_id));
       }
-      strncpy(ux.ut_id, buf, sizeof(ux.ut_id));
-#else /* HAVE_MINOR */
-      /* if we don't have minor, we just dig out the last three letters
-         from ttyname. */
-      size_t ttyname_len = strlen(ttyname);
-      if(ttyname_len > 3)
-        {
-          snprintf(buf, sizeof (buf), "P%03s", &ttyname[ttyname_len - 3]);
-        }
-      else
-        {
-          snprintf(buf, sizeof (buf), "P%03s", ttyname);
-        }
-#endif /* HAVE_MINOR */
-    }
-#endif /* __sgi */
-    ux.ut_pid = pid;
-    if (user == NULL)
-      ux.ut_type = DEAD_PROCESS;
     else
-      ux.ut_type = USER_PROCESS;
+      {
+        char buf[20];
+#ifdef HAVE_MINOR
+        struct stat st;
+        
+        buf[0] = 0;
+        if (stat(ttyname, &st) == 0) {
+          /* allow for 1000 /dev/pts devices */
+          snprintf(buf, sizeof (buf), "P%03d", (int)minor(st.st_rdev));
+        }
+        strncpy(ux.ut_id, buf, sizeof(ux.ut_id));
+#else /* HAVE_MINOR */
+        /* if we don't have minor, we just dig out the last <= three letters
+           from ttyname. */
+        
+        size_t ttyname_len = strlen(ttyname);
+        if(ttyname_len > 3)
+          {
+            snprintf(buf, sizeof (buf), "P%s", &ttyname[ttyname_len - 3]);
+          }
+        else
+          {
+            snprintf(buf, sizeof (buf), "P%s", ttyname);
+          }
+#endif /* HAVE_MINOR */
+      }
+#endif /* __sgi || SCO || linux */
+    ux.ut_pid = pid;
 
 #ifdef HAVE_GETTIMEOFDAY
 #ifdef HAVE_NO_TZ_IN_GETTIMEOFDAY
@@ -403,14 +406,17 @@ void ssh_user_record_login(SshUser user, pid_t pid, const char *ttyname,
     gettimeofday(&ux.ut_tv, NULL);
 #endif
 #else /* HAVE_GETTIMEOFDAY */
-    ux.ut_tv.tv_sec = time(NULL);
+    ux.ut_tv.tv_sec = ssh_time();
     ux.ut_tv.tv_usec = 0;
 #endif /* HAVE_GETTIMEOFDAY */
 
     ux.ut_session = pid;
     strncpy(ux.ut_host, host, sizeof(ux.ut_host));
     ux.ut_host[sizeof(ux.ut_host) - 1] = 0;
+#ifdef HAVE_SYSLEN_IN_UTMPX
     ux.ut_syslen = strlen(ux.ut_host);
+#endif /* HAVE_SYSLEN_IN_UTMPX */
+    setutxent(); /* reopen database and reset position to first */
 #ifdef HAVE_MAKEUTX
     /*
      * modutx/makeutx notify init(1) to clean up utmpx for this pid
@@ -448,7 +454,7 @@ void ssh_user_record_login(SshUser user, pid_t pid, const char *ttyname,
       memset(&ll, 0, sizeof(ll));
 
       /* Update lastlog. */
-      ll.ll_time = time(NULL);
+      ll.ll_time = ssh_time();
       strncpy(ll.ll_line, ttyname + 5, sizeof(ll.ll_line));
       strncpy(ll.ll_host, host, sizeof(ll.ll_host));
 #ifdef LASTLOG_IS_DIR
@@ -488,7 +494,7 @@ void ssh_user_record_login(SshUser user, pid_t pid, const char *ttyname,
 
   if (user != NULL) /* only on login ... */
     {
-      int lasttime = time(NULL);
+      int lasttime = ssh_time();
       if (setuserdb(S_WRITE) < 0)
         ssh_warning("setuserdb S_WRITE failed: %.100s", strerror(errno));
       if (putuserattr((char *)ssh_user_name(user),

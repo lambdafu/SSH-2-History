@@ -1,6 +1,6 @@
 /*
  * Author: Tero Kivinen <kivinen@iki.fi>
- * 
+ *
  * Copyright (c) 1998 Tero Kivinen <kivinen@ssh.fi>, Espoo, Finland
  * Copyright (c) 1998 SSH Communications Security Oy <info@ssh.fi>
  *                   All rights reserved
@@ -8,19 +8,19 @@
 /*
  *        Program: Urlparse
  *        $Source: /ssh/CVS/src/lib/sshutil/tests/t-url.c,v $
- *        $Author: kivinen $
+ *        $Author: mtr $
  *
  *        Creation          : 10:45 Jul 10 1998 kivinen
  *        Last Modification : 17:55 Jan 28 1999 kivinen
- *        Last check in     : $Date: 1999/01/28 16:10:49 $
- *        Revision number   : $Revision: 1.2 $
+ *        Last check in     : $Date: 1999/01/29 13:13:38 $
+ *        Revision number   : $Revision: 1.3 $
  *        State             : $State: Exp $
  *        Version           : 1.175
  *
  *        Description       : Test program for library to parse urls
  */
 /*
- * $Id: t-url.c,v 1.2 1999/01/28 16:10:49 kivinen Exp $
+ * $Id: t-url.c,v 1.3 1999/01/29 13:13:38 mtr Exp $
  * $EndLog$
  */
 
@@ -100,28 +100,28 @@ typedef struct TestFormRec {
 } *TestForm;
 
 struct TestFormRec form_tests[] = {
-  { "/foo?a=b", "/foo", TRUE, 
+  { "/foo?a=b", "/foo", TRUE,
     { { "a", "b" } } },
-  { "/foo?a=b&c=d", "/foo", TRUE, 
+  { "/foo?a=b&c=d", "/foo", TRUE,
     { { "a", "b" }, { "c", "d" } } },
   { "/aksjdklasjdlkasjdlkasjdkla?kukkuu=reset",
-    "/aksjdklasjdlkasjdlkasjdkla", TRUE, 
+    "/aksjdklasjdlkasjdlkasjdkla", TRUE,
     { { "kukkuu", "reset" } } },
   { "!@#$%25^&*()_+][|\":%3f><,./'\\{}`1234567890-=?a=b&c=d&e=f",
-    "!@#$%^&*()_+][|\":?><,./'\\{}`1234567890-=", TRUE, 
+    "!@#$%^&*()_+][|\":?><,./'\\{}`1234567890-=", TRUE,
     { { "a", "b" }, { "c", "d" }, { "e", "f" } } },
-  { "%20%21%22?kukkuu=reset&zappa=bar", " !\"", TRUE, 
+  { "%20%21%22?kukkuu=reset&zappa=bar", " !\"", TRUE,
     { { "kukkuu", "reset" }, { "zappa", "bar" } } },
-  { " %21\"?kukk%75u=re%73et&zap%70a=b%61r", " !\"", TRUE, 
+  { " %21\"?kukk%75u=re%73et&zap%70a=b%61r", " !\"", TRUE,
     { { "kukkuu", "reset" }, { "zappa", "bar" } } },
-  { "/fo%3do?kuk%3dk%75u=re%73et&zap%70a=b%61r%3dfoo", "/fo=o", TRUE, 
+  { "/fo%3do?kuk%3dk%75u=re%73et&zap%70a=b%61r%3dfoo", "/fo=o", TRUE,
     { { "kuk=kuu", "reset" }, { "zappa", "bar=foo" } } },
-  { "/fo%26o?kuk%26k%75u=re%73et&zap%70a=b%61r%26foo", "/fo&o", TRUE, 
+  { "/fo%26o?kuk%26k%75u=re%73et&zap%70a=b%61r%26foo", "/fo&o", TRUE,
     { { "kuk&kuu", "reset" }, { "zappa", "bar&foo" } } },
-  { "/foo?name=Tero%20&name=T%20&name=Kivinen", "/foo", TRUE, 
-    { { "name", "Tero T Kivinen" } } }, 
-  { "/foo?na%6de=Tero%20&nam%65=T%20&n%61me=Kivinen", "/foo", TRUE, 
-    { { "name", "Tero T Kivinen" } } },
+  { "/foo?name=Tero%20&name=T%20&name=Kivinen", "/foo", TRUE,
+    { { "name", "Tero \nT \nKivinen" } } },
+  { "/foo?na%6de=Tero%20&nam%65=T%20&n%61me=Kivinen", "/foo", TRUE,
+    { { "name", "Tero \nT \nKivinen" } } },
   { "/fo%xx?a=b&c=d", "/fo%xx", FALSE,
     { { "a", "b" }, { "c", "d" } } },
   { "/fo%3?a=b&c=d", "/fo%3", FALSE,
@@ -152,8 +152,8 @@ struct TestFormRec form_tests[] = {
     { { "a", "b" }, { "c", "d%xx" } } },
   { "/foo?a=b&c=d%3", "/foo", FALSE,
     { { "a", "b" }, { "c", "d%3" } } },
-  { "/foo?na%6de=Tero%20&nam%65=T%20&n%61me=Kivinen&bar=zappa", "/foo", TRUE, 
-    { { "name", "Tero T Kivinen" }, { "bar", "zappa" } } }
+  { "/foo?na%6de=Tero%20&nam%65=T%20&n%61me=Kivinen&bar=zappa", "/foo", TRUE,
+    { { "name", "Tero \nT \nKivinen" }, { "bar", "zappa" } } }
 };
 
 void mapping_print(SshMapping mapping)

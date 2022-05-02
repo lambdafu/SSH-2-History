@@ -17,12 +17,12 @@ noinst_LIBRARIES = libsshproto.a
 
 libsshproto_a_SOURCES = sshtrans.c trcommon.c trkex.c sshcross.c \
 	sshcrup.c sshcrdown.c sshauthc.c sshauths.c sshconn.c \
-	pubkeyencode.c sshcipherlist.c
+	sshcipherlist.c
 list_libssh_a_objects:
 	@echo BEGIN_FILE_LIST: $(libsshproto_a_OBJECTS) $(libsshproto_a_LIBADD) :END_FILE_LIST
 
 include_HEADERS = sshtrans.h sshcross.h sshauth.h sshconn.h sshmsgs.h \
-	          pubkeyencode.h sshcipherlist.h
+	          sshcipherlist.h
 
 noinst_HEADERS = trcommon.h trkex.h
 

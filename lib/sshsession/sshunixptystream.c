@@ -10,7 +10,7 @@ Copyright (c) 1997 SSH Communications Security, Finland
 */
 
 /*
- * $Id: sshunixptystream.c,v 1.2 1998/05/12 21:47:03 ylo Exp $
+ * $Id: sshunixptystream.c,v 1.3 1999/02/16 12:50:34 sjl Exp $
  * $Log: sshunixptystream.c,v $
  * $EndLog$
  */
@@ -21,6 +21,8 @@ Copyright (c) 1997 SSH Communications Security, Finland
 #include "sshunixfdstream.h"
 #include "sshtimeouts.h"
 #include "sigchld.h"
+
+#define SSH_DEBUG_MODULE "SshUnixPtyStream"
 
 typedef enum {
   SSH_PTY_NORMAL,
@@ -71,7 +73,7 @@ void ssh_pty_sigchld_handler(pid_t pid, int status, void *context)
   /* Sanity checks... */
   if (pty->pid != pid)
     ssh_fatal("ssh_pty_sigchld_handler: pid mismatch %d vs. %d",
-	      (int)pid, (int)pty->pid);
+              (int)pid, (int)pty->pid);
   if (pty->status_returned)
     ssh_fatal("ssh_pty_sigchld_handler: status already returned");
 
@@ -97,8 +99,8 @@ void ssh_pty_sigchld_handler(pid_t pid, int status, void *context)
    the stream.  A stream for the pty will be returned only on master side. */
 
 SshPtyStatus ssh_pty_allocate_and_fork(uid_t owner_uid, gid_t owner_gid,
-				       char *namebuf,
-				       SshStream *master_return)
+                                       char *namebuf,
+                                       SshStream *master_return)
 {
   int ptyfd, ttyfd;
   pid_t pid;
@@ -157,7 +159,7 @@ SshPtyStatus ssh_pty_allocate_and_fork(uid_t owner_uid, gid_t owner_gid,
       setpgrp(0, 0);
 #else /* ultrix */
       if (setsid() < 0)
-	ssh_warning("setsid: %.100s", strerror(errno));
+        ssh_warning("setsid: %.100s", strerror(errno));
 #endif /* ultrix */
 #endif /* HAVE_SETSID */
 
@@ -166,15 +168,15 @@ SshPtyStatus ssh_pty_allocate_and_fork(uid_t owner_uid, gid_t owner_gid,
 
       /* Redirect stdin from the pseudo tty. */
       if (dup2(ttyfd, fileno(stdin)) < 0)
-	ssh_warning("dup2 stdin failed: %.100s", strerror(errno));
+        ssh_warning("dup2 stdin failed: %.100s", strerror(errno));
 
       /* Redirect stdout to the pseudo tty. */
       if (dup2(ttyfd, fileno(stdout)) < 0)
-	ssh_warning("dup2 stdin failed: %.100s", strerror(errno));
+        ssh_warning("dup2 stdin failed: %.100s", strerror(errno));
 
       /* Redirect stderr to the pseudo tty. */
       if (dup2(ttyfd, fileno(stderr)) < 0)
-	ssh_warning("dup2 stdin failed: %.100s", strerror(errno));
+        ssh_warning("dup2 stdin failed: %.100s", strerror(errno));
 
       /* Close the extra descriptor for the pseudo tty. */
       close(ttyfd);
@@ -264,10 +266,10 @@ int ssh_pty_get_exit_status(SshStream stream)
    parent side. */
 
 void ssh_pty_change_window_size(SshStream stream,
-				unsigned int width_chars,
-				unsigned int height_chars,
-				unsigned int width_pixels,
-				unsigned int height_pixels)
+                                unsigned int width_chars,
+                                unsigned int height_chars,
+                                unsigned int width_pixels,
+                                unsigned int height_pixels)
 {
   PtyStream pty;
   if (ssh_stream_get_methods(stream) != (void *)&ssh_pty_methods)
@@ -283,6 +285,21 @@ void ssh_pty_change_window_size(SshStream stream,
     (void)ioctl(pty->ptyfd, TIOCSWINSZ, &w);
   }
 #endif /* SIGWINCH && TIOCSWINSZ */
+}
+
+/* Returns the file descriptor for the pty. This should be used only
+   for things that don't change this stream, and care should be taken
+   that nothing is destroyed.*/
+
+int ssh_pty_get_fd(SshStream stream)
+{
+  PtyStream pty;
+  SSH_ASSERT(stream);
+  if (ssh_stream_get_methods(stream) != (void *)&ssh_pty_methods)
+    ssh_fatal("ssh_pty_change_window_size: not a pty stream");
+  pty = ssh_stream_get_context(stream);
+
+  return pty->ptyfd;  
 }
 
 /* Returns true if the pty is in a mode with C-S/C-Q flow control enabled.
@@ -322,25 +339,25 @@ int ssh_pty_stream_read(void *context, unsigned char *buf, size_t size)
       len = ssh_stream_read(pty->master, buf, size);
 
       /* Convert the return status to EOF if the child has already
-	 exited.  Note that we'll want to keep reading as long as
-	 there is data available before returning the EOF, as the
-	 SIGCHLD handler might be called before all data is read. */
+         exited.  Note that we'll want to keep reading as long as
+         there is data available before returning the EOF, as the
+         SIGCHLD handler might be called before all data is read. */
       if (len < 0 && pty->status_returned)
-	{
-	  ssh_debug("ssh_pty_stream_read: faking eof after sigchld");
-	  len = 0;
-	}
+        {
+          ssh_debug("ssh_pty_stream_read: faking eof after sigchld");
+          len = 0;
+        }
       else
-	if (len == 0 && !pty->status_returned)
-	  {
-	    /* We got real EOF, but the SIGCHLD handler hasn't been called yet.
-	       Do not return EOF quite yet; we fake it to no data available.
-	       When SIGCHLD is delivered, the callback will be called
-	       and it will call this again; at that time we'll return EOF.
-	       This is to ensure that a valid exit status is available after
-	       we return EOF. */
-	    len = -1;
-	  }
+        if (len == 0 && !pty->status_returned)
+          {
+            /* We got real EOF, but the SIGCHLD handler hasn't been called yet.
+               Do not return EOF quite yet; we fake it to no data available.
+               When SIGCHLD is delivered, the callback will be called
+               and it will call this again; at that time we'll return EOF.
+               This is to ensure that a valid exit status is available after
+               we return EOF. */
+            len = -1;
+          }
       return len;
       
     default:
@@ -354,7 +371,7 @@ int ssh_pty_stream_read(void *context, unsigned char *buf, size_t size)
    data; any packet-mode stuff will be added here if appropriate. */
 
 int ssh_pty_stream_write(void *context, const unsigned char *buf,
-			 size_t size)
+                         size_t size)
 {
   PtyStream pty = (PtyStream)context;
 
@@ -391,7 +408,7 @@ void ssh_pty_stream_output_eof(void *context)
    read/write. */
 
 void ssh_pty_stream_set_callback(void *context, SshStreamCallback callback,
-				 void *callback_context)
+                                 void *callback_context)
 {
   PtyStream pty = (PtyStream)context;
 
@@ -420,10 +437,10 @@ void ssh_pty_stream_destroy(void *context)
   /* Restore the pty to system ownership if possible. */
   if (chown(pty->namebuf, (uid_t)UID_ROOT, pty->tty_gid) < 0)
     ssh_debug("chown %.100s 0 0 failed: %.100s",
-	      pty->namebuf, strerror(errno));
+              pty->namebuf, strerror(errno));
   if (chmod(pty->namebuf, (mode_t)0666) < 0)
     ssh_debug("chmod %.100s 0666 failed: %.100s",
-	      pty->namebuf, strerror(errno));
+              pty->namebuf, strerror(errno));
 
   /* Destroy the stream going to the master side. */
   if (pty->master != NULL)

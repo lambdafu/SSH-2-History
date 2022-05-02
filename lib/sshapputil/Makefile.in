@@ -89,6 +89,7 @@ PACKAGE = @PACKAGE@
 RANLIB = @RANLIB@
 SSH1_PATH = @SSH1_PATH@
 SSHSESSION_CONFOBJS = @SSHSESSION_CONFOBJS@
+SSHSIGNERINSTALLMODE = @SSHSIGNERINSTALLMODE@
 VERSION = @VERSION@
 X11_DIR = @X11_DIR@
 XAUTH_PATH = @XAUTH_PATH@
@@ -99,9 +100,10 @@ SUBDIRS = tests
 
 noinst_LIBRARIES = libsshapputil.a
 
-libsshapputil_a_SOURCES = userfile.c 
+libsshapputil_a_SOURCES = sshuserfile.c sshuserfilebuf.c 
 
-include_HEADERS = userfile.h
+include_HEADERS = sshuserfile.h \
+		  sshuserfilebuf.h
 
 INCLUDES = -I../.. -I. -I$(srcdir) \
 	-I$(top_builddir) -I$(top_srcdir) \
@@ -122,7 +124,7 @@ X_LIBS = @X_LIBS@
 X_EXTRA_LIBS = @X_EXTRA_LIBS@
 X_PRE_LIBS = @X_PRE_LIBS@
 libsshapputil_a_LIBADD = 
-libsshapputil_a_OBJECTS =  userfile.o
+libsshapputil_a_OBJECTS =  sshuserfile.o sshuserfilebuf.o
 CFLAGS = @CFLAGS@
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS)
 LINK = $(CC) $(CFLAGS) $(LDFLAGS) -o $@

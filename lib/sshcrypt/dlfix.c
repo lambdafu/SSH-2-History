@@ -14,13 +14,13 @@
   */
 
 /*
- * $Id: dlfix.c,v 1.6 1998/10/20 15:40:31 mkojo Exp $
+ * $Id: dlfix.c,v 1.7 1999/04/29 13:37:52 huima Exp $
  * $Log: dlfix.c,v $
  * $EndLog$
  */
 
 #include "sshincludes.h"
-#include "gmp.h"
+#include "sshmp.h" /* was "gmp.h" */
 #include "sshcrypt.h"
 #include "genmp.h"
 #include "sshbuffer.h"
@@ -175,7 +175,7 @@ char *ssh_dlp_param_get_predefined_groups(void)
 }
 
 Boolean ssh_dlp_set_param(const char *name, const char **outname,
-                          MP_INT *p, MP_INT *q, MP_INT *g)
+                          SshInt *p, SshInt *q, SshInt *g)
 {
   int i;
 
@@ -192,9 +192,9 @@ Boolean ssh_dlp_set_param(const char *name, const char **outname,
 
   *outname = ssh_dlp_fixed_params[i].name;
   
-  mpz_set_str(p, ssh_dlp_fixed_params[i].p, 0);
-  mpz_set_str(q, ssh_dlp_fixed_params[i].q, 0);
-  mpz_set_str(g, ssh_dlp_fixed_params[i].g, 0);
+  ssh_mp_set_str(p, ssh_dlp_fixed_params[i].p, 0);
+  ssh_mp_set_str(q, ssh_dlp_fixed_params[i].q, 0);
+  ssh_mp_set_str(g, ssh_dlp_fixed_params[i].g, 0);
   
   return TRUE;
 }

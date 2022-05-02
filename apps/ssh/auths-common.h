@@ -18,9 +18,19 @@
 #include "sshincludes.h"
 #include "sshuser.h"
 #include "sshcommon.h"
+#include "sshdllist.h"
 
+/* Use this to check whether specified user is allowed to
+   connect. Returns FALSE if allowed.*/
 Boolean ssh_server_auth_check_user(SshUser *ucp, const char *user,
                                    SshConfig config);
+
+/* Use this to check whether connects from specified host are
+   allowed. Returns FALSE if connects are allowed.*/
 Boolean ssh_server_auth_check_host(SshCommon common);
 
+/* Checks whether given host name or ip-address is found in
+   list. Returns FALSE if a match is found, and TRUE otherwise. */
+Boolean ssh_match_host_in_list(char *host_name, char *host_ip,
+                               SshDlList list);
 #endif /* AUTHS_COMMON_H */

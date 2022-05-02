@@ -16,19 +16,19 @@ Key exchange methods.
 */
 
 /*
- * $Id: trkex.c,v 1.24 1999/01/26 20:29:55 vsuontam Exp $
+ * $Id: trkex.c,v 1.31 1999/05/04 19:21:01 kivinen Exp $
  * $Log: trkex.c,v $
  * $EndLog$
  */
 
 #include "sshincludes.h"
-#include "bufaux.h"
+#include "sshbufaux.h"
 #include "sshgetput.h"
 #include "sshmsgs.h"
 #include "trcommon.h"
 #include "trkex.h"
 #include "sshencode.h"
-#include "pubkeyencode.h"
+#include "ssh2pubkeyencode.h"
 #include "sshcipherlist.h"
 #include "sshdebug.h"
 
@@ -66,13 +66,13 @@ void ssh_tr_server_init_kex(SshTransportCommon tr,
   assert(tr->private_host_key == NULL);
   if (ssh_private_key_copy(private_host_key, &tr->private_host_key) !=
       SSH_CRYPTO_OK)
-    ssh_fatal("ssh_tr_client_init_kex: private host key copy failed");
+    ssh_fatal("ssh_tr_server_init_kex: private host key copy failed");
 
   if (private_server_key)
     {
       if (ssh_private_key_copy(private_server_key, &tr->private_server_key) !=
           SSH_CRYPTO_OK)
-        ssh_fatal("ssh_tr_client_init_kex: private server key copy failed");
+        ssh_fatal("ssh_tr_server_init_kex: private server key copy failed");
     }
   else
     tr->private_server_key = NULL;
@@ -90,7 +90,7 @@ void ssh_tr_server_init_kex(SshTransportCommon tr,
         ssh_fatal("Deriving public server key from private key failed.");
       len = ssh_encode_pubkeyblob(public_server_key, &buf);
       if (len == 0)
-        ssh_fatal("ssh_tr_client_init_kex: public server key encoding failed");
+        ssh_fatal("ssh_tr_server_init_kex: public server key encoding failed");
       ssh_public_key_free(public_server_key);
       tr->public_server_key_blob = ssh_buffer_allocate();
       ssh_buffer_append(tr->public_server_key_blob, buf, len);
@@ -134,8 +134,8 @@ SshCryptoStatus ssh_kexdh_make_group(SshTransportCommon tr,
 
   /* read the p and the g */
   
-  mpz_set_str(tr->dh_p, group1_p, 16);
-  mpz_set_str(tr->dh_g, group1_g, 16);
+  ssh_mp_set_str(tr->dh_p, group1_p, 16);
+  ssh_mp_set_str(tr->dh_g, group1_g, 16);
 
   /*
     Randomize our secret value (x or y) and public value (e or f).
@@ -146,15 +146,15 @@ SshCryptoStatus ssh_kexdh_make_group(SshTransportCommon tr,
       with Short Exponents", proc. Eurocrypt 96
   */
 
-  mpz_set_ui(tr->dh_secret, 1);  
+  ssh_mp_set_ui(tr->dh_secret, 1);  
   for (i = 0; i < 24; i++)
     {
-      mpz_mul_2exp(tr->dh_secret, tr->dh_secret, 8);
-      mpz_add_ui(tr->dh_secret, tr->dh_secret, 
+      ssh_mp_mul_2exp(tr->dh_secret, tr->dh_secret, 8);
+      ssh_mp_add_ui(tr->dh_secret, tr->dh_secret, 
                  ssh_random_get_byte(tr->random_state));
     }
   
-  mpz_powm(tr->server ? tr->dh_f : tr->dh_e, 
+  ssh_mp_powm(tr->server ? tr->dh_f : tr->dh_e, 
            tr->dh_g, tr->dh_secret, tr->dh_p);
 
   return SSH_CRYPTO_OK;
@@ -164,26 +164,26 @@ SshCryptoStatus ssh_kexdh_make_group(SshTransportCommon tr,
 
 Boolean ssh_kexdh_compute_h(SshTransportCommon tr)
 {
-  mpz_t t;
+  SshIntC t;
   SshBuffer *buf;
   
   /* check that the public value is within the range */
 
-  if (mpz_cmp_ui(tr->server ? tr->dh_e : tr->dh_f, 2) <= 0)
+  if (ssh_mp_cmp_ui(tr->server ? tr->dh_e : tr->dh_f, 2) <= 0)
     return TRUE;
 
-  mpz_init(t);
-  mpz_sub_ui(t, tr->dh_p, 2);
-  if (mpz_cmp(tr->dh_e, t) >= 0)
+  ssh_mp_init(t);
+  ssh_mp_sub_ui(t, tr->dh_p, 2);
+  if (ssh_mp_cmp(tr->dh_e, t) >= 0)
     {
-      mpz_clear(t);
+      ssh_mp_clear(t);
       return TRUE;
     }
-  mpz_clear(t);
+  ssh_mp_clear(t);
 
   /* compute the shared secret */
 
-  mpz_powm(tr->dh_k, tr->server ? tr->dh_e : tr->dh_f, 
+  ssh_mp_powm(tr->dh_k, tr->server ? tr->dh_e : tr->dh_f, 
            tr->dh_secret, tr->dh_p);
 
   /* ok, compute the exchange hash */
@@ -242,17 +242,17 @@ Boolean ssh_kexdh_compute_h(SshTransportCommon tr)
 #if 0
   ssh_debug("ssh_kexdh_compute_h (%s)", tr->server ? "server" : "client");
   printf(" e = ");
-  mpz_out_str(stdout, 16, tr->dh_e);
+  ssh_mp_out_str(stdout, 16, tr->dh_e);
   printf("\n f = ");    
-  mpz_out_str(stdout, 16, tr->dh_f);
+  ssh_mp_out_str(stdout, 16, tr->dh_f);
   printf("\n secret = ");    
-  mpz_out_str(stdout, 16, tr->dh_secret);
+  ssh_mp_out_str(stdout, 16, tr->dh_secret);
   printf("\n k = ");    
-  mpz_out_str(stdout, 16, tr->dh_k);
+  ssh_mp_out_str(stdout, 16, tr->dh_k);
   printf("\n g = ");    
-  mpz_out_str(stdout, 16, tr->dh_g);
+  ssh_mp_out_str(stdout, 16, tr->dh_g);
   printf("\n p = ");    
-  mpz_out_str(stdout, 16, tr->dh_p);
+  ssh_mp_out_str(stdout, 16, tr->dh_p);
 
   printf("\n -- exchange hash computed over -- \n");
   buffer_dump(buf);
@@ -343,7 +343,7 @@ SshBuffer *ssh_kexdh_server_make_kex2(SshTransportCommon tr)
 
   packet = ssh_buffer_allocate();
   ssh_encode_buffer(packet, 
-                    SSH_FORMAT_CHAR, SSH_MSG_KEXDH_REPLY,
+                    SSH_FORMAT_CHAR, (unsigned int) SSH_MSG_KEXDH_REPLY,
                     SSH_FORMAT_UINT32_STR, 
                       ssh_buffer_ptr(tr->public_host_key_blob),
                       ssh_buffer_len(tr->public_host_key_blob),
@@ -363,30 +363,93 @@ SshBuffer *ssh_kexdh_server_make_kex2(SshTransportCommon tr)
 
 /* A simple callback for the key check function */
 
+/* Internal struct for the callback, and the calling function. */
+typedef struct SshKex2KeyCheckCallbackContextRec
+{
+  SshBuffer *input;
+  size_t pubkey_len;
+  unsigned char *pubkey;
+  size_t sig_len;
+  unsigned char *signature;
+  SshKex2CompletionProc completion;
+  
+} *SshKex2KeyCheckCallbackContext;
+
+/* This function is called by the registered key check function. (in
+   ssh2 it is ssh_client_key_check in sshclient.c) */
 void ssh_kex_keycheck_callback(Boolean result, void *ctx)
 {
   SshTransportCommon tr;
+  SshKex2KeyCheckCallbackContext callback_context;
+  
   tr = (SshTransportCommon) ctx;
 
+  callback_context = tr->key_check_callback_context;
+  
   tr->key_check_returned = TRUE;
   tr->key_check_result = result;
-  /* XXX code should move here from ssh_kexdh_client_input_kex. */
+
+  if (tr->key_check_result == FALSE)
+    {
+      if (callback_context->pubkey != NULL)
+        ssh_xfree(callback_context->pubkey);
+    }
+  else
+    {
+      tr->public_host_key_blob = ssh_buffer_allocate();
+      ssh_buffer_append(tr->public_host_key_blob, callback_context->pubkey,
+                        callback_context->pubkey_len);
+      ssh_xfree(callback_context->pubkey);
+
+      buffer_get_mp_int_ssh2style(callback_context->input, tr->dh_f);  
+      callback_context->signature =
+        buffer_get_uint32_string(callback_context->input,
+                                 &(callback_context->sig_len));
+
+      /* ok, verify the signature */
+
+      if (ssh_kexdh_compute_h(tr))
+        tr->key_check_result = FALSE;
+
+      if (ssh_public_key_verify_signature(tr->public_host_key,
+                                          callback_context->signature,
+                                          callback_context->sig_len,
+                                          tr->exchange_hash, 
+                                          tr->exchange_hash_len) == FALSE)
+        {
+          ssh_xfree(callback_context->signature);
+          tr->key_check_result = FALSE;
+        }
+
+      memset(callback_context->signature, 0, callback_context->sig_len);
+      ssh_xfree(callback_context->signature);
+
+      /* we're ready to derive the keys */
+      ssh_kex_derive_keys(tr);
+    }
+  
+  /* Call the supplied callback.*/
+  (*callback_context->completion)(tr);
+
+  ssh_xfree(callback_context);
 }
 
 /* client parses the server's SSH_MSG_KEXDH_REPLY (kex2) */
 
-Boolean ssh_kexdh_client_input_kex2(SshTransportCommon tr, SshBuffer *input)
+void ssh_kexdh_client_input_kex2(SshTransportCommon tr, SshBuffer *input,
+                                 SshKex2CompletionProc finalize_callback)
 {
   unsigned int code;
-  unsigned char *signature, *pubkey;  
-  size_t sig_len, pubkey_len;
+  unsigned char *pubkey;  
+  size_t pubkey_len;
   char *pubkeytype;
-
+  SshKex2KeyCheckCallbackContext callback_context;
+  
   if ((code = buffer_get_char(input)) != SSH_MSG_KEXDH_REPLY)
     {
       ssh_debug("ssh_kexdh_client_input_kex2: received illegal packet %d",
                 code);
-      return FALSE;
+      return;
     }
 
   /* get the public key */
@@ -396,7 +459,7 @@ Boolean ssh_kexdh_client_input_kex2(SshTransportCommon tr, SshBuffer *input)
     {
       ssh_debug("ssh_kexdh_client_input_kex2: failed to parse the pubkey "
                 "and certificates.");
-      return FALSE;
+      return;
     }
 
   if (tr->public_host_key_blob != NULL)
@@ -417,7 +480,7 @@ Boolean ssh_kexdh_client_input_kex2(SshTransportCommon tr, SshBuffer *input)
   if (tr->public_host_key == NULL)
     {
       ssh_debug("ssh_kexdh_client_input_kex2: invalid host key.");
-      return FALSE;
+      return;
     }
 
   
@@ -425,53 +488,23 @@ Boolean ssh_kexdh_client_input_kex2(SshTransportCommon tr, SshBuffer *input)
   tr->key_check_returned = FALSE;
   if (tr->key_check)
     {
+      callback_context =
+        ssh_xcalloc(1, sizeof(struct SshKex2KeyCheckCallbackContextRec));
+
+      tr->key_check_callback_context = callback_context;
+
+      callback_context->pubkey = pubkey;
+      callback_context->pubkey_len = pubkey_len;
+      callback_context->signature = NULL;
+      callback_context->sig_len = 0;
+      callback_context->completion = finalize_callback;
+      callback_context->input = input;
+
       (*tr->key_check)(tr->server_host_name, pubkey, pubkey_len,
                        ssh_kex_keycheck_callback, tr, tr->key_check_context);
-  
-      /* XXX THIS IS A TEMPORARY KLUDGE.  We currently rely on the
-       *     completion callback being called before key_check returns.
-       *     This is not guaranteed, and this function should be split
-       *     here so that all the remaining work is done in the
-       *     callback. */
-      if (tr->key_check_returned == FALSE)
-        ssh_fatal("ssh_kexdh_client_input_kex2: the callback was not called.");
-      
-      if (tr->key_check_result == FALSE)
-        {
-          if (pubkey != NULL)
-            ssh_xfree(pubkey);
-          return FALSE;
-        }
+
     }
-
-  tr->public_host_key_blob = ssh_buffer_allocate();
-  ssh_buffer_append(tr->public_host_key_blob, pubkey, pubkey_len);
-  ssh_xfree(pubkey);
-
-  buffer_get_mp_int_ssh2style(input, tr->dh_f);  
-  signature = buffer_get_uint32_string(input, &sig_len);
-
-  /* ok, verify the signature */
-
-  if (ssh_kexdh_compute_h(tr))
-    return FALSE;
-
-  if (ssh_public_key_verify_signature(tr->public_host_key,
-                                      signature, sig_len,
-                                      tr->exchange_hash, 
-                                      tr->exchange_hash_len) == FALSE)
-    {
-      ssh_xfree(signature);
-      return FALSE;
-    }
-
-  memset(signature, 0, sig_len);
-  ssh_xfree(signature);
-
-  /* we're ready to derive the keys */
-  ssh_kex_derive_keys(tr);
-  
-  return TRUE;
+  /* Rest is done in ssh_kex_keycheck_callback(). */
 }
 
 /* derive one key */

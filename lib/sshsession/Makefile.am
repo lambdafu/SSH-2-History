@@ -14,18 +14,19 @@ AUTOMAKE_OPTIONS = 1.0 foreign dist-zip no-dependencies
 noinst_LIBRARIES = libsshsession.a
 include_HEADERS = sshunixpipestream.h sshunixptystream.h sigchld.h sshtty.h \
 	sshttymodes.h \
-	sshsessionincludes.h sshuser.h tcbc2.h
+	sshsessionincludes.h sshuser.h sshsia.h
 noinst_HEADERS = pty-int.h
 
 libsshsession_a_SOURCES = sshunixpipestream.c sshunixptystream.c sigchld.c \
 	sshtty.c sshunixuser.c wtmp.c
+
 list_libssh_a_objects:
 	@echo BEGIN_FILE_LIST: $(libsshsession_a_OBJECTS) $(libsshsession_a_LIBADD) :END_FILE_LIST
 
 libsshsession_a_DEPENDENCIES = $(SSHSESSION_CONFOBJS)
 libsshsession_a_LIBADD = $(SSHSESSION_CONFOBJS)
 
-EXTRA_DIST = tcbc2.c pty-bsd.c pty-cray.c pty-getpseudotty.c pty-getpty.c \
+EXTRA_DIST = sshsia.c pty-bsd.c pty-cray.c pty-getpseudotty.c pty-getpty.c \
 	pty-openpty.c pty-ptmx.c pty-pts.c pty-sco.c
 
 INCLUDES = -I../.. -I. -I$(srcdir) 		\

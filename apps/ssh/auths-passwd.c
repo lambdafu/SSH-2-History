@@ -20,7 +20,6 @@ files to perform the actual authentication.
 #include "sshuser.h"
 #include "sshserver.h"
 #include "sshconfig.h"
-#include "auths-common.h"
 
 #define SSH_DEBUG_MODULE "Ssh2AuthPasswdServer"
 
@@ -48,59 +47,42 @@ SshAuthServerResult ssh_server_auth_passwd(SshAuthServerOperation op,
   switch (op)
     {
     case SSH_AUTH_SERVER_OP_START:
-      /* Check whether user's login is allowed */
-      if (ssh_server_auth_check_user(&uc, user, config))
+      if (uc == NULL)
         {
-          /* User does not exist or is not allowed to log in. */
-          return SSH_AUTH_SERVER_REJECTED_AND_METHOD_DISABLED;
+          uc = ssh_user_initialize(user, TRUE);
+          if (!uc)
+            {
+              /* If user context allocation failed, the user probably does not 
+                 exist. */
+              ssh_log_event(config->log_facility,
+                            SSH_LOG_WARNING,
+                            "User %s does not exist. "
+                            "(How did we get here?)", user);
+              return TRUE;
+            }       
         }
-      else
-        {
-          *longtime_placeholder = (void *)uc;
-        }
-
-      if (ssh_server_auth_check_host(server->common))
-        {
-          /* logins from remote host are not allowed. */
-          ssh_log_event(config->log_facility, SSH_LOG_WARNING,
-                        "Connection from %s denied. Authentication as user "
-                        "%s was attempted.", server->common->remote_host,
-                        ssh_user_name(uc));
-          return SSH_AUTH_SERVER_REJECTED_AND_METHOD_DISABLED;
-        }
+      *longtime_placeholder = (void *)uc;
       
       {
+        /* XXX it is possible to get rid of these. Modify
+           sshd2.c/auth_policy_proc*/
+        
         config->password_guesses--;
         if (config->password_guesses <= 0)
           {
             /* If this attempt is not succesful, disable this method. */
             disable_method = 1;
           }
-
-        /* If password authentication is denied in the configuration
-           file, deny it here too. */
-        if (config->password_authentication == FALSE )
-          {
-            ssh_warning("Password authentication denied. (user '%s' not"
-                        " allowed to log in)", ssh_user_name(uc));
-            ssh_log_event(config->log_facility, SSH_LOG_WARNING,
-                          "Password authentication denied. (user '%s' not"
-                          " allowed to log in)", ssh_user_name(uc));
-            /* XXX should be
-             SSH_AUTH_SERVER_REJECTED_AND_METHOD_DISABLED, but that
-             disconnects (incorrectly so) now */
-            goto password_bad;            
-          }
-        
         else if(ssh_user_uid(uc) == SSH_UID_ROOT &&
-                config->permit_root_login == FALSE)
+                (config->permit_root_login == SSH_ROOTLOGIN_FALSE ||
+                 config->permit_root_login == SSH_ROOTLOGIN_NOPWD))
           {
             /* XXX Add client addresses etc. */
             ssh_log_event(config->log_facility,
                           SSH_LOG_WARNING,
                           "root logins are not permitted.");
             SSH_DEBUG(2, ("ssh_server_auth_passwd: root logins are " \
-                      "not permitted."));
+                          "not permitted."));
             return SSH_AUTH_SERVER_REJECTED_AND_METHOD_DISABLED;
           }
       }
@@ -159,7 +141,13 @@ SshAuthServerResult ssh_server_auth_passwd(SshAuthServerOperation op,
         }
 
       /* Try a local password (either normal or shadow). */
+#ifdef HAVE_SIA
+      if (ssh_user_validate_local_password(uc, 
+                                           password,
+                                           server->common->remote_host))
+#else /* HAVE_SIA */
       if (ssh_user_validate_local_password(uc, password))
+#endif /* HAVE_SIA */
         {
           ssh_log_event(config->log_facility,
                         SSH_LOG_NOTICE,
@@ -191,8 +179,8 @@ SshAuthServerResult ssh_server_auth_passwd(SshAuthServerOperation op,
         {
           ssh_buffer_clear(packet);
           ssh_encode_buffer(packet,
-                            SSH_FORMAT_UINT32,
-                            SSH_MSG_USERAUTH_PASSWD_CHANGEREQ,
+                            SSH_FORMAT_CHAR,
+                            (unsigned int) SSH_MSG_USERAUTH_PASSWD_CHANGEREQ,
                             SSH_FORMAT_UINT32_STR, prompt, strlen(prompt),
                             SSH_FORMAT_END);
           ssh_xfree(prompt);

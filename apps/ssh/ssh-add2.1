@@ -24,6 +24,15 @@ ssh-add2 \- adds identities for the authentication agent
 .B \-l\
 ]
 [\c
+.B \-N\
+]
+[\c
+.B \-P\
+]
+[\c
+.B \-I\
+]
+[\c
 .B \-d\c
 ]
 [\c
@@ -49,6 +58,9 @@ ssh-add2 \- adds identities for the authentication agent
 ]
 [\c
 .B \-t key timeout in minutes\c
+]
+[\c
+.B \-R OpenPGP keyring\c
 ]
 [\c
 .B files\c
@@ -95,6 +107,18 @@ Read passphrase from stdin (or pipe).
 .B \-l
 Lists all identities currently represented by the agent.
 .TP
+.B \-N
+Keys added/deleted are stored in the OpenPGP keyring and identified by key 
+name string.
+.TP
+.B \-P
+Keys added/deleted are stored in the OpenPGP keyring and identified by key 
+fingerprint.
+.TP
+.B \-F
+Keys added/deleted are stored in the OpenPGP keyring and identified by key 
+id number.
+.TP
 .B \-d
 Instead of adding the identity, removes the identity from the agent.
 .TP
@@ -137,6 +161,9 @@ ssh1 compatibility, this constraint may not work as expected.
 .B \-t timeout
 The agent is advised to delete the key after timeout.  Timeout is
 given in minutes.
+.TP
+.B \-R OpenPGP keyring
+Argument identifies OpenPGP secret keyring file.
 
 .SH RETURN STATUS
 

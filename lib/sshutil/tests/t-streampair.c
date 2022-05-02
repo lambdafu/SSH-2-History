@@ -176,7 +176,7 @@ int main()
   int pass;
   SshStream s1, s2;
 
-  srandom(time(NULL));
+  srandom(ssh_time());
   
   ssh_event_loop_initialize();
   

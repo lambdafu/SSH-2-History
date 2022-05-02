@@ -38,6 +38,10 @@ struct SshServerRec
   
   /* Authentication methods. */
   SshAuthServerMethod *methods;
+
+  /* Contains the application level compatibility flags needed to
+     interoperate with other/older versions. */
+  SshTransportCompat compat_flags;
 };
 
 typedef struct SshServerRec *SshServer;
@@ -88,6 +92,7 @@ SshServer ssh_server_wrap(SshStream stream, SshConfig config,
                           SshServerDisconnectProc disconnect,
                           SshServerDebugProc debug,
                           SshVersionCallback version_check,
+                          SshAuthPolicyProc auth_policy_proc,
                           SshCommonAuthenticatedNotify authenticated_notify,
                           void *context);
 

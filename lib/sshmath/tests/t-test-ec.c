@@ -13,7 +13,7 @@
   */
 
 #include "sshincludes.h"
-#include "gmp.h"
+#include "sshmp.h" /* was "gmp.h" */
 #include "gf2n.h"
 #include "sieve.h"
 #include "timeit.h"
@@ -576,14 +576,14 @@ int find_irreducible(int size, int *bits, int bits_count)
 
 /* Classical binary transform vector (in fact this is pretty stupid
    in a sense). */
-unsigned int transform_binary(const MP_INT *k, char **transform_table)
+unsigned int transform_binary(const SshInt *k, char **transform_table)
 {
   unsigned int maxbit, bit, scanbit, end, transform_index;
   char *transform;
   
   /* Seek the maximum number of bits. */
 
-  maxbit = mpz_sizeinbase(k, 2);
+  maxbit = ssh_mp_get_size(k, 2);
 
   /* Set up scanning. */
   
@@ -596,7 +596,7 @@ unsigned int transform_binary(const MP_INT *k, char **transform_table)
 
   while (!end)
     {
-      scanbit = mpz_scan1(k, bit);
+      scanbit = ssh_mp_scan1(k, bit);
       if (scanbit >= maxbit)
         break;
 
@@ -606,7 +606,7 @@ unsigned int transform_binary(const MP_INT *k, char **transform_table)
           bit++;
         }
 
-      scanbit = mpz_scan0(k, bit);
+      scanbit = ssh_mp_scan0(k, bit);
       if (scanbit >= maxbit)
         end = 1;
       
@@ -624,14 +624,14 @@ unsigned int transform_binary(const MP_INT *k, char **transform_table)
 
 /* Computation of signed bit representation as in Morain & Olivos. */
 
-unsigned int transform_mo(const MP_INT *k, char **transform_table)
+unsigned int transform_mo(const SshInt *k, char **transform_table)
 {
   unsigned int maxbit, bit, scanbit, b, end, transform_index;
   char *transform;
   
   /* Seek the maximum number of bits. */
 
-  maxbit = mpz_sizeinbase(k, 2);
+  maxbit = ssh_mp_get_size(k, 2);
 
   /* Set up scanning. */
   
@@ -649,7 +649,7 @@ unsigned int transform_mo(const MP_INT *k, char **transform_table)
   
   while (!end)
     {
-      scanbit = mpz_scan1(k, bit);
+      scanbit = ssh_mp_scan1(k, bit);
       if (scanbit >= maxbit)
         break;
 
@@ -671,7 +671,7 @@ unsigned int transform_mo(const MP_INT *k, char **transform_table)
           bit++;          
         }
 
-      scanbit = mpz_scan0(k, bit);
+      scanbit = ssh_mp_scan0(k, bit);
       if (scanbit >= maxbit)
         {
           scanbit = maxbit;
@@ -714,7 +714,7 @@ typedef struct
 typedef struct
 {
   SshBPoly a, b, q;
-  MP_INT c;
+  SshInt c;
 
   int f_c;
   unsigned int f_q, f_k, f_n, f_a, f_b;
@@ -761,7 +761,7 @@ void ec2n_init_curve(EC2nCurve *E)
   ssh_bpoly_init(&E->a);
   ssh_bpoly_init(&E->b);
   ssh_bpoly_init(&E->q);
-  mpz_init(&E->c);
+  ssh_mp_init(&E->c);
   E->f_c = 0;
   E->f_q = 0;
   E->f_k = 0;
@@ -775,7 +775,7 @@ void ec2n_clear_curve(EC2nCurve *E)
   ssh_bpoly_clear(&E->a);
   ssh_bpoly_clear(&E->b);
   ssh_bpoly_clear(&E->q);
-  mpz_clear(&E->c);
+  ssh_mp_clear(&E->c);
   E->f_q = 0;
   E->f_c = 0;
   E->f_k = 0;
@@ -789,7 +789,7 @@ void ec2n_copy_curve(EC2nCurve *E, EC2nCurve *C)
   ssh_bpoly_set(&E->a, &C->a);
   ssh_bpoly_set(&E->b, &C->b);
   ssh_bpoly_set(&E->q, &C->q);
-  mpz_set(&E->c, &C->c);
+  ssh_mp_set(&E->c, &C->c);
   E->f_q = C->f_q;
   E->f_c = C->f_c;
   E->f_k = C->f_k;
@@ -966,52 +966,52 @@ void factor(SshInt *large, const SshInt *composite)
   printf("warning: did not find a large probable prime with trial division.\n");
 }
 
-void ec2n_expand_trace(MP_INT *card, int c, unsigned int n,
+void ec2n_expand_trace(SshInt *card, int c, unsigned int n,
                        unsigned int k)
 {
-  MP_INT c1, c2, t1, t2;
+  SshInt c1, c2, t1, t2;
   int i;
 
   /* Compute trivially with Lucas sequence. */
 
-  mpz_init(&c1);
-  mpz_init(&c2);
-  mpz_init(&t1);
-  mpz_init(&t2);
+  ssh_mp_init(&c1);
+  ssh_mp_init(&c2);
+  ssh_mp_init(&t1);
+  ssh_mp_init(&t2);
 
-  mpz_set_si(card, c);
-  mpz_set_ui(&c1, 2);
-  mpz_set(&c2, card);
+  ssh_mp_set_si(card, c);
+  ssh_mp_set_ui(&c1, 2);
+  ssh_mp_set(&c2, card);
   
   for (i = 2; i <= k; i++)
     {
-      mpz_mul(&t1, &c2, card);
-      mpz_mul_ui(&t2, &c1, (1 << n));
-      mpz_set(&c1, &c2);
-      mpz_sub(&c2, &t1, &t2);
+      ssh_mp_mul(&t1, &c2, card);
+      ssh_mp_mul_ui(&t2, &c1, (1 << n));
+      ssh_mp_set(&c1, &c2);
+      ssh_mp_sub(&c2, &t1, &t2);
     }
 
   printf("  trace ");
-  mpz_out_str(NULL, 10, &c2);
+  ssh_mp_out_str(NULL, 10, &c2);
   printf("\n");
 
   printf(" Checking which way we could get large prime order points.\n");
   
   /* Compute the cardinality of the resultant curve. */
-  mpz_set_ui(card, 1);
-  mpz_mul_2exp(card, card, k*n);
-  mpz_add_ui(card, card, 1);
-  mpz_sub(card, card, &c2);
+  ssh_mp_set_ui(card, 1);
+  ssh_mp_mul_2exp(card, card, k*n);
+  ssh_mp_add_ui(card, card, 1);
+  ssh_mp_sub(card, card, &c2);
 
   factor(&c1, card);
   printf("  2^q - t -> ");
-  mpz_out_str(NULL, 10, &c1);
+  ssh_mp_out_str(NULL, 10, &c1);
   printf("\n");
   
-  mpz_clear(&c1); 
-  mpz_clear(&c2);
-  mpz_clear(&t1);
-  mpz_clear(&t2); 
+  ssh_mp_clear(&c1); 
+  ssh_mp_clear(&c2);
+  ssh_mp_clear(&t1);
+  ssh_mp_clear(&t2); 
 }
 
 void ec2n_find_point(EC2nPoint *P, EC2nCurve *E)
@@ -1205,7 +1205,7 @@ void ec2n_add(EC2nPoint *R, EC2nPoint *P, EC2nPoint *Q, EC2nCurve *E)
 
 /* Generic multiplication. But then again, with GF(2^n) one can probably
    live with just the generic one? */
-void ec2n_mul(EC2nPoint *R, EC2nPoint *P, MP_INT *k,
+void ec2n_mul(EC2nPoint *R, EC2nPoint *P, SshInt *k,
               EC2nCurve *E)
 {
   EC2nContext ctx;
@@ -1214,12 +1214,12 @@ void ec2n_mul(EC2nPoint *R, EC2nPoint *P, MP_INT *k,
   int i;
 
   /* As with ECP case, obviously. */
-  if (P->z == 0 || mpz_cmp_ui(k, 0) == 0)
+  if (P->z == 0 || ssh_mp_cmp_ui(k, 0) == 0)
     {
       R->z = 0;
       return;
     }
-  if (mpz_cmp_ui(k, 1) == 0)
+  if (ssh_mp_cmp_ui(k, 1) == 0)
     {
       ec2n_copy_point(R, P);
       return;
@@ -1291,32 +1291,32 @@ void ec2n_frobenius(EC2nPoint *R, EC2nPoint *P, EC2nCurve *E)
 }
 
 /* Frobenius multiplication as given by Volker Mueller. */
-void ec2n_mul_frobenius(EC2nPoint *R, EC2nPoint *P, MP_INT *k,
+void ec2n_mul_frobenius(EC2nPoint *R, EC2nPoint *P, SshInt *k,
                         EC2nCurve *E)
 {
   EC2nContext ctx;
   EC2nPoint T, I;
   EC2nPoint *F;
-  MP_INT n, h, s1, s2;
+  SshInt n, h, s1, s2;
   unsigned int q;
   int *r;
   int i, t;
 
-  mpz_init(&n);
+  ssh_mp_init(&n);
   /* First reduce to suitable residue, just in case. */
-  mpz_mod(&n, k, &E->c);
+  ssh_mp_mod(&n, k, &E->c);
 
   /* As with ECP case, obviously. */
-  if (P->z == 0 || mpz_cmp_ui(&n, 0) == 0)
+  if (P->z == 0 || ssh_mp_cmp_ui(&n, 0) == 0)
     {
       R->z = 0;
-      mpz_clear(&n);
+      ssh_mp_clear(&n);
       return;
     }
-  if (mpz_cmp_ui(&n, 1) == 0)
+  if (ssh_mp_cmp_ui(&n, 1) == 0)
     {
       ec2n_copy_point(R, P);
-      mpz_clear(&n);
+      ssh_mp_clear(&n);
       return;
     }
 
@@ -1342,66 +1342,66 @@ void ec2n_mul_frobenius(EC2nPoint *R, EC2nPoint *P, MP_INT *k,
     }
 
   /* Build Frobenius represenation of the exponent. */
-  mpz_init(&s1);
-  mpz_init(&s2);
-  mpz_init(&h);
+  ssh_mp_init(&s1);
+  ssh_mp_init(&s2);
+  ssh_mp_init(&h);
 
-  mpz_set(&s1, &n);
-  mpz_set_ui(&s2, 0);
+  ssh_mp_set(&s1, &n);
+  ssh_mp_set_ui(&s2, 0);
 
   /*printf("Building the Frobenius table.\n");*/
   
-  r = ssh_xmalloc(sizeof(int) * (mpz_sizeinbase(&n,2) + 10));
+  r = ssh_xmalloc(sizeof(int) * (ssh_mp_get_size(&n,2) + 10));
   i = 0;
   while (1)
     {
       /*printf(" s1 = ");
-      mpz_out_str(NULL, 10, &s1);
+      ssh_mp_out_str(NULL, 10, &s1);
       printf("\n");
       printf(" s2 = ");
-      mpz_out_str(NULL, 10, &s2);
+      ssh_mp_out_str(NULL, 10, &s2);
       printf("\n");*/
       
-      mpz_abs(&n, &s1);
-      mpz_abs(&h, &s2);
-      if (mpz_cmp_ui(&n, q/2) <= 0 && 
-          mpz_cmp_ui(&h, 1) <= 0)
+      ssh_mp_abs(&n, &s1);
+      ssh_mp_abs(&h, &s2);
+      if (ssh_mp_cmp_ui(&n, q/2) <= 0 && 
+          ssh_mp_cmp_ui(&h, 1) <= 0)
         break;
 
-      mpz_mod_2exp(&n, &s1, E->f_q);
+      ssh_mp_mod_2exp(&n, &s1, E->f_q);
       /*printf(" n = ");
-      mpz_out_str(NULL, 10, &n);
+      ssh_mp_out_str(NULL, 10, &n);
       printf("\n"); */
-      if (mpz_cmp_ui(&n, 0) < 0)
-        mpz_add_ui(&n, &n, q);
-      r[i] = mpz_get_si(&n);
+      if (ssh_mp_cmp_ui(&n, 0) < 0)
+        ssh_mp_add_ui(&n, &n, q);
+      r[i] = ssh_mp_get_si(&n);
       /*printf(" r[%d] = %d\n", i, r[i]); */
       if (r[i] > (int)q/2)
         r[i] -= (int)q;
 
-      mpz_set_si(&n, r[i]);
+      ssh_mp_set_si(&n, r[i]);
       /*printf(" n = ");
-      mpz_out_str(NULL, 10, &n);
+      ssh_mp_out_str(NULL, 10, &n);
       printf("\n");*/
-      mpz_sub(&n, &n, &s1);
+      ssh_mp_sub(&n, &n, &s1);
       /*printf(" n = ");
-      mpz_out_str(NULL, 10, &n);
+      ssh_mp_out_str(NULL, 10, &n);
       printf("\n");*/
-      mpz_div_2exp(&n, &n, E->f_q);
+      ssh_mp_div_2exp(&n, &n, E->f_q);
       /*printf(" n = ");
-      mpz_out_str(NULL, 10, &n);
+      ssh_mp_out_str(NULL, 10, &n);
       printf("\n");*/
 
-      mpz_set_si(&h, E->f_c);
+      ssh_mp_set_si(&h, E->f_c);
       /*printf(" h = ");
-      mpz_out_str(NULL, 10, &h);
+      ssh_mp_out_str(NULL, 10, &h);
       printf("\n");*/
-      mpz_mul(&h, &h, &n);
+      ssh_mp_mul(&h, &h, &n);
       /*printf(" h = ");
-      mpz_out_str(NULL, 10, &h);
+      ssh_mp_out_str(NULL, 10, &h);
       printf("\n");*/
-      mpz_sub(&s1, &s2, &h);
-      mpz_set(&s2, &n);
+      ssh_mp_sub(&s1, &s2, &h);
+      ssh_mp_set(&s2, &n);
       /* printf(" %d, ", r[i]); */
       i++;
     }
@@ -1409,7 +1409,7 @@ void ec2n_mul_frobenius(EC2nPoint *R, EC2nPoint *P, MP_INT *k,
   printf("Adding things up.\n"); */
 
   /* Set the T. */
-  t = mpz_get_si(&s1);
+  t = ssh_mp_get_si(&s1);
   if (t != 0)
     {
       if (t < 0)
@@ -1417,7 +1417,7 @@ void ec2n_mul_frobenius(EC2nPoint *R, EC2nPoint *P, MP_INT *k,
       else
         ec2n_copy_point(&T, &F[t]);
     }
-  t = mpz_get_si(&s2);
+  t = ssh_mp_get_si(&s2);
   if (t != 0)
     {
       ec2n_frobenius(&I, P, E);
@@ -1449,10 +1449,10 @@ void ec2n_mul_frobenius(EC2nPoint *R, EC2nPoint *P, MP_INT *k,
 
   /* Clear temporary space. */
 
-  mpz_clear(&s1);
-  mpz_clear(&s2);
-  mpz_clear(&h);
-  mpz_clear(&n);
+  ssh_mp_clear(&s1);
+  ssh_mp_clear(&s2);
+  ssh_mp_clear(&h);
+  ssh_mp_clear(&n);
   
   ssh_xfree(r);
   for (i = 0; i <= q/2; i++)
@@ -1464,15 +1464,15 @@ void ec2n_mul_frobenius(EC2nPoint *R, EC2nPoint *P, MP_INT *k,
   ec2n_clear_context(&ctx);
 }
 
-void ec2n_find_point_of_order(EC2nPoint *P, MP_INT *n, EC2nCurve *E)
+void ec2n_find_point_of_order(EC2nPoint *P, SshInt *n, EC2nCurve *E)
 {
-  MP_INT k;
+  SshInt k;
   EC2nPoint R;
   
-  mpz_init(&k);
-  mpz_div(&k, &E->c, n);
+  ssh_mp_init(&k);
+  ssh_mp_div_q(&k, &E->c, n);
   printf(" k = ");
-  mpz_out_str(NULL, 10, &k);
+  ssh_mp_out_str(NULL, 10, &k);
   printf("\n");
   
   ec2n_init_point(&R, E);
@@ -1489,7 +1489,7 @@ void ec2n_find_point_of_order(EC2nPoint *P, MP_INT *n, EC2nCurve *E)
     ssh_fatal("error: could not find point of selected order.");
 
   ec2n_clear_point(&R);
-  mpz_clear(&k);
+  ssh_mp_clear(&k);
 }
 
 #if 1
@@ -1743,7 +1743,7 @@ void ec2n_generate_curve(EC2nCurve *E, unsigned int n, unsigned int k,
     ssh_bpoly_set_bit(&E->q, bits[i]);
 
   printf("Curve should have the cardinality ");
-  mpz_out_str(NULL, 10, &E->c);
+  ssh_mp_out_str(NULL, 10, &E->c);
   printf("\n");
   printf("The field irreducible polynomial is \n");
   ssh_bpoly_pretty_print(&E->q);
@@ -1763,13 +1763,13 @@ void ec2n_generate_curve(EC2nCurve *E, unsigned int n, unsigned int k,
      this also. */
   {
     
-    MP_INT z;
-    mpz_init(&z);
-    mpz_set_ui(&z, 1);
-    mpz_mul_2exp(&z, ssh_bpoly_deg(&E->q));
-    mpz_add_ui(&z, 1);
-    mpz_sub(&E->c, &z, &E->c);
-    mpz_clear(&z);
+    SshInt z;
+    ssh_mp_init(&z);
+    ssh_mp_set_ui(&z, 1);
+    ssh_mp_mul_2exp(&z, ssh_bpoly_deg(&E->q));
+    ssh_mp_add_ui(&z, 1);
+    ssh_mp_sub(&E->c, &z, &E->c);
+    ssh_mp_clear(&z);
   }
   
   /* Half of the elements in GF(2^n) has trace 0. */
@@ -1806,7 +1806,7 @@ void test_ec2n(unsigned int n,
   EC2nCurve E;
   EC2nPoint P, Q, R, T;
   unsigned int k = bits[bits_count - 1]/n, i, l /* ,j */;
-  MP_INT t, large;
+  SshInt t, large;
   
   printf("Generating a curve y^2 + xy = x^3 + ax^2 + b in GF(2^(%u*%u))\n",
          n, k);
@@ -1815,10 +1815,10 @@ void test_ec2n(unsigned int n,
 
   ec2n_generate_curve(&E, n, k, bits, bits_count);
 
-  mpz_init(&large);
+  ssh_mp_init(&large);
   factor(&large, &E.c);
   printf(" large card factor: ");
-  mpz_out_str(NULL, 10, &large);
+  ssh_mp_out_str(NULL, 10, &large);
   printf("\n");
   
   ec2n_init_point(&P, &E);
@@ -1845,7 +1845,7 @@ void test_ec2n(unsigned int n,
 
   ec2n_init_point(&R, &E);
   ec2n_init_point(&T, &E);
-  mpz_init(&t);
+  ssh_mp_init(&t);
 
   printf("Frobenius multiplication test!\n");
   for (i = 0; i < 10; i++)
@@ -1860,7 +1860,7 @@ void test_ec2n(unsigned int n,
         ec2n_add(&T, &T, &P, &E); */
 
       /* printf("Computing %u*P.\n", l);*/
-      mpz_set_ui(&t, l);
+      ssh_mp_set_ui(&t, l);
       /* This multiplication should work. */
       ec2n_mul(&Q, &P, &t, &E);
 
@@ -1906,8 +1906,8 @@ void test_ec2n(unsigned int n,
         }
     }
   
-  mpz_clear(&t);
-  mpz_clear(&large);
+  ssh_mp_clear(&t);
+  ssh_mp_clear(&large);
   
   ec2n_clear_point(&T);
   ec2n_clear_point(&R);
@@ -2263,7 +2263,7 @@ int main(int ac, char *av[])
   unsigned int t0, t1;
   int e, k;
   int bits[10];
-  unsigned int t = time(NULL);
+  unsigned int t = ssh_time();
 
   srandom(t);
   printf(" GF(2^n) testing...\n");

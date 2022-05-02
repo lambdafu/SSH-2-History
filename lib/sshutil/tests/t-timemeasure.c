@@ -10,7 +10,7 @@ Test time measurement.
 */
 
 /*
- * $Id: t-timemeasure.c,v 1.8 1999/01/14 07:14:07 tri Exp $
+ * $Id: t-timemeasure.c,v 1.9 1999/05/04 02:20:32 kivinen Exp $
  * $Log: t-timemeasure.c,v $
  * $EndLog$
  */
@@ -338,7 +338,7 @@ int main()
   START(timer_3);
   for (i = 1; i < TIMESTAMPS; i++)
     {
-      time(NULL);
+      ssh_time();
     }
   STOP(timer_3);
   STOP(timer_4);

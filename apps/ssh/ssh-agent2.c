@@ -20,7 +20,7 @@ The ssh authentication agent.
 #include "sshcross.h"
 #include "sshencode.h"
 #include "sshtcp.h"
-#include "match.h"
+#include "sshmatch.h"
 #include "sshtimeouts.h"
 #include "sshagent.h"
 #include "sshagentint.h"
@@ -28,8 +28,8 @@ The ssh authentication agent.
 #include "sshuserfiles.h"
 #include "sshunixeloop.h"
 #include "sshgetopt.h"
-#include "pubkeyencode.h"
-#include "gmp.h"
+#include "ssh2pubkeyencode.h"
+#include "sshmp.h" /* was "gmp.h" */
 
 #define SSH_DEBUG_MODULE "SshAgent"
 
@@ -67,9 +67,9 @@ typedef struct SshAgentKeyRec {
 #ifdef WITH_SSH_AGENT1_COMPAT
 typedef struct SshAgentSsh1KeyRec {
   struct SshAgentSsh1KeyRec *next;
-  MP_INT n;
-  MP_INT e;
-  MP_INT d;
+  SshInt n;
+  SshInt e;
+  SshInt d;
   char *description;
 } *SshAgentSsh1Key;
 #endif /* WITH_SSH_AGENT1_COMPAT */
@@ -180,10 +180,10 @@ Boolean ssh_agenti_invalid_key(SshAgentConnection conn,
 #ifdef WITH_SSH_AGENT1_COMPAT
 
 /* Make ssh1 style (length in two bytes) encoding of long integer */
-void ssh_agenti_ssh1_encode_mp(SshBuffer *buffer, MP_INT *n);
+void ssh_agenti_ssh1_encode_mp(SshBuffer *buffer, SshInt *n);
 
 /* Decode ssh1 style encoded long integer */
-Boolean ssh_agenti_ssh1_decode_mp(SshBuffer *buffer, MP_INT *n);
+Boolean ssh_agenti_ssh1_decode_mp(SshBuffer *buffer, SshInt *n);
 
 /* Reply to the list query from ssh-agent1 */
 void ssh_agenti_ssh1_list_keys(SshAgentConnection conn);
@@ -214,20 +214,20 @@ void ssh_agenti_handle_ssh1_packet(SshAgentConnection conn,
 
 /* Find ssh1 key with the given public part */
 SshAgentSsh1Key ssh_agenti_ssh1key_find(SshAgentImpl agent,
-                                         MP_INT *n, 
-                                         MP_INT *e);
+                                         SshInt *n, 
+                                         SshInt *e);
 
 /* Adds the given ssh1 private key to be managed by the agent. */
 Boolean ssh_agenti_ssh1key_add(SshAgentImpl agent,
-                               MP_INT *n, 
-                               MP_INT *e,
-                               MP_INT *d,
+                               SshInt *n, 
+                               SshInt *e,
+                               SshInt *d,
                                char *description);
 
 /* Delete a ssh1 key with given public key */
 Boolean ssh_agenti_ssh1key_delete(SshAgentImpl agent,
-                                   MP_INT *n, 
-                                   MP_INT *e);
+                                   SshInt *n, 
+                                   SshInt *e);
 
 /* Delete all ssh1 keys */
 void ssh_agenti_ssh1key_delete_all(SshAgentImpl agent);
@@ -253,7 +253,7 @@ void ssh_agenti_send(SshAgentConnection conn, unsigned int packet_type, ...)
 void ssh_agenti_send_error(SshAgentConnection conn, unsigned int err)
 {
   ssh_agenti_send(conn, SSH_AGENT_FAILURE,
-                  SSH_FORMAT_UINT32, (long)err,
+                  SSH_FORMAT_UINT32, (SshUInt32) err,
                   SSH_FORMAT_END);
 }
 
@@ -531,7 +531,7 @@ Boolean ssh_agenti_delete_key(SshAgentImpl agent,
 void ssh_agenti_list_keys(SshAgentConnection conn)
 {
   SshAgentKey key;
-  unsigned long num_keys;
+  SshUInt32 num_keys;
   SshBuffer buffer;
 
   if (conn->agent->lock_password)
@@ -701,7 +701,7 @@ void ssh_agenti_received_packet(SshCrossPacketType type,
   size_t bytes, private_len, public_len, password_len;
   char *description, *op_name, *forwarding_host, *password;
   SshUInt32 timeout_time;
-  time_t current_time;
+  SshTime current_time;
   SshBuffer buffer;
   unsigned int byte;
   struct SshAgentKeyAttrsRec attrs;
@@ -740,7 +740,7 @@ void ssh_agenti_received_packet(SshCrossPacketType type,
              versions.  //tri */
           /* Send our version number. */
           ssh_agenti_send(conn, SSH_AGENT_VERSION_RESPONSE,
-                          SSH_FORMAT_UINT32, 2L,
+                          SSH_FORMAT_UINT32, (SshUInt32) 2,
                           SSH_FORMAT_END);
         }
       break;
@@ -776,7 +776,7 @@ void ssh_agenti_received_packet(SshCrossPacketType type,
           break;
         }
       ssh_agent_init_key_attrs(&attrs);
-      current_time = time(NULL);
+      current_time = ssh_time();
 
       ssh_buffer_init(&buffer);
       ssh_buffer_append(&buffer, &(data[bytes]), len - bytes);
@@ -793,6 +793,7 @@ void ssh_agenti_received_packet(SshCrossPacketType type,
             }
           switch (byte)
             {
+            case SSH_AGENT_CONSTRAINT_OLD_TIMEOUT:
             case SSH_AGENT_CONSTRAINT_TIMEOUT:
               SSH_DEBUG(7, ("got attr SSH_AGENT_CONSTRAINT_TIMEOUT"));
               if (ssh_decode_buffer(&buffer,
@@ -804,9 +805,10 @@ void ssh_agenti_received_packet(SshCrossPacketType type,
                                         SSH_AGENT_ERROR_UNSUPPORTED_OP);
                   goto end_of_attrs;
                 }
-              attrs.timeout_time = (time_t)timeout_time + current_time;
+              attrs.timeout_time = (SshTime)timeout_time + current_time;
               break;
 
+            case SSH_AGENT_CONSTRAINT_OLD_USE_LIMIT:
             case SSH_AGENT_CONSTRAINT_USE_LIMIT:
               SSH_DEBUG(7, ("got attr SSH_AGENT_CONSTRAINT_USE_LIMIT"));
               if (ssh_decode_buffer(&buffer,
@@ -820,6 +822,7 @@ void ssh_agenti_received_packet(SshCrossPacketType type,
                 }
               break;
 
+            case SSH_AGENT_CONSTRAINT_OLD_FORWARDING_STEPS:
             case SSH_AGENT_CONSTRAINT_FORWARDING_STEPS:
               SSH_DEBUG(7, ("got attr SSH_AGENT_CONSTRAINT_FORWARDING_STEPS"));
               if (ssh_decode_buffer(&buffer,
@@ -834,6 +837,7 @@ void ssh_agenti_received_packet(SshCrossPacketType type,
                 }
               break;
 
+            case SSH_AGENT_CONSTRAINT_OLD_FORWARDING_PATH:
             case SSH_AGENT_CONSTRAINT_FORWARDING_PATH:
               SSH_DEBUG(7, ("got attr SSH_AGENT_CONSTRAINT_FORWARDING_PATH"));
               if (ssh_decode_buffer(&buffer,
@@ -848,6 +852,7 @@ void ssh_agenti_received_packet(SshCrossPacketType type,
                 }
               break;
 
+            case SSH_AGENT_CONSTRAINT_OLD_COMPAT:
             case SSH_AGENT_CONSTRAINT_COMPAT:
               SSH_DEBUG(7, ("got attr SSH_AGENT_CONSTRAINT_COMPAT"));
               if (ssh_decode_buffer(&buffer,
@@ -862,6 +867,7 @@ void ssh_agenti_received_packet(SshCrossPacketType type,
                 }
               break;
 
+            case SSH_AGENT_CONSTRAINT_OLD_STATUS:
             case SSH_AGENT_CONSTRAINT_STATUS:
               SSH_DEBUG(7, ("got attr SSH_AGENT_CONSTRAINT_STATUS"));
               if (ssh_decode_buffer(&buffer,
@@ -1039,6 +1045,12 @@ void ssh_agenti_received_packet(SshCrossPacketType type,
       ssh_xfree(password);
       break;
 
+    case SSH_AGENT_PING:
+      ssh_agenti_send(conn, SSH_AGENT_ALIVE,
+                      SSH_FORMAT_DATA, data, len,
+                      SSH_FORMAT_END);
+      break;
+
     case SSH_AGENT_FORWARDING_NOTICE:
       if (ssh_decode_array(data, len,
                            SSH_FORMAT_UINT32_STR, &forwarding_host, NULL,
@@ -1079,6 +1091,8 @@ void ssh_agenti_received_packet(SshCrossPacketType type,
       break;
 #endif /* WITH_SSH_AGENT1_COMPAT */
     default:
+      if ((((int)type) >= 130) && (((int)type) <= 199))
+        break; /* Unknown notification or request is ignored. */
       ssh_agenti_send_error(conn, SSH_AGENT_ERROR_UNSUPPORTED_OP);
       break;
     }
@@ -1162,11 +1176,11 @@ void ssh_agenti_check_timeout_keys(void *context)
   SshAgentKey key;
   SshAgentKey tmpkey = NULL;
   SshAgentKey newkey = NULL;
-  time_t ct;
+  SshTime ct;
 
   SSH_DEBUG(7, ("checking for expired keys"));
 
-  ct = time(NULL);
+  ct = ssh_time();
 
   /* Remove the key with given certs */
   for (tmpkey = agent->keys; tmpkey; /*NOTHING*/)
@@ -1235,7 +1249,7 @@ void ssh_agenti_check_parent(void *context)
 Boolean ssh_agenti_invalid_key(SshAgentConnection conn, 
                                SshAgentKeyAttrs attrs)
 {
-  time_t current_time;
+  SshTime current_time;
 
   if ((attrs->path_len_limit != 0xffffffff) &&
       (attrs->path_len_limit < conn->forwarding_path_len))
@@ -1248,7 +1262,7 @@ Boolean ssh_agenti_invalid_key(SshAgentConnection conn,
       SSH_DEBUG(7, ("key path len ok"));
     }
   
-  current_time = time(NULL);
+  current_time = ssh_time();
   if ((attrs->timeout_time != 0) &&
       (attrs->timeout_time <= current_time))
     {
@@ -1584,7 +1598,7 @@ int main(int argc, char **argv)
 }
 
 #ifdef WITH_SSH_AGENT1_COMPAT
-void ssh_agenti_ssh1_encode_mp(SshBuffer *buffer, MP_INT *n)
+void ssh_agenti_ssh1_encode_mp(SshBuffer *buffer, SshInt *n)
 {
   SshUInt32 len;
   unsigned char len_buf[2];
@@ -1606,7 +1620,7 @@ void ssh_agenti_ssh1_encode_mp(SshBuffer *buffer, MP_INT *n)
   return;
 }
 
-Boolean ssh_agenti_ssh1_decode_mp(SshBuffer *buffer, MP_INT *n)
+Boolean ssh_agenti_ssh1_decode_mp(SshBuffer *buffer, SshInt *n)
 {
   SshUInt32 len;
   unsigned char *len_buf;
@@ -1685,10 +1699,10 @@ void ssh_agenti_ssh1_list_keys(SshAgentConnection conn)
               public_key = ssh_private_key_derive_public_key(key->private_key);
               if (public_key)
                 {
-                  MP_INT n, e;
+                  SshInt n, e;
                   
-                  mpz_init(&n);
-                  mpz_init(&e);
+                  ssh_mp_init(&n);
+                  ssh_mp_init(&e);
                   if (ssh_public_key_get_info(public_key,
                                               SSH_PKF_MODULO_N, &n,
                                               SSH_PKF_PUBLIC_E, &e,
@@ -1711,8 +1725,8 @@ void ssh_agenti_ssh1_list_keys(SshAgentConnection conn)
                                             SSH_FORMAT_END);
                         }
                     }
-                  mpz_clear(&n);
-                  mpz_clear(&e);
+                  ssh_mp_clear(&n);
+                  ssh_mp_clear(&e);
                   ssh_public_key_free(public_key);
                 }
             }
@@ -1740,10 +1754,10 @@ void ssh_agenti_ssh1_challenge(SshAgentConnection conn,
                                    const unsigned char *data, 
                                    size_t len)
 {
-  MP_INT e, n, challenge, output;
+  SshInt e, n, challenge, output;
   SshBuffer buffer;
   SshBuffer reply;
-  size_t bits;
+  SshUInt32 bits;
   SshPublicKey public_key = NULL;
   unsigned char *public_blob = NULL;
   unsigned char *output_buf = NULL;
@@ -1761,10 +1775,10 @@ void ssh_agenti_ssh1_challenge(SshAgentConnection conn,
   ssh_buffer_init(&buffer);
   ssh_buffer_init(&reply);
   ssh_buffer_append(&buffer, data, len);
-  mpz_init(&n);
-  mpz_init(&e);
-  mpz_init(&challenge);
-  mpz_init(&output);
+  ssh_mp_init(&n);
+  ssh_mp_init(&e);
+  ssh_mp_init(&challenge);
+  ssh_mp_init(&output);
 
   SSH_DEBUG(7, ("got ssh1 challenge from the server"));
 
@@ -1808,7 +1822,7 @@ void ssh_agenti_ssh1_challenge(SshAgentConnection conn,
     {
       SSH_DEBUG(7, ("Using ssh1 key to decrypt challenge."));
       /* Decrypt the challenge. */
-      mpz_powm(&output, &challenge, &(ssh1_key->d), &(ssh1_key->n));
+      ssh_mp_powm(&output, &challenge, &(ssh1_key->d), &(ssh1_key->n));
       /* Linearize the output */
       output_len = ((ssh_mp_get_size(&output, 2) + 7) >> 3) & 0xffff;
       if (output_len == 0)
@@ -1937,10 +1951,10 @@ void ssh_agenti_ssh1_challenge(SshAgentConnection conn,
 
  cleanup_reply_and_return:
   ssh_buffer_uninit(&buffer);
-  mpz_clear(&n);
-  mpz_clear(&e);
-  mpz_clear(&challenge);
-  mpz_clear(&output);
+  ssh_mp_clear(&n);
+  ssh_mp_clear(&e);
+  ssh_mp_clear(&challenge);
+  ssh_mp_clear(&output);
   if (public_key)
     ssh_public_key_free(public_key);
   ssh_xfree(public_blob);
@@ -1961,7 +1975,7 @@ void ssh_agenti_ssh1_add_key(SshAgentConnection conn,
                              size_t len)
 {
   SshBuffer buffer;
-  MP_INT n, e, d, u, p, q;
+  SshInt n, e, d, u, p, q;
   SshUInt32 bits;
   SshPrivateKey private_key = NULL;
   SshPublicKey public_key = NULL;
@@ -1972,12 +1986,12 @@ void ssh_agenti_ssh1_add_key(SshAgentConnection conn,
 
   ssh_buffer_init(&buffer);
   ssh_buffer_append(&buffer, data, len);
-  mpz_init(&n);
-  mpz_init(&e);
-  mpz_init(&d);
-  mpz_init(&u);
-  mpz_init(&p);
-  mpz_init(&q);
+  ssh_mp_init(&n);
+  ssh_mp_init(&e);
+  ssh_mp_init(&d);
+  ssh_mp_init(&u);
+  ssh_mp_init(&p);
+  ssh_mp_init(&q);
 
   /* Get length of the key (not needed) */
   if (ssh_decode_buffer(&buffer, 
@@ -2042,12 +2056,12 @@ void ssh_agenti_ssh1_add_key(SshAgentConnection conn,
   public_blob = NULL;
 
  cleanup_reply_and_return:
-  mpz_clear(&n);
-  mpz_clear(&e);
-  mpz_clear(&d);
-  mpz_clear(&u);
-  mpz_clear(&p);
-  mpz_clear(&q);
+  ssh_mp_clear(&n);
+  ssh_mp_clear(&e);
+  ssh_mp_clear(&d);
+  ssh_mp_clear(&u);
+  ssh_mp_clear(&p);
+  ssh_mp_clear(&q);
   ssh_buffer_uninit(&buffer);
   ssh_xfree(comment);
   ssh_xfree(public_blob);
@@ -2066,7 +2080,7 @@ void ssh_agenti_ssh1_remove_key(SshAgentConnection conn,
                                 size_t len)
 {
   SshBuffer buffer;
-  MP_INT n, e;
+  SshInt n, e;
   SshUInt32 bits;
   SshPublicKey key = NULL;
   unsigned char *blob = NULL;
@@ -2075,8 +2089,8 @@ void ssh_agenti_ssh1_remove_key(SshAgentConnection conn,
 
   ssh_buffer_init(&buffer);
   ssh_buffer_append(&buffer, data, len);
-  mpz_init(&n);
-  mpz_init(&e);
+  ssh_mp_init(&n);
+  ssh_mp_init(&e);
 
   /* Get length of the key (not needed) */
   if (ssh_decode_buffer(&buffer, 
@@ -2112,8 +2126,8 @@ void ssh_agenti_ssh1_remove_key(SshAgentConnection conn,
   blob = NULL;
 
  cleanup_reply_and_return:
-  mpz_clear(&n);
-  mpz_clear(&e);
+  ssh_mp_clear(&n);
+  ssh_mp_clear(&e);
   if (key)
     ssh_public_key_free(key);
   ssh_buffer_uninit(&buffer);
@@ -2165,15 +2179,15 @@ void ssh_agenti_handle_ssh1_packet(SshAgentConnection conn,
 
 /* Find ssh1 key with the given public part */
 SshAgentSsh1Key ssh_agenti_ssh1key_find(SshAgentImpl agent,
-                                        MP_INT *n, 
-                                        MP_INT *e)
+                                        SshInt *n, 
+                                        SshInt *e)
 {
   SshAgentSsh1Key key;
 
   key = agent->ssh1_keys;
   while (key)
     {
-      if ((mpz_cmp(n, &(key->n)) == 0) && (mpz_cmp(e, &(key->e)) == 0))
+      if ((ssh_mp_cmp(n, &(key->n)) == 0) && (ssh_mp_cmp(e, &(key->e)) == 0))
         return key;
       key = key->next;
     }
@@ -2182,9 +2196,9 @@ SshAgentSsh1Key ssh_agenti_ssh1key_find(SshAgentImpl agent,
 
 /* Adds the given ssh1 private key to be managed by the agent. */
 Boolean ssh_agenti_ssh1key_add(SshAgentImpl agent,
-                               MP_INT *n, 
-                               MP_INT *e,
-                               MP_INT *d,
+                               SshInt *n, 
+                               SshInt *e,
+                               SshInt *d,
                                char *description)
 {
   SshAgentSsh1Key key;
@@ -2194,9 +2208,9 @@ Boolean ssh_agenti_ssh1key_add(SshAgentImpl agent,
   (void)ssh_agenti_ssh1key_delete(agent, n, e);
   key = ssh_xcalloc(1, sizeof (*key));
   key->description = ssh_xstrdup(description);
-  mpz_init_set(&(key->n), n);
-  mpz_init_set(&(key->e), e);
-  mpz_init_set(&(key->d), d);
+  ssh_mp_init_set(&(key->n), n);
+  ssh_mp_init_set(&(key->e), e);
+  ssh_mp_init_set(&(key->d), d);
   key->next = agent->ssh1_keys;
   agent->ssh1_keys = key;
   return TRUE;
@@ -2204,8 +2218,8 @@ Boolean ssh_agenti_ssh1key_add(SshAgentImpl agent,
 
 /* Delete a ssh1 key with given public key */
 Boolean ssh_agenti_ssh1key_delete(SshAgentImpl agent,
-                                  MP_INT *n, 
-                                  MP_INT *e)
+                                  SshInt *n, 
+                                  SshInt *e)
 {
   SshAgentSsh1Key key, prev;
   Boolean success = FALSE;
@@ -2214,15 +2228,15 @@ Boolean ssh_agenti_ssh1key_delete(SshAgentImpl agent,
   key = agent->ssh1_keys;
   while (key)
     {
-      if ((mpz_cmp(n, &(key->n)) == 0) && (mpz_cmp(e, &(key->e)) == 0))
+      if ((ssh_mp_cmp(n, &(key->n)) == 0) && (ssh_mp_cmp(e, &(key->e)) == 0))
         {
           if (prev)
             prev->next = key->next;
           else
             agent->ssh1_keys = key->next;
-          mpz_clear(&key->n);
-          mpz_clear(&key->e);
-          mpz_clear(&key->d);
+          ssh_mp_clear(&key->n);
+          ssh_mp_clear(&key->e);
+          ssh_mp_clear(&key->d);
           ssh_xfree(key->description);
           ssh_xfree(key);
           success = TRUE;
@@ -2243,9 +2257,9 @@ void ssh_agenti_ssh1key_delete_all(SshAgentImpl agent)
 
   for (key = agent->ssh1_keys; key; key = key->next)
     {
-      mpz_clear(&key->n);
-      mpz_clear(&key->e);
-      mpz_clear(&key->d);
+      ssh_mp_clear(&key->n);
+      ssh_mp_clear(&key->e);
+      ssh_mp_clear(&key->d);
       ssh_xfree(key->description);
       ssh_xfree(key);
     }

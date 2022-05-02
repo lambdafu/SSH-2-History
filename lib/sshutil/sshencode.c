@@ -13,10 +13,10 @@ Functions for encoding/decoding binary data.
 */
 
 #include "sshincludes.h"
-#include "vlint32.h"
+#include "sshvlint32.h"
 #include "sshbuffer.h"
-#include "bufaux.h"
-#include "mpaux.h"
+#include "sshbufaux.h"
+#include "sshmpaux.h"
 #include "sshgetput.h"
 #include "sshstream.h"
 #include "sshencode.h"
@@ -33,12 +33,14 @@ size_t ssh_encode_va(SshBuffer *buffer, va_list ap)
 {
   SshEncodingFormat format;
   unsigned long longvalue;
+  unsigned int intvalue;
   SshUInt64 u64;
+  SshUInt32 u32;
   size_t i;
   Boolean b;
   const unsigned char *p;
   size_t original_bytes;
-  MP_INT *mp;
+  SshInt *mp;
   SshEncoder encoder;
   unsigned char buf[8];
   
@@ -61,8 +63,8 @@ size_t ssh_encode_va(SshBuffer *buffer, va_list ap)
           break;
 
         case SSH_FORMAT_VLINT32:
-          longvalue = va_arg(ap, unsigned long);
-          buffer_put_vlint32(buffer, longvalue);
+          u32 = va_arg(ap, SshUInt32);
+          buffer_put_vlint32(buffer, u32);
           break;
 
         case SSH_FORMAT_BOOLEAN:
@@ -71,18 +73,18 @@ size_t ssh_encode_va(SshBuffer *buffer, va_list ap)
           break;
 
         case SSH_FORMAT_MP_INT:
-          mp = va_arg(ap, MP_INT *);
+          mp = va_arg(ap, SshInt *);
           buffer_put_mp_int(buffer, mp);
           break;
 
         case SSH_FORMAT_UINT32:
-          longvalue = va_arg(ap, unsigned long);
-          buffer_put_int(buffer, longvalue);
+          u32 = va_arg(ap, SshUInt32);
+          buffer_put_int(buffer, u32);
           break;
 
         case SSH_FORMAT_CHAR:
-          i = va_arg(ap, unsigned long);
-          buffer_put_char(buffer, i);
+          intvalue = va_arg(ap, unsigned int);
+          buffer_put_char(buffer, intvalue);
           break;
 
         case SSH_FORMAT_DATA:
@@ -196,14 +198,14 @@ size_t ssh_decode_vlint32(const unsigned char *buf, size_t len,
     return 0;
 
   /* Parse the length of the integer. */
-  itemlen = vlint32_parse_length(buf);
+  itemlen = ssh_ssh_vlint32_parse_length(buf);
   
   /* Check that there is enough data in the buffer. */
   if (len < itemlen)
     return 0;
 
   /* Get the value of the integer. */
-  *valuep = vlint32_parse(buf, NULL);
+  *valuep = ssh_vlint32_parse(buf, NULL);
   
   /* Return its length. */
   return itemlen;
@@ -244,7 +246,7 @@ unsigned char *ssh_decode_alloc(unsigned int *num_allocs_p,
    is encountered (the buffer ends too soon). */
 
 size_t ssh_decode_mp_int(const unsigned char *buf, size_t len,
-                         MP_INT *mp)
+                         SshInt *mp)
 {
   unsigned int bits;
   size_t bytes;
@@ -286,6 +288,7 @@ size_t ssh_decode_array_va(const unsigned char *buf, size_t len,
   SshEncodingFormat format;
   unsigned long *longp, longvalue;
   SshUInt64 *u64p;
+  SshUInt32 *u32p;
   Boolean *bp;
   size_t size, *sizep;
   unsigned int *uip;
@@ -294,7 +297,7 @@ size_t ssh_decode_array_va(const unsigned char *buf, size_t len,
   size_t offset, itemlen;
   unsigned int i, num_allocs;
   unsigned char **allocs;
-  MP_INT *mp;
+  SshInt *mp;
   SshDecoder decoder;
   va_list start_of_ap;
   struct {
@@ -441,7 +444,7 @@ size_t ssh_decode_array_va(const unsigned char *buf, size_t len,
           
 
         case SSH_FORMAT_VLINT32:
-          longp = va_arg(ap, unsigned long *);
+          u32p = va_arg(ap, SshUInt32 *);
 
           /* Decode the value, and check errors, and skip the value. */
           itemlen = ssh_decode_vlint32(buf + offset, len - offset,
@@ -451,8 +454,8 @@ size_t ssh_decode_array_va(const unsigned char *buf, size_t len,
           offset += itemlen;
 
           /* Store the value if requested. */
-          if (longp != NULL)
-            *longp = longvalue;
+          if (u32p != NULL)
+            *u32p = longvalue;
           break;
 
         case SSH_FORMAT_BOOLEAN:
@@ -468,7 +471,7 @@ size_t ssh_decode_array_va(const unsigned char *buf, size_t len,
           /* Note: there is no need to free mp-ints on error, as they are
              already initialized, and thus the caller will eventually
              free them. */
-          mp = va_arg(ap, MP_INT *);
+          mp = va_arg(ap, SshInt *);
           /* Decode the value (note: mp may be NULL). */
           itemlen = ssh_decode_mp_int(buf + offset, len - offset, mp);
           if (itemlen == 0)
@@ -477,11 +480,11 @@ size_t ssh_decode_array_va(const unsigned char *buf, size_t len,
           break;
 
         case SSH_FORMAT_UINT32:
-          longp = va_arg(ap, unsigned long *);
+          u32p = va_arg(ap, SshUInt32 *);
           if (len - offset < 4)
             goto fail;
-          if (longp)
-            *longp = SSH_GET_32BIT(buf + offset);
+          if (u32p)
+            *u32p = SSH_GET_32BIT(buf + offset);
           offset += 4;
           break;
 

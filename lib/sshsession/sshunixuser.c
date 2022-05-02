@@ -15,6 +15,9 @@ This is a simple implementation for generic unix platforms.
 
 #include "sshsessionincludes.h"
 #include "sshuser.h"
+#ifdef HAVE_SIA
+#include "sshsia.h"
+#endif /* HAVE_SIA */
 
 #ifdef HAVE_SCO_ETC_SHADOW
 # include <sys/security.h>
@@ -51,9 +54,7 @@ This is a simple implementation for generic unix platforms.
 #include <usersec.h>
 #endif /* HAVE_USERSEC_H */
 
-#ifdef HAVE_OSF1_C2_SECURITY
-#include "tcbc2.h"
-#endif /* HAVE_OSF1_C2_SECURITY */
+#define SSH_DEBUG_MODULE "SshUnixUser"
 
 extern char *crypt(const char *key, const char *salt);
 
@@ -85,15 +86,16 @@ Boolean ssh_login_permitted(const char *user, SshUser uc)
   {
     char *expiration, current_time[100], normalized[100];
     int rlogin_permitted;
-    time_t t;
-    struct tm *tm;
+    ssh_time t;
+    struct SshCalendarTimeRec tm[1];
     int account_is_locked;
     
     if (setuserdb(S_READ) < 0)
       {
         if (getuid() == 0) /* It's OK to fail here if we are not root */
           {
-            ssh_debug("setuserdb S_READ failed: %.200s.", strerror(errno));
+            SSH_DEBUG(2, ("setuserdb S_READ failed: %.200s.", 
+                          strerror(errno)));
           }
         return FALSE;
       }
@@ -102,37 +104,39 @@ Boolean ssh_login_permitted(const char *user, SshUser uc)
       {
         if (getuid() == 0) /* It's OK to fail here if we are not root */
           {
-            ssh_debug("getuserattr S_RLOGINCHK failed: %.200s",
-                      strerror(errno));
+            SSH_DEBUG(2, ("getuserattr S_RLOGINCHK failed: %.200s",
+                          strerror(errno)));
           }
         enduserdb();
         return FALSE;
       }
     if (getuserattr((char *)user, S_EXPIRATION, &expiration, SEC_CHAR) < 0)
       {
-        ssh_debug("getuserattr S_EXPIRATION failed: %.200s.", strerror(errno));
+        SSH_DEBUG(2, ("getuserattr S_EXPIRATION failed: %.200s.", 
+                      strerror(errno)));
         enduserdb();
         return FALSE;
       }
 #ifdef S_LOCKED
     if (getuserattr(user, S_LOCKED, &account_is_locked, SEC_BOOL) < 0)
       {
-        ssh_debug("getuserattr S_LOCKED failed: %.200s.", strerror(errno));
+        SSH_DEBUG(2, ("getuserattr S_LOCKED failed: %.200s.", 
+                      strerror(errno)));
         enduserdb();
         return FALSE;
       }
     if (account_is_locked)
       {
-        ssh_debug("Account %.100s is locked.", user);
+        SSH_DEBUG(2, ("Account %.100s is locked.", user));
         enduserdb();
         return FALSE;
       }
 #endif /* S_LOCKED */
     if (!rlogin_permitted)
       {
-        ssh_debug("Remote logins to account %.100s not permitted by "
-                  "user profile.",
-                  user);
+        SSH_DEBUG(2, ("Remote logins to account %.100s not permitted by "
+                      "user profile.",
+                      user));
         enduserdb();
         return FALSE;
       }
@@ -144,15 +148,16 @@ Boolean ssh_login_permitted(const char *user, SshUser uc)
       }
     if (strlen(expiration) != 10)
       {
-        ssh_debug("Account %.100s expiration date is in wrong format.", user);
+        SSH_DEBUG(2, ("Account %.100s expiration date is in wrong format.", 
+                      user));
         enduserdb();
         return FALSE;
       }
-    t = time(NULL);
-    tm = localtime(&t);
+    t = ssh_time();
+    ssh_calendar_time(t, tm, TRUE);
     snprintf(current_time, sizeof(current_time), "%04d%02d%02d%02d%02d",
-             tm->tm_year + 1900, tm->tm_mon + 1, tm->tm_mday,
-             tm->tm_hour, tm->tm_min);
+             tm->year, tm->month + 1, tm->monthday,
+             tm->hour, tm->minute);
     if (expiration[8] < '7') /* Assume year < 70 is 20YY. */
       strcpy(normalized, "20");
     else
@@ -162,7 +167,7 @@ Boolean ssh_login_permitted(const char *user, SshUser uc)
     normalized[12] = '\0';
     if (strcmp(normalized, current_time) < 0)
       {
-        ssh_debug("Account %.100s has expired - access denied.", user);
+        SSH_DEBUG(2, ("Account %.100s has expired - access denied.", user));
         enduserdb();
         return FALSE;
       }
@@ -200,20 +205,22 @@ Boolean ssh_login_permitted(const char *user, SshUser uc)
         if ((stat(SHADOW, &sbf) == 0) &&
             strcmp(uc->correct_encrypted_passwd, "x") == 0)
           {
-            ssh_debug("Can't find %.100s's shadow - access denied.", user);
+            SSH_DEBUG(2, ("Can't find %.100s's shadow - access denied.", 
+                          user));
             endspent();
             return FALSE;
           }
       }
     else
       {
-        time_t today = time((time_t *)NULL)/24/60/60; /* what a day! */
+        SshTime today = ssh_time()/24/60/60; /* what a day! */
 
 #ifdef HAVE_STRUCT_SPWD_EXPIRE
         /* Check for expiration date */
         if (sp->sp_expire > 0 && today > sp->sp_expire)
           {
-            ssh_debug("Account %.100s has expired - access denied.", user);
+            SSH_DEBUG(2, ("Account %.100s has expired - access denied.", 
+                          user));
             endspent();
             return FALSE;
           }
@@ -224,13 +231,13 @@ Boolean ssh_login_permitted(const char *user, SshUser uc)
         if (sp->sp_inact > 0)
           {
             char buf[64];
-            unsigned long llt;
+            SshTime llt;
             
             llt = ssh_user_get_last_login_time(uc, buf, sizeof(buf));
             if (llt && (today - llt/24/60/60) > sp->sp_inact)
               {
-                ssh_debug("Account %.100s was inactive for more than %d days.",
-                          user, sp->sp_inact);
+                SSH_DEBUG(2, ("Account %.100s was inactive for more than %d days.",
+                              user, sp->sp_inact));
                 endspent();
                 return FALSE;
               }
@@ -241,8 +248,8 @@ Boolean ssh_login_permitted(const char *user, SshUser uc)
         if (sp->sp_lstchg == 0 ||
             (sp->sp_max > 0 && today > sp->sp_lstchg + sp->sp_max))
           {
-            ssh_debug("Account %.100s's password is too old - forced to change.",
-                      user);
+            SSH_DEBUG(2, ("Account %.100s's password is too old - forced to change.",
+                          user));
             uc->password_needs_change = TRUE;
           }
         strncpy(passwd, sp->sp_pwdp, sizeof(passwd));
@@ -258,7 +265,7 @@ Boolean ssh_login_permitted(const char *user, SshUser uc)
   {
     if (strncmp(passwd,"*LK*", 4) == 0)
       {
-        ssh_debug("Account %.100s is locked.", user);
+        SSH_DEBUG(2, ("Account %.100s is locked.", user));
         return FALSE;
       }
   }
@@ -271,12 +278,12 @@ Boolean ssh_login_permitted(const char *user, SshUser uc)
       shell = DEFAULT_SHELL;
     
     while (invalid && (etc_shell = getusershell()))
-      invalid = strcmp(etc_shell,shell);
+      invalid = strcmp(etc_shell, shell);
     endusershell();
     
     if (invalid)
       {
-        ssh_debug("Account %.100s doesn't have valid shell", user);
+        SSH_DEBUG(2, ("Account %.100s doesn't have valid shell", user));
         return FALSE;
       }
   }
@@ -284,6 +291,9 @@ Boolean ssh_login_permitted(const char *user, SshUser uc)
 
   return TRUE;
 }
+
+/* Forward declaration. */
+SshUser ssh_user_initialize_with_pw(struct passwd *pw, Boolean privileged);
 
 /* Allocates and initializes a context for the user.  The context is used
    to cache information about the particular user.  Returns NULL if the
@@ -294,22 +304,36 @@ Boolean ssh_login_permitted(const char *user, SshUser uc)
 
 SshUser ssh_user_initialize(const char *user, Boolean privileged)
 {
-
-  SshUser uc;
-
   struct passwd *pw;
-  char correct_passwd[200];
-
-  /* Get the encrypted password for the user. */
 
   if (user == NULL)
     pw = getpwuid(getuid());
   else 
     pw = getpwnam(user);
 
+  return ssh_user_initialize_with_pw(pw, privileged);
+}
+
+/* As above, but we explicitely want to use uid (instead of name). */
+SshUser ssh_user_initialize_with_uid(uid_t uid, Boolean privileged)
+{
+  struct passwd *pw;
+
+  pw = getpwuid(uid);
+
+  return ssh_user_initialize_with_pw(pw, privileged);
+}
+
+/* As above, but uses struct passwd. This function does all the work. */
+SshUser ssh_user_initialize_with_pw(struct passwd *pw, Boolean privileged)
+{
+  SshUser uc;
+
+  char correct_passwd[200];
+
   if (!pw)
     return NULL;
-
+  
   uc = ssh_xcalloc(1, sizeof(*uc));
 
   uc->name = ssh_xstrdup(pw->pw_name);
@@ -332,10 +356,12 @@ SshUser ssh_user_initialize(const char *user, Boolean privileged)
       /* Save the encrypted password. */
       strncpy(correct_passwd, pw->pw_passwd, sizeof(correct_passwd));
 
-#ifdef HAVE_OSF1_C2_SECURITY
-      tcbc2_getprpwent(correct_passwd, ssh_user_name(uc),
-                       sizeof(correct_passwd));
-#else /* HAVE_OSF1_C2_SECURITY */
+#ifdef HAVE_SIA
+      /* pr->pw_passwd may not be the real encrypted password (it won't be
+         under Enhanced Security), but we don't care because we never look at
+         uc->correct_encrypted_passwd.  We let my_sia_validate_user() do all
+         the work instead. */
+#else /* HAVE_SIA */
       /* If we have shadow passwords, lookup the real encrypted password from
          the shadow file, and replace the saved encrypted password with the
          real encrypted password. */
@@ -413,7 +439,7 @@ SshUser ssh_user_initialize(const char *user, Boolean privileged)
 #endif /* HAVE_ETC_SECURITY_PASSWD_ADJUNCT */
 #endif /* HAVE_ETC_SHADOW */
 #endif /* HAVE_SCO_ETC_SHADOW */
-#endif /* HAVE_OSF1_C2_SECURITY */
+#endif /* HAVE_SIA */
 
       uc->correct_encrypted_passwd = ssh_xstrdup(correct_passwd);
 
@@ -461,8 +487,14 @@ Boolean ssh_user_login_is_allowed(SshUser uc)
 
 /* Returns TRUE if login is allowed with the given local password. */
 
+#ifdef HAVE_SIA
+Boolean ssh_user_validate_local_password(SshUser uc,
+                                         const char *password,
+                                         const char *remote_host)
+#else /* HAVE_SIA */
 Boolean ssh_user_validate_local_password(SshUser uc,
                                          const char *password)
+#endif /* HAVE_SIA */
 {
   char *encrypted_password;
   const char *correct_passwd = uc->correct_encrypted_passwd;
@@ -489,12 +521,38 @@ Boolean ssh_user_validate_local_password(SshUser uc,
   }
 #endif /* HAVE_ULTRIX_SHADOW_PASSWORDS */
 
+#ifdef HAVE_SIA
+  {
+    int argc;
+    char **argv;
+
+    /* Passing a collection routine to my_sia_validate_user() here would
+       be useless and could be harmful.
+
+       It would be useless because at this point, stdin/stdout/stderr
+       are all redirected to /dev/null.
+
+       It would be harmful if the collection routine tried to print
+       anything to stdout, say, a warning that the password is incorrect.
+       At this point, nothing has been printed to stdout yet and it's
+       redirected to /dev/null.  Printing to stdout now would initialize
+       it as fully buffered (not line buffered) since /dev/null isn't a
+       tty.  That would cause problems later on in the child, which gets
+       a copy of the stdout structure.  When the child printed /etc/motd
+       and the mail notice, the user wouldn't see them because they'd
+       be stuck in the stdout buffer. */
+
+    get_sia_args(&argc, &argv);
+    if (my_sia_validate_user(NULL, argc, argv,
+                             (char *)remote_host, uc->name,
+                             NULL, 0, NULL, (char *)password) == SIASUCCESS)
+      return TRUE;
+    else
+      return FALSE;
+  }
+#endif /* HAVE_SIA */
+
   /* Encrypt the candidate password using the proper salt. */
-#ifdef HAVE_OSF1_C2_SECURITY
-  encrypted_password = (char *)tcbc2_crypt(password,
-                                           (correct_passwd[0] && correct_passwd[1]) ?
-                                           correct_passwd : "xx");
-#else /* HAVE_OSF1_C2_SECURITY */
 #if defined(HAVE_SCO_ETC_SHADOW) || defined(HAVE_HPUX_TCB_AUTH)
   encrypted_password = bigcrypt(password, 
                                 (correct_passwd[0] && correct_passwd[1]) ?
@@ -504,7 +562,6 @@ Boolean ssh_user_validate_local_password(SshUser uc,
                              (correct_passwd[0] && correct_passwd[1]) ?
                              correct_passwd : "xx");
 #endif /* HAVE_SCO_ETC_SHADOW */
-#endif /* HAVE_OSF1_C2_SECURITY */
 
   /* Authentication is accepted if the encrypted passwords are identical. */
   return strcmp(encrypted_password, correct_passwd) == 0;
@@ -528,7 +585,7 @@ Boolean ssh_user_change_password(SshUser uc,
                                  const char *old_password,
                                  const char *new_password)
 {
-  ssh_debug("ssh_user_change_password: XXX changing not yet implemented");
+  SSH_DEBUG(2, ("ssh_user_change_password: XXX changing not yet implemented"));
   return FALSE;
 }
 
@@ -539,7 +596,7 @@ Boolean ssh_user_change_password(SshUser uc,
 Boolean ssh_user_validate_kerberos_password(SshUser uc,
                                             const char *password)
 {
-  ssh_debug("ssh_user_validate_kerberos_password: not yet implemented");
+  SSH_DEBUG(2, ("ssh_user_validate_kerberos_password: not yet implemented"));
   return FALSE;
 }
 
@@ -550,7 +607,7 @@ Boolean ssh_user_validate_kerberos_password(SshUser uc,
 Boolean ssh_user_validate_secure_rpc_password(SshUser uc,
                                               const char *password)
 {
-  ssh_debug("ssh_user_validate_secure_rpc_password: not yet implemented");
+  SSH_DEBUG(2, ("ssh_user_validate_secure_rpc_password: not yet implemented"));
   return FALSE;
 }
 
@@ -595,7 +652,7 @@ int ssh_cray_setup(uid, username)
   err = setudb();    /* open and rewind the Cray User DataBase */
   if(err != 0)
     {
-      ssh_debug("ssh_cray_setup: UDB open failure");
+      SSH_DEBUG(2, ("ssh_cray_setup: UDB open failure"));
       return(-1);
     }
   naccts = 0;
@@ -614,7 +671,7 @@ int ssh_cray_setup(uid, username)
   endudb();        /* close the udb */
   if (naccts == 0 || accts[0] == 0)
     {
-      ssh_debug("ssh_cray_setup: No Cray accounts found");
+      SSH_DEBUG(2, ("ssh_cray_setup: No Cray accounts found"));
       return(-1);
     }
  
@@ -623,8 +680,8 @@ int ssh_cray_setup(uid, username)
      the account to the first entry. */
   if (acctid(0, accts[0]) < 0) 
     {
-      ssh_debug("ssh_cray_setup: System call acctid failed, accts[0]=%d",
-                accts[0]);
+      SSH_DEBUG(2, ("ssh_cray_setup: System call acctid failed, accts[0]=%d",
+                accts[0]));
       return(-1);
     } 
  
@@ -634,7 +691,7 @@ int ssh_cray_setup(uid, username)
   jid = setjob(uid, 0);
   if (jid < 0) 
     {
-      ssh_debug("ssh_cray_setup: System call setjob failure");
+      SSH_DEBUG(2, ("ssh_cray_setup: System call setjob failure"));
       return(-1);
     }
 
@@ -646,13 +703,13 @@ int ssh_cray_setup(uid, username)
   sr = setlimits(username, C_PROC, pid, UDBRC_INTER);
   if (sr != NULL) 
     {
-      ssh_debug("%.100s", sr);
+      SSH_DEBUG(2, ("%.100s", sr));
       return(-1);
     }
   sr = setlimits(username, C_JOB, jid, UDBRC_INTER);
   if (sr != NULL) 
     {
-      ssh_debug("%.100s", sr);
+      SSH_DEBUG(2, ("%.100s", sr));
       return(-1);
     }
 
@@ -677,7 +734,7 @@ Boolean ssh_user_become(SshUser uc)
   /* Set login name in the kernel.  Warning: setsid() must be called before
      this. */
   if (setlogin(ssh_user_name(uc)) < 0)
-    ssh_debug("setlogin failed: %.100s", strerror(errno));
+    SSH_DEBUG(2, ("setlogin failed: %.100s", strerror(errno)));
 #endif /* HAVE_SETLOGIN */
 
 #ifdef HAVE_USERSEC_H
@@ -685,7 +742,7 @@ Boolean ssh_user_become(SshUser uc)
      includes, but it seems to be important.  This also does setuid
      (but we do it below as well just in case). */
   if (setpcred(ssh_user_name(uc), NULL))
-    ssh_debug("setpcred %.100s: %.100s", strerror(errno));
+    SSH_DEBUG(2, ("setpcred %.100s: %.100s", strerror(errno)));
 #endif /* HAVE_USERSEC_H */
 
   /* Close any extra file descriptors.  Note that there may still be
@@ -698,14 +755,20 @@ Boolean ssh_user_become(SshUser uc)
      initgroups, because at least on Solaris 2.3 it leaves file descriptors
      open. */
   endgrent();
+
+#ifdef HAVE_SIA
+  /* Close later on, after calling sia_become_user().  Closing now could
+     break that call. */
+#else /* HAVE_SIA */
   for (i = 3; i < 1000; i++)
     close(i);
+#endif /* HAVE_SIA */
 
 #ifdef CRAY   /* set up accounting account number, job, limits, permissions  */
   if (cray_setup(ssh_user_uid(uc), ssh_user_name(uc)) < 0)
     {
-      ssh_debug("ssh_user_become: Failure in Cray job setup for user %d.",
-                (int)ssh_user_uid(uc));
+      SSH_DEBUG(2, ("ssh_user_become: Failure in Cray job setup for user %d.",
+                    (int)ssh_user_uid(uc)));
       return FALSE;
     }
 #endif
@@ -715,48 +778,135 @@ Boolean ssh_user_become(SshUser uc)
     { 
       if (setgid(ssh_user_gid(uc)) < 0)
         {
-          ssh_debug("ssh_user_become: setgid: %s", strerror(errno));
+          SSH_DEBUG(2, ("ssh_user_become: setgid: %s", strerror(errno)));
           return FALSE;
         }
 #ifdef HAVE_INITGROUPS
       /* Initialize the group list. */
       if (initgroups(ssh_user_name(uc), ssh_user_gid(uc)) < 0)
         {
-          ssh_debug("ssh_user_become: initgroups: %s", strerror(errno));
+          SSH_DEBUG(2, ("ssh_user_become: initgroups: %s", strerror(errno)));
           return FALSE;
         }
 #endif /* HAVE_INITGROUPS */
       endgrent();
           
+#ifdef HAVE_SIA
+      /* Temporarily switch to the desired uid.  We'll permanently switch
+         in ssh_user_become_real(). */
+      if (seteuid(ssh_user_uid(uc)) < 0)
+        {
+          SSH_DEBUG(2, ("ssh_user_become: seteuid %d: %s",
+                        (int)ssh_user_uid(uc), strerror(errno)));
+          return FALSE;
+        }
+      if (geteuid() != ssh_user_uid(uc))
+        {
+          SSH_DEBUG(2, ("ssh_user_become: failed to set euid to %d.",
+                        (int)ssh_user_uid(uc)));
+          return FALSE;
+        }
+#else /* HAVE_SIA */
 #ifdef HAVE_SETLUID
-      /* Set login uid, if we have setluid(). */
+  /* Set login uid, if we have setluid(). */
       if (setluid(ssh_user_uid(uc)) < 0)
         {
-          ssh_debug("ssh_user_become; setluid %d: %s",
-                    (int)ssh_user_uid(uc), strerror(errno));
+          SSH_DEBUG(2, ("ssh_user_become); setluid %d: %s",
+                        (int)ssh_user_uid(uc), strerror(errno));
           return FALSE;
         }
 #endif /* HAVE_SETLUID */
-          
       /* Permanently switch to the desired uid. */
       if (setuid(ssh_user_uid(uc)) < 0)
         {
-          ssh_debug("ssh_user_become: setuid %d: %s",
-                    (int)ssh_user_uid(uc), strerror(errno));
+          SSH_DEBUG(2, ("ssh_user_become: setuid %d: %s",
+                        (int)ssh_user_uid(uc), strerror(errno)));
           return FALSE;
         }
+      if (getuid() != ssh_user_uid(uc) || geteuid() != ssh_user_uid(uc))
+        {
+          SSH_DEBUG(2, ("ssh_user_become: failed to set uids to %d.",
+                        (int)ssh_user_uid(uc)));
+          return FALSE;
+        }
+#endif /* HAVE_SIA */
     }
   
-  if (getuid() != ssh_user_uid(uc) || geteuid() != ssh_user_uid(uc))
-    {
-      ssh_debug("ssh_user_become: failed to set uids to %d.",
-                (int)ssh_user_uid(uc));
-      return FALSE;
-    }
-
   /* We are now running with the user's privileges. */
   return TRUE;
 }
+
+#ifdef HAVE_SIA
+/* Last chance to finish anything that ssh_user_become() left undone.  The
+   difference between the two functions is that ssh_user_become() is called
+   before the user's environment is set, while we're called after.
+
+   Switches the current process to the permissions and privileges of the
+   specified user.  The process should not hold any confidential information
+   at this point.  This returns FALSE if switching to the given user failed
+   for some reason.  The return value of this function MUST BE CHECKED! */
+Boolean ssh_user_become_real(SshUser uc,
+                             const char *remote_host,
+                             const char *ttyname)
+{
+  int i;
+  int argc;
+  char **argv;
+
+  SSH_DEBUG(7, ("before going-back-to-uid uid = %d and euid = %d", 
+                (int)getuid(), (int)geteuid()));
+  /* Switch back temporarily to our own uid (typically root, but
+     not always) in case sia_become_user() needs to access protected
+     account databases. */
+  if (seteuid(getuid()) != 0)
+    {
+      SSH_DEBUG(2, ("ssh_user_become_real: seteuid %d: %s",
+                    (int)getuid(), strerror(errno)));
+      return FALSE;
+    }
+
+  SSH_DEBUG(7, ("after seteuid-to-uid uid = %d and euid = %d", 
+                (int)getuid(), (int)geteuid()));
+
+  get_sia_args(&argc, &argv);
+  /* Enhanced Security calls setluid() here in sia_become_user(). */
+  if (sia_become_user(sia_collect_trm, argc, argv, (char *)remote_host,
+                      (char *)ssh_user_name(uc), (char *)ttyname, 0, NULL,
+                      NULL, SIA_BEU_REALLOGIN) != SIASUCCESS)
+    {
+      SSH_DEBUG(2, ("ssh_user_become_real: sia_become_user() failed for user %d.",
+                    (int)ssh_user_uid(uc)));
+      return FALSE;
+    }
+  /* Our sia calls are complete, so we can finally close any extra
+     open file descriptors. */
+  for (i = getdtablesize() - 1; i > 2; i--)
+    close(i);
+
+  /* We can now completely become the user.  We need to do this
+     with setreuid() instead of setuid() because sia_become_user()
+     has set our euid to the user's uid. */
+  if (setreuid(ssh_user_uid(uc), ssh_user_uid(uc)) < 0)
+    {
+      SSH_DEBUG(2, ("ssh_user_become_real: setreuid %d: %s",
+                    (int)ssh_user_uid(uc), strerror(errno)));
+      return FALSE;
+    }
+
+  if (getuid() != ssh_user_uid(uc) || geteuid() != ssh_user_uid(uc))
+    {
+      SSH_DEBUG(2, ("ssh_user_become_real: failed to set uids to %d.",
+                    (int)ssh_user_uid(uc)));
+      return FALSE;
+    }
+
+  SSH_DEBUG(7, ("after completion uid = %d and euid = %d", 
+                (int)getuid(), (int)geteuid()));
+
+  /* We are now running with the user's complete privileges. */
+  return TRUE;
+}
+#endif /* HAVE_SIA */
 
 /* Returns the login name of the user. */
 

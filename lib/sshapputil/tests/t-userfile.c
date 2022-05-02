@@ -12,13 +12,13 @@ Created: Wed Jul  1 15:47:51 1998 tri
 */
 
 /*
- * $Id: t-userfile.c,v 1.1 1998/07/01 13:23:40 tri Exp $
+ * $Id: t-userfile.c,v 1.2 1999/03/15 15:19:07 tri Exp $
  * $Log: t-userfile.c,v $
  * $EndLog$
  */
 
 #include "sshincludes.h"
-#include "userfile.h"
+#include "sshuserfile.h"
 
 int main()
 {

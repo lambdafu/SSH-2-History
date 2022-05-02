@@ -1684,12 +1684,12 @@ struct SftpCmdRec sftp_cmd[] =
     },
     
    {
-      "ldelete", 1, 1, {"local file", NULL}, sftp_ldelete, TRUE,
+      "ldelete", 1, 1, {"local file", NULL}, sftp_ldelete, FALSE,
       "Delete a local file."
     },
   
     {
-      "lrm", 1, 1, {"local file", NULL}, sftp_ldelete, TRUE,
+      "lrm", 1, 1, {"local file", NULL}, sftp_ldelete, FALSE,
       "Delete a local file."
     },
     
@@ -1712,12 +1712,7 @@ struct SftpCmdRec sftp_cmd[] =
       "get", 1, 2, {"remote file", "local file"}, sftp_get, TRUE,
       "Get a remote file."
     },
-  /*
-    {
-      "glob", 0, 0, {NULL, NULL}, sftp_glob, FALSE,
-      "Toggle globbing for mdelete, mget, and mput."
-    },
-    */
+
     {
       "hash", 0, 0, {NULL, NULL}, sftp_hash, FALSE,
       "Toggle progress indicator."

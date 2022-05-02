@@ -18,7 +18,7 @@ Processing configuration data in SSH (both client and server).
 #include "ssh2includes.h"
 #include "sshconfig.h"
 #include "sshuser.h"
-#include "userfile.h"
+#include "sshuserfile.h"
 #include "sshuserfiles.h"
 #include "sshcipherlist.h"
 #include "namelist.h"
@@ -84,20 +84,25 @@ void ssh_free_varsvals(int n, char **vars, char **vals)
   ssh_xfree(vals); 
 }
 
+
 /* Parses a given comma-separated list to tokens, which are stored in
    a SshDlList. The list is allocated and returned by this
    function. On error, returns NULL. */
-SshDlList ssh_config_parse_list(char *string)
+SshDlList ssh_config_parse_list(char *string,
+                                SshParameterValidityProc function,
+                                void *context)
 {
   char *rest;
   char *current;
   SshDlList list;
   
+  SSH_PRECOND(string != NULL);
+
   list = ssh_dllist_allocate();
-  
+
   rest = string;
 
-  while ((current = ssh_name_list_get_name(rest)) != NULL)
+  while (strlen(rest) != 0 && (current = ssh_name_list_get_name(rest)) != NULL)
     {
       char *temp;
       int i, j;
@@ -119,6 +124,15 @@ SshDlList ssh_config_parse_list(char *string)
       temp[j] = '\0';
       ssh_xfree(current);
       current = temp;
+
+      /* If validity function is given, invoke it to check the current
+         parameter.*/
+      if (function)
+        if ((*function)(current, context))
+          {
+            ssh_xfree(current);
+            continue;
+          }
       
       if (ssh_dllist_add_item(list, (void *)current, SSH_DLLIST_END) !=
           SSH_DLLIST_OK)
@@ -135,17 +149,11 @@ SshDlList ssh_config_parse_list(char *string)
           ssh_dllist_free(list);
           
           return NULL;
-        }
-      
-      if (strlen(rest) == 0)
-        break;
+        }      
     }
 
   return list;
 }
-
-/* Reads the host key that defined in the config data. 
-   Returns TRUE if successful. */
 
 /* Allocates and initializes a config structure */
 SshConfig ssh_config_init(Boolean client)
@@ -161,16 +169,23 @@ SshConfig ssh_config_init(Boolean client)
   config->callback_context = NULL;
 
   config->random_seed_file = ssh_xstrdup(SSH_RANDSEED_FILE);
+  config->pgp_public_key_file = ssh_xstrdup(SSH_PGP_PUBLIC_KEY_FILE);
+  config->pgp_secret_key_file = ssh_xstrdup(SSH_PGP_SECRET_KEY_FILE);
+
   config->forward_agent = TRUE;
   config->forward_x11 = TRUE;
-  config->password_authentication = TRUE;
+  config->password_authentication = -1;
   config->rhosts_authentication = TRUE;
   config->rhosts_pubkey_authentication = TRUE;
-  config->pubkey_authentication = TRUE;
+  config->pubkey_authentication = -1;
   config->force_ptty_allocation = FALSE;
   config->verbose_mode = FALSE;
   config->compression = FALSE;
 
+  config->allowed_authentications = NULL;
+  config->required_authentications = NULL;
+
+  config->user_known_hosts = TRUE;
   config->port = ssh_xstrdup("22");
   config->ciphers = NULL;
   config->user_conf_dir = ssh_xstrdup(SSH_USER_CONFIG_DIRECTORY);
@@ -180,6 +195,8 @@ SshConfig ssh_config_init(Boolean client)
   config->password_prompt = ssh_xstrdup("%U's password: ");
   config->password_guesses = 3;
 
+  config->max_connections = 0;
+  
   config->host_to_connect = NULL;
   config->login_as_user = NULL;
   config->local_forwards = NULL;
@@ -187,6 +204,8 @@ SshConfig ssh_config_init(Boolean client)
 
   config->allowed_hosts = NULL;
   config->denied_hosts = NULL;
+  config->allowed_shosts = NULL;
+  config->denied_shosts = NULL;
   config->require_reverse_mapping = FALSE;
 
   config->log_facility = SSH_LOGFACILITY_AUTH;
@@ -197,16 +216,20 @@ SshConfig ssh_config_init(Boolean client)
   config->strict_host_key_checking = FALSE;
   config->escape_char = ssh_xstrdup("~");
   config->go_background = FALSE;
-  config->use_nonpriviledged_port = FALSE;
   config->dont_read_stdin = FALSE;
-
-  config->permit_root_login = TRUE;
+  config->gateway_ports = FALSE;
+  
+  config->ignore_rhosts = FALSE;
+  config->ignore_root_rhosts = -1;
+  config->permit_root_login = SSH_ROOTLOGIN_TRUE;
   config->permit_empty_passwords = FALSE;
   config->strict_modes = TRUE;
   config->quiet_mode = FALSE;
   config->fascist_logging = FALSE;
   config->print_motd = TRUE;
+  config->check_mail = TRUE;
   config->keep_alive = TRUE;
+  config->no_delay = FALSE;
   config->listen_address = ssh_xstrdup("0.0.0.0");
   config->login_grace_time = 600;
   config->host_key_file = ssh_xstrdup(SSH_HOSTKEY_FILE);
@@ -225,18 +248,48 @@ SshConfig ssh_config_init(Boolean client)
   config->ssh1compatibility = FALSE;  
 #endif /* SSH1_COMPATIBILITY */
   config->ssh_agent_compat = SSH_AGENT_COMPAT_NONE;
-  
+
+  config->signer_path = ssh_xstrdup(SSH_SIGNER_PATH);
   return config;
+}
+
+/* This should be called after initializing the config-struct
+   (ie. after command-line variables have been parsed. This checks,
+   that some required members are initialized properly.*/
+void ssh_config_init_finalize(SshConfig config)
+{
+  /* Common. */
+  /* "hostbased"-authentication method is not enabled by default. */
+  if (!config->allowed_authentications)
+    ssh_config_parse_list((char *)SSH_AUTH_PASSWD "," SSH_AUTH_PUBKEY,
+                          NULL, NULL);
+  
+  /* Client. */
+  if (config->client)
+    {
+      /* Nothing here yet! */
+    }
+  /* Server. */
+  else
+    {
+      /* If IgnoreRootRhosts isn't defined at this stage, assign it to
+         the same as IgnoreRhosts. */
+      if (config->ignore_root_rhosts == -1)
+        config->ignore_root_rhosts = config->ignore_rhosts;
+    }  
 }
 
 /* Helper function, that destroys a list, and frees it's contents,
    too. */
-void free_list(SshDlList list)
+void ssh_config_free_list(SshDlList list)
 {
   char *to_be_deleted;
+
+  if (list == NULL)
+    return;
   
   ssh_dllist_rewind(list);
-  while (ssh_dllist_is_empty(list))
+  while (!ssh_dllist_is_empty(list))
     {
       to_be_deleted = ssh_dllist_delete_current(list);
       ssh_xfree(to_be_deleted);
@@ -245,14 +298,33 @@ void free_list(SshDlList list)
   ssh_dllist_free(list);
 }
 
-/* Frees client configuration data. */
+/* Helper function, that combines two lists. dst will receive nodes
+   from src, and src will be freed. (so the pointer isn't valid after
+   this call.) If one or both arguments are NULL, does nothing. */
+void ssh_config_combine_lists(SshDlList dst, SshDlList src)
+{
+  if (!dst || !src)
+    return;
+  
+  ssh_dllist_rewind(src);
+  while (!ssh_dllist_is_empty(src))
+    {
+      ssh_dllist_add_item(dst, ssh_dllist_delete_current(src), SSH_DLLIST_END);
+    }
 
+  ssh_dllist_free(src);
+}
+
+/* Frees client configuration data. */
 void ssh_config_free(SshConfig config)
 {
-  size_t i;
+  int i;
   
   /* free all allocated memory */
   ssh_xfree(config->random_seed_file);
+  ssh_xfree(config->pgp_public_key_file);
+  ssh_xfree(config->pgp_secret_key_file);
+
   ssh_xfree(config->port);
   ssh_xfree(config->ciphers);
   ssh_xfree(config->identity_file);
@@ -268,8 +340,10 @@ void ssh_config_free(SshConfig config)
   ssh_xfree(config->local_forwards);
   ssh_xfree(config->remote_forwards);
   
-  free_list(config->allowed_hosts);
-  free_list(config->denied_hosts);
+  ssh_config_free_list(config->allowed_hosts);
+  ssh_config_free_list(config->denied_hosts);
+  ssh_config_free_list(config->allowed_shosts);
+  ssh_config_free_list(config->denied_shosts);
   
   ssh_xfree(config->forced_command);
 
@@ -287,6 +361,7 @@ void ssh_config_free(SshConfig config)
       ssh_xfree(config->public_host_key_blob);
     }
 
+  ssh_xfree(config->signer_path);
   memset(config, 0, sizeof(*config));
   ssh_xfree(config);
 }
@@ -329,6 +404,20 @@ struct LogFacility
   {-1, NULL}
 };
 
+Boolean auth_param_validity(const char *param, void *context)
+{
+  if (strcasecmp(param, SSH_AUTH_PUBKEY) == 0)
+    return FALSE;
+
+  if (strcasecmp(param, SSH_AUTH_PASSWD) == 0)
+    return FALSE;
+
+  if (strcasecmp(param, SSH_AUTH_HOSTBASED) == 0)
+    return FALSE;
+
+  return TRUE;
+}
+
 /* Set the variable corresponding to `var' to `val' in config */
 
 Boolean ssh_config_set_parameter(SshConfig config, char *var, char *val)
@@ -370,10 +459,68 @@ Boolean ssh_config_set_parameter(SshConfig config, char *var, char *val)
       config->forward_x11 = bool;
       return FALSE;
     }
+
+  if (strcmp(var, "allowedauthentications") == 0)
+    {
+      if (config->password_authentication != -1 &&
+          (!config->client /*|| config->verbose_mode XXX not yet
+                             implemented in client*/))
+        ssh_warning("Defining AllowedAuthentications. Parameter "
+                    "PasswordAuthentication (already defined) will be "
+                    "ignored.");
+      
+      if (config->pubkey_authentication != -1 &&
+          (!config->client /*|| config->verbose_mode XXX not yet
+                             implemented in client*/))
+        ssh_warning("Defining AllowedAuthentications. Parameter "
+                    "PubkeyAuthentication (already defined) will be "
+                    "ignored.");
+        
+      ssh_config_free_list(config->allowed_authentications);
+
+      if ((config->allowed_authentications =
+           ssh_config_parse_list(val, auth_param_validity, NULL))
+          == NULL)
+        {
+          ssh_warning("Parsing of value for AllowedAuthentications failed.");
+          return TRUE;
+        }
+      else
+        {    
+          return FALSE;
+        }      
+    }
   
+  if (strcmp(var, "requiredauthentications") == 0)
+    {
+      ssh_config_free_list(config->required_authentications);
+
+      if ((config->required_authentications =
+           ssh_config_parse_list(val, auth_param_validity, NULL))
+          == NULL)
+        {
+          ssh_warning("Parsing of value for RequiredAuthentications failed.");
+          return TRUE;
+        }
+      else
+        {    
+          return FALSE;
+        }      
+    }
+
   if (strcmp(var, "passwordauthentication") == 0)
     {
+      if (config->allowed_authentications)
+        {
+          if (!config->client || config->verbose_mode)
+            ssh_warning("AllowedAuthentications is already defined, ignoring "
+                        "PasswordAuthentication keyword.");
+          return TRUE;
+        }
+      
       config->password_authentication = bool;
+      ssh_warning("PasswordAuthentication configuration keyword is "
+                  "deprecated. Use AllowedAuthentications.");
       return FALSE;
     }
   
@@ -393,7 +540,17 @@ Boolean ssh_config_set_parameter(SshConfig config, char *var, char *val)
   if (strcmp(var, "pubkeyauthentication") == 0 ||
       strcmp(var, "rsaauthentication") == 0)
     {
+      if (config->allowed_authentications)
+        {
+          if (!config->client || config->verbose_mode)
+            ssh_warning("AllowedAuthentications is already defined, ignoring "
+                        "PubkeyAuthentication keyword.");
+          return TRUE;
+        }
+
       config->pubkey_authentication = bool;
+      ssh_warning("PubkeyAuthentication configuration keyword is "
+                  "deprecated. Use AllowedAuthentications.");
       return FALSE;
     }
   
@@ -505,6 +662,20 @@ Boolean ssh_config_set_parameter(SshConfig config, char *var, char *val)
       return FALSE;
     }
 
+  if (strcmp(var, "pgppublickeyfile") == 0)
+    {
+      ssh_xfree(config->pgp_public_key_file);
+      config->pgp_public_key_file = ssh_xstrdup(val);
+      return FALSE;
+    }
+
+  if (strcmp(var, "pgpsecretkeyfile") == 0)
+    {
+      ssh_xfree(config->pgp_secret_key_file);
+      config->pgp_secret_key_file = ssh_xstrdup(val);
+      return FALSE;
+    }
+
   if (strcmp(var, "forcepttyallocation") == 0)
     {
       config->force_ptty_allocation = bool;
@@ -534,6 +705,12 @@ Boolean ssh_config_set_parameter(SshConfig config, char *var, char *val)
   if (strcmp(var, "keepalive") == 0)
     {
       config->keep_alive = bool;
+      return FALSE;
+    }
+
+  if (strcmp(var, "nodelay") == 0)
+    {
+      config->no_delay = bool;
       return FALSE;
     }
 
@@ -609,12 +786,6 @@ Boolean ssh_config_set_parameter(SshConfig config, char *var, char *val)
           return FALSE;
         }
       
-      if (strcmp(var, "usenonpriviledgedport") == 0)
-        {
-          config->use_nonpriviledged_port = bool;
-          return FALSE;
-        }
-      
       if (strcmp(var, "dontreadstdin") == 0)
         {
           config->dont_read_stdin = bool;
@@ -672,6 +843,18 @@ Boolean ssh_config_set_parameter(SshConfig config, char *var, char *val)
             }
           return FALSE;
         }  
+      if (strcmp(var, "sshsignerpath") == 0)
+        {
+          ssh_xfree(config->signer_path);
+          config->signer_path = ssh_xstrdup(val);
+          return FALSE;
+        }
+
+      if (strcmp(var, "gatewayports") == 0)
+        {
+          config->gateway_ports = bool;
+          return FALSE;
+        }
     }
   else
     {
@@ -679,26 +862,88 @@ Boolean ssh_config_set_parameter(SshConfig config, char *var, char *val)
 
       if (strcmp(var, "allowhosts") == 0)
         {
-          if ((config->allowed_hosts = ssh_config_parse_list(val)) == NULL)
+          SshDlList temp;
+          
+          if ((temp = ssh_config_parse_list(val, NULL, NULL))
+              == NULL)
             {
               ssh_warning("Parsing of value for AllowHosts failed.");
               return TRUE;
             }
           else
-            {    
+            {
+              if (config->allowed_hosts)
+                /* Allow the use of multiple AllowHosts directives. */
+                ssh_config_combine_lists(config->allowed_hosts, temp);
+              else
+                config->allowed_hosts = temp;
+
               return FALSE;
             }
         }
 
       if (strcmp(var, "denyhosts") == 0)
-        {         
-          if ((config->denied_hosts = ssh_config_parse_list(val)) == NULL)
+        {
+          SshDlList temp;
+          
+          if ((temp = ssh_config_parse_list(val, NULL, NULL))
+              == NULL)
             {
               ssh_warning("Parsing of value for DenyHosts failed.");
               return TRUE;
             }
           else
-            {    
+            {
+              if (config->denied_hosts)
+                /* Allow the use of multiple DenyHosts directives. */
+                ssh_config_combine_lists(config->denied_hosts, temp);
+              else
+                config->denied_hosts = temp;
+                  
+              return FALSE;
+            }
+        }
+      
+      if (strcmp(var, "allowshosts") == 0)
+        {
+          SshDlList temp;
+          
+          if ((temp = ssh_config_parse_list(val, NULL, NULL))
+              == NULL)
+            {
+              ssh_warning("Parsing of value for AllowSHosts failed.");
+              return TRUE;
+            }
+          else
+            {
+              if (config->allowed_hosts)
+                /* Allow the use of multiple AllowSHosts directives. */
+                ssh_config_combine_lists(config->allowed_shosts, temp);
+              else
+                config->allowed_shosts = temp;
+
+              return FALSE;
+            }
+        }
+
+      if (strcmp(var, "denyshosts") == 0)
+        {
+          SshDlList temp;
+          
+          if ((temp = ssh_config_parse_list(val, NULL, NULL))
+              == NULL)
+            {
+              ssh_warning("Parsing of value for DenySHosts failed.");
+              return TRUE;
+            }
+          else
+            {
+              if (config->denied_shosts)
+                /* Allow the use of multiple DenyHosts directives. */
+                ssh_config_combine_lists(config->denied_shosts, temp);
+              else
+                config->denied_shosts = temp;
+                  
               return FALSE;
             }
         }
@@ -709,6 +954,12 @@ Boolean ssh_config_set_parameter(SshConfig config, char *var, char *val)
           return FALSE;
         }
 
+      if (strcmp(var, "userknownhosts") == 0)
+        {
+          config->user_known_hosts = bool;
+          return FALSE;
+        }
+      
       if (strcmp(var, "syslogfacility") == 0)
         {         
           for (i = 0; logfacilities[i].fac_name != NULL; i++)
@@ -728,10 +979,20 @@ Boolean ssh_config_set_parameter(SshConfig config, char *var, char *val)
           config->ignore_rhosts = bool;
           return FALSE;
         }
+
+      if (strcmp(var, "ignorerootrhosts") == 0)
+        {
+          config->ignore_root_rhosts = bool;
+          return FALSE;
+        }
       
       if (strcmp(var, "permitrootlogin") == 0)
         {
-          config->permit_root_login = bool;
+          if (strcmp(val, "nopwd") == 0)
+            config->permit_root_login = SSH_ROOTLOGIN_NOPWD;
+          else
+            config->permit_root_login = bool;
+          
           return FALSE;
         }
       
@@ -752,7 +1013,13 @@ Boolean ssh_config_set_parameter(SshConfig config, char *var, char *val)
           config->print_motd = bool;
           return FALSE;
         }
-      
+
+      if (strcmp(var, "checkmail") == 0)
+        {
+          config->check_mail = bool;
+          return FALSE;
+        }      
+
       if (strcmp(var, "listenaddress") == 0)
         {
           /* XXX some checks here */
@@ -794,7 +1061,7 @@ Boolean ssh_config_set_parameter(SshConfig config, char *var, char *val)
           
       if (strcmp(var, "logingracetime") == 0)
         {
-          if (num < 1)
+          if (num < 0)
             {
               ssh_warning("Ignoring illegal login grace time %d",
                           num);
@@ -807,6 +1074,12 @@ Boolean ssh_config_set_parameter(SshConfig config, char *var, char *val)
       if (strcmp(var, "passwordguesses") == 0)
         {
           config->password_guesses = num;
+          return FALSE;
+        }
+
+      if (strcmp(var, "maxconnections") == 0)
+        {
+          config->max_connections = num;
           return FALSE;
         }
 
