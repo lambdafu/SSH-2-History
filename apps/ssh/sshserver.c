@@ -84,6 +84,7 @@ SshServer ssh_server_wrap(SshStream stream, SshConfig config,
                           SshServerDisconnectProc disconnect,
                           SshServerDebugProc debug,
                           SshVersionCallback version_check,
+                          SshCommonAuthenticatedNotify authenticated_notify,
                           void *context)
 {
   SshServer server;
@@ -133,7 +134,8 @@ SshServer ssh_server_wrap(SshStream stream, SshConfig config,
   /* Create the common part of client/server objects. */
   server->common = ssh_common_wrap(stream, auth, FALSE, config, random_state,
                                    NULL,
-                                   disconnect, debug, NULL, context);
+                                   disconnect, debug, authenticated_notify,
+                                   context);
 
   if (server->common == NULL)
     {

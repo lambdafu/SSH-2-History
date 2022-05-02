@@ -22,8 +22,8 @@ bin_PROGRAMS = ssh2 \
 	       sftp-server2 \
                ssh-agent2 \
 	       ssh-keygen2 \
-	       ssh-add2 \
-	       @CONFPROGRAMS@
+	       @CONFPROGRAMS@ \
+	       ssh-add2
 
 sbin_PROGRAMS = sshd2
 EXTRA_PROGRAMS = ssh-askpass2
@@ -44,7 +44,7 @@ noinst_HEADERS = auths-passwd.h readpass.h ssh2includes.h \
 	ssh2version.h sshuserfiles.h authc-pubkey.h authc-passwd.h \
 	sshagentint.h sshagent.h auths-pubkey.h sshchx11.h sshchagent.h \
 	sshchssh1agent.h sshchsession.h sshchtcpfwd.h \
-	sshglob.h sshagentcache.h
+	sshglob.h sshagentcache.h auths-common.h
 
 noinst_LIBRARIES = libssh2.a
 
@@ -63,7 +63,7 @@ libssh2_a_SOURCES = agentclient.c sshchagent.c sshserver.c \
 		    auths-pubkey.c sshclient.c \
 		    sshcommon.c readpass.c sshconfig.c \
 		    sshauthmethodc.c sshauthmethods.c \
-		    sshglob.c sshagentcache.c
+		    sshglob.c sshagentcache.c auths-common.c
 
 ssh2_SOURCES = ssh2.c
 ssh2_DEPENDENCIES = $(DEPENDENCIES)
@@ -74,12 +74,6 @@ sshd2_DEPENDENCIES = $(DEPENDENCIES)
 ssh_agent2_SOURCES = ssh-agent2.c
 ssh_agent2_DEPENDENCIES = $(DEPENDENCIES)
 
-#ifdef SSHDIST_SSH2_F_SECURE_COMMERCIAL
-#
-#
-#
-#
-#endif SSHDIST_SSH2_F_SECURE_COMMERCIAL
 
 ssh_add2_SOURCES = ssh-add2.c
 ssh_add2_DEPENDENCIES = $(DEPENDENCIES)

@@ -1,14 +1,16 @@
-SSH 2.0.11
+SSH 2.0.12
 ==============
 
         Timo J. Rinne <tri@ssh.fi>
 	Sami Lehtinen <sjl@ssh.fi>
-        16 November 1998
+        28 January 1999
 	
 	See file LICENSING for licensing terms.
 
 	See file SSH2.QUICKSTART for Mr. Yamamoto's guide on
 	installing and using ssh2 and ssh1 in compatibility mode.
+
+	See file FAQ for Frequently Asked Questions.
 
    What has changed since ssh 1 ?
    ------------------------------
@@ -45,6 +47,14 @@ SSH 2.0.11
 
       feature-requests can also be submitted via
       http://www.ssh.fi/support/feature-request.html
+
+   Commercial Inquries
+   -------------------
+
+      If you have questions about the commercial version, for example
+      about availability, versions, etc. direct them to
+      DataFellows. SSH Communications Security only distributes the
+      non-commercial version.
 
 SSH2 Binaries
 =============
@@ -201,18 +211,19 @@ ssh 2 files
 Platforms
 =========
 
-	Ssh 2.0 has been reportedly succesfully compiled and
+	Ssh 2.0 has been reportedly successfully compiled and
 	run on the following platforms.
 
 	Processor	OS		OS-Versions
 	-------------------------------------------------------------
-	ix86		NetBSD		1.2, 1.3
+	ix86,m68k	NetBSD		1.2, 1.3
 	ix86		FreeBSD		2.2.x, 3.0-current
-	ix86		Linux		2.0.34
+	ix86		Linux		2.0.3x
 	sparc		Solaris		2.6, 2.5.1
 	PowerPC		AIX		4.1, 4.2.x
 	hppa1.1		HPUX		10.20
-	mips		IRIX		6.2
+	mips		IRIX		6.5, 6.3, 6.2, 5.3 (with SGI cc)
+	
 
 NOTES ON INSTALLATION AND USE
 =============================
@@ -226,7 +237,7 @@ NOTES ON INSTALLATION AND USE
 	* If you get errors when compiling assembler files, configure
 	  with --disable-asm and recompile.
 
-	* compability with ssh1 works correctly ONLY IF your ssh1-version
+	* compatibility with ssh1 works correctly ONLY IF your ssh1-version
 	  is 1.2.26 or better (1.2.26 is the latest). So be sure you have
 	  that!
 
@@ -241,7 +252,8 @@ NOTES ON INSTALLATION AND USE
 	* Use 'ssh-keygen -P' to create keys without passphrases (for
 	  use with rsync etc.).
 
-	* configure option --disable-crypt-asm no longer exists.
+	* configure option --disable-crypt-asm no longer exists (use
+	  --disable-asm instead).
 
 KNOWN BUGS
 ==========
@@ -257,7 +269,7 @@ KNOWN BUGS
 	  reported mainly on Solaris, and some other systems as well). Haven't
 	  been able to reproduce this, so no fix is currently available.
 
-	* Reportedly sshd2 doesn't for correctly to background on some
+	* Reportedly sshd2 doesn't fork correctly to background on some
 	  AIX systems. We haven't been able to reproduce this.
 	
 	* ssh-keygen2 dumps core on Linux/PowerPC environments. This
@@ -265,8 +277,13 @@ KNOWN BUGS
 	  being investigated, and a patch/release will be released as
 	  soon as this bug is found and fixed.
 
-	* With C2 security package, all the C2 charasteristics are not
+	* With C2 security package, all the C2 characteristics are not
 	  properly used.
+
+	* If gcc complains about undefined references to tgetent and
+	  tgetstr etc., configure didn't find your libtermcap
+	  library. Either it isn't in a standard place, or you don't
+	  have it.
 
 REMEMBER
 ========
@@ -294,6 +311,17 @@ THANKS
 	Youki Kadobayashi
 	Georgi Kuzmanov
 	Hirotaka Yamamoto
+	Martin Buchholz
+	John David Anglin
+	David Mansfield
+	Goran Gajic
+	Niko Tyni
+	Eugene Krainov
+	William C. Ray
+	Andrew Libby
+	Alexander Savelyev
+	Aldo Ramos
+	Sigurdur Asgeirsson
 
 	... and everyone else who submitted bug-reports,
 	feature-requests and patches.

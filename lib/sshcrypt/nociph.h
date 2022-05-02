@@ -14,7 +14,7 @@
   */
 
 /*
- * $Id: nociph.h,v 1.5 1998/11/04 12:06:46 ylo Exp $
+ * $Id: nociph.h,v 1.6 1998/12/03 19:48:20 mkojo Exp $
  * $Log: nociph.h,v $
  * $EndLog$
  */
@@ -22,8 +22,8 @@
 #ifndef NOCIPH_H
 #define NOCIPH_H
 
-void none_transform(void *context, unsigned char *dest,
-                    const unsigned char *src, size_t len,
-                    unsigned char *iv);
+void ssh_none_cipher(void *context, unsigned char *dest,
+                     const unsigned char *src, size_t len,
+                     unsigned char *iv);
 
 #endif /* NOCIPH_H */

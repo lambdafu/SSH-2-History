@@ -20,27 +20,30 @@ This is a simple implementation for generic unix platforms.
 # include <sys/security.h>
 # include <sys/audit.h>
 # include <prot.h>
+# ifdef HAVE_SHADOW_H
+#  include <shadow.h>
+# endif
 #else /* HAVE_SCO_ETC_SHADOW */
-#ifdef HAVE_HPUX_TCB_AUTH
-# include <sys/types.h>
-# include <hpsecurity.h>
-# include <prot.h>
-#else /* HAVE_HPUX_TCB_AUTH */
-#ifdef HAVE_ETC_SHADOW
-#ifdef HAVE_SHADOW_H
-#include <shadow.h>
-#endif
-#endif /* HAVE_ETC_SHADOW */
-#endif /* HAVE_HPUX_TCB_AUTH */
+# ifdef HAVE_HPUX_TCB_AUTH
+#  include <sys/types.h>
+#  include <hpsecurity.h>
+#  include <prot.h>
+# else /* HAVE_HPUX_TCB_AUTH */
+#  ifdef HAVE_ETC_SHADOW
+#   ifdef HAVE_SHADOW_H
+#    include <shadow.h>
+#   endif
+#  endif /* HAVE_ETC_SHADOW */
+# endif /* HAVE_HPUX_TCB_AUTH */
 #endif /* HAVE_SCO_ETC_SHADOW */
 #ifdef HAVE_ETC_SECURITY_PASSWD_ADJUNCT
-#include <sys/label.h>
-#include <sys/audit.h>
-#include <pwdadj.h>
+# include <sys/label.h>
+# include <sys/audit.h>
+# include <pwdadj.h>
 #endif /* HAVE_ETC_SECURITY_PASSWD_ADJUNCT */
 #ifdef HAVE_ULTRIX_SHADOW_PASSWORDS
-#include <auth.h>
-#include <sys/svcinfo.h>
+# include <auth.h>
+# include <sys/svcinfo.h>
 #endif /* HAVE_ULTRIX_SHADOW_PASSWORDS */
 #include <netdb.h>
 
@@ -84,6 +87,8 @@ Boolean ssh_login_permitted(const char *user, SshUser uc)
     int rlogin_permitted;
     time_t t;
     struct tm *tm;
+    int account_is_locked;
+    
     if (setuserdb(S_READ) < 0)
       {
         if (getuid() == 0) /* It's OK to fail here if we are not root */
@@ -92,11 +97,13 @@ Boolean ssh_login_permitted(const char *user, SshUser uc)
           }
         return FALSE;
       }
-    if (getuserattr((char *)user, S_RLOGINCHK, &rlogin_permitted, SEC_BOOL) < 0)
+    if (getuserattr((char *)user, S_RLOGINCHK, &rlogin_permitted,
+                    SEC_BOOL) < 0)
       {
         if (getuid() == 0) /* It's OK to fail here if we are not root */
           {
-            ssh_debug("getuserattr S_RLOGINCHK failed: %.200s", strerror(errno));
+            ssh_debug("getuserattr S_RLOGINCHK failed: %.200s",
+                      strerror(errno));
           }
         enduserdb();
         return FALSE;
@@ -107,9 +114,24 @@ Boolean ssh_login_permitted(const char *user, SshUser uc)
         enduserdb();
         return FALSE;
       }
+#ifdef S_LOCKED
+    if (getuserattr(user, S_LOCKED, &account_is_locked, SEC_BOOL) < 0)
+      {
+        ssh_debug("getuserattr S_LOCKED failed: %.200s.", strerror(errno));
+        enduserdb();
+        return FALSE;
+      }
+    if (account_is_locked)
+      {
+        ssh_debug("Account %.100s is locked.", user);
+        enduserdb();
+        return FALSE;
+      }
+#endif /* S_LOCKED */
     if (!rlogin_permitted)
       {
-        ssh_debug("Remote logins to account %.100s not permitted by user profile.",
+        ssh_debug("Remote logins to account %.100s not permitted by "
+                  "user profile.",
                   user);
         enduserdb();
         return FALSE;
@@ -151,12 +173,12 @@ Boolean ssh_login_permitted(const char *user, SshUser uc)
   {
     struct spwd *sp;
     
-    sp = getspnam(user);
+    sp = (struct spwd *)getspnam(user);
 #if defined(SECURE_RPC) && defined(NIS_PLUS)
-    if (geteuid() == UID_ROOT && uc->uid != UID_ROOT
+    if (geteuid() == UID_ROOT && ssh_user_uid(uc) != UID_ROOT
         && (!sp || !sp->sp_pwdp || !strcmp(sp->sp_pwdp,"*NP*")))
       {
-        if (seteuid(uc->uid) >= 0)
+        if (seteuid(ssh_user_uid(uc)) >= 0)
           {
             sp = getspnam(user); /* retry as user */
             seteuid(UID_ROOT); 
@@ -204,7 +226,7 @@ Boolean ssh_login_permitted(const char *user, SshUser uc)
             char buf[64];
             unsigned long llt;
             
-            llt = get_last_login_time(pwd->pw_uid, user, buf, sizeof(buf));
+            llt = ssh_user_get_last_login_time(uc, buf, sizeof(buf));
             if (llt && (today - llt/24/60/60) > sp->sp_inact)
               {
                 ssh_debug("Account %.100s was inactive for more than %d days.",
@@ -294,99 +316,108 @@ SshUser ssh_user_initialize(const char *user, Boolean privileged)
   uc->dir = ssh_xstrdup(pw->pw_dir);
   uc->uid = pw->pw_uid;
   uc->gid = pw->pw_gid;
-  uc->shell = ssh_xstrdup(pw->pw_shell);
 
+  if (strcmp(pw->pw_shell, "") == 0)
+    {
+      uc->shell = ssh_xstrdup("/bin/sh");
+    }
+  else
+    {    
+      uc->shell = ssh_xstrdup(pw->pw_shell);
+    }
+  
   if (privileged)
     {
       
-  /* Save the encrypted password. */
-  strncpy(correct_passwd, pw->pw_passwd, sizeof(correct_passwd));
+      /* Save the encrypted password. */
+      strncpy(correct_passwd, pw->pw_passwd, sizeof(correct_passwd));
 
 #ifdef HAVE_OSF1_C2_SECURITY
-  tcbc2_getprpwent(correct_passwd, uc->name, sizeof(correct_passwd));
+      tcbc2_getprpwent(correct_passwd, ssh_user_name(uc),
+                       sizeof(correct_passwd));
 #else /* HAVE_OSF1_C2_SECURITY */
-  /* If we have shadow passwords, lookup the real encrypted password from
-     the shadow file, and replace the saved encrypted password with the
-     real encrypted password. */
+      /* If we have shadow passwords, lookup the real encrypted password from
+         the shadow file, and replace the saved encrypted password with the
+         real encrypted password. */
 #if defined(HAVE_SCO_ETC_SHADOW) || defined(HAVE_HPUX_TCB_AUTH)
-  {
-    struct pr_passwd *pr = getprpwnam(uc->name);
-    pr = getprpwnam(uc->name);
-    if (pr)
-      strncpy(correct_passwd, pr->ufld.fd_encrypt, sizeof(correct_passwd));
-    endprpwent();
-  }
+      {
+        struct pr_passwd *pr = getprpwnam(ssh_user_name(uc));
+        pr = getprpwnam(ssh_user_name(uc));
+        if (pr)
+          strncpy(correct_passwd, pr->ufld.fd_encrypt, sizeof(correct_passwd));
+        endprpwent();
+      }
 #else /* defined(HAVE_SCO_ETC_SHADOW) || defined(HAVE_HPUX_TCB_AUTH) */
 #ifdef HAVE_ETC_SHADOW
-  {
-    struct spwd *sp = getspnam(uc->name);
+      {
+        struct spwd *sp = getspnam(ssh_user_name(uc));
 #if defined(SECURE_RPC) && defined(NIS_PLUS)
-    if (geteuid() == UID_ROOT && uc->uid != UID_ROOT &&
-        (!sp || !sp->sp_pwdp || !strcmp(sp->sp_pwdp,"*NP*")))
-      if (seteuid(uc->uid) >= 0)
-        {
-          sp = getspnam(uc->name); /* retry as user */   
-          seteuid(UID_ROOT);
-        }
+        if (geteuid() == UID_ROOT && ssh_user_uid(uc) != UID_ROOT &&
+            (!sp || !sp->sp_pwdp || !strcmp(sp->sp_pwdp,"*NP*")))
+          if (seteuid(ssh_user_uid(uc)) >= 0)
+            {
+              sp = getspnam(ssh_user_name(uc)); /* retry as user */   
+              seteuid(UID_ROOT);
+            }
 #endif /* SECURE_RPC && NIS_PLUS */
-    if (sp)
-      strncpy(correct_passwd, sp->sp_pwdp, sizeof(correct_passwd));
-    endspent();
-  }
+        if (sp)
+          strncpy(correct_passwd, sp->sp_pwdp, sizeof(correct_passwd));
+        endspent();
+      }
 #else /* HAVE_ETC_SHADOW */
 #ifdef HAVE_ETC_SECURITY_PASSWD_ADJUNCT
-  {
-    struct passwd_adjunct *sp = getpwanam(saved_pw_name);
-    if (sp)
-      strncpy(correct_passwd, sp->pwa_passwd, sizeof(correct_passwd));
-    endpwaent();
-  }
+      {
+        struct passwd_adjunct *sp = getpwanam(ssh_user_name(uc));
+        if (sp)
+          strncpy(correct_passwd, sp->pwa_passwd, sizeof(correct_passwd));
+        endpwaent();
+      }
 #else /* HAVE_ETC_SECURITY_PASSWD_ADJUNCT */
 #ifdef HAVE_ETC_SECURITY_PASSWD /* AIX, at least.  Is there an easier way? */
-  {
-    FILE *f;
-    char line[1024], looking_for_user[200], *cp;
-    int found_user = 0;
-    f = fopen("/etc/security/passwd", "r");
-    if (f)
       {
-        /* XXX: user next line was server_user, is this OK? */
-        snprintf(looking_for_user, sizeof(looking_for_user), "%.190s:", user);
-        while (fgets(line, sizeof(line), f))
+        FILE *f;
+        char line[1024], looking_for_user[200], *cp;
+        int found_user = 0;
+        f = fopen("/etc/security/passwd", "r");
+        if (f)
           {
-            if (strchr(line, '\n'))
-              *strchr(line, '\n') = 0;
-            if (strcmp(line, looking_for_user) == 0)
-              found_user = 1;
-            else
-              if (line[0] != '\t' && line[0] != ' ')
-                found_user = 0;
-              else
-                if (found_user)
-                  {
-                    for (cp = line; *cp == ' ' || *cp == '\t'; cp++)
-                      ;
-                    if (strncmp(cp, "password = ", strlen("password = ")) == 0)
+            /* XXX: user next line was server_user, is this OK? */
+            snprintf(looking_for_user, sizeof(looking_for_user), "%.190s:", user);
+            while (fgets(line, sizeof(line), f))
+              {
+                if (strchr(line, '\n'))
+                  *strchr(line, '\n') = 0;
+                if (strcmp(line, looking_for_user) == 0)
+                  found_user = 1;
+                else
+                  if (line[0] != '\t' && line[0] != ' ')
+                    found_user = 0;
+                  else
+                    if (found_user)
                       {
-                        strncpy(correct_passwd, cp + strlen("password = "), 
-                                sizeof(correct_passwd));
-                        correct_passwd[sizeof(correct_passwd) - 1] = 0;
-                        break;
+                        for (cp = line; *cp == ' ' || *cp == '\t'; cp++)
+                          ;
+                        if (strncmp(cp, "password = ", strlen("password = ")) == 0)
+                          {
+                            strncpy(correct_passwd, cp + strlen("password = "), 
+                                    sizeof(correct_passwd));
+                            correct_passwd[sizeof(correct_passwd) - 1] = 0;
+                            break;
+                          }
                       }
-                  }
+              }
+            fclose(f);
           }
-        fclose(f);
       }
-  }
 #endif /* HAVE_ETC_SECURITY_PASSWD */
 #endif /* HAVE_ETC_SECURITY_PASSWD_ADJUNCT */
 #endif /* HAVE_ETC_SHADOW */
 #endif /* HAVE_SCO_ETC_SHADOW */
 #endif /* HAVE_OSF1_C2_SECURITY */
 
-  uc->correct_encrypted_passwd = ssh_xstrdup(correct_passwd);
+      uc->correct_encrypted_passwd = ssh_xstrdup(correct_passwd);
 
-  uc->login_allowed = ssh_login_permitted(uc->name, uc);
+      uc->login_allowed = ssh_login_permitted(uc->name, uc);
     }
   else /* !privileged */
     {
@@ -645,7 +676,7 @@ Boolean ssh_user_become(SshUser uc)
 #ifdef HAVE_SETLOGIN
   /* Set login name in the kernel.  Warning: setsid() must be called before
      this. */
-  if (setlogin(uc->name) < 0)
+  if (setlogin(ssh_user_name(uc)) < 0)
     ssh_debug("setlogin failed: %.100s", strerror(errno));
 #endif /* HAVE_SETLOGIN */
 
@@ -653,7 +684,7 @@ Boolean ssh_user_become(SshUser uc)
   /* On AIX, this "sets process credentials".  I am not sure what this
      includes, but it seems to be important.  This also does setuid
      (but we do it below as well just in case). */
-  if (setpcred(uc->name, NULL))
+  if (setpcred(ssh_user_name(uc), NULL))
     ssh_debug("setpcred %.100s: %.100s", strerror(errno));
 #endif /* HAVE_USERSEC_H */
 
@@ -671,10 +702,10 @@ Boolean ssh_user_become(SshUser uc)
     close(i);
 
 #ifdef CRAY   /* set up accounting account number, job, limits, permissions  */
-  if (cray_setup(uc->uid, uc->name) < 0)
+  if (cray_setup(ssh_user_uid(uc), ssh_user_name(uc)) < 0)
     {
       ssh_debug("ssh_user_become: Failure in Cray job setup for user %d.",
-                (int)uc->uid);
+                (int)ssh_user_uid(uc));
       return FALSE;
     }
 #endif
@@ -682,14 +713,14 @@ Boolean ssh_user_become(SshUser uc)
   /* Set uid, gid, and groups. */
   if (getuid() == UID_ROOT || geteuid() == UID_ROOT)
     { 
-      if (setgid(uc->gid) < 0)
+      if (setgid(ssh_user_gid(uc)) < 0)
         {
           ssh_debug("ssh_user_become: setgid: %s", strerror(errno));
           return FALSE;
         }
 #ifdef HAVE_INITGROUPS
       /* Initialize the group list. */
-      if (initgroups(uc->name, uc->gid) < 0)
+      if (initgroups(ssh_user_name(uc), ssh_user_gid(uc)) < 0)
         {
           ssh_debug("ssh_user_become: initgroups: %s", strerror(errno));
           return FALSE;
@@ -699,27 +730,27 @@ Boolean ssh_user_become(SshUser uc)
           
 #ifdef HAVE_SETLUID
       /* Set login uid, if we have setluid(). */
-      if (setluid(uc->uid) < 0)
+      if (setluid(ssh_user_uid(uc)) < 0)
         {
           ssh_debug("ssh_user_become; setluid %d: %s",
-                    (int)uc->uid, strerror(errno));
+                    (int)ssh_user_uid(uc), strerror(errno));
           return FALSE;
         }
 #endif /* HAVE_SETLUID */
           
       /* Permanently switch to the desired uid. */
-      if (setuid(uc->uid) < 0)
+      if (setuid(ssh_user_uid(uc)) < 0)
         {
           ssh_debug("ssh_user_become: setuid %d: %s",
-                    (int)uc->uid, strerror(errno));
+                    (int)ssh_user_uid(uc), strerror(errno));
           return FALSE;
         }
     }
   
-  if (getuid() != uc->uid || geteuid() != uc->uid)
+  if (getuid() != ssh_user_uid(uc) || geteuid() != ssh_user_uid(uc))
     {
       ssh_debug("ssh_user_become: failed to set uids to %d.",
-                (int)uc->uid);
+                (int)ssh_user_uid(uc));
       return FALSE;
     }
 

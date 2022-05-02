@@ -10,7 +10,7 @@ Author: Tatu Ylonen <ylo@ssh.fi>
 */
 
 /*
- * $Id: arcfour.c,v 1.8 1998/11/04 12:04:09 ylo Exp $
+ * $Id: arcfour.c,v 1.11 1999/01/08 20:20:54 kukkonen Exp $
  * $Log: arcfour.c,v $
  * $EndLog$
  */
@@ -21,24 +21,26 @@ Author: Tatu Ylonen <ylo@ssh.fi>
 
 #include "arcfour.h"
 
+#define SSH_DEBUG_MODULE "ArcFour"
+
 typedef struct
 {
    unsigned int x;
    unsigned int y;
    unsigned char state[256];
-} ArcfourContext;
+} SshArcfourContext;
 
-void arcfour_init(void *context, const unsigned char *key, 
-                  size_t keylen, Boolean for_encryption)
+Boolean ssh_arcfour_init(void *context, const unsigned char *key, 
+                         size_t keylen, Boolean for_encryption)
 {
-  ArcfourContext *ctx = context;
+  SshArcfourContext *ctx = context;
   unsigned int t, u;
   size_t keyindex;
   unsigned int stateindex;
   unsigned char* state;
   unsigned int counter;
 
-  assert(keylen > 0);
+  SSH_ASSERT(keylen > 0);
 
   state = &ctx->state[0];
   ctx->x = 0;
@@ -57,6 +59,8 @@ void arcfour_init(void *context, const unsigned char *key,
       if (++keyindex >= keylen)
         keyindex = 0;
     }
+
+  return TRUE;
 }
 
 #if  !defined(ASM_ARCFOUR)
@@ -64,7 +68,7 @@ void arcfour_init(void *context, const unsigned char *key,
 
 /* The original version by Tatu Ylönen. */
 
-static inline unsigned int arcfour_byte(ArcfourContext *ctx)
+static inline unsigned int ssh_arcfour_byte(ArcfourContext *ctx)
 {
   unsigned int x;
   unsigned int y;
@@ -83,15 +87,15 @@ static inline unsigned int arcfour_byte(ArcfourContext *ctx)
   return state[(sx + sy) & 0xff];
 }
 
-void arcfour_transform(void *context, unsigned char *dest, 
-                       const unsigned char *src, size_t len,
-                       unsigned char *iv)
+void ssh_arcfour_transform(void *context, unsigned char *dest, 
+                           const unsigned char *src, size_t len,
+                           unsigned char *iv)
 {
-  ArcfourContext *ctx = context;
+  SshArcfourContext *ctx = context;
   
   unsigned int i;
   for (i = 0; i < len; i++)
-    dest[i] = src[i] ^ arcfour_byte(ctx);
+    dest[i] = src[i] ^ ssh_arcfour_byte(ctx);
 }
 
 #else
@@ -99,11 +103,11 @@ void arcfour_transform(void *context, unsigned char *dest,
 /* This attempts to be faster (but otherwise equivalent) than the
    previous code. (On P133 this runs about 20 - 40 percent faster). */
 
-void arcfour_transform(void *context, unsigned char *dest,
-                       const unsigned char *src, size_t len,
-                       unsigned char *iv)
+void ssh_arcfour_transform(void *context, unsigned char *dest,
+                           const unsigned char *src, size_t len,
+                           unsigned char *iv)
 {
-  ArcfourContext *ctx = context;
+  SshArcfourContext *ctx = context;
   unsigned int i;
   unsigned char *state;
   unsigned int x, y;
@@ -132,14 +136,14 @@ void arcfour_transform(void *context, unsigned char *dest,
 
 #endif /* ASM_ARCFOUR */
 
-size_t arcfour_ctxsize()
+size_t ssh_arcfour_ctxsize()
 {
-  return sizeof(ArcfourContext);
+  return sizeof(SshArcfourContext);
 }
 
-void arcfour_free(void *context)
+void ssh_arcfour_free(void *context)
 {
-  ArcfourContext *ctx = (ArcfourContext *)context;
+  SshArcfourContext *ctx = (SshArcfourContext *)context;
 
   memset(ctx, 0, sizeof(*ctx));
   ssh_xfree(ctx);

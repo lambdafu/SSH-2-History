@@ -14,7 +14,7 @@
   */
 
 /*
- * $Id: nociph.c,v 1.6 1998/11/04 12:06:52 ylo Exp $
+ * $Id: nociph.c,v 1.7 1998/12/03 19:48:20 mkojo Exp $
  * $Log: nociph.c,v $
  * $EndLog$
  */
@@ -22,9 +22,9 @@
 #include "sshincludes.h"
 #include "nociph.h"
 
-void none_transform(void *context, unsigned char *dest,
-                    const unsigned char *src, size_t len,
-                    unsigned char *iv)
+void ssh_none_cipher(void *context, unsigned char *dest,
+                     const unsigned char *src, size_t len,
+                     unsigned char *iv)
 {
   if (src != dest)
     memcpy(dest, src, len);

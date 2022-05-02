@@ -162,7 +162,6 @@ DLLEXPORT unsigned int DLLCALLCONV ssh_random_get_byte(SshRandomState state);
 
 DLLEXPORT void DLLCALLCONV ssh_random_free(SshRandomState state);
 
-#ifdef SSHDIST_CRYPT_GENHASH
 /*********************** Hash functions ***********************************/
 
 typedef struct SshHashRec *SshHash;
@@ -228,9 +227,7 @@ DLLEXPORT void DLLCALLCONV
 ssh_hash_of_buffer(const char *type,
                    const void *buf, size_t len,
                    unsigned char *digest);
-#endif /* SSHDIST_CRYPT_GENHASH */
 
-#ifdef SSHDIST_CRYPT_GENCIPH
 /************************* Secret key cryptography ************************/
 
 /* Type used to represent a cipher object.  The exact semantics of the
@@ -249,6 +246,13 @@ typedef struct SshCipherRec *SshCipher;
    Currently 40 bits of key is the minimum. 
    */
 #define SSH_CIPHER_MINIMAL_KEY_LENGTH 5
+
+/* Maximum size of a cipher block for block ciphers, in bytes. */
+#define SSH_CIPHER_MAX_BLOCK_SIZE       32
+
+/* Maximum size of the iv (initialization vector) for block ciphers in chained
+   modes, in bytes. */
+#define SSH_CIPHER_MAX_IV_SIZE          32
 
 /* Returns a comma-separated list of cipher names.  The name may be of the
    format (e.g.) "des-cbc" for block ciphers.  The caller must free the
@@ -336,9 +340,16 @@ ssh_cipher_get_name(SshCipher cipher);
 DLLEXPORT size_t DLLCALLCONV
 ssh_cipher_get_key_length(const char *name);
 
-/* Returns the block length of the cipher, or 1 if it is a stream cipher. */
+/* Returns the block length of the cipher, or 1 if it is a stream cipher.
+   The returned value will be at most SSH_CIPHER_MAX_BLOCK_SIZE. */
 DLLEXPORT size_t DLLCALLCONV
 ssh_cipher_get_block_length(SshCipher cipher);
+
+/* Returns the length of the initialization vector of the cipher in
+   bytes, or 1 if it is a stream cipher.  The returned value will be
+   at most SSH_CIPHER_MAX_IV_SIZE. */
+DLLEXPORT size_t DLLCALLCONV
+ssh_cipher_get_iv_length(SshCipher cipher);
 
 /* Sets the initialization vector of the cipher.  This is only
    meaningful for block ciphers used in one of the feedback/chaining
@@ -352,7 +363,8 @@ ssh_cipher_set_iv(SshCipher cipher,
 /* Gets the initialization vector of the cipher.  This is only
    meaningful for block ciphers used in one of the feedback/chaining
    modes.  The default initialization vector is zero (every bit 0);
-   changing it is completely optional. */
+   changing it is completely optional.  The returned value will be
+   at most SSH_CIPHER_MAX_IV_SIZE bytes. */
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_cipher_get_iv(SshCipher cipher,
@@ -385,7 +397,8 @@ ssh_cipher_transform(SshCipher cipher,
    cipher context is not actually changed by this sequence).  This
    function can be safely called from multiple threads concurrently
    (i.e., the iv is only stored on the stack).  This function can only
-   be used for block ciphers. */
+   be used for block ciphers.  The buffer for iv should be
+   SSH_CIPHER_MAX_IV_SIZE bytes. */
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_cipher_transform_with_iv(SshCipher cipher,
@@ -394,9 +407,7 @@ ssh_cipher_transform_with_iv(SshCipher cipher,
                              size_t len,
                              unsigned char *iv);
 
-#endif /* SSHDIST_CRYPT_GENCIPH */
 
-#ifdef SSHDIST_CRYPT_GENMAC
 /*********************** Mac functions ************************************/
 
 typedef struct SshMacRec *SshMac;
@@ -505,9 +516,7 @@ ssh_mac_allocate_with_info(const void *mac_info,
                            unsigned char *key,
                            size_t keylen);
 
-#endif /* SSHDIST_CRYPT_GENMAC */
 
-#ifdef SSHDIST_CRYPT_GENPKCS
 /************************* Public key cryptography ************************/
 
 /* SSH public key vararg list format identifiers. Basic idea is to allow
@@ -641,10 +650,6 @@ typedef enum
      parameters. */
   SSH_PKF_VERIFY, 
 
-#ifdef SSHDIST_SMART_CARD
-
-
-#endif /* SSHDIST_SMART_CARD */
   
   /* Scheme types defined. */
 
@@ -1243,8 +1248,10 @@ ssh_private_key_copy(SshPrivateKey key_src,
 
 DLLEXPORT void DLLCALLCONV ssh_private_key_free(SshPrivateKey key);
 
-/* Returns the public key corresponding to the private key.  This function
-   never fails (calls ssh_fatal() if an error is encountered). */
+/* Returns the public key corresponding to the private key.  This
+   function may also return NULL if the public key cannot be derived
+   (e.g., if the private key derives on a smartcard, and no matching
+   certificate is available on the card). */
 
 DLLEXPORT SshPublicKey DLLCALLCONV
 ssh_private_key_derive_public_key(SshPrivateKey key);
@@ -1269,44 +1276,6 @@ DLLEXPORT SshPkGroup DLLCALLCONV
 ssh_private_key_derive_pk_group(SshPrivateKey key);
 
 
-#ifdef SSHDIST_SMART_CARD
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#endif /* SSHDIST_SMART_CARD */
 
 
 /* Generate a public key cryptosystems private key. Basic usage is to
@@ -1394,7 +1363,9 @@ ssh_private_key_sign(SshPrivateKey key,
                      size_t *signature_length_return,
                      SshRandomState state);
 
-/* As above but here one can give the hash digest one self. The hash which
+
+                     
+ /* As above but here one can give the hash digest one self. The hash which
    to use is given by the following function. */
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
@@ -1591,146 +1562,7 @@ ssh_pk_group_unified_diffie_hellman_agree(SshPublicKey public_key,
                                           unsigned char *secret_value_buffer,
                                           size_t secret_value_buffer_length,
                                           size_t *return_length);
-#endif /* SSHDIST_CRYPT_GENPKCS */
 
-#ifdef SSHDIST_CRYPT_SECRETSHARING
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#endif /* SSHDIST_CRYPT_SECRETSHARING */
 
 
 #endif /* SSHCRYPT_H */

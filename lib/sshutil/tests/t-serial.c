@@ -6,14 +6,14 @@
 /*
  *        Program: t-serial
  *        $Source: /ssh/CVS/src/lib/sshutil/tests/t-serial.c,v $
- *        Author : $Author: eki $
+ *        Author : $Author: kivinen $
  *
  *        Creation          : 13:40 Aug 17 1998 kivinen
- *        Last Modification : 18:44 Oct  8 1998 kivinen
- *        Last check in     : $Date: 1998/10/16 10:22:15 $
- *        Revision number   : $Revision: 1.6 $
+ *        Last Modification : 20:42 Jan 19 1999 kivinen
+ *        Last check in     : $Date: 1999/01/19 18:43:27 $
+ *        Revision number   : $Revision: 1.7 $
  *        State             : $State: Exp $
- *        Version           : 1.307
+ *        Version           : 1.316
  *
  *        Description       : Serial stream test program
  *
@@ -229,15 +229,13 @@ unsigned char sc_calc_towitoko_checksum(unsigned char start,
   for(i = 0; i < len; i++)
     {
       checksum ^= buffer[i];
-      checksum = ((checksum << 1) & 0xfe) | ((checksum >> 7) & 0x01 ^ 0x01);
+      checksum = ((checksum << 1) & 0xfe) | (((checksum >> 7) & 0x01) ^ 0x01);
     }
   return checksum;
 }
 
 void append_str(SmartCard sc, unsigned char *buffer, size_t len)
 {
-  int i;
-
   ssh_buffer_append(sc->buffer_out, buffer, len);
   if (sc->type == SMART_CARD_READER_TOWITOKO)
     {
@@ -256,7 +254,6 @@ void append_command(SmartCard sc, unsigned char class,
                     size_t data_len)
 {
   unsigned char buffer[4];
-  int i;
 
   if (sc->type == SMART_CARD_READER_TOWITOKO)
     {
@@ -563,7 +560,6 @@ int main(int argc, char **argv)
   SmartCard sc1, sc2;
   char *tty1 = "/dev/tty00";
   char *tty2 = "/dev/tty01";
-  int ret;
   const char *debug_string = "*=3,Main=6";
 
   if (argc >= 2)
@@ -576,16 +572,19 @@ int main(int argc, char **argv)
   ssh_event_loop_initialize();
   
   sc1 = sc_open(tty1, "tty00");
-  sc2 = sc_open(tty2, "tty01");
   ssh_register_timeout(5, 0, sc_test_towitoko, sc1);
-  ssh_register_timeout(5, 0, sc_test_towitoko, sc2);
   ssh_register_timeout(5, 0, sc_test_setec, sc1);
-  ssh_register_timeout(5, 0, sc_test_setec, sc2);
   ssh_register_timeout(0, 500000, sc_check_modem_status, sc1);
+
+#ifdef TTY_LINE_01
+  sc2 = sc_open(tty2, "tty01");
+  ssh_register_timeout(5, 0, sc_test_towitoko, sc2);
+  ssh_register_timeout(5, 0, sc_test_setec, sc2);
   ssh_register_timeout(0, 500000, sc_check_modem_status, sc2);
+  ssh_register_timeout(60, 0, sc_close, sc2);
+#endif /* TTY_LINE_01 */
 
   ssh_register_timeout(60, 0, sc_close, sc1);
-  ssh_register_timeout(60, 0, sc_close, sc2);
   ssh_event_loop_run();
 
   ssh_event_loop_uninitialize();

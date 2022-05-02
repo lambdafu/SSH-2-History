@@ -41,7 +41,7 @@
       */
 
 /*
- * $Id: genpkcs.c,v 1.38 1998/10/08 06:59:44 kivinen Exp $
+ * $Id: genpkcs.c,v 1.40 1999/01/18 14:02:52 vsuontam Exp $
  * $Log: genpkcs.c,v $
  * $EndLog$
  */
@@ -54,17 +54,6 @@
 #include "md5.h"
 #include "sha.h"
 #include "sshgetput.h"
-#ifdef SSHDIST_CRYPT_RSA
-
-
-
-#endif /* SSHDIST_CRYPT_RSA */
-#ifdef SSHDIST_CRYPT_ECP
-
-#endif /* SSHDIST_CRYPT_ECP */
-#ifdef SSHDIST_CRYPT_EC2N
-
-#endif /* SSHDIST_CRYPT_EC2N */
 #include "dlglue.h"
 #include "sshencode.h"
 #include "namelist.h"
@@ -686,70 +675,17 @@ struct SshPrivateKeyRec
   /* Special information / key dependend */
   void *context;
 
-#ifdef SSHDIST_SMART_CARD
-
-
-
-
-
-
-#endif /* SSHDIST_SMART_CARD */
   
 };
 
 /* Definitions of schemes. Those who wish to add more algorithms should
    study style used here. */
 
-#ifdef SSHDIST_CRYPT_RSA
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#endif /* SSHDIST_CRYPT_RSA */
 
 /* Table of all supported signature schemes for dl-modp keys. */
 
 const SshPkSignature ssh_dl_modp_signature_schemes[] =
 {
-#ifdef SSHDIST_CRYPT_DSA
   { "dsa-nist-sha1",
     ssh_dlp_dsa_nist,
     &ssh_hash_sha_def,
@@ -758,7 +694,6 @@ const SshPkSignature ssh_dl_modp_signature_schemes[] =
     ssh_dlp_dsa_public_key_verify,
     ssh_dlp_dsa_private_key_sign
   },
-#endif /* SSHDIST_CRYPT_DSA */
   { NULL }
 };
 
@@ -780,7 +715,6 @@ const SshPkEncryption ssh_dl_modp_encryption_schemes[] =
   { NULL }
 };
 
-#ifdef SSHDIST_CRYPT_DH
 /* Table of all supported diffie-hellman schemes for dl-modp keys. */
 
 const SshPkDiffieHellman ssh_dl_modp_diffie_hellman_schemes[] =
@@ -796,235 +730,12 @@ const SshPkDiffieHellman ssh_dl_modp_diffie_hellman_schemes[] =
   },
   { NULL },
 };
-#endif /* SSHDIST_CRYPT_DH */
 
-#ifdef SSHDIST_CRYPT_ECP
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#endif /* SSHDIST_CRYPT_ECP */
-
-#ifdef SSHDIST_CRYPT_EC2N
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#endif /* SSHDIST_CRYPT_EC2N */
 
 /* Action lists. These lists contain most information about generation of
    private keys, and parameters. */
 
-#ifdef SSHDIST_CRYPT_RSA
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#endif /* SSHDIST_CRYPT_RSA */
 
 /* DLP special actions. */
 
@@ -1051,14 +762,12 @@ const SshPkAction ssh_pk_dl_modp_actions[] =
     ssh_dl_modp_encryption_schemes, NULL },
 #endif
   
-#ifdef SSHDIST_CRYPT_DH
   { SSH_PKF_DH, "dh", 
     SSH_PK_FLAG_SCHEME | SSH_PK_FLAG_PRIVATE_KEY | SSH_PK_FLAG_PUBLIC_KEY |
     SSH_PK_FLAG_PK_GROUP,
     SSH_PK_SCHEME_DH,
     sizeof(SshPkDiffieHellman),
     ssh_dl_modp_diffie_hellman_schemes, NULL },
-#endif /* SSHDIST_CRYPT_DH */
   
 #if 0
   /* XXX To be implemented. */
@@ -1243,529 +952,7 @@ const SshPkAction ssh_pk_dl_modp_actions[] =
   { SSH_PKF_END }
 };
 
-#ifdef SSHDIST_CRYPT_ECP
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#endif /* SSHDIST_CRYPT_ECP */
-
-#ifdef SSHDIST_CRYPT_EC2N
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#endif /* SSHDIST_CRYPT_EC2N */
 
 /* more actions to come... */
 
@@ -1773,44 +960,6 @@ const SshPkAction ssh_pk_dl_modp_actions[] =
 
 const SshPkType ssh_key_types[] =
 {
-#ifdef SSHDIST_CRYPT_RSA
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#endif /* SSHDIST_CRYPT_RSA */
-#ifdef SSHDIST_CRYPT_DL
   /* Key type for discrete log based systems. */
   { "dl-modp",
     ssh_pk_dl_modp_actions,
@@ -1855,99 +1004,6 @@ const SshPkType ssh_key_types[] =
     ssh_dlp_private_key_copy,
     ssh_dlp_private_key_derive_param
   },    
-#endif /* SSHDIST_CRYPT_DL */
-#ifdef SSHDIST_CRYPT_ECP
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#endif /* SSHDIST_CRYPT_ECP */
-#ifdef SSHDIST_CRYPT_EC2N
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#endif /* SSHDIST_CRYPT_EC2N */
   { NULL }
 };
 
@@ -3126,10 +2182,6 @@ ssh_private_key_generate(SshRandomState state,
           private_key->two_way_auth = NULL;
           private_key->mqv = NULL;
 
-#ifdef SSHDIST_SMART_CARD
-
-
-#endif /* SSHDIST_SMART_CARD */
           
           /* Initialize actions, and verify that context was allocated. */
           context = (*private_key->type->private_key_action_init)(state);
@@ -3257,14 +2309,6 @@ ssh_private_key_generate(SshRandomState state,
                       private_key->diffie_hellman = group->diffie_hellman;
                     }
                   
-#ifdef SSHDIST_SMART_CARD
-
-
-
-
-
-
-#endif /* SSHDIST_SMART_CARD */
 
                   if ((*action->action_put)(context, &ap, wrapper,
                                             format) != 1)
@@ -4249,9 +3293,6 @@ ssh_private_key_import_internal(const unsigned char *buf,
           private_key->two_way_auth = NULL;
           private_key->mqv = NULL;
 
-#ifdef SSHDIST_SMART_CARD
-
-#endif /* SSHDIST_SMART_CARD */
           
           break;
         }
@@ -4321,7 +3362,7 @@ ssh_private_key_import_internal(const unsigned char *buf,
   tmp_buf_length = ssh_cipher_get_key_length(cipher_name);
   tmp_buf        = NULL;
   if (tmp_buf_length == 0)
-    tmp_buf_length = SSH_CIPHER_MINIMAL_KEY_LENGTH;
+    tmp_buf_length = 32;
   
   /* Check key len and expansion flag. */
   if (tmp_buf_length > cipher_keylen || expand_key)
@@ -4418,7 +3459,7 @@ ssh_private_key_export_internal(SshPrivateKey key,
   buf_length = ssh_cipher_get_key_length(cipher_name);
   buf        = NULL;
   if (buf_length == 0)
-    buf_length = SSH_CIPHER_MINIMAL_KEY_LENGTH;
+    buf_length = 32;
   
   if (buf_length > cipher_keylen || expand_key)
     {
@@ -4466,7 +3507,8 @@ ssh_private_key_export_internal(SshPrivateKey key,
   ssh_xfree(buf);
   
   /* Add some padding. */
-  while ((ssh_buffer_len(&encrypted) % ssh_cipher_get_block_length(cipher)) != 0)
+  while ((ssh_buffer_len(&encrypted) % ssh_cipher_get_block_length(cipher)) !=
+         0)
     {
       byte = ssh_random_get_byte(state);
       ssh_buffer_append(&encrypted, &byte, 1);
@@ -4497,8 +3539,8 @@ ssh_private_key_export_internal(SshPrivateKey key,
                     name, strlen(name),
                     SSH_FORMAT_UINT32_STR,
                     cipher_name, strlen(cipher_name),
-                    SSH_FORMAT_UINT32_STR, ssh_buffer_ptr(&encrypted),
-                    ssh_buffer_len(&encrypted),
+                    SSH_FORMAT_UINT32_STR, 
+                    ssh_buffer_ptr(&encrypted), ssh_buffer_len(&encrypted),
                     SSH_FORMAT_END);
 
   ssh_xfree(name);
@@ -4590,17 +3632,6 @@ ssh_private_key_copy(SshPrivateKey key_src,
   memcpy(created, key_src, sizeof(*created));
   (*key_src->type->private_key_copy)(key_src->context, &created->context);
 
-#ifdef SSHDIST_SMART_CARD
-
-
-
-
-
-
-
-
-
-#endif /* SSHDIST_SMART_CARD */
 
   *key_dest = created;
   return SSH_CRYPTO_OK;
@@ -4614,26 +3645,6 @@ ssh_private_key_free(SshPrivateKey key)
   if (key == NULL || key->context == NULL)
     ssh_fatal("ssh_private_key_free: undefined key.");
 
-#ifdef SSHDIST_SMART_CARD
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#endif /* SSHDIST_SMART_CARD */
 
   (*key->type->private_key_free)(key->context);
   key->context = NULL;
@@ -4645,16 +3656,6 @@ ssh_private_key_derive_public_key(SshPrivateKey key)
 {
   SshPublicKey pub = ssh_xmalloc(sizeof(*pub));
 
-#ifdef SSHDIST_SMART_CARD
-
-
-
-
-
-
-
-
-#endif /* SSHDIST_SMART_CARD */
 
 
 
@@ -4867,6 +3868,11 @@ ssh_private_key_sign(SshPrivateKey key,
 
   return SSH_CRYPTO_OPERATION_FAILED;
 }
+
+
+
+
+
 
 DLLEXPORT SshCryptoStatus DLLCALLCONV
 ssh_private_key_sign_digest(SshPrivateKey key,

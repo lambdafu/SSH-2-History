@@ -3,7 +3,7 @@
 
 *:
 	Port				22
-	Ciphers				3des
+	Ciphers				AnyStdCipher 
 	IdentityFile			identification
 	AuthorizationFile		authorization
 	RandomSeedFile			random_seed

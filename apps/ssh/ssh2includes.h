@@ -25,8 +25,4 @@ ssh2includes.h
 #define SSH_USER_ENV_FILE       "environment"
 #define SSH_SYSTEM_RC           ETCDIR "/sshrc"
 
-/* XXX temporary definition for the ssh2 log facility.  This should
-   probably move to a different header later. */
-#define SSH_LOGFACILITY SSH_LOGFACILITY_USER
-
 #endif /* SSH2INCLUDES_H */

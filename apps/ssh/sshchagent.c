@@ -33,8 +33,8 @@ clients.
 
 #define SSH_DEBUG_MODULE "Ssh2ChannelAgent"
 
-#define AGENT_WINDOW_SIZE	 10000
-#define AGENT_PACKET_SIZE	  1024
+#define AGENT_WINDOW_SIZE        10000
+#define AGENT_PACKET_SIZE         1024
 
 typedef struct SshChannelTypeAgentRec
 {
@@ -103,7 +103,7 @@ void ssh_channel_agent_destroy(void *context)
    state. */
 
 void ssh_channel_agent_session_create(SshCommon common,
-				      void **session_placeholder)
+                                      void **session_placeholder)
 {
   SshChannelAgentSession session;
 
@@ -113,7 +113,7 @@ void ssh_channel_agent_session_create(SshCommon common,
 
   *session_placeholder = (void *)session;
 }
-					
+                                        
 /* This function is called once whenever a session channel is destroyed.
    This should free any agent forwarding state related to the session. */
 
@@ -131,7 +131,7 @@ SshChannelTypeAgent ssh_channel_agent_ct(SshCommon common)
 {
   return
     (SshChannelTypeAgent)ssh_common_get_channel_type_context(common,
-							     "auth-agent");
+                                                             "auth-agent");
 }
 
 /***********************************************************************
@@ -171,11 +171,11 @@ void ssh_channel_agent_connection(SshStream stream, void *context)
   /* Send a channel open message.  If this fails, the stream will be
      automatically closed. */
   ssh_conn_send_channel_open(common->conn, "auth-agent",
-			     stream, TRUE, TRUE,
-			     AGENT_WINDOW_SIZE, AGENT_PACKET_SIZE,
-			     NULL, 0, NULL,
-			     ssh_channel_agent_connection_destroy,
-			     (void *)common, NULL, NULL);
+                             stream, TRUE, TRUE,
+                             AGENT_WINDOW_SIZE, AGENT_PACKET_SIZE,
+                             NULL, 0, NULL,
+                             ssh_channel_agent_connection_destroy,
+                             (void *)common, NULL, NULL);
 }
 
 /***********************************************************************
@@ -195,7 +195,7 @@ typedef struct SshAgentConnectionRec
    completed (possibly with error). */
 
 void ssh_channel_open_agent_connected(SshStream stream,
-				     void *context)
+                                     void *context)
 {
   SshAgentConnection a = (SshAgentConnection)context;
   SshBuffer buffer;
@@ -205,8 +205,8 @@ void ssh_channel_open_agent_connected(SshStream stream,
     {
       SSH_DEBUG(1, ("Connecting to the real agent failed."));
       (*a->completion)(SSH_OPEN_CONNECT_FAILED,
-		       NULL, FALSE, FALSE, 0, NULL, 0, NULL, NULL, NULL,
-		       a->context);
+                       NULL, FALSE, FALSE, 0, NULL, 0, NULL, NULL, NULL,
+                       a->context);
       ssh_xfree(a);
       return;
     }
@@ -220,30 +220,30 @@ void ssh_channel_open_agent_connected(SshStream stream,
      that the connection is actually forwarded.  Format that packet now. */
   ssh_buffer_init(&buffer);
   ssh_encode_buffer(&buffer,
-		    SSH_FORMAT_DATA, "1234", (size_t)4,
-		    SSH_FORMAT_CHAR, SSH_AGENT_FORWARDING_NOTICE,
-		    SSH_FORMAT_UINT32_STR,
-		      a->common->server_host_name,
-		      strlen(a->common->server_host_name),
-		    SSH_FORMAT_UINT32_STR,
-		      a->common->remote_ip, strlen(a->common->remote_ip),
-		    SSH_FORMAT_UINT32, atol(a->common->remote_port),
-		    SSH_FORMAT_END);
+                    SSH_FORMAT_DATA, "1234", (size_t)4,
+                    SSH_FORMAT_CHAR, SSH_AGENT_FORWARDING_NOTICE,
+                    SSH_FORMAT_UINT32_STR,
+                      a->common->server_host_name,
+                      strlen(a->common->server_host_name),
+                    SSH_FORMAT_UINT32_STR,
+                      a->common->remote_ip, strlen(a->common->remote_ip),
+                    SSH_FORMAT_UINT32, atol(a->common->remote_port),
+                    SSH_FORMAT_END);
   cp = ssh_buffer_ptr(&buffer);
   SSH_PUT_32BIT(cp, ssh_buffer_len(&buffer) - 4);
 
   /* Write the buffer to the channel.  This is a kludge; this assumes that
      we can always write this much to the internal buffers. */
   if (ssh_stream_write(stream, ssh_buffer_ptr(&buffer),
-		       ssh_buffer_len(&buffer)) !=
+                       ssh_buffer_len(&buffer)) !=
       ssh_buffer_len(&buffer))
     ssh_fatal("ssh_channel_open_agent_connected: kludge failed");
   ssh_buffer_uninit(&buffer);
 
   /* Create the channel. */
   (*a->completion)(SSH_OPEN_OK, stream, TRUE, TRUE, AGENT_WINDOW_SIZE, NULL, 0,
-		   NULL, ssh_channel_agent_connection_destroy,
-		   (void *)a->common, a->context);
+                   NULL, ssh_channel_agent_connection_destroy,
+                   (void *)a->common, a->context);
   ssh_xfree(a);
 }
 
@@ -256,9 +256,9 @@ void ssh_channel_open_agent_connected(SshStream stream,
 /* Processes an open request for an agent channel. */
 
 void ssh_channel_agent_open(const char *type, int channel_id,
-			    const unsigned char *data, size_t len,
-			    SshConnOpenCompletionProc completion,
-			    void *completion_context, void *context)
+                            const unsigned char *data, size_t len,
+                            SshConnOpenCompletionProc completion,
+                            void *completion_context, void *context)
 {
   SshCommon common = (SshCommon)context;
   SshChannelTypeAgent ct;
@@ -272,8 +272,8 @@ void ssh_channel_agent_open(const char *type, int channel_id,
     {
       SSH_DEBUG(0, ("Bad agent channel open request"));
       (*completion)(SSH_OPEN_CONNECT_FAILED,
-		    NULL, FALSE, FALSE, 0, NULL, 0, NULL, NULL, NULL,
-		    completion_context);
+                    NULL, FALSE, FALSE, 0, NULL, 0, NULL, NULL, NULL,
+                    completion_context);
       return;
     }
 
@@ -282,8 +282,8 @@ void ssh_channel_agent_open(const char *type, int channel_id,
     {
       ssh_warning("Refused attempted agent connection to server.");
       (*completion)(SSH_OPEN_ADMINISTRATIVELY_PROHIBITED,
-		    NULL, FALSE, FALSE, 0, NULL, 0, NULL, NULL, NULL,
-		    completion_context);
+                    NULL, FALSE, FALSE, 0, NULL, 0, NULL, NULL, NULL,
+                    completion_context);
       return;
     }
 
@@ -292,8 +292,8 @@ void ssh_channel_agent_open(const char *type, int channel_id,
     {
       ssh_warning("Refused attempted agent connection when forwarding not requested.");
       (*completion)(SSH_OPEN_ADMINISTRATIVELY_PROHIBITED,
-		    NULL, FALSE, FALSE, 0, NULL, 0, NULL, NULL, NULL,
-		    completion_context);
+                    NULL, FALSE, FALSE, 0, NULL, 0, NULL, NULL, NULL,
+                    completion_context);
       return;
     }
   
@@ -316,8 +316,8 @@ void ssh_channel_agent_open(const char *type, int channel_id,
    at the server end for incoming agent connections. */
 
 Boolean ssh_channel_agent_process_request(void *session_placeholder,
-					  const unsigned char *data,
-					  size_t len)
+                                          const unsigned char *data,
+                                          size_t len)
 {
   SshChannelTypeAgent ct;
   SshChannelAgentSession session;
@@ -331,10 +331,10 @@ Boolean ssh_channel_agent_process_request(void *session_placeholder,
     return TRUE; /* We've alread created a fake listener. */
   ct->agent_listener =
     ssh_agenti_create_listener(ssh_user_uid(ct->common->user_data),
-			       &ct->agent_path, 
-			       ssh_channel_agent_connection,
-			       FALSE,
-			       ct->common);
+                               &ct->agent_path, 
+                               ssh_channel_agent_connection,
+                               FALSE,
+                               ct->common);
   return TRUE;
 }
 
@@ -349,7 +349,7 @@ void ssh_channel_agent_send_request(SshCommon common, int session_channel_id)
   ct = ssh_channel_agent_ct(common);
   
   ssh_conn_send_channel_request(common->conn, session_channel_id,
-				"auth-agent-req", NULL, 0, NULL, NULL);
+                                "auth-agent-req", NULL, 0, NULL, NULL);
   ct->agent_requested = TRUE;
 }
 

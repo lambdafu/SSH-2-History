@@ -23,6 +23,11 @@
 
 #define SSH_DEBUG_MODULE "SshSftpServer"
 
+#ifdef HAVE_LIBWRAP
+int allow_severity = SSH_LOG_INFORMATIONAL;
+int deny_severity = SSH_LOG_WARNING;
+#endif /* HAVE_LIBWRAP */
+
 int main(void)
 {       
   SshFileServer server;

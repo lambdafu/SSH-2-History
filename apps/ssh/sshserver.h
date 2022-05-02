@@ -54,8 +54,8 @@ typedef struct SshServerRec *SshServer;
      `msg'        disconnect message in English
      `context'    context argument from when the callback was registered */
 typedef void (*SshServerDisconnectProc)(int reason,
-					const char *msg,
-					void *context);
+                                        const char *msg,
+                                        void *context);
 
 /* Callback function called when a debug message is received from the other
    side.  If this is NULL, all received debug messages are ignored.
@@ -63,8 +63,8 @@ typedef void (*SshServerDisconnectProc)(int reason,
      `msg'     the debugging message (normally English)
      `context' context argument passed when the callback was registered. */
 typedef void (*SshServerDebugProc)(int type,
-				   const char *msg,
-				   void *context);
+                                   const char *msg,
+                                   void *context);
 
 
 /* Takes a stream, and creates an SSH server for processing that
@@ -83,12 +83,13 @@ typedef void (*SshServerDebugProc)(int type,
      `context'       context to pass to the callbacks
    The object should be destroyed from the ``disconnect'' callback. */
 SshServer ssh_server_wrap(SshStream stream, SshConfig config,
-			  SshRandomState random_state,
-			  SshPrivateKey private_server_key,
-			  SshServerDisconnectProc disconnect,
-			  SshServerDebugProc debug,
-			  SshVersionCallback version_check,
-			  void *context);
+                          SshRandomState random_state,
+                          SshPrivateKey private_server_key,
+                          SshServerDisconnectProc disconnect,
+                          SshServerDebugProc debug,
+                          SshVersionCallback version_check,
+                          SshCommonAuthenticatedNotify authenticated_notify,
+                          void *context);
 
 /* Forcibly destroys the given connection. */
 void ssh_server_destroy(SshServer server);

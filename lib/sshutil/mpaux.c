@@ -15,7 +15,7 @@ precision integers.
 */
 
 /*
- * $Id: mpaux.c,v 1.7 1998/10/28 21:36:22 mkojo Exp $
+ * $Id: mpaux.c,v 1.8 1999/01/13 13:11:18 sjl Exp $
  * $Log: mpaux.c,v $
  * $EndLog$
  */
@@ -76,7 +76,7 @@ void ssh_buf_to_mp(MP_INT *x, const unsigned char *cp, size_t len)
 
 void ssh_buf_to_mp_lsb(MP_INT *x, const unsigned char *cp, size_t len)
 {
-  size_t i, j;
+  size_t i;
   unsigned long limb;
 
   mpz_set_ui(x, 0);

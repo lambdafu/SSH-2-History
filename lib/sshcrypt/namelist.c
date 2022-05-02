@@ -24,9 +24,7 @@
 #include "sshbuffer.h"
 #include "namelist.h"
 #include "cstack.h"
-#ifdef SSHDIST_CRYPT_COMPRESS
 #include "bufzip.h"
-#endif /* SSHDIST_CRYPT_COMPRESS */
 
 /* Tree based approach to parse and compare namelists. */
 
@@ -1038,7 +1036,6 @@ char *ssh_name_list_intersection_sshproto(const char *src1, const char *src2)
 
 /* Crypto library specific routines. */
 
-#ifdef SSHDIST_CRYPT_GENCIPH
 char *ssh_name_list_intersection_cipher(const char *src)
 {
   char *buffer, *result;
@@ -1048,9 +1045,7 @@ char *ssh_name_list_intersection_cipher(const char *src)
   ssh_xfree(buffer);
   return result;
 }
-#endif /* SSHDIST_CRYPT_GENCIPH */
 
-#ifdef SSHDIST_CRYPT_GENPKCS
 char *ssh_name_list_intersection_public_key(const char *src)
 {
   char *buffer, *result;
@@ -1060,9 +1055,7 @@ char *ssh_name_list_intersection_public_key(const char *src)
   ssh_xfree(buffer);
   return result;
 }
-#endif /* SSHDIST_CRYPT_GENPKCS */
 
-#ifdef SSHDIST_CRYPT_GENMAC
 char *ssh_name_list_intersection_mac(const char *src)
 {
   char *buffer, *result;
@@ -1072,9 +1065,7 @@ char *ssh_name_list_intersection_mac(const char *src)
   ssh_xfree(buffer);
   return result;
 }
-#endif /* SSHDIST_CRYPT_GENMAC */
 
-#ifdef SSHDIST_CRYPT_GENHASH
 char *ssh_name_list_intersection_hash(const char *src)
 {
   char *buffer, *result;
@@ -1084,11 +1075,9 @@ char *ssh_name_list_intersection_hash(const char *src)
   ssh_xfree(buffer);
   return result;
 }
-#endif /* SSHDIST_CRYPT_GENHASH */
 
 /* Compression library specific routines. */
 
-#ifdef SSHDIST_CRYPT_COMPRESS
 char *ssh_name_list_intersection_compression(const char *src)
 {
   char *buffer, *result;
@@ -1098,4 +1087,3 @@ char *ssh_name_list_intersection_compression(const char *src)
   ssh_xfree(buffer);
   return result;
 }
-#endif /* SSHDIST_CRYPT_COMPRESS */

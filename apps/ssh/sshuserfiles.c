@@ -341,7 +341,7 @@ size_t ssh_key_blob_keywords(unsigned char *buf, size_t len,
 
 /* Decoding of the SSH2 ascii key blob format. */
 
-unsigned long ssh_key_blob_read(SshUser user, const char *fname, 
+unsigned long ssh2_key_blob_read(SshUser user, const char *fname, 
                                 char **comment,
                                 unsigned char **blob,
                                 size_t *bloblen, void *context)
@@ -464,7 +464,7 @@ void ssh_key_blob_dump_lf(SshBuffer *buffer)
   ssh_buffer_append(buffer, (const unsigned char *)"\n", 1);
 }
 
-Boolean ssh_key_blob_write(SshUser user, const char *fname, mode_t mode,
+Boolean ssh2_key_blob_write(SshUser user, const char *fname, mode_t mode,
                            unsigned long magic,
                            const char *comment, const unsigned char *key,
                            size_t keylen, void *context)
@@ -562,7 +562,7 @@ SshPublicKey ssh_pubkey_read(SshUser user, const char *fname, char **comment,
   SshPublicKey pubkey;
 
   pkeybuf = NULL;
-  magic = ssh_key_blob_read(user, fname, comment, &pkeybuf, &pkeylen, context);
+  magic = ssh2_key_blob_read(user, fname, comment, &pkeybuf, &pkeylen, context);
 
   if (magic != SSH_KEY_MAGIC_PUBLIC)
     goto fail;
@@ -595,7 +595,7 @@ Boolean ssh_pubkey_write(SshUser user, const char *fname, const char *comment,
   if ((pkeylen = ssh_encode_pubkeyblob(key, &pkeybuf)) == 0)
     return TRUE;
 
-  ret = ssh_key_blob_write(user, fname, 0644, 
+  ret = ssh2_key_blob_write(user, fname, 0644, 
                            SSH_KEY_MAGIC_PUBLIC,
                            comment, pkeybuf, pkeylen, context);
   memset(pkeybuf, 0, pkeylen);
@@ -618,7 +618,7 @@ SshPrivateKey ssh_privkey_read(SshUser user,
   unsigned long magic;
 
   pkeybuf = NULL;
-  magic = ssh_key_blob_read(user, fname, comment, &pkeybuf, &pkeylen, context);
+  magic = ssh2_key_blob_read(user, fname, comment, &pkeybuf, &pkeylen, context);
 
   if (magic != SSH_KEY_MAGIC_PRIVATE && 
       magic != SSH_KEY_MAGIC_PRIVATE_ENCRYPTED)
@@ -701,7 +701,7 @@ Boolean ssh_privkey_write(SshUser user,
       return (int) code;
     }
 
-  ret = ssh_key_blob_write(user, fname, 0600, 
+  ret = ssh2_key_blob_write(user, fname, 0600, 
                            SSH_KEY_MAGIC_PRIVATE_ENCRYPTED,
                            comment, pkeybuf, pkeylen, context);
   memset(pkeybuf, 0, pkeylen);

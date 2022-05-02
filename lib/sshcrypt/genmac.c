@@ -14,7 +14,7 @@
   */
 
 /*
- * $Id: genmac.c,v 1.28 1998/11/04 12:17:01 ylo Exp $
+ * $Id: genmac.c,v 1.29 1999/01/13 19:30:55 ylo Exp $
  * $Log: genmac.c,v $
  * $EndLog$
  */
@@ -23,35 +23,30 @@
 #include "sshcrypt.h"
 #include "sshcrypti.h"
 #include "sshbuffer.h"
-#ifdef SSHDIST_CRYPT_SSHMACS
+
 #include "macs.h"
-#endif /* SSHDIST_CRYPT_SSHMACS */
-#ifdef SSHDIST_CRYPT_HMAC
 #include "hmac.h"
-#endif /* SSHDIST_CRYPT_HMAC */
 
-#ifdef SSHDIST_CRYPT_MD5
 #include "md5.h"
-#endif /* SSHDIST_CRYPT_MD5 */
-#ifdef SSHDIST_CRYPT_SHA
+
 #include "sha.h"
-#endif /* SSHDIST_CRYPT_SHA */
-#ifdef SSHDIST_CRYPT_RIPEMD160
+
 #include "ripemd160.h"
-#endif /* SSHDIST_CRYPT_RIPEMD160 */
-#ifdef SSHDIST_CRYPT_RIPEMD128
 
-#endif /* SSHDIST_CRYPT_RIPEMD128 */
-#ifdef SSHDIST_CRYPT_TIGER
+#ifndef KERNEL
+/* These MACs/hashes can only be used in user-mode code.  To add a
+   hash/mac to be used in kernel code, it must be moved outside this
+   ifdef both here and later in this file, and added to CRYPT_LNOBJS
+   in src/ipsec/engine/Makefile.am.  */
 
-#endif /* SSHDIST_CRYPT_TIGER */
+
+
+#endif /* !KERNEL */
 
 /* Control structure. */
   
 static const SshMacDef ssh_mac_algorithms[] =
 {
-#ifdef SSHDIST_CRYPT_HMAC
-#ifdef SSHDIST_CRYPT_MD5
   { "hmac-md5", 16, FALSE,
     &ssh_hash_md5_def,
     ssh_hmac_ctxsize, ssh_hmac_init,
@@ -62,8 +57,6 @@ static const SshMacDef ssh_mac_algorithms[] =
     ssh_hmac_ctxsize, ssh_hmac_init,
     ssh_hmac_start, ssh_hmac_update, ssh_hmac_96_final,
     ssh_hmac_96_of_buffer },
-#endif /* SSHDIST_CRYPT_MD5 */
-#ifdef SSHDIST_CRYPT_SHA
   { "hmac-sha1", 20, FALSE,
     &ssh_hash_sha_def, 
     ssh_hmac_ctxsize, ssh_hmac_init,
@@ -74,8 +67,6 @@ static const SshMacDef ssh_mac_algorithms[] =
     ssh_hmac_ctxsize, ssh_hmac_init,
     ssh_hmac_start, ssh_hmac_update, ssh_hmac_96_final,
     ssh_hmac_96_of_buffer },
-#endif /* SSHDIST_CRYPT_SHA */
-#ifdef SSHDIST_CRYPT_RIPEMD160
   { "hmac-ripemd160", 20, FALSE,
     &ssh_hash_ripemd160_def,
     ssh_hmac_ctxsize, ssh_hmac_init,
@@ -86,54 +77,17 @@ static const SshMacDef ssh_mac_algorithms[] =
     ssh_hmac_ctxsize, ssh_hmac_init,
     ssh_hmac_start, ssh_hmac_update, ssh_hmac_96_final,
     ssh_hmac_96_of_buffer },
-#endif /* SSHDIST_CRYPT_RIPEMD160 */
-#ifdef SSHDIST_CRYPT_RIPEMD128
+
+#ifndef KERNEL
+  /* The macs below can only be used in user-mode code.  See comments
+     above for more information. */
 
 
 
+#endif /* !KERNEL */
 
 
 
-
-
-
-
-#endif /* SSHDIST_CRYPT_RIPEMD128 */
-#ifdef SSHDIST_CRYPT_TIGER
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#endif /* SSHDIST_CRYPT_TIGER */
-#endif /* SSHDIST_CRYPT_HMAC */
-#ifdef SSHDIST_CRYPT_SSHMACS
-#ifdef SSHDIST_CRYPT_SHA
   { "sha1-8", 8, TRUE,
     &ssh_hash_sha_def,
     ssh_kdk_mac_ctxsize, ssh_kdk_mac_init,
@@ -144,8 +98,6 @@ static const SshMacDef ssh_mac_algorithms[] =
     ssh_kdk_mac_ctxsize, ssh_kdk_mac_init,
     ssh_kdk_mac_start, ssh_kdk_mac_update, ssh_kdk_mac_final,
     ssh_kdk_mac_of_buffer },
-#endif /* SSHDIST_CRYPT_SHA */
-#ifdef SSHDIST_CRYPT_MD5
   { "md5-8", 8, TRUE,
     &ssh_hash_md5_def,
     ssh_kdk_mac_ctxsize, ssh_kdk_mac_init,
@@ -156,8 +108,6 @@ static const SshMacDef ssh_mac_algorithms[] =
     ssh_kdk_mac_ctxsize, ssh_kdk_mac_init,
     ssh_kdk_mac_start, ssh_kdk_mac_update, ssh_kdk_mac_final,
     ssh_kdk_mac_of_buffer },
-#endif /* SSHDIST_CRYPT_MD5 */
-#ifdef SSHDIST_CRYPT_RIPEMD160
   { "ripemd160-8", 8, TRUE,
     &ssh_hash_ripemd160_def,
     ssh_kdk_mac_ctxsize, ssh_kdk_mac_init,
@@ -168,37 +118,14 @@ static const SshMacDef ssh_mac_algorithms[] =
     ssh_kdk_mac_ctxsize, ssh_kdk_mac_init,
     ssh_kdk_mac_start, ssh_kdk_mac_update, ssh_kdk_mac_final,
     ssh_kdk_mac_of_buffer },
-#endif /* SSHDIST_CRYPT_RIPEMD160 */
-#ifdef SSHDIST_CRYPT_RIPEMD128
+
+#ifndef KERNEL
+  /* These MACs can only be used in user-mode code.  See comments
+     above for more information. */
 
 
-
-
-
-
-
-
-
-
-#endif /* SSHDIST_CRYPT_RIPEMD128 */
-#ifdef SSHDIST_CRYPT_TIGER
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#endif /* SSHDIST_CRYPT_TIGER */
-#endif /* SSHDIST_CRYPT_SSHMACS */
+#endif /* !KERNEL */
+  
   { "none", 0, FALSE, NULL },
   { NULL }
 };
@@ -311,7 +238,6 @@ ssh_mac_info_derive_from_hash(SshHash hash,
 
   switch (type)
     {
-#ifdef SSHDIST_CRYPT_HMAC
     case SSH_MAC_TYPE_HMAC:
       mac_def->digest_length = hash_def->digest_length;
       mac_def->allocate_key  = FALSE;
@@ -328,9 +254,7 @@ ssh_mac_info_derive_from_hash(SshHash hash,
       memcpy(tmp, buffer, strlen(buffer) + 1);
       mac_def->name = tmp;
       break;
-#endif /* SSHDIST_CRYPT_HMAC */
 
-#ifdef SSHDIST_CRYPT_SSHMACS      
     case SSH_MAC_TYPE_KDK:
       mac_def->allocate_key  = TRUE;
       mac_def->init          = ssh_kdk_mac_init;
@@ -345,7 +269,6 @@ ssh_mac_info_derive_from_hash(SshHash hash,
       memcpy(tmp, buffer, strlen(buffer) + 1);
       mac_def->name = tmp;
       break;
-#endif /* SSHDIST_CRYPT_SSHMACS */
       
     default:
       ssh_xfree(mac_def);

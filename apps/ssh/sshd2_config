@@ -24,7 +24,13 @@
 	PrintMotd			yes
 	UserConfigDirectory		"%D/.ssh2"
 #	UserConfigDirectory		"/etc/ssh2/auth/%U"
-	
+	SyslogFacility			AUTH
+#	SyslogFacility			LOCAL7
+	Ssh1Compatibility		yes
+#	Sshd1Path			<set by	configure>
+#	AllowHosts			localhost, foobar.com, friendly.org
+#	DenyHosts			evil.org, aol.com
+
 # subsystem definitions
 
 	subsystem-sftp                  sftp-server

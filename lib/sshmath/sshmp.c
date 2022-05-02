@@ -79,7 +79,7 @@
   */
 
 /*
- * $Id: sshmp.c,v 1.34 1998/10/08 15:56:42 kivinen Exp $
+ * $Id: sshmp.c,v 1.35 1998/11/22 16:54:05 ylo Exp $
  *
  * Revision 1.31  1998/09/16 21:17:33  mkojo
  *      Modified some of the casts.
@@ -310,7 +310,7 @@ SshWord ssh_mpmn_addmul(SshWord *ret, SshWord mp, SshWord *op,
 /* Table for trailing zero computations. This table could be
    removed with some extra work in actual computations (using the
    following table instead). */
-static unsigned char ssh_mp_trailing_zero_table[256] =
+static const unsigned char ssh_mp_trailing_zero_table[256] =
 {
   8,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
   5,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,4,0,1,0,2,0,1,0,3,0,1,0,2,0,1,0,
@@ -323,7 +323,7 @@ static unsigned char ssh_mp_trailing_zero_table[256] =
 };
      
 /* Table for leading zero computations. */
-static unsigned char ssh_mp_leading_zero_table[256] =
+static const unsigned char ssh_mp_leading_zero_table[256] =
 {
   0,1,2,2,3,3,3,3,4,4,4,4,4,4,4,4,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,5,
   6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,6,

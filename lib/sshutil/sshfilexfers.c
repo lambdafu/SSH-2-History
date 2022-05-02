@@ -187,7 +187,8 @@ void ssh_file_server_receive_proc(SshPacketType type,
 {
   SshFileServer server = (SshFileServer)context;
   size_t valuelen, iodatalen;
-  unsigned long version, id, flags, pflags, iolen, offset_high, offset_low;
+  unsigned long version, id, flags, pflags, iolen;
+  SshUInt64 offset;
   long ret;
   char *name;  
   unsigned char *value, *iodata;
@@ -195,7 +196,6 @@ void ssh_file_server_receive_proc(SshPacketType type,
   SshServerHandle handle;
   int fd;
   SshFileClientError error;
-  off_t seek_offset;
   struct stat st;
   DIR *dir;
   struct dirent *dp;
@@ -389,8 +389,7 @@ void ssh_file_server_receive_proc(SshPacketType type,
       if (ssh_decode_array(data, len,
                            SSH_FORMAT_UINT32, &id,
                            SSH_FORMAT_UINT32_STR_NOCOPY, &value, &valuelen,
-                           SSH_FORMAT_UINT32, &offset_high,
-                           SSH_FORMAT_UINT32, &offset_low,
+                           SSH_FORMAT_UINT64, &offset,
                            SSH_FORMAT_UINT32, &iolen,
                            SSH_FORMAT_END) != len)
         {
@@ -416,11 +415,7 @@ void ssh_file_server_receive_proc(SshPacketType type,
       value = ssh_xmalloc(iolen);
 
       /* Seek to the specified location in the file. */
-      if (sizeof(off_t) > 4)
-        seek_offset = ((off_t)offset_high << 32) | offset_low;
-      else
-        seek_offset = offset_low;
-      lseek(handle->fd, seek_offset, SEEK_SET);
+      lseek(handle->fd, (off_t)offset, SEEK_SET);
 
       /* Perform the actual read. */
       ret = read(handle->fd, value, iolen);
@@ -450,8 +445,7 @@ void ssh_file_server_receive_proc(SshPacketType type,
       if (ssh_decode_array(data, len,
                            SSH_FORMAT_UINT32, &id,
                            SSH_FORMAT_UINT32_STR_NOCOPY, &value, &valuelen,
-                           SSH_FORMAT_UINT32, &offset_high,
-                           SSH_FORMAT_UINT32, &offset_low,
+                           SSH_FORMAT_UINT64, &offset,
                            SSH_FORMAT_UINT32_STR_NOCOPY, &iodata, &iodatalen,
                            SSH_FORMAT_END) != len)
         {
@@ -468,11 +462,7 @@ void ssh_file_server_receive_proc(SshPacketType type,
         }
 
       /* Seek to the specified location in the file. */
-      if (sizeof(off_t) > 4)
-        seek_offset = ((off_t)offset_high << 32) | offset_low;
-      else
-        seek_offset = offset_low;
-      lseek(handle->fd, seek_offset, SEEK_SET);
+      lseek(handle->fd, (off_t)offset, SEEK_SET);
       
       /* Perform the actual write. */
       ret = write(handle->fd, iodata, iodatalen);
@@ -907,13 +897,11 @@ void ssh_file_server_receive_proc(SshPacketType type,
           if ((st.st_mode & S_IFMT) == S_IFREG &&
               (st.st_mode & (S_IXUSR | S_IXGRP | S_IXOTH)) != 0)
             strncpy(name_ext, "*", sizeof(name_ext));
-          /*
-           * My NetBSD "ls -l" gives the following format, which I try to duplicate
-           * here.
+          /* My NetBSD "ls -l" gives the following format, which I try
+           * to duplicate here.
            * 
            * -rwxr-xr-x   1 mjos     staff      348911 Mar 25 14:29 t-filexfer 
-           * 1234567890 123 12345678 12345678 12345678 123456789012 
-           */
+           * 1234567890 123 12345678 12345678 12345678 123456789012 */
             
           snprintf(long_name, sizeof(long_name),
                    "%c%c%c%c%c%c%c%c%c%c %3d %-8s %-8s %8lu %12s %s%s",
@@ -922,9 +910,15 @@ void ssh_file_server_receive_proc(SshPacketType type,
                     ((st.st_mode & S_IFMT) == S_IFDIR ? 'd' : 
                      ((st.st_mode & S_IFMT) == S_IFBLK ? 'b' :
                       ((st.st_mode & S_IFMT) == S_IFLNK ? 'l' :
+#ifdef HAVE_S_IFSOCK
                        ((st.st_mode & S_IFMT) == S_IFSOCK ? 's' :
+#endif /* HAVE_S_IFSOCK */
                         ((st.st_mode & S_IFMT) == S_IFIFO ? 'p' :
-                         '?')))))),                
+                         '?')
+#ifdef HAVE_S_IFSOCK
+                        )
+#endif /* HAVE_S_IFSOCK */
+                       )))),                
                    st.st_mode & S_IRUSR ? 'r' : '-',
                    st.st_mode & S_IWUSR ? 'w' : '-',
                    st.st_mode & S_ISUID ?                  

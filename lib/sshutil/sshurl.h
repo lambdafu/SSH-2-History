@@ -11,21 +11,23 @@
  *        $Author: kivinen $
  *
  *        Creation          : 11:09 Jul 10 1998 kivinen
- *        Last Modification : 11:46 Jul 10 1998 kivinen
- *        Last check in     : $Date: 1998/07/10 13:28:23 $
- *        Revision number   : $Revision: 1.1 $
+ *        Last Modification : 17:20 Jan 28 1999 kivinen
+ *        Last check in     : $Date: 1999/01/28 16:10:23 $
+ *        Revision number   : $Revision: 1.2 $
  *        State             : $State: Exp $
- *        Version           : 1.4
+ *        Version           : 1.28
  *
  *        Description       : Header fo library to parse urls
  */
 /*
- * $Id: sshurl.h,v 1.1 1998/07/10 13:28:23 kivinen Exp $
+ * $Id: sshurl.h,v 1.2 1999/01/28 16:10:23 kivinen Exp $
  * $EndLog$
  */
 
 #ifndef SSHURL_H
 #define SSHURL_H
+
+#include "mapping.h"
 
 /*
  * Parses url given in format
@@ -37,13 +39,24 @@
  * those pieces will be skipped. 
  */
 Boolean ssh_url_parse(const char *url, char **scheme, char **host,
-	 	      char **port, char **username, char **password,
-		      char **path);
+                      char **port, char **username, char **password,
+                      char **path);
 
 /*
  * Decode url coding. If url_out is NULL then decode inplace, and modify url.
  * Otherwise return new allocated string containing the decoded buffer. Returns
- * TRUE if decoding was successfull and FALSE otherwise.
+ * TRUE if decoding was successfull and FALSE otherwise. Len is the length of
+ * the input url and length of the returned url is in stored in the len_out
+ * if it is not NULL. The decoded url is returned even if the decoding fails.
+ */
+Boolean ssh_url_decode_bin(char *url, size_t len,
+                           char **url_out, size_t *len_out);
+
+/*
+ * Decode url coding. If url_out is NULL then decode inplace, and modify url.
+ * Otherwise return new allocated string containing the decoded buffer. Returns
+ * TRUE if decoding was successfull and FALSE otherwise. The decoded url is
+ * returned even if the decoding fails.
  */
 Boolean ssh_url_decode(char *url, char **url_out);
 
@@ -57,7 +70,40 @@ Boolean ssh_url_decode(char *url, char **url_out);
  * those pieces will be skipped. This version also decodeds url %-codings.
  */
 Boolean ssh_url_parse_and_decode(const char *url, char **scheme, char **host,
-				 char **port, char **username, char **password,
-				 char **path);
+                                 char **port, char **username, char **password,
+                                 char **path);
+
+/*
+ * Decode http get url which have format
+ * /path?name=value&name=value&...&name=value
+ * Returns path in the beginning and Mapping that has all the name
+ * and value pairs stored. It also decodes all the %-encodings from the
+ * name and values after splitting them.
+ * If `path' is not NULL then mallocated copy of decoded path component
+ * is stored there.
+ * Returned mapping is storing only pointers to the variable length strings,
+ * and it has internal destructor, so calling ssh_mapping_free will destroy
+ * it and its contents.
+ * Returns TRUE if everything went ok, and FALSE if there was a decoding error
+ * while processing the url. 
+ */
+Boolean ssh_url_parse_form(const char *url,
+                           char **path,
+                           size_t *path_length,
+                           SshMapping *mapping);
+
+/*
+ * Decode http post data which have format
+ * name=value&name=value&...&name=value
+ * Returns a Mapping that has all the name and value pairs stored. It
+ * also decodes all the %-encodings from the name and values after
+ * splitting them.
+ * Returned mapping is storing only pointers to the variable length strings,
+ * and it has internal destructor, so calling ssh_mapping_free will destroy
+ * it and its contents.
+ * Returns TRUE if everything went ok, and FALSE if there was a decoding error
+ * while processing the url. 
+ */
+Boolean ssh_url_parse_post_form(const char *url, SshMapping *mapping);
 
 #endif /* SSHURL_H */

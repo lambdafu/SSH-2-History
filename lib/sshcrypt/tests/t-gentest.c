@@ -485,7 +485,6 @@ void test_random(SshRandomState state, int flag)
 
 /****************** Hash tests. ***********************/
 
-#ifdef SSHDIST_CRYPT_GENHASH
 
 void hash_random_tests(SshRandomState state)
 {
@@ -736,11 +735,9 @@ void test_hash(SshRandomState state, int flag)
     }
 }
 
-#endif /* SSHDIST_CRYPT_GENHASH */
 
 /*********************** MAC tests. *****************************/
 
-#ifdef SSHDIST_CRYPT_GENMAC
 
 void mac_random_tests(SshRandomState state)
 {
@@ -1028,11 +1025,9 @@ void test_mac(SshRandomState state, int flag)
     }
 }
 
-#endif /* SSHDIST_CRYPT_GENMAC */
 
 /********************** Cipher tests ******************************/
 
-#ifdef SSHDIST_CRYPT_GENCIPH
 
 /* XXX Triple DES verification bytes. */
 
@@ -1772,11 +1767,9 @@ void test_cipher(SshRandomState state, int flag)
     }
 }
 
-#endif /* SSHDIST_CRYPT_GENCIPH */
 
 /**************************** PKCS tests *******************************/
 
-#ifdef SSHDIST_CRYPT_GENPKCS
 
 void my_progress_func(SshCryptoProgressID id,
                       unsigned int time_value, void *context)
@@ -2303,7 +2296,6 @@ void test_ecp(SshRandomState state)
   return;
 }
 
-#endif /* SSHDIST_CRYPT_GENPKCS */
 
 /****************************** Main ***************************************/
 
@@ -2442,41 +2434,32 @@ int main(int argc, char *argv[])
       printf("\nRandom number test...\n");
       test_random(state, rnd_flag);
     }
-#ifdef SSHDIST_CRYPT_GENHASH
    if (hash_flag & 0x1)
      {
        printf("\nHash test...\n");
        for (i = 0; i < 2; i++)
          test_hash(state, hash_flag);
      }
-#endif /* SSHDIST_CRYPT_GENHASH */
-#ifdef SSHDIST_CRYPT_GENMAC
    if (mac_flag & 0x1)
      {
        printf("\nMac test...\n");
        for (i = 0; i < 2; i++)
          test_mac(state, mac_flag);
      }
-#endif /* SSHDIST_CRYPT_GENMAC */
-#ifdef SSHDIST_CRYPT_GENCIPH
   if (cipher_flag & 0x1)
     {
       printf("\nCipher test...\n");
       for (i = 0; i < 2; i++)
         test_cipher(state, cipher_flag);
     }
-#endif /* SSHDIST_CRYPT_GENCIPH */
-#ifdef SSHDIST_CRYPT_GENPKCS
   if (pkcs_flag & 0x1)
     {
       printf("\nPkcs test...\n");
       for (i = 0; i < 2; i++)
         test_pkcs(state, pkcs_flag);
     }
-#endif /* SSHDIST_CRYPT_GENPKCS */
   
   ssh_random_free(state);
   exit(0);
 }
       
-

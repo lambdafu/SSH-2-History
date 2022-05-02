@@ -2,14 +2,14 @@
   File: t-dllist.h
 
   Authors:
-	Juha P‰‰j‰rvi <jpp@ssh.fi>
+        Juha P‰‰j‰rvi <jpp@ssh.fi>
 
   Description:
-	Test driver for doubly linked list implemented in sshdllist.[hc].
+        Test driver for doubly linked list implemented in sshdllist.[hc].
 
   Copyright:
-  	Copyright (c) 1998 SSH Communications Security, Finland
-	All rights reserved
+        Copyright (c) 1998 SSH Communications Security, Finland
+        All rights reserved
 */
 
 #include "sshincludes.h"
@@ -99,7 +99,7 @@ int main(int argc, char *argv[])
   /* List addition tests */
   for (i=TEST_NUMBERS/2; i < TEST_NUMBERS; i++)
     if (ssh_dllist_add_item(t_list, (void *)&test_data[i], SSH_DLLIST_END)
-	!= SSH_DLLIST_OK)
+        != SSH_DLLIST_OK)
       ssh_fatal("t-dllist: list addition failed. Test failed.");
 
   if (verbose)
@@ -107,7 +107,7 @@ int main(int argc, char *argv[])
 
   for (i=TEST_NUMBERS/2-1; i >= 0; i--)
     if (ssh_dllist_add_item(t_list, (void *)&test_data[i], SSH_DLLIST_BEGIN)
-	!= SSH_DLLIST_OK)
+        != SSH_DLLIST_OK)
       ssh_fatal("t-dllist: list addition failed. Test failed.");
 
   if (verbose)
@@ -146,63 +146,76 @@ int main(int argc, char *argv[])
 
   /* list addition */
   evens = odds = 0;
+  ssh_time_measure_start(ssh_timer);
   for (k=0; k < ITEMS_TO_ADD_TO_THE_LIST; k++)
     {
       i = (int)((rand() / 256) % TEST_NUMBERS);
 
       if (i < 0 || i >= TEST_NUMBERS)
-	ssh_fatal("t-dllist: random number calculation produced index out "
-		  "of range.");
+        ssh_fatal("t-dllist: random number calculation produced index out "
+                  "of range.");
 
       if (i % 2 == 0)
-	evens++;
+        evens++;
       else
-	odds++;
+        odds++;
 
-      ssh_time_measure_start(ssh_timer);
       ssh_dllist_add_item(t_list, (void *)&test_data[i], SSH_DLLIST_END);
-      timer_value = ssh_time_measure_stop(ssh_timer);
     }
+  ssh_time_measure_stop(ssh_timer);
+  timer_value = (double)ssh_time_measure_get(ssh_timer,
+                                             SSH_TIME_GRANULARITY_SECOND);
   if (verbose)
     printf("%d item additions took %.2f ms. Added %d evens, %d odds.\n",
-	   ITEMS_TO_ADD_TO_THE_LIST, timer_value * 1000, evens, odds);
+           ITEMS_TO_ADD_TO_THE_LIST, timer_value * 1000, evens, odds);
   if (evens + odds != ITEMS_TO_ADD_TO_THE_LIST)
     ssh_fatal("t-dllist: evens + odds does not match. Test failed.");
-  ssh_time_measure_reset(ssh_timer);
 
   /* list length calculation */
+  ssh_time_measure_reset(ssh_timer);
   ssh_time_measure_start(ssh_timer);
   i = ssh_dllist_length(t_list);
-  timer_value = ssh_time_measure_reset(ssh_timer);
+  ssh_time_measure_stop(ssh_timer);
+  timer_value = (double)ssh_time_measure_get(ssh_timer,
+                                             SSH_TIME_GRANULARITY_SECOND);
   if (verbose)
     printf("Calculating list length took %.2f ms for %d elements.\n",
-	   timer_value * 1000, i);
+           timer_value * 1000, i);
   if (i != ITEMS_TO_ADD_TO_THE_LIST)
     ssh_fatal("t-dllist: number of list elements does not match the expected. Test failed.");
 
   /* list reverse */
+  ssh_time_measure_reset(ssh_timer);
   ssh_time_measure_start(ssh_timer);
   reverse_list(t_list);
-  timer_value = ssh_time_measure_reset(ssh_timer);
+  ssh_time_measure_stop(ssh_timer);
+  timer_value = (double)ssh_time_measure_get(ssh_timer,
+                                             SSH_TIME_GRANULARITY_SECOND);
   if (verbose)
     printf("List reverse took %.2f ms (reverse is user implemented).\n", timer_value * 1000);
 
   /* mapcar test */
+  ssh_time_measure_reset(ssh_timer);
   ssh_time_measure_start(ssh_timer);
   ssh_dllist_mapcar(t_list, remove_evens, NULL);
-  timer_value = ssh_time_measure_reset(ssh_timer);
+  ssh_time_measure_stop(ssh_timer);
+  timer_value = (double)ssh_time_measure_get(ssh_timer,
+                                             SSH_TIME_GRANULARITY_SECOND);
   if (verbose)
     printf("Remove evens with mapcar call, it took %.2f ms, elements left: %d\n",
-	   timer_value * 1000,
-	   ssh_dllist_length(t_list));
+           timer_value * 1000,
+           ssh_dllist_length(t_list));
   if (ssh_dllist_length(t_list) != odds)
     ssh_fatal("t-dllist: invalid number of list elements after mapcar. Test failed.");
 
   if (verbose)
     printf("Freeing everything... ");
+  ssh_time_measure_reset(ssh_timer);
   ssh_time_measure_start(ssh_timer);
   ssh_dllist_free(t_list);
-  timer_value = ssh_time_measure_reset(ssh_timer);
+  ssh_time_measure_stop(ssh_timer);
+  timer_value = (double)ssh_time_measure_get(ssh_timer,
+                                             SSH_TIME_GRANULARITY_SECOND);
   ssh_xfree(test_data);
   if (verbose)
     printf("OK, took %.2f ms (list had %d items).\n", timer_value * 1000, odds);

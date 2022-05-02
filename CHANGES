@@ -1,10 +1,107 @@
+1999-01-29  Sami Lehtinen  <sjl@ssh.fi>
+
+	* ssh-2.0.12.
+
+	* Fixed a deficiency in the configure script. Because of it the
+ 	  sp_expire and sp_inact fields of shadow-password-struct were
+ 	  overlooked.
+
+1999-01-27  Sami Lehtinen  <sjl@ssh.fi>
+
+	* Added code to trcommon.c/ssh_tr_input_kex2 to check for return
+	  value of tr->kex->{server,client}_input_kex2, and to send
+	  disconnect if return value was FALSE. Should make error messages
+	  in certain situations more clear.
+
+	* Added code to sshconn.c to check if we receive EOF from the main
+	  stream. Didn't seem to brake anything, and should fix some hanging
+	  problems.
+
+	* Fixed a bug in lib/sshutil/sshtcp.c. Previously, it ignored
+	  definition for port with SSH_SOCKS_SERVER.
+
+	* Fixed check for broken inet_ntoa, and it now seems to work (it
+	  compiled and worked ok on mips-sgi-irix6.2 with gcc 2.8.1, where
+	  it didn't before).
+
+1999-01-18  Sami Lehtinen  <sjl@ssh.fi>
+
+	* ssh-2.0.12.pre1 (ie. pre-release 1).
+
+	* Changed ssh2 so that if we are root, it won't fetch keys and
+	  config from /etc/ssh2, but from $HOME/.ssh2. 
+
+	* Added code to configure to better chack for minor (is a macro in
+	  atleast Solaris) and S_IFSOCK (isn't defined in SCO). Also added
+	  code to check for broken inet_ntoa, but it doesn't seem to work
+	  as expected. Studies continue.
+
+	* Fixed a bug in ssh_user_dir() and ssh2.c , which caused ssh2 to
+ 	  crash when run on the first time in some systems.
+
+	* Added FAQ. Send me good questions, and (more importantly) good
+	  answers, and I will put them to the FAQ.
+
+	* Added signal handlers for various fatal signals in sftp2 and in
+ 	  scp2. If we receive a fatal signal, we will also kill the
+ 	  ssh2-child. Fixed a bug in filecontrol (or rather added a
+ 	  kludge). We set stdio and stdout to blocking mode now in main(),
+ 	  as they are somewhere (eventloop_initialize ?) put to non-blocking
+ 	  mode. This broke output in, for example, the "ls" command. Also
+ 	  rewrote bits of code, sftp_page_prompt_return for example.
+
+1999-01-17  Timo J. Rinne  <tri@ssh.fi>
+
+	* Added configuration option --with(out)-ssh-agent1-compat
+	  to make ssh-agent1 support (RSA-decryption) optional
+	  in ssh-agent2.  Default is on.
+
+1999-01-12  Timo J. Rinne  <tri@ssh.fi>
+
+	* Added ssh1 challenge-response mechanism into ssh-agent2.
+
+1998-12-29  Sami Lehtinen  <sjl@ssh.fi>
+
+	* Added configuration parameter SyslogFacility. Now you can define
+	  exactly where you want to log things. Sorry it took so long.
+
+	* Fixed a security bug which allowed  any eligible user to request
+	  remote forwarding from privileged ports without being root. 
+
+	* Previous: Modified the configuration script so that it should
+	  compile on HP-UX 9.x now.
+
+1998-12-10  Sami Lehtinen  <sjl@ssh.fi>
+
+	* Added {Allow,Deny}Hosts configuration parameters to
+	  sshd2. Accepts wildcards (*, ?). Will accept in the future:
+	  address ranges, subnets. Also a access-control-file is planned,
+	  which would make this obsolete, as the new format would be much
+	  more powerful and intuitive.
+
+1998-12-08  Sami Lehtinen  <sjl@ssh.fi>
+
+	* Added SIGHUP handling to sshd2. (now restarts on SIGHUP)
+
+1998-11-26  Sami Lehtinen  <sjl@ssh.fi>
+
+	* Tweaked logging in sshd2.c.
+
+	* Added reverse-mapping for the remote host's hostname in the
+ 	  server.
+
+	* Fixed a bug in auths-{passwd,pubkey}.c, which caused a SIGSEGV
+ 	  if user didn't exist. Tweaked logging in same file.
+
 1998-11-16  Sami Lehtinen  <sjl@ssh.fi>
 
+	* Released  ssh-2.0.11.
+	
 	* Previous: Fixed a draft inconsistency in the client's version
  	  string handling. Should reduce those "Protocol error"'s.
 
-	* Hopefully fixed the busyloop-timeout problem in scp2. Now it the
-	  background ssh2 process before exiting itself.
+	* Hopefully fixed the busyloop-timeout problem in scp2. Now it
+	  kills the background ssh2 process before exiting itself.
 
 1998-11-12  Timo J. Rinne  <tri@ssh.fi>
 

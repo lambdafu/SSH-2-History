@@ -16,6 +16,7 @@
 */
 
 #include "sshincludes.h"
+#include "pubkeyencode.h"
 #include "sshauth.h"
 #include "gmp.h"
 #include "sshcrypt.h"
@@ -36,11 +37,6 @@
 size_t ssh_encode_pubkeyblob(SshPublicKey pubkey, unsigned char **blob)
 {
   mpz_t p, q, g, y;  /* DSS public parameters */
-#ifdef SSHDIST_CRYPT_RSA
-
-
-
-#endif /* SSHDIST_CRYPT_RSA */
   SshBuffer *buf;
   size_t len;
   char *keytype;
@@ -67,17 +63,17 @@ size_t ssh_encode_pubkeyblob(SshPublicKey pubkey, unsigned char **blob)
       mpz_init(y);
 
       if (ssh_public_key_get_info(pubkey, 
-				  SSH_PKF_PRIME_P, p,
-				  SSH_PKF_PRIME_Q, q,
-				  SSH_PKF_GENERATOR_G, g, 
-				  SSH_PKF_PUBLIC_Y, y,
-				  SSH_PKF_END) 
-	  != SSH_CRYPTO_OK)
-	{
-	  ssh_debug("ssh_encode_pubkeyblob: failed to get "
+                                  SSH_PKF_PRIME_P, p,
+                                  SSH_PKF_PRIME_Q, q,
+                                  SSH_PKF_GENERATOR_G, g, 
+                                  SSH_PKF_PUBLIC_Y, y,
+                                  SSH_PKF_END) 
+          != SSH_CRYPTO_OK)
+        {
+          ssh_debug("ssh_encode_pubkeyblob: failed to get "
                     "internal parameters from a DSS public key.");
-	  return 0;
-	}
+          return 0;
+        }
 
       /* construct the public key string */
 
@@ -119,58 +115,6 @@ size_t ssh_encode_pubkeyblob(SshPublicKey pubkey, unsigned char **blob)
       return len;
     }
 
-#ifdef SSHDIST_CRYPT_RSA
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#endif /* SSHDIST_CRYPT_RSA */
 
   ssh_debug("ssh_encode_pubkeyblob: unrecognized key type %s", keytype);
   return 0;
@@ -184,11 +128,6 @@ SshPublicKey ssh_decode_pubkeyblob(unsigned char *blob, size_t bloblen)
   unsigned char *keytype;
   SshPublicKey pubkey;
   mpz_t p, q, g, y;  /* DSS public parameters */
-#ifdef SSHDIST_CRYPT_RSA
-
-
-
-#endif /* SSHDIST_CRYPT_RSA */
   SshCryptoStatus code;
   SshBuffer *buf;
 
@@ -201,8 +140,8 @@ SshPublicKey ssh_decode_pubkeyblob(unsigned char *blob, size_t bloblen)
   ssh_buffer_append(buf, blob, bloblen);
   
   if (ssh_decode_buffer(buf,
-			SSH_FORMAT_UINT32_STR, &keytype, NULL,
-			SSH_FORMAT_END) == 0)
+                        SSH_FORMAT_UINT32_STR, &keytype, NULL,
+                        SSH_FORMAT_END) == 0)
     return NULL;
   
   /* -- DSS key type -- */
@@ -222,12 +161,12 @@ SshPublicKey ssh_decode_pubkeyblob(unsigned char *blob, size_t bloblen)
       /* ok, construct the public key */
       
       code = ssh_public_key_define(&pubkey,
-				   SSH_CRYPTO_DSS,
-				   SSH_PKF_PRIME_P, p,
-				   SSH_PKF_PRIME_Q, q,
-				   SSH_PKF_GENERATOR_G, g, 
-				   SSH_PKF_PUBLIC_Y, y,
-				   SSH_PKF_END);
+                                   SSH_CRYPTO_DSS,
+                                   SSH_PKF_PRIME_P, p,
+                                   SSH_PKF_PRIME_Q, q,
+                                   SSH_PKF_GENERATOR_G, g, 
+                                   SSH_PKF_PUBLIC_Y, y,
+                                   SSH_PKF_END);
 #ifdef DUMP_KEYS
       printf("decode:\n p = ");
       mpz_out_str(stdout, 16, p);
@@ -246,64 +185,22 @@ SshPublicKey ssh_decode_pubkeyblob(unsigned char *blob, size_t bloblen)
       mpz_clear(y);
 
       if (code != SSH_CRYPTO_OK)
-	{
-	  ssh_debug("ssh_decode_pubkeyblob: failed to set the "
-		    "parameters of an DSS public key.");
-	  goto fail1;
-	}
+        {
+          ssh_debug("ssh_decode_pubkeyblob: failed to set the "
+                    "parameters of an DSS public key.");
+          goto fail1;
+        }
     
       ssh_buffer_free(buf);
       ssh_xfree(keytype);
       return pubkey;
     }
 
-#ifdef SSHDIST_CRYPT_RSA
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#endif /* SSHDIST_CRYPT_RSA */
 
   /* could not identify key type */
 
   ssh_debug("ssh_decode_pubkeyblob: unrecognized key type %s", 
-	    keytype);  
+            keytype);  
 
 fail1:
   ssh_buffer_free(buf);
@@ -320,8 +217,8 @@ char *ssh_pubkeyblob_type(unsigned char *blob, size_t bloblen)
   buf = ssh_buffer_allocate();
   ssh_buffer_append(buf, blob, bloblen);
   ssh_decode_buffer(buf,
-		    SSH_FORMAT_UINT32_STR, &keytype, NULL,
-		    SSH_FORMAT_END);
+                    SSH_FORMAT_UINT32_STR, &keytype, NULL,
+                    SSH_FORMAT_END);
   ssh_buffer_free(buf);
      
   return ((char *)keytype);

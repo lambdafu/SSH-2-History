@@ -166,12 +166,6 @@ char *ssh_public_key_name_ssh_to_cryptolib(char *str)
     r = NULL;
   else if (strcmp(str, SSH_SSH_DSS) == 0)
     r = ssh_xstrdup(SSH_CRYPTO_DSS);
-#ifdef SSHDIST_CRYPT_RSA
-
-
-
-
-#endif /* SSHDIST_CRYPT_RSA */
   else if (ssh_public_key_supported(str))
     r = ssh_xstrdup(str);
 
@@ -189,14 +183,6 @@ char *ssh_public_key_name_cryptolib_to_ssh(char *str)
     r = ssh_xstrdup(SSH_SSH_DSS);
   else if (strcmp(str, SSH_CRYPTO_DSS) == 0)
     r = ssh_xstrdup(SSH_SSH_DSS);
-#ifdef SSHDIST_CRYPT_RSA
-
-
-
-
-
-
-#endif /* SSHDIST_CRYPT_RSA */
 
 #if 0
   else if (ssh_public_key_supported(str))

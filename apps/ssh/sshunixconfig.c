@@ -221,8 +221,16 @@ Boolean ssh_server_load_host_key(SshConfig config,
   /* load the host key from (typically) /etc/ssh2/hostkey */
   if(config->host_key_file[0] != '/')
     {    
-      if ((userdir = ssh_userdir(user, config, TRUE)) == NULL)
-        ssh_fatal("ssh_server_load_host_key: no ssh2 user directory");
+      if (ssh_user_uid(user) == 0 )
+        {
+          userdir = ssh_xstrdup(SSH_SERVER_DIR);
+        }
+      else
+        {
+          if ((userdir = ssh_userdir(user, config, TRUE)) == NULL)
+            ssh_fatal("ssh_server_load_host_key: no ssh2 user directory");
+        }
+      
       snprintf(hostkeyfile, sizeof(hostkeyfile), "%s/%s",
                userdir, config->host_key_file);
     }
@@ -260,7 +268,7 @@ Boolean ssh_server_load_host_key(SshConfig config,
   
   ssh_debug("Reading public host key from: %s", hostkeyfile);
 
-  if (ssh_key_blob_read(user, hostkeyfile, NULL,
+  if (ssh2_key_blob_read(user, hostkeyfile, NULL,
                         public_host_key_blob,
                         public_host_key_blob_len, NULL) 
       != SSH_KEY_MAGIC_PUBLIC)

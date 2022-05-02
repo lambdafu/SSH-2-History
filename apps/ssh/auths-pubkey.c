@@ -28,9 +28,7 @@
 #include "sshdebug.h"
 #include "userfile.h"
 #include "sshuserfiles.h"
-#ifdef SSHDIST_WINDOWS
-
-#endif /* SSHDIST_WINDOWS */
+#include "auths-common.h"
 
 #define SSH_DEBUG_MODULE "Ssh2AuthPubKeyServer"
 
@@ -57,21 +55,11 @@ Boolean ssh_server_auth_pubkey_verify(SshUser uc, char *remote_ip,
   SshBuffer *buf;
   char filen[1024];
   int i, n;
-#ifndef SSHDIST_WINDOWS
   char *userdir, **vars = NULL, **vals = NULL;
   
   userfile_init(ssh_user_name(uc), ssh_user_uid(uc), ssh_user_gid(uc),
                 NULL, NULL);
 
-#else /* SSHDIST_WINDOWS */
-
-
-
-
-
-
-
-#endif /* SSHDIST_WINDOWS */
 
   SSH_DEBUG(6, ("auth_pubkey_verify user = %s  check_sig = %s",
                 ssh_user_name(uc), check_signatures ? "yes" : "no"));
@@ -81,7 +69,6 @@ Boolean ssh_server_auth_pubkey_verify(SshUser uc, char *remote_ip,
   if (certs_len < 16)  /* ever seen a 12-byte public key ? */
     goto exit_false;
 
-#ifndef SSHDIST_WINDOWS
   if ((userdir = ssh_userdir(uc, server->config, FALSE)) == NULL)
     goto exit_false;
 
@@ -105,7 +92,7 @@ Boolean ssh_server_auth_pubkey_verify(SshUser uc, char *remote_ip,
                    vals[i]);
           SSH_DEBUG(6, ("auth_pubkey_verify: key %d, %s", i, filen));
           tblob = NULL;
-          if (ssh_key_blob_read(uc, filen, NULL, &tblob, &tbloblen, NULL) 
+          if (ssh2_key_blob_read(uc, filen, NULL, &tblob, &tbloblen, NULL) 
               != SSH_KEY_MAGIC_PUBLIC)
             {
               if (tblob != NULL)
@@ -134,57 +121,12 @@ Boolean ssh_server_auth_pubkey_verify(SshUser uc, char *remote_ip,
             }
         }    
     }
-#else /* SSHDIST_WINDOWS */
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#endif /* SSHDIST_WINDOWS */
 
   SSH_DEBUG(6, ("auth_pubkey_verify: the key didn't match."));
 
-#ifndef SSHDIST_WINDOWS
   ssh_xfree(userdir);
 
   ssh_free_varsvals(n, vars, vals);
-#endif /* SSHDIST_WINDOWS */
 
   goto exit_false;
 
@@ -193,13 +135,9 @@ Boolean ssh_server_auth_pubkey_verify(SshUser uc, char *remote_ip,
 
   SSH_DEBUG(6, ("auth_pubkey_verify: the key matched."));
     
-#ifndef SSHDIST_WINDOWS
   ssh_xfree(userdir);
 
   ssh_free_varsvals(n, vars, vals);
-#else /* SSHDIST_WINDOWS */
-
-#endif /* SSHDIST_WINDOWS */
 
   if (!check_signatures)
     goto exit_true;
@@ -244,16 +182,12 @@ Boolean ssh_server_auth_pubkey_verify(SshUser uc, char *remote_ip,
     }
 
  exit_true:
-#ifndef SSHDIST_WINDOWS
   userfile_uninit();
-#endif /* SSHDIST_WINDOWS */
 
   return TRUE;
 
  exit_false:
-#ifndef SSHDIST_WINDOWS
   userfile_uninit();
-#endif /* SSHDIST_WINDOWS */
   /* if login failed, free memory (possibly) allocated by forced command,
      so that we don't accidentally execute commands with wrong keys. */
   ssh_xfree(server->common->config->forced_command);
@@ -288,12 +222,28 @@ SshAuthServerResult ssh_server_auth_pubkey(SshAuthServerOperation op,
   switch (op)
     {
     case SSH_AUTH_SERVER_OP_START:
-      /* If user context not yet allocated, do it now. */
-      if (uc == NULL)
+      /* Check whether user's login is allowed */
+      if (ssh_server_auth_check_user(&uc, user, server->config))
         {
-          uc = ssh_user_initialize(user, TRUE);
+          /* User does not exist or is not allowed to log in. */
+          return SSH_AUTH_SERVER_REJECTED_AND_METHOD_DISABLED;
+        }
+      else
+        {
           *longtime_placeholder = (void *)uc;
         }
+
+      if (ssh_server_auth_check_host(server->common))
+        {
+          /* logins from remote host are not allowed. */
+          ssh_log_event(server->config->log_facility, SSH_LOG_WARNING,
+                        "Connection from %s denied. Authentication as user "
+                        "%s was attempted.", server->common->remote_host,
+                        ssh_user_name(uc));
+          return SSH_AUTH_SERVER_REJECTED_AND_METHOD_DISABLED;
+        }
+      
+      /* Parse the publickey authentication request. */
 
       /* If publickey authentication is denied in the configuration
          file, deny it here too. */
@@ -301,7 +251,7 @@ SshAuthServerResult ssh_server_auth_pubkey(SshAuthServerOperation op,
         {
           SSH_DEBUG(2, ("Publickey authentication denied. (user '%s' not" \
                         " allowed to log in)", ssh_user_name(uc)));
-          ssh_log_event(SSH_LOGFACILITY_SECURITY, SSH_LOG_NOTICE,
+          ssh_log_event(server->config->log_facility, SSH_LOG_NOTICE,
                         "Publickey authentication denied. (user '%s' not"
                         " allowed to log in)", ssh_user_name(uc));
           /* XXX should be
@@ -310,25 +260,6 @@ SshAuthServerResult ssh_server_auth_pubkey(SshAuthServerOperation op,
           return SSH_AUTH_SERVER_REJECTED;            
         }
       
-      /* If user context allocation failed, the user probably does not 
-         exist. */
-      
-      if (!uc)
-        return SSH_AUTH_SERVER_REJECTED;
-
-      /* Reject the login if the user is not allowed to log in. */
-      if (!ssh_user_login_is_allowed(uc))
-        {
-          ssh_log_event(SSH_LOGFACILITY_SECURITY,
-                        SSH_LOG_NOTICE,
-                        "login by '%s' not allowed.", ssh_user_name(uc));
-          SSH_DEBUG(2, ("ssh_server_auth_pubkey: login by '%s' not allowed.",\
-                        ssh_user_name(uc)));
-          return SSH_AUTH_SERVER_REJECTED;
-        }
-      
-      /* Parse the publickey authentication request. */
-
       data = ssh_buffer_ptr(packet);
       len = ssh_buffer_len(packet);
       sig = NULL;
@@ -341,8 +272,8 @@ SshAuthServerResult ssh_server_auth_pubkey(SshAuthServerOperation op,
                                SSH_FORMAT_END);
       if (bytes == 0 || (!real_request && bytes != len))
         {
-          ssh_log_event(SSH_LOGFACILITY_SECURITY,
-                        SSH_LOG_NOTICE,
+          ssh_log_event(server->config->log_facility,
+                        SSH_LOG_WARNING,
                         "got bad packet when verifying user %s's publickey.",
                         ssh_user_name(uc));
           SSH_DEBUG(2, ("ssh_server_auth_pubkey: bad packet"));
@@ -355,8 +286,8 @@ SshAuthServerResult ssh_server_auth_pubkey(SshAuthServerOperation op,
                                SSH_FORMAT_UINT32_STR, &sig, &sig_len,
                                SSH_FORMAT_END) != len - bytes)
             {
-              ssh_log_event(SSH_LOGFACILITY_SECURITY,
-                            SSH_LOG_NOTICE,
+              ssh_log_event(server->config->log_facility,
+                            SSH_LOG_WARNING,
                             "got bad packet when verifying user " \
                             "%s's publickey.",
                             ssh_user_name(uc));
@@ -375,7 +306,8 @@ SshAuthServerResult ssh_server_auth_pubkey(SshAuthServerOperation op,
                                         session_id, session_id_len,
                                         server,
                                         real_request, 
-                                        server->config->callback_context) == FALSE)
+                                        server->config->callback_context)
+          == FALSE)
         {
           if (sig != NULL)
             ssh_xfree(sig);
@@ -389,14 +321,13 @@ SshAuthServerResult ssh_server_auth_pubkey(SshAuthServerOperation op,
           ssh_xfree(sig);
 
           /* Check for root login and forced commands */
-#ifndef SSHDIST_WINDOWS
           if(ssh_user_uid(uc) == SSH_UID_ROOT &&
              server->config->permit_root_login == FALSE)
             {
               if(!server->config->forced_command)
                 {
                   /* XXX add client address etc. */
-                  ssh_log_event(SSH_LOGFACILITY_SECURITY,
+                  ssh_log_event(server->config->log_facility,
                                 SSH_LOG_NOTICE,
                                 "root logins are not permitted.");
                   SSH_DEBUG(2, ("ssh_server_auth_pubkey: root logins" \
@@ -406,12 +337,11 @@ SshAuthServerResult ssh_server_auth_pubkey(SshAuthServerOperation op,
               else
                 {
                   /* XXX add client address etc. */
-                  ssh_log_event(SSH_LOGFACILITY_SECURITY,
+                  ssh_log_event(SSH_LOGFACILITY_AUTH,
                                 SSH_LOG_NOTICE,
                                 "root login permitted for forced command.");
                 }
             }
-#endif /* SSHDIST_WINDOWS */
 
           /* Because it is an real request, and it has been verified, the
              authorization is granted. */

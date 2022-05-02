@@ -39,6 +39,11 @@
 #define KEYGEN_ASSUMED_PUBKEY_LEN 1024
 #endif /* KEYGEN_ASSUMED_PUBKEY_LEN */
 
+#ifdef HAVE_LIBWRAP
+int allow_severity = SSH_LOG_INFORMATIONAL;
+int deny_severity = SSH_LOG_WARNING;
+#endif /* HAVE_LIBWRAP */
+
 /* helptext */
 
 const char keygen_helptext[] =
@@ -46,15 +51,7 @@ const char keygen_helptext[] =
   "\n"
   "Where `options' are:\n"
   " -b nnn         Specify key strength in bits (e.g. 1024)\n"
-#ifdef SSHDIST_CRYPT_RSA
-
-
-
-
-
-#else /* SSHDIST_CRYPT_RSA */
   " -t dsa         Choose the key type (only dsa available).\n"
-#endif /* SSHDIST_CRYPT_RSA */
   " -h             Print this help text.\n"
   " -e file        Edit the comment/passphrase of the key.\n"
   " -c comment     Provide the comment.\n"
@@ -107,12 +104,6 @@ const char *keygen_common_names[][2] =
   { "dsa", SSH_CRYPTO_DSS },
   { "dss", SSH_CRYPTO_DSS },
 
-#ifdef SSHDIST_CRYPT_RSA
-
-
-
-
-#endif /* SSHDIST_CRYPT_RSA */
 
   /* Last entry */
   { NULL, NULL }
@@ -393,7 +384,12 @@ int keygen_keygen(KeyGenCtx *kgc)
 
   snprintf(buf, sizeof (buf), "%s.pub", kgc->out_filename);
   kgc->public_key = ssh_private_key_derive_public_key(kgc->private_key);
-
+  if (kgc->public_key == NULL)
+    {
+      ssh_warning("Could not derive public key from private key.");
+      return r + 1;
+    }
+  
   if (ssh_pubkey_write(kgc->user, buf, kgc->comment, kgc->public_key, NULL))
     {
       ssh_warning("Public key not written !");

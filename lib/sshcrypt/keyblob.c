@@ -14,7 +14,7 @@
   */
 
 /*
- * $Id: keyblob.c,v 1.9 1998/05/23 21:51:46 kivinen Exp $
+ * $Id: keyblob.c,v 1.11 1999/01/21 12:38:21 tri Exp $
  * $Log: keyblob.c,v $
  * $EndLog$
  */
@@ -27,7 +27,7 @@
 #include "sshgetput.h"
 
 unsigned char *get_next_chars(unsigned char *src, unsigned char *dest,
-			      size_t len)
+                              size_t len)
 {
   int max;
 
@@ -39,18 +39,52 @@ unsigned char *get_next_chars(unsigned char *src, unsigned char *dest,
   else
     {
       if (max < len)
-	{
-	  memcpy(dest, src, max + 1);
-	  src += max;
-	}
+        {
+          memcpy(dest, src, max + 1);
+          src += max;
+        }
       else
-	{
-	  memcpy(dest, src, len);
-	  dest[len] = '\0';
-	  src += len;
-	}
+        {
+          memcpy(dest, src, len);
+          dest[len] = '\0';
+          src += len;
+        }
     }
   return src;
+}
+
+#define LEGAL_HEADER_CHAR(c) (isalnum((c)) || ((c) == '-') || ((c) == '_'))
+
+Boolean looking_at_header(const char *s)
+{
+  if ((s == NULL) || (! LEGAL_HEADER_CHAR(*s)))
+    return FALSE;
+  while (LEGAL_HEADER_CHAR(*s))
+    s++;
+  if (*s != ':')
+    return FALSE;
+  s++;
+  if ((*s != ' ') && (*s != '\t'))
+    return FALSE;
+  return TRUE;
+}
+
+void skip_headers(const char **s)
+{
+  Boolean escaped;
+
+  escaped = FALSE;
+  while (**s && (looking_at_header(*s) || escaped))
+    {
+      escaped = FALSE;
+      while (**s && (**s != '\n'))
+        {
+          escaped = ((**s == '\\') || (escaped && **s == '\r'));
+          (*s)++;
+        }
+      while (isspace(**s))
+        (*s)++;
+    }
 }
 
 /*
@@ -61,16 +95,17 @@ unsigned char *get_next_chars(unsigned char *src, unsigned char *dest,
  * private or public key are returned.
  */
 unsigned char *ssh_key_blob_read_from_string(const char *str,
-					     size_t *blob_len,
-					     unsigned int *version_major,
-					     unsigned int *version_minor,
-					     Boolean *is_public)
+                                             size_t *blob_len,
+                                             char **headers,
+                                             unsigned int *version_major,
+                                             unsigned int *version_minor,
+                                             Boolean *is_public)
 {
   unsigned char *blob, *blob2;
   const char *base64blob, *crc64blob;
   unsigned int number;
   size_t base64blob_len, crc64blob_len;
-  const char *p, *compare, *again;
+  const char *p, *compare, *again, *headers_beg, *headers_end;
   unsigned char *p2;
   Boolean public;
   unsigned long crc32;
@@ -106,7 +141,6 @@ unsigned char *ssh_key_blob_read_from_string(const char *str,
   
   compare = "beginssh";
   MATCH_STRING_GOTO_ERROR(p, compare);
-
   again = p;
   compare = "public";
   MATCH_STRING(p, compare);
@@ -142,6 +176,18 @@ unsigned char *ssh_key_blob_read_from_string(const char *str,
   if (*p == 'a')
     p++;
 
+  /* Read headers */
+  SKIP_SPACE(p);
+  headers_beg = p;
+  skip_headers(&p);
+  headers_end = p;
+  if ((headers_end != headers_beg) && (!(isspace(*headers_end))))
+    headers_end--;
+  while (isspace(*headers_end) && (headers_end > headers_beg))
+    headers_end--;
+  if (headers_end != headers_beg)
+    headers_end++;
+
   /* Read data */
   SKIP_SPACE(p);
   base64blob = p;
@@ -151,7 +197,7 @@ unsigned char *ssh_key_blob_read_from_string(const char *str,
   while(*p && *p == '=')
     p++, base64blob_len++;
   SKIP_SPACE(p);
-  
+
   /* Read crc */
   EXPECT_CHAR(p, '=');
   crc64blob = ++p;
@@ -179,7 +225,7 @@ unsigned char *ssh_key_blob_read_from_string(const char *str,
     *is_public = public;
   
   blob = ssh_base64_remove_whitespace((const unsigned char *) crc64blob,
-				      crc64blob_len);
+                                      crc64blob_len);
   p2 = blob;
   SKIP_CHARS(p2, '=');
   blob2 = ssh_base64_to_buf(p2, &crc64blob_len);
@@ -189,7 +235,7 @@ unsigned char *ssh_key_blob_read_from_string(const char *str,
   if (crc64blob_len != 4)
     goto error;
   blob = ssh_base64_remove_whitespace((const unsigned char *) base64blob,
-				      base64blob_len);
+                                      base64blob_len);
   blob2 = ssh_base64_to_buf(blob, &base64blob_len);
   ssh_xfree(blob);
   blob = blob2;
@@ -197,6 +243,17 @@ unsigned char *ssh_key_blob_read_from_string(const char *str,
     {
       ssh_xfree(blob);
       goto error;
+    }
+  if (headers)
+    {
+      if (headers_end != headers_beg)
+        {
+          *headers = ssh_xmemdup(headers_beg, headers_end - headers_beg);
+        }
+      else
+        {
+          *headers = NULL;
+        }
     }
   if (blob_len)
     *blob_len = base64blob_len;
@@ -210,26 +267,48 @@ error:
 
 /*
  * Read key blob from file and convert it to binary format. Returns
- * xmallocated blob and its length. If blob_len ptr is NULL it isn't returned.
+ * xmallocated blob and its length. If blob_len ptr is NULL it isn't
+ * returned.
  */
-unsigned char *ssh_key_blob_read(FILE *fp, size_t *blob_len)
+unsigned char *ssh_key_blob_read(FILE *fp, size_t *blob_len, char **comments)
 {
   char *buffer;
   size_t len, max_len;
+  unsigned char *r;
 
   len = 0;
   max_len = 1024;
-  buffer = ssh_xmalloc(len);
+  buffer = ssh_xmalloc(max_len);
   while (fgets(buffer + len, max_len - len, fp) != NULL)
     {
       len += strlen(buffer + len);
       if (len >= max_len)
-	{
-	  max_len *= 2;
-	  buffer = ssh_xrealloc(buffer, max_len);
-	}
+        {
+          if (len > 0xffff)
+            {
+              ssh_warning("ssh_key_blob_read: keyblob file too long.");
+              return NULL;
+            }
+          max_len *= 2;
+          buffer = ssh_xrealloc(buffer, max_len);
+        }
     }
-  return ssh_key_blob_read_from_string(buffer, blob_len, NULL, NULL, NULL);
+  r = ssh_key_blob_read_from_string(buffer, 
+                                    blob_len, 
+                                    comments,
+                                    NULL,
+                                    NULL,
+                                    NULL);
+
+  if (r)
+    if (*comments)
+      fprintf(stderr, ">>>comments>>>%s<<<\n", *comments);
+    else
+      fprintf(stderr, ">>>comments>>> *** NONE *** <<<\n");
+      
+
+  ssh_xfree(buffer);
+  return r;
 }
 
 /*
@@ -237,9 +316,10 @@ unsigned char *ssh_key_blob_read(FILE *fp, size_t *blob_len)
  * blob there.
  */
 void ssh_key_blob_write_to_buffer(SshBuffer *buffer,
-				  unsigned char *blob,
-				  size_t blob_len,
-				  Boolean is_public)
+                                  unsigned char *blob,
+                                  size_t blob_len,
+                                  const char *comments,
+                                  Boolean is_public)
 {
   unsigned char *base64, *new_base64;
   unsigned char line[80];
@@ -256,8 +336,13 @@ void ssh_key_blob_write_to_buffer(SshBuffer *buffer,
   
   snprintf((char *) line, 80, "Version: %s\n", SSH_BLOB_VERSION);
   ssh_buffer_append(buffer, line, strlen((char *) line));
-  
+
   snprintf((char *) line, 80, "\n");
+  if (comments)
+    {
+      ssh_buffer_append(buffer, (unsigned char *)comments, strlen(comments));
+      ssh_buffer_append(buffer, line, strlen((char *) line));
+    }
   ssh_buffer_append(buffer, line, strlen((char *) line));
 
   new_base64 = base64;
@@ -298,14 +383,14 @@ void ssh_key_blob_write_to_buffer(SshBuffer *buffer,
  * Write blob to file as ascii string. 
  */
 void ssh_key_blob_write(FILE *fp, unsigned char *blob,
-				  size_t blob_len,
-				  Boolean is_public)
+                                  size_t blob_len,
+                                  const char *comments,
+                                  Boolean is_public)
 {
   SshBuffer buffer;
   
   ssh_buffer_init(&buffer);
-  ssh_key_blob_write_to_buffer(&buffer, blob, blob_len, is_public);
-
+  ssh_key_blob_write_to_buffer(&buffer, blob, blob_len, comments, is_public);
   fwrite(ssh_buffer_ptr(&buffer), 1, ssh_buffer_len(&buffer), fp);
   ssh_buffer_uninit(&buffer);
 }

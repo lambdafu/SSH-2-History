@@ -40,14 +40,14 @@ Unix implementation internal header for the ssh-agent interface.
 
 /* SSH1 agent request codes. */
 #define SSH1_AGENT_LIST_KEYS            1
-#define SSH1_AGENT_RSA_CHALLENGE        3
+#define SSH1_AGENT_AUTH_CHALLENGE       3
 #define SSH1_AGENT_ADD_KEY              7
 #define SSH1_AGENT_REMOVE_KEY           8
 #define SSH1_AGENT_REMOVE_ALL_KEYS      9
 
 /* SSH1 agent response codes. */
 #define SSH1_AGENT_KEY_LIST             2
-#define SSH1_AGENT_RSA_RESPONSE         4
+#define SSH1_AGENT_AUTH_RESPONSE        4
 #define SSH1_AGENT_FAILURE              5
 #define SSH1_AGENT_SUCCESS              6
 

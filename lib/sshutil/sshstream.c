@@ -1,7 +1,7 @@
 /*
 
   Author: Antti Huima <huima@ssh.fi>
-  	  Tatu Ylonen <ylo@ssh.fi>
+          Tatu Ylonen <ylo@ssh.fi>
 
   Copyright (C) 1996 SSH Communications Security Oy, Espoo, Finland
   All rights reserved.
@@ -13,7 +13,7 @@
 */
 
 /*
- * $Id: sshstream.c,v 1.1 1998/01/28 10:14:56 ylo Exp $
+ * $Id: sshstream.c,v 1.3 1999/01/13 13:09:36 sjl Exp $
  * $Log: sshstream.c,v $
  * $EndLog$
  */
@@ -21,6 +21,8 @@
 #include "sshincludes.h"
 #include "sshstream.h"
 #include "sshtimeouts.h"
+
+#define SSH_DEBUG_MODULE "SshStream"
 
 /* All stream types have a structure that starts with the method table
    pointer.  This structure should be considered private to the implementation
@@ -42,16 +44,16 @@ struct SshStreamRec {
    that the user callback is allowed to close the stream. */
 
 void ssh_stream_internal_callback(SshStreamNotification notification,
-				  void *context)
+                                  void *context)
 {
   SshStream stream = (SshStream)context;
 
   if (stream->closed)
     ssh_fatal("ssh_stream_internal_callback: stream implementation generated "
-	      "a callback after close.");
+              "a callback after close.");
   if (stream->disconnected)
     ssh_fatal("ssh_stream_internal_callback: stream implementation generated "
-	      "a callback after disconnected notification");
+              "a callback after disconnected notification");
   if (notification == SSH_STREAM_DISCONNECTED)
     stream->disconnected = TRUE;
 
@@ -66,7 +68,7 @@ void ssh_stream_internal_callback(SshStreamNotification notification,
    will eventually call this. */
 
 SshStream ssh_stream_create(const SshStreamMethodsTable *methods,
-			    void *context)
+                            void *context)
 {
   SshStream stream;
 
@@ -81,8 +83,8 @@ SshStream ssh_stream_create(const SshStreamMethodsTable *methods,
   stream->closed = FALSE;
   stream->disconnected = FALSE;
   (*stream->methods->set_callback)(stream->context,
-				   ssh_stream_internal_callback,
-				   (void *)stream);
+                                   ssh_stream_internal_callback,
+                                   (void *)stream);
   return stream;
 }
 
@@ -91,13 +93,13 @@ SshStream ssh_stream_create(const SshStreamMethodsTable *methods,
   the number of bytes read if something was read. */
 
 int ssh_stream_read(SshStream stream, unsigned char *buffer,
-		    size_t size)
+                    size_t size)
 {
   int len;
 
-  assert(!stream->closed);
+  SSH_ASSERT(!stream->closed);
   len = (*stream->methods->read)(stream->context, buffer, size);
-  assert(!stream->disconnected || len == 0);
+  SSH_ASSERT(!stream->disconnected || len == 0);
   if (len > 0)
     stream->read_bytes += len;
   return len;
@@ -109,13 +111,13 @@ int ssh_stream_read(SshStream stream, unsigned char *buffer,
    and the number of bytes written if something was actually written. */
 
 int ssh_stream_write(SshStream stream, const unsigned char *buffer,
-		     size_t size)
+                     size_t size)
 {
   int len;
 
-  assert(!stream->closed);
+  SSH_ASSERT(!stream->closed);
   len = (*stream->methods->write)(stream->context, buffer, size);
-  assert(!stream->disconnected || len == 0);
+  SSH_ASSERT(!stream->disconnected || len == 0);
   if (len > 0)
     stream->written_bytes += len;
   return len;
@@ -125,7 +127,7 @@ int ssh_stream_write(SshStream stream, const unsigned char *buffer,
 
 void ssh_stream_output_eof(SshStream stream)
 {
-  assert(!stream->closed);
+  SSH_ASSERT(!stream->closed);
   (*stream->methods->output_eof)(stream->context);
 }
 
@@ -138,22 +140,22 @@ void ssh_stream_output_eof(SshStream stream)
    they wish. */
 
 void ssh_stream_set_callback(SshStream stream,
-			     SshStreamCallback callback,
-			     void *context)
+                             SshStreamCallback callback,
+                             void *context)
 {
-  assert(!stream->closed);
+  SSH_ASSERT(!stream->closed);
   stream->user_callback = callback;
   stream->user_context = context;
   (*stream->methods->set_callback)(stream->context,
-				   ssh_stream_internal_callback,
-				   (void *)stream);
+                                   ssh_stream_internal_callback,
+                                   (void *)stream);
 }
 
 /* Retrieves stream statistics. */
 
 void ssh_stream_get_stats(SshStream stream, SshStreamStats *stats)
 {
-  assert(!stream->closed);
+  SSH_ASSERT(!stream->closed);
   stats->read_bytes = stream->read_bytes;
   stats->written_bytes = stream->written_bytes;
 }
@@ -175,7 +177,7 @@ void ssh_stream_real_destroy(void *context)
 
 void ssh_stream_destroy(SshStream stream)
 {
-  assert(!stream->closed);
+  SSH_ASSERT(!stream->closed);
   stream->closed = TRUE;
   (*stream->methods->destroy)(stream->context);
   
@@ -192,7 +194,7 @@ void ssh_stream_destroy(SshStream stream)
 
 const SshStreamMethodsTable *ssh_stream_get_methods(SshStream stream)
 {
-  assert(!stream->closed);
+  SSH_ASSERT(!stream->closed);
   return stream->methods;
 }
 
@@ -201,6 +203,6 @@ const SshStreamMethodsTable *ssh_stream_get_methods(SshStream stream)
 
 void *ssh_stream_get_context(SshStream stream)
 {
-  assert(!stream->closed);
+  SSH_ASSERT(!stream->closed);
   return stream->context;
 }

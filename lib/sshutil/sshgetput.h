@@ -15,7 +15,7 @@ Macros for storing and retrieving integers in msb first and lsb first order.
 */
 
 /*
- * $Id: sshgetput.h,v 1.5 1998/10/24 23:30:47 ylo Exp $
+ * $Id: sshgetput.h,v 1.6 1998/12/04 23:29:57 kivinen Exp $
  * $Log: sshgetput.h,v $
  * $EndLog$
  */
@@ -69,8 +69,8 @@ Macros for storing and retrieving integers in msb first and lsb first order.
    ((unsigned long)((unsigned char *)(cp))[3]))
 
 #define SSH_GET_16BIT(cp) \
-     ((((unsigned long)((unsigned char *)(cp))[0]) << 8) | \
-      ((unsigned long)((unsigned char *)(cp))[1]))
+     ((SshUInt16) ((((unsigned long)((unsigned char *)(cp))[0]) << 8) | \
+      ((unsigned long)((unsigned char *)(cp))[1])))
      
 #define SSH_PUT_32BIT(cp, value) do { \
   ((unsigned char *)(cp))[0] = (unsigned char)((value) >> 24); \
@@ -92,8 +92,8 @@ Macros for storing and retrieving integers in msb first and lsb first order.
   (((unsigned long)((unsigned char *)(cp))[3]) << 24))
 
 #define SSH_GET_16BIT_LSB_FIRST(cp) \
-  (((unsigned long)((unsigned char *)(cp))[0]) | \
-  (((unsigned long)((unsigned char *)(cp))[1]) << 8))
+  ((SshUInt16) (((unsigned long)((unsigned char *)(cp))[0]) | \
+  (((unsigned long)((unsigned char *)(cp))[1]) << 8)))
 
 #define SSH_PUT_32BIT_LSB_FIRST(cp, value) do { \
   ((unsigned char *)(cp))[0] = (unsigned char)(value); \

@@ -79,42 +79,14 @@ int main(int ac, char **av)
 	   "encrypt{elgamal-random-no}}",
 	   "dl-modp{sign{dsa-iso9796-sha1}}");
 
-#ifdef SSHDIST_CRYPT_GENCIPH
       TA(cipher, "des-foobar,none", "none");
-#ifdef SSHDIST_CRYPT_DES
       TA(cipher, "des-cbc,des-cfb,des-ecb", "des-cbc,des-cfb,des-ecb");
-#endif /* SSHDIST_CRYPT_DES */
       TA(cipher, "des-cbc@foo.com", "");
-#endif /* SSHDIST_CRYPT_GENCIPH */
-#ifdef SSHDIST_CRYPT_GENPKCS
-#ifdef SSHDIST_CRYPT_RSA
-
-
-
-
-#endif /* SSHDIST_CRYPT_RSA */
       TA(public_key, "barfoo@ssh.fi", "");
-#endif /* SSHDIST_CRYPT_GENPKCS */
-#ifdef SSHDIST_CRYPT_GENMAC
-#ifdef SSHDIST_CRYPT_HMAC
-#ifdef SSHDIST_CRYPT_MD5
-#ifdef SSHDIST_CRYPT_SHA
       TA(mac, "hmac-md5,hmac-sha1,none,barz,fooz@ssh.fi",
 	 "hmac-md5,hmac-sha1,none");
-#endif /* SSHDIST_CRYPT_SHA */
-#endif /* SSHDIST_CRYPT_MD5 */
-#endif /* SSHDIST_CRYPT_HMAC */
-#endif /* SSHDIST_CRYPT_GENMAC */
-#ifdef SSHDIST_CRYPT_GENHASH
-#ifdef SSHDIST_CRYPT_MD5
-#ifdef SSHDIST_CRYPT_SHA
       TA(hash, "foo,bar,md5,baz,sha1", "md5,sha1");
-#endif /* SSHDIST_CRYPT_SHA */
-#endif /* SSHDIST_CRYPT_MD5 */
-#endif /* SSHDIST_CRYPT_GENHASH */
-#ifdef SSHDIST_CRYPT_COMPRESS
       TA(compression, "foo,bar,none,zlib,baz", "none,zlib");
-#endif /* SSHDIST_CRYPT_COMPRESS */
     }
   printf("\n");
   return 0;

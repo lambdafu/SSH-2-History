@@ -22,6 +22,7 @@ Processing configuration data in SSH (both client and server).
 #include "sshuserfiles.h"
 #include "sshcipherlist.h"
 #include "namelist.h"
+#include "sshdllist.h"
 
 #define SSH_DEBUG_MODULE "SshConfig"
 
@@ -83,11 +84,70 @@ void ssh_free_varsvals(int n, char **vars, char **vals)
   ssh_xfree(vals); 
 }
 
+/* Parses a given comma-separated list to tokens, which are stored in
+   a SshDlList. The list is allocated and returned by this
+   function. On error, returns NULL. */
+SshDlList ssh_config_parse_list(char *string)
+{
+  char *rest;
+  char *current;
+  SshDlList list;
+  
+  list = ssh_dllist_allocate();
+  
+  rest = string;
+
+  while ((current = ssh_name_list_get_name(rest)) != NULL)
+    {
+      char *temp;
+      int i, j;
+      
+      rest += strlen(current);
+      if (*rest == ',')
+        rest++;
+
+      /* strip whitespaces and non-printable characters */
+      temp = ssh_xcalloc(strlen(current) + 1, sizeof(char));
+      
+      for (i = 0, j = 0; i < strlen(current) ; i ++)
+        if(isascii(current[i]) && isprint(current[i]) && !isspace(current[i]))
+          {
+            temp[j] = current[i];
+            j++;
+          }
+      
+      temp[j] = '\0';
+      ssh_xfree(current);
+      current = temp;
+      
+      if (ssh_dllist_add_item(list, (void *)current, SSH_DLLIST_END) !=
+          SSH_DLLIST_OK)
+        {
+          SSH_DEBUG(0, ("list operation gave error."));
+          ssh_dllist_rewind(list);
+          while (ssh_dllist_is_empty(list))
+            {
+              char *to_be_deleted;
+              to_be_deleted = ssh_dllist_delete_current(list);
+              ssh_xfree(to_be_deleted);
+            }
+
+          ssh_dllist_free(list);
+          
+          return NULL;
+        }
+      
+      if (strlen(rest) == 0)
+        break;
+    }
+
+  return list;
+}
+
 /* Reads the host key that defined in the config data. 
    Returns TRUE if successful. */
 
 /* Allocates and initializes a config structure */
-/* XXX for Windows */
 SshConfig ssh_config_init(Boolean client)
 {
   SshConfig config;
@@ -124,6 +184,12 @@ SshConfig ssh_config_init(Boolean client)
   config->login_as_user = NULL;
   config->local_forwards = NULL;
   config->remote_forwards = NULL;
+
+  config->allowed_hosts = NULL;
+  config->denied_hosts = NULL;
+  config->require_reverse_mapping = FALSE;
+
+  config->log_facility = SSH_LOGFACILITY_AUTH;
   
   config->fall_back_to_rsh = TRUE;
   config->use_rsh = TRUE;
@@ -163,6 +229,22 @@ SshConfig ssh_config_init(Boolean client)
   return config;
 }
 
+/* Helper function, that destroys a list, and frees it's contents,
+   too. */
+void free_list(SshDlList list)
+{
+  char *to_be_deleted;
+  
+  ssh_dllist_rewind(list);
+  while (ssh_dllist_is_empty(list))
+    {
+      to_be_deleted = ssh_dllist_delete_current(list);
+      ssh_xfree(to_be_deleted);
+    }
+    
+  ssh_dllist_free(list);
+}
+
 /* Frees client configuration data. */
 
 void ssh_config_free(SshConfig config)
@@ -185,7 +267,10 @@ void ssh_config_free(SshConfig config)
   ssh_xfree(config->login_as_user);
   ssh_xfree(config->local_forwards);
   ssh_xfree(config->remote_forwards);
-
+  
+  free_list(config->allowed_hosts);
+  free_list(config->denied_hosts);
+  
   ssh_xfree(config->forced_command);
 
   /* Free subsystem-strings */  
@@ -221,6 +306,28 @@ SshConfig ssh_client_create_config()
   return ssh_config_init(TRUE);
 }
 
+
+struct LogFacility
+{
+  SshLogFacility facility;
+  char *fac_name;
+} logfacilities[] =
+{
+  {SSH_LOGFACILITY_AUTH, "AUTH"},
+  {SSH_LOGFACILITY_SECURITY, "SECURITY"},
+  {SSH_LOGFACILITY_DAEMON, "DAEMON"},
+  {SSH_LOGFACILITY_USER, "USER"},
+  {SSH_LOGFACILITY_MAIL, "MAIL"},
+  {SSH_LOGFACILITY_LOCAL0, "LOCAL0"},
+  {SSH_LOGFACILITY_LOCAL1, "LOCAL1"},
+  {SSH_LOGFACILITY_LOCAL2, "LOCAL2"},
+  {SSH_LOGFACILITY_LOCAL3, "LOCAL3"},
+  {SSH_LOGFACILITY_LOCAL4, "LOCAL4"},
+  {SSH_LOGFACILITY_LOCAL5, "LOCAL5"},
+  {SSH_LOGFACILITY_LOCAL6, "LOCAL6"},
+  {SSH_LOGFACILITY_LOCAL7, "LOCAL7"},
+  {-1, NULL}
+};
 
 /* Set the variable corresponding to `var' to `val' in config */
 
@@ -546,7 +653,6 @@ Boolean ssh_config_set_parameter(SshConfig config, char *var, char *val)
             }
         }
 
-#ifndef SSHDIST_WINDOWS
       if (strcmp(var, "localforward") == 0)
         {
           if(ssh_parse_forward(&(config->local_forwards), val))
@@ -566,11 +672,56 @@ Boolean ssh_config_set_parameter(SshConfig config, char *var, char *val)
             }
           return FALSE;
         }  
-#endif /* SSHDIST_WINDOWS */
     }
   else
     {
       /* These parameters are only for the server */
+
+      if (strcmp(var, "allowhosts") == 0)
+        {
+          if ((config->allowed_hosts = ssh_config_parse_list(val)) == NULL)
+            {
+              ssh_warning("Parsing of value for AllowHosts failed.");
+              return TRUE;
+            }
+          else
+            {    
+              return FALSE;
+            }
+        }
+
+      if (strcmp(var, "denyhosts") == 0)
+        {         
+          if ((config->denied_hosts = ssh_config_parse_list(val)) == NULL)
+            {
+              ssh_warning("Parsing of value for DenyHosts failed.");
+              return TRUE;
+            }
+          else
+            {    
+              return FALSE;
+            }
+        }
+
+      if (strcmp(var, "requirereversemapping") == 0)
+        {
+          config->require_reverse_mapping = bool;
+          return FALSE;
+        }
+
+      if (strcmp(var, "syslogfacility") == 0)
+        {         
+          for (i = 0; logfacilities[i].fac_name != NULL; i++)
+            {
+              if (strcasecmp(logfacilities[i].fac_name, val) == 0)
+                {
+                  config->log_facility = logfacilities[i].facility;
+                  return FALSE;
+                }
+            }
+          ssh_warning("Unknown SyslogFacility \"%s\".", val);
+          return TRUE;
+        }
       
       if (strcmp(var, "ignorerhosts") == 0)
         {
@@ -665,9 +816,10 @@ Boolean ssh_config_set_parameter(SshConfig config, char *var, char *val)
           config->ssh1_path = ssh_xstrdup(val);
           return FALSE;
         }
+
+
       
       /* Parse subsystem definitions */
-      
       if (strncmp(var, SUBSYSTEM_PREFIX, SUBSYSTEM_PREFIX_LEN) == 0)
         {
           if (strlen(val) < 1)

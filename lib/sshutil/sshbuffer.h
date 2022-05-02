@@ -4,7 +4,7 @@ sshbuffer.h
 
 Author: Tatu Ylonen <ylo@cs.hut.fi>
 
-Copyright (c) 1995 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
+Copyright (c) 1995-1999 Tatu Ylonen <ylo@cs.hut.fi>, Espoo, Finland
                    All rights reserved
 
 Created: Sat Mar 18 04:12:25 1995 ylo
@@ -15,7 +15,7 @@ append data and consume it from either end.
 */
 
 /*
- * $Id: sshbuffer.h,v 1.1 1998/01/28 10:14:38 ylo Exp $
+ * $Id: sshbuffer.h,v 1.2 1999/01/18 13:14:07 mtr Exp $
  * $Log: sshbuffer.h,v $
  * $EndLog$
  */
@@ -25,11 +25,11 @@ append data and consume it from either end.
 
 typedef struct
 {
-  unsigned char *buf;		/* SshBuffer for data. */
-  size_t alloc;			/* Number of bytes allocated for data. */
-  size_t offset;		/* Offset of first byte containing data. */
-  size_t end;			/* Offset of last byte containing data. */
-  Boolean dynamic;		/* Dynamically allocated (sanity check only) */
+  unsigned char *buf;           /* SshBuffer for data. */
+  size_t alloc;                 /* Number of bytes allocated for data. */
+  size_t offset;                /* Offset of first byte containing data. */
+  size_t end;                   /* Offset of last byte containing data. */
+  Boolean dynamic;              /* Dynamically allocated (sanity check only) */
 } SshBuffer;
 
 /* Allocates and initializes a new buffer structure. */
@@ -57,22 +57,27 @@ void ssh_buffer_clear(SshBuffer *buffer);
 /* Appends data to the buffer, expanding it if necessary. */
 
 void ssh_buffer_append(SshBuffer *buffer,
-		   const unsigned char *data, size_t len);
+                       const unsigned char *data, size_t len);
 
 /* Appends space to the buffer, expanding the buffer if necessary.
    This does not actually copy the data into the buffer, but instead
    returns a pointer to the allocated region. */
 
 void ssh_buffer_append_space(SshBuffer *buffer,
-			 unsigned char **datap, size_t len);
+                             unsigned char **datap, size_t len);
 
-/* Inserts region of size `len' bytes into `buffer' at position pointed 
-   by `offset'. Adjusts `offset' if buffer data gets relocated. 
+/* Appends NUL-terminated C-strings <...> to the buffer.  The argument
+   list must be terminated with a NULL pointer. */
+
+void ssh_buffer_append_cstrs(SshBuffer *buffer, ...);
+
+/* Inserts region of size `len' bytes into `buffer' at position pointed
+   by `offset'. Adjusts `offset' if buffer data gets relocated.
    Copies `len' bytes from `data' into this new region if `data' is not
    NULL.  XXX this function may go away. */
 
-void ssh_buffer_insert(SshBuffer *buffer, unsigned char **offset, 
-			     unsigned char *data, size_t len);
+void ssh_buffer_insert(SshBuffer *buffer, unsigned char **offset,
+                       unsigned char *data, size_t len);
 
 /* Returns the number of bytes of data in the buffer. */
 

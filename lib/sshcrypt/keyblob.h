@@ -14,7 +14,7 @@
   */
 
 /*
- * $Id: keyblob.h,v 1.5 1998/01/28 10:10:33 ylo Exp $
+ * $Id: keyblob.h,v 1.6 1999/01/21 12:38:22 tri Exp $
  * $Log: keyblob.h,v $
  * $EndLog$
  */
@@ -35,30 +35,32 @@
  * private or public key are returned.
  */
 unsigned char *ssh_key_blob_read_from_string(const char *str,
-					     size_t *blob_len,
-					     unsigned int *version_major,
-					     unsigned int *version_minor,
-					     Boolean *is_public);
+                                             size_t *blob_len,
+                                             char **headers,
+                                             unsigned int *version_major,
+                                             unsigned int *version_minor,
+                                             Boolean *is_public);
 
 /*
  * Read key blob from file and convert it to binary format. Returns
  * xmallocated blob and its length. If blob_len ptr is NULL it isn't returned.
  */
-unsigned char *ssh_key_blob_read(FILE *fp, size_t *blob_len);
+unsigned char *ssh_key_blob_read(FILE *fp, size_t *blob_len, char **comments);
 
 /*
  * Write blob to buffer as ascii string. Take initialized buffer and appends
  * blob there.
  */
 void ssh_key_blob_write_to_buffer(SshBuffer *buffer,
-				  unsigned char *blob,
-				  size_t blob_len,
-				  Boolean is_public);
+                                  unsigned char *blob,
+                                  size_t blob_len,
+                                  const char *comments,
+                                  Boolean is_public);
 
 /*
  * Write blob to file as ascii string. 
  */
 void ssh_key_blob_write(FILE *fp, unsigned char *blob, size_t blob_len,
-			Boolean is_public);
+                        const char *comments, Boolean is_public);
 
 #endif /* KEYBLOB_H */

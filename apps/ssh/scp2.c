@@ -32,8 +32,13 @@
 
 #define SSH_DEBUG_MODULE "Scp2"
 
+#undef OLD_FILE_COPY_LOOP
+
 #define SCP_FILESERVER_TIMEOUT          300      /*XXX*/
-#define SCP_BUF_SIZE                    0x1000
+#define SCP_BUF_SIZE                    0x8000
+#define SCP_READ_MAX                    0x8000
+#define SCP_WRITE_MAX                   0x8000
+#define SCP_BUF_SIZE_MAX                0x40000
 #define SCP_ERROR_MULTIPLE              -1
 #define SCP_ERROR_USAGE                 1
 #define SCP_ERROR_NOT_REGULAR_FILE      2
@@ -42,6 +47,11 @@
 #define SCP_ERROR_CANNOT_OPEN           5
 #define SCP_ERROR_READ_ERROR            6
 #define SCP_ERROR_WRITE_ERROR           7
+
+#ifdef HAVE_LIBWRAP
+int allow_severity = SSH_LOG_INFORMATIONAL;
+int deny_severity = SSH_LOG_WARNING;
+#endif /* HAVE_LIBWRAP */
 
 /* This struct is used to create a list of files to be transfered. */
 typedef struct ScpFileLocationRec {
@@ -69,6 +79,7 @@ typedef struct ScpSessionRec {
   Boolean verbose;
   /* If TRUE, only fatal errors will be displayed. */
   Boolean quiet;
+  Boolean nostat; /* No statistics */
   /* If we stdout is a tty. */
   Boolean have_tty;
   char *debug_flag;
@@ -92,6 +103,8 @@ typedef struct ScpSessionRec {
   Boolean dst_is_file;
   Boolean dst_is_local;
   char *ssh_path;
+  char *ssh1_path;
+  Boolean use_ssh1;
   ScpCipherName cipher_list;
   ScpCipherName cipher_list_last;
   SshFileClient dst_client;
@@ -132,6 +145,28 @@ typedef struct ScpSessionRec {
   /* This will contain the error that scp2 will return with. */
   int error;
 } *ScpSession;
+
+typedef enum {
+  SCP_FC_ERROR,
+  SCP_FC_TIMEOUT,
+  SCP_FC_RUNNING,
+  SCP_FC_BUFFER_FULL,
+  SCP_FC_READ_COMPLETE,
+  SCP_FC_COMPLETE
+} ScpFileCopyState;
+
+typedef struct ScpFileCopyContextRec {
+  ScpSession session;
+  SshBuffer buffer;
+  ScpFileCopyState state;
+  SshFileHandle src_handle;
+  SshFileHandle dst_handle;
+  off_t file_size;
+  off_t read_offset;
+  off_t write_offset;
+  size_t write_pending;
+  int term_width;
+} *ScpFileCopyContext;
 
 /********************************************************************
  * Function prototypes for internal functions.
@@ -271,6 +306,24 @@ static char *str_concat(const char *s1, const char *s2)
 
 #endif
 
+void fatal_signal_handler(int signal, void *context)
+{
+  ScpSession session = (ScpSession) context;
+  
+  if (session->child_pid == 0)
+    ssh_fatal("\r\nReceived signal %d. No child to kill.", signal);
+
+  /* Kill child-ssh. */
+  if (kill(session->child_pid, signal) != 0)
+    {
+      SSH_TRACE(2, ("killing child process did not succeed."));
+    }
+  
+  ssh_fatal("\r\nReceived signal %d. Child with pid %d killed.",
+            signal,
+            session->child_pid);
+}
+
 /*                                                               shade{0.9}
  * Scp2 main                                                     shade{1.0}
  */
@@ -288,7 +341,7 @@ int main(int argc, char **argv)
   ssh_debug_register_callbacks(NULL, scp_warning, scp_debug,
                                (void *)(&session));
 
-  while ((ch = ssh_getopt(argc, argv, "qdpvnuhS:P:c:D:tf1r", NULL)) != -1)
+  while ((ch = ssh_getopt(argc, argv, "qQdpvnuhS:P:c:D:tf1rO", NULL)) != -1)
     {
       if (!ssh_optval)
         {
@@ -298,13 +351,21 @@ int main(int argc, char **argv)
         {
         case 't':
         case 'f':
-          break;
-        case '1':
           /* Scp 1 compatibility mode, this is remote server for ssh 1 scp,
              exec old scp here. */
           {
+            ssh_warning("Executing scp1 compatibility.");
+            execvp("scp1", argv);
+            ssh_fatal("Executing ssh1 in compatibility mode failed.");
+          }
+
+          break;
+        case '1':
+          /* Scp 1 compatibility in the client */
+          {
             char **av;
             int j = 0;
+            int removed_flag = FALSE;
             
             av = ssh_xcalloc(argc, sizeof(char *));
             ssh_warning("Executing scp1 compatibility.");
@@ -313,17 +374,17 @@ int main(int argc, char **argv)
                 
                 SSH_DEBUG(5, ("argv[%d] = %s", i, argv[i]));
 
-                /* skip "-1" argument */
-                if (!strcmp("-1", argv[i]))
+                /* skip first "-1" argument */
+                if (strcmp("-1", argv[i]) || removed_flag)
                   {
-                    av[j] = '\0';
-                    continue;
+                    av[j] = argv[i];
+                    j++;
                   }
                 else
                   {
-                    av[j] = ssh_xstrdup(argv[i]);
-                    j++;
+                    removed_flag = TRUE;
                   }
+                
               }
             
             execvp("scp1", av);
@@ -360,6 +421,8 @@ int main(int argc, char **argv)
         case 'S':
           ssh_xfree(session.ssh_path);
           session.ssh_path = ssh_xstrdup(ssh_optarg);
+          ssh_xfree(session.ssh1_path);
+          session.ssh1_path = ssh_xstrdup(ssh_optarg);
           break;
         case 'd':
           session.need_dst_dir = TRUE;
@@ -376,6 +439,10 @@ int main(int argc, char **argv)
           break;
         case 'q':
           session.quiet = TRUE;
+          session.nostat = TRUE;
+          break;
+        case 'Q':
+          session.nostat = TRUE;
           break;
         case 'u':
           session.unlink_flag = TRUE;
@@ -386,17 +453,31 @@ int main(int argc, char **argv)
         case 'h':
           usage();
           break;
+        case 'O':
+          session.use_ssh1 = TRUE;
+          break;
         default:
           usage();
         }
     }
 
-
+  ssh_register_signal(SIGHUP, fatal_signal_handler, (void *)&session);
+  ssh_register_signal(SIGINT, fatal_signal_handler, (void *)&session);
+  ssh_register_signal(SIGILL, fatal_signal_handler, (void *)&session);
+  ssh_register_signal(SIGABRT, fatal_signal_handler, (void *)&session);
+  ssh_register_signal(SIGFPE, fatal_signal_handler, (void *)&session);
+  ssh_register_signal(SIGBUS, fatal_signal_handler, (void *)&session);
+  ssh_register_signal(SIGSEGV, fatal_signal_handler, (void *)&session);
+  ssh_register_signal(SIGTERM, fatal_signal_handler, (void *)&session);
+  
   if (isatty(fileno(stdout)))
     session.have_tty = TRUE;
   
   if (session.have_tty == FALSE)
-    session.quiet = TRUE;
+    {
+      session.nostat = TRUE;
+      session.quiet = TRUE;
+    }
   
   argc -= ssh_optind;
   argv += ssh_optind;
@@ -416,9 +497,7 @@ int main(int argc, char **argv)
           location->port = session.port;
         }
 
-      /* XXX This here is just to prevent users from giving directory
-         names. In the future, has to be checked if we have recursive
-         copy. */
+      /* Some sanity checks. */
       if (strlen(location->file) < 1)
         {
           usage();
@@ -515,6 +594,7 @@ void scp_init_session(ScpSession session)
 {
   session->verbose = FALSE;
   session->quiet = FALSE;
+  session->nostat = FALSE;
   session->have_tty = FALSE;
   session->debug_flag = NULL;
   session->preserve_flag = FALSE;
@@ -528,6 +608,8 @@ void scp_init_session(ScpSession session)
   session->dst_is_file = FALSE;
   session->dst_is_local = FALSE;
   session->ssh_path = ssh_xstrdup("ssh2");
+  session->ssh1_path = ssh_xstrdup("ssh1");
+  session->use_ssh1 = FALSE;
   session->cipher_list = NULL;
   session->cipher_list_last = NULL;
   session->dst_client = NULL;
@@ -613,6 +695,7 @@ void scp_print_session_info(ScpSession session)
   fprintf(stderr, "  dst_is_file        = %d\n", session->dst_is_file);
   fprintf(stderr, "  dst_is_local       = %d\n", session->dst_is_local);
   fprintf(stderr, "  ssh_path           = \"%s\"\n", session->ssh_path);
+  fprintf(stderr, "  ssh1_path          = \"%s\"\n", session->ssh1_path);
   fprintf(stderr, "  dst_local_client   = %p\n", session->dst_local_client);
   fprintf(stderr, "  dst_local_server   = %p\n", session->dst_local_server);
   fprintf(stderr, "  dst_remote_client  = %p\n", session->dst_remote_client);
@@ -650,8 +733,10 @@ void scp_print_session_info(ScpSession session)
 void scp_debug(const char *msg, void *context)
 {
   ScpSession session = (ScpSession)context;
+  clearerr(stderr); /*XXX*/
   if (!session->quiet && session->debug_flag)
     fprintf(stderr, "debug: %s\r\n", msg);
+  clearerr(stderr); /*XXX*/
 }
 
 void scp_warning(const char *msg, void *context)
@@ -1193,10 +1278,15 @@ SshFileClient scp_open_remote_connection(ScpSession session,
   assert(host != NULL);
   assert(session != NULL);
   assert(session->ssh_path != NULL);
+  assert(session->ssh1_path != NULL);
 
   i = 0;
 
-  ssh_argv[i++] = session->ssh_path;
+  if (! session->use_ssh1)
+    ssh_argv[i++] = session->ssh_path;
+  else 
+    ssh_argv[i++] = session->ssh1_path;
+
   if (user != NULL)
     {
       ssh_argv[i++] = "-l";
@@ -1210,21 +1300,52 @@ SshFileClient scp_open_remote_connection(ScpSession session,
     }
   if (session->verbose)
     ssh_argv[i++] = "-v";
-  ssh_argv[i++] = "-o";
-  ssh_argv[i++] = "passwordprompt %U@%H's password: ";
 
-  for (cipher = session->cipher_list; cipher != NULL; cipher = cipher->next)
+  if (! session->use_ssh1)
     {
-      assert(i < SSH_ARGV_SIZE);
+      ssh_argv[i++] = "-o";
+      ssh_argv[i++] = "passwordprompt %U@%H's password: ";
+    }
+  else
+    {
+      ssh_argv[i++] = "-o";
+      ssh_argv[i++] = "PasswordPromptHost yes";
+      ssh_argv[i++] = "-o";
+      ssh_argv[i++] = "PasswordPromptLogin yes";
+    }
 
-      ssh_argv[i++] = "-c";
-      ssh_argv[i++] = cipher->name;
+  if (! session->use_ssh1)
+    {
+      for (cipher = session->cipher_list; 
+           cipher != NULL; 
+           cipher = cipher->next)
+        {
+          assert(i < SSH_ARGV_SIZE);
+          
+          ssh_argv[i++] = "-c";
+          ssh_argv[i++] = cipher->name;
+        }
+    }
+  else
+    {
+      if (session->cipher_list != NULL)
+        {
+          ssh_argv[i++] = "-c";
+          ssh_argv[i++] = session->cipher_list->name;
+        }
     }
 
   ssh_argv[i++] = host;
 
-  ssh_argv[i++] = "-s";
-  ssh_argv[i++] = "sftp";
+  if (! session->use_ssh1)
+    {
+      ssh_argv[i++] = "-s";
+      ssh_argv[i++] = "sftp";
+    }
+  else
+    {
+      ssh_argv[i++] = "sftp-server";
+    }
 
   ssh_argv[i] = NULL;
 
@@ -1243,7 +1364,8 @@ SshFileClient scp_open_remote_connection(ScpSession session,
     
     case SSH_PIPE_PARENT_OK:      
       /* Try to wrap this as the server */
-    
+
+      session->child_pid = ssh_pipe_get_pid(client_stream);
       client = ssh_file_client_wrap(client_stream);
       return client;
     
@@ -1322,7 +1444,6 @@ void scp_set_next_src_location(void *context)
   ScpFileLocation *list_start = NULL, *list_tail = NULL, tmp;
   ScpFileLocation to_be_deleted;
   char *temp_filename = NULL, *basepath = NULL;
-  int len = 0;
   
   if (session->current_src_location)
     {
@@ -1403,7 +1524,7 @@ void scp_set_next_src_location(void *context)
   if (!session->recurse_flag)
     goto no_dir_recursion;
   
-  /* XXX recurse directories */
+  /* Recurse directories. */
   /* Check whether entry is uninitialized or directory. */
   if (session->src_list && session->src_list->is_dir != 0 &&
       session->src_list->dir_mask == NULL && session->recurse_flag)
@@ -1968,6 +2089,7 @@ void scp_file_read_callback(SshFileClientError error,
   return;
 }
 
+#ifdef OLD_FILE_COPY_LOOP
 int scp_file_read(ScpSession session, 
                   SshFileHandle handle,
                   off_t offset, 
@@ -2010,6 +2132,7 @@ int scp_file_write(ScpSession session,
   else
     return bufsize;
 }
+#endif /* OLD_FILE_COPY_LOOP */
 
 int scp_file_fsetstat(ScpSession session,
                       SshFileHandle handle,
@@ -2113,6 +2236,241 @@ Boolean scp_file_mkdir(ScpSession session, SshFileClient client,
   return (session->tmp_status != SSH_FX_OK);
 }
 
+/*
+ * For performance reasons the actual file data copy is done
+ * asynchronously with concurrent read and write operations.
+ */
+void scp_copy_file_write_callback(SshFileClientError error, void *context);
+void scp_copy_file_read_callback(SshFileClientError error,
+                                 const unsigned char *data,
+                                 size_t len,
+                                 void *context);
+void scp_copy_file_timeout(void *context);
+Boolean scp_copy_file(ScpSession session,
+                      SshFileHandle src_handle,
+                      SshFileHandle dst_handle,
+                      off_t file_size,
+                      int width);
+
+void scp_copy_file_read_callback(SshFileClientError error,
+                                 const unsigned char *data,
+                                 size_t len,
+                                 void *context)
+
+{
+  ScpFileCopyContext fc = (ScpFileCopyContext)context;
+
+  SSH_DEBUG(7, ("error = %d, data = %p, len = %lu",
+                (int)error, data, (unsigned long)len));
+
+  if ((fc->state == SCP_FC_ERROR) || (fc->state == SCP_FC_TIMEOUT))
+    {
+      SSH_DEBUG(5, ("Extra callback from earlier failed operation ignored"));
+      return;
+    }
+
+  if (error == SSH_FX_OK)
+    {
+      ssh_buffer_append(&(fc->buffer), data, len);
+      if (fc->write_pending == 0)
+        {
+          fc->write_pending = 
+            ((SCP_WRITE_MAX > ssh_buffer_len(&(fc->buffer))) ?
+             ssh_buffer_len(&(fc->buffer)) :
+             SCP_WRITE_MAX);
+          SSH_DEBUG(8, ("Activating write of %lu bytes",
+                        (unsigned long)fc->write_pending));
+          ssh_file_client_write(fc->dst_handle, 
+                                fc->write_offset, 
+                                ssh_buffer_ptr(&(fc->buffer)),
+                                fc->write_pending,
+                                scp_copy_file_write_callback,
+                                fc);
+          ssh_buffer_consume(&(fc->buffer), fc->write_pending);
+        }
+      else
+        {
+          SSH_DEBUG(8, ("Not activating write of %lu bytes, %lu bytes pending",
+                        (unsigned long)(ssh_buffer_len(&(fc->buffer))),
+                        (unsigned long)fc->write_pending));
+        }
+      fc->read_offset += len;
+      if (((ssh_buffer_len(&(fc->buffer)) + fc->write_pending) > 
+           SCP_BUF_SIZE_MAX) &&
+          (fc->read_offset < fc->file_size))
+        {
+          SSH_DEBUG(8, ("Maximum read buffer exceeded; waiting for write"));
+          fc->state = SCP_FC_BUFFER_FULL;
+        }
+      else if (fc->read_offset < fc->file_size)
+        {
+          SSH_DEBUG(8, ("Reactivating read."));
+          ssh_file_client_read(fc->src_handle, 
+                               fc->read_offset, 
+                               ((SCP_READ_MAX < 
+                                 (fc->file_size - fc->read_offset)) ? 
+                                SCP_READ_MAX : 
+                                (fc->file_size - fc->read_offset)), 
+                               scp_copy_file_read_callback,
+                               fc);
+        }
+      else
+        {
+          SSH_DEBUG(8, ("Read completed.  offset = %lu, size = %lu",
+                        (unsigned long)fc->read_offset,
+                        (unsigned long)fc->file_size));
+          fc->state = SCP_FC_READ_COMPLETE;
+        }
+      ssh_cancel_timeouts(scp_copy_file_timeout, fc);
+      ssh_register_timeout(SCP_FILESERVER_TIMEOUT,
+                           0,
+                           scp_copy_file_timeout,
+                           fc);
+    }
+  else
+    {
+      ssh_warning("Read failed (%d).", (int)error);
+      fc->state = SCP_FC_ERROR;
+      scp_set_error(fc->session, SCP_ERROR_READ_ERROR);
+      scp_copy_file_timeout(fc);
+    }
+}
+
+void scp_copy_file_write_callback(SshFileClientError error, void *context)
+{
+  ScpFileCopyContext fc = (ScpFileCopyContext)context;
+
+  SSH_DEBUG(7, ("error = %d", (int)error));
+
+  if ((fc->state == SCP_FC_ERROR) || (fc->state == SCP_FC_TIMEOUT))
+    {
+      SSH_DEBUG(5, ("Extra callback from earlier failed operation ignored"));
+      return;
+    }
+
+  if (error == SSH_FX_OK)
+    {
+      fc->write_offset += fc->write_pending;
+      SSH_ASSERT(fc->write_offset <= fc->file_size);
+      fc->write_pending = 0;
+      if (!fc->session->nostat)
+        scp_kitt(fc->write_offset, fc->file_size, fc->term_width);
+      if (ssh_buffer_len(&(fc->buffer)) > 0)
+        {
+          fc->write_pending = 
+            ((SCP_WRITE_MAX > ssh_buffer_len(&(fc->buffer))) ?
+             ssh_buffer_len(&(fc->buffer)) :
+             SCP_WRITE_MAX);
+          SSH_DEBUG(8, ("Reactivating write of %lu bytes",
+                        (unsigned long)fc->write_pending));
+          ssh_file_client_write(fc->dst_handle, 
+                                fc->write_offset, 
+                                ssh_buffer_ptr(&(fc->buffer)),
+                                fc->write_pending,
+                                scp_copy_file_write_callback,
+                                fc);
+          ssh_buffer_consume(&(fc->buffer), fc->write_pending);
+        }
+      if (fc->state == SCP_FC_BUFFER_FULL)
+        {
+          ssh_file_client_read(fc->src_handle, 
+                               fc->read_offset, 
+                               ((SCP_READ_MAX < 
+                                 (fc->file_size - fc->read_offset)) ? 
+                                SCP_READ_MAX : 
+                                (fc->file_size - fc->read_offset)), 
+                               scp_copy_file_read_callback, 
+                               fc);
+          fc->state = SCP_FC_RUNNING;
+        }
+      ssh_cancel_timeouts(scp_copy_file_timeout, fc);
+      ssh_register_timeout(SCP_FILESERVER_TIMEOUT,
+                           0,
+                           scp_copy_file_timeout,
+                           fc);
+      if (fc->write_offset == fc->file_size)
+        {
+          fc->state = SCP_FC_COMPLETE;
+          ssh_cancel_timeouts(scp_copy_file_timeout, fc);
+          ssh_event_loop_abort();
+        }
+    }
+  else
+    {
+      ssh_warning("Write failed (%d).", (int)error);
+      fc->state = SCP_FC_ERROR;
+      scp_set_error(fc->session, SCP_ERROR_READ_ERROR);
+      scp_copy_file_timeout(fc);
+    }
+}
+
+void scp_copy_file_timeout(void *context)
+{
+  ScpFileCopyContext fc = (ScpFileCopyContext)context;
+
+  SSH_DEBUG(5, ("context = %p", context));
+
+  if (fc->state != SCP_FC_ERROR)
+    fc->state = SCP_FC_TIMEOUT;
+#if 0
+  /*
+   * There should be some nice way to abort any pending operations
+   * for file handles without calling their callbacks.  Since there
+   * is no such thing for now, we leave the context `as is' and
+   * all subsequent callbacks are ignored.
+   */
+#endif
+  ssh_event_loop_abort();
+}
+
+Boolean scp_copy_file(ScpSession session,
+                      SshFileHandle src_handle,
+                      SshFileHandle dst_handle,
+                      off_t file_size,
+                      int width)
+{
+  ScpFileCopyContext fc;
+  Boolean r = FALSE;
+  
+  SSH_DEBUG(7, ("src_handle = %p dst_handle = %p file_size = %lu",
+                src_handle, dst_handle, (unsigned long)file_size));
+  fc = ssh_xcalloc(1, sizeof (*fc));
+  fc->session = session;
+  fc->src_handle = src_handle;
+  fc->dst_handle = dst_handle;
+  fc->file_size = file_size;
+  fc->read_offset = 0;
+  fc->write_offset = 0;
+  fc->write_pending = 0;
+  fc->term_width = width;
+  fc->state = SCP_FC_RUNNING;
+  ssh_buffer_init(&(fc->buffer));
+  ssh_file_client_read(fc->src_handle, 
+                       fc->read_offset, 
+                       ((SCP_READ_MAX < 
+                         (fc->file_size - fc->read_offset)) ? 
+                        SCP_READ_MAX : 
+                        (fc->file_size - fc->read_offset)), 
+                       scp_copy_file_read_callback, 
+                       fc);
+  ssh_register_timeout(SCP_FILESERVER_TIMEOUT,
+                       0,
+                       scp_copy_file_timeout,
+                       fc);
+  ssh_event_loop_run();
+  r = (fc->state == SCP_FC_COMPLETE);
+  ssh_cancel_timeouts(scp_copy_file_timeout, fc);
+  if (r)
+    {
+      ssh_buffer_uninit(&(fc->buffer));
+      ssh_xfree(fc);
+    }
+  return r;
+}
+/*
+ * End of file copy loop
+ */
+
 Boolean scp_move_file(ScpSession session,
                       char *src_host,
                       char *src_file,
@@ -2124,17 +2482,14 @@ Boolean scp_move_file(ScpSession session,
   SshFileAttributes src_attributes;
   SshTimeMeasure timer;  
   off_t offset;
-  size_t src_len, file_len;
+  off_t file_len;
   int width, r;
-  char data[SCP_BUF_SIZE];
-  double transfer_time;
   
   SshFileHandle src_handle = NULL, dst_handle = NULL;
   
   timer = ssh_time_measure_allocate();
-
   ssh_time_measure_start(timer);
-  
+
   src_handle = scp_file_open(session, 
                              src_client,
                              src_file,
@@ -2198,9 +2553,9 @@ Boolean scp_move_file(ScpSession session,
 
   if (! session->do_not_copy)
     {
-      if (!session->quiet) 
+      if (!session->nostat) 
         {  
-          printf("Transferring %s%s%s -> %s%s%s  (%luk)\n",
+          printf("Transfering %s%s%s -> %s%s%s  (%luk)\n",
                  (src_host != NULL) ? src_host : "",
                  (src_host != NULL) ? ":" : "",
                  src_file,
@@ -2229,68 +2584,97 @@ Boolean scp_move_file(ScpSession session,
     
   if (! session->do_not_copy)
     {
-      do {
-        src_len = scp_file_read(session, 
-                                src_handle,
-                                offset, 
-                                data,
-                                SCP_BUF_SIZE);
-        if (src_len < 0)
-          {
-            ssh_warning("Read error in file %s%s%s",
-                        (src_host != NULL) ? src_host : "",
-                        (src_host != NULL) ? ":" : "",
-                        src_file);
-            scp_set_error(session, SCP_ERROR_READ_ERROR);
-            goto close_error;
-          }
-        
-        if (src_len > 0)
-          {
-            r = scp_file_write(session,
-                               dst_handle, 
-                               offset, 
-                               data, 
-                               src_len);
-            if (r != src_len)
-              {
-                ssh_warning("Write error in file %s%s%s",
-                            (dst_host != NULL) ? dst_host : "",
-                            (dst_host != NULL) ? ":" : "",
-                            dst_file);
-                scp_set_error(session, SCP_ERROR_WRITE_ERROR);
-                goto close_error;
-              }
-            offset += src_len;
-          
-            if (!session->quiet)
-              scp_kitt(offset, file_len, width);
-          }
-      } while (src_len == SCP_BUF_SIZE);
+#ifndef OLD_FILE_COPY_LOOP
+      r = scp_copy_file(session, src_handle, dst_handle, file_len, width);
+      if (! r)
+        goto close_error;
+#else /* ! OLD_FILE_COPY_LOOP */
+      {
+        off_t src_len;
+        char data[SCP_BUF_SIZE];
 
-      if (!session->quiet > 0)
+        do {
+          src_len = scp_file_read(session, 
+                                  src_handle,
+                                  offset, 
+                                  data,
+                                  SCP_BUF_SIZE);
+          if (src_len < 0)
+            {
+              ssh_warning("Read error in file %s%s%s",
+                          (src_host != NULL) ? src_host : "",
+                          (src_host != NULL) ? ":" : "",
+                          src_file);
+              scp_set_error(session, SCP_ERROR_READ_ERROR);
+              goto close_error;
+            }
+          
+          if (src_len > 0)
+            {
+              r = scp_file_write(session,
+                                 dst_handle, 
+                                 offset, 
+                                 data, 
+                                 src_len);
+              if (r != src_len)
+                {
+                  ssh_warning("Write error in file %s%s%s",
+                              (dst_host != NULL) ? dst_host : "",
+                              (dst_host != NULL) ? ":" : "",
+                              dst_file);
+                  scp_set_error(session, SCP_ERROR_WRITE_ERROR);
+                  goto close_error;
+                }
+              offset += src_len;
+              
+              if (!session->nostat)
+                scp_kitt(offset, file_len, width);
+            }
+        } while (src_len == SCP_BUF_SIZE);
+      }
+#endif /* OLD_FILE_COPY_LOOP */
+
+      if (!session->nostat > 0)
         {
+          SshUInt64 time_sec;
+          SshUInt32 time_nsec;
           int minutes;
-          double seconds;
+          int seconds;
+          double sec_dbl;
           char str_min[256];
+          char per_sec[256];
 
           /* Transfer time in seconds */
-          transfer_time = ssh_time_measure_stop(timer);
+          ssh_time_measure_stop(timer);
+          ssh_time_measure_get_value(timer, &time_sec, &time_nsec);
+          minutes = time_sec / 60;
+          seconds = time_sec % 60;
 
-          minutes = transfer_time/60;
-          seconds = transfer_time - 60*minutes;
+          if (minutes > 0)
+            snprintf(str_min, sizeof(str_min), "%d minute%s ", 
+                     minutes,
+                     (minutes != 1) ? "s" : "");
+          else
+            str_min[0] = '\000';
 
-          snprintf(str_min, sizeof(str_min), "%d", minutes);
-          putchar('\n');  
-          printf("%u bytes transferred in %s%s%s%s%.3f seconds. ",
-                 file_len,
-                 minutes ? str_min : "",
-                 minutes ? " minute" : "",
-                 minutes > 1 ? "s" : "",
-                 minutes ? " and " : "",
-                 seconds);
-          printf("[%.2f kB/s]\n",
-                 ((double)file_len/transfer_time)/(double)1000);
+          sec_dbl = (double)ssh_time_measure_get(timer, 
+                                                 SSH_TIME_GRANULARITY_SECOND);
+          if (sec_dbl > 0.0)
+            {
+              snprintf(per_sec, sizeof(per_sec), " [%.2f kb/sec]", 
+                       (((double)file_len) / (sec_dbl * 1024.0)));
+            }
+          else
+            {
+              per_sec[0] = '\000';
+            }
+
+          printf("\n%lu bytes transferred in %s%d.%02d seconds%s.\n",
+                 (unsigned long)file_len,
+                 str_min,
+                 seconds,
+                 (int)(time_nsec / 10000000),
+                 per_sec);
         }
     }
   
@@ -2379,7 +2763,7 @@ int scp_execute(ScpSession session)
 
   scp_abort_if_remote_dead(session, session->dst_client);
   scp_is_dst_directory(session);
-  if (session->dst_is_file && session->need_dst_dir)
+  if (!session->dst_is_dir && session->need_dst_dir)
     {
       ssh_warning("Destination file is not a directory.");
       ssh_warning("Exiting.");

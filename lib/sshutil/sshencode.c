@@ -21,6 +21,8 @@ Functions for encoding/decoding binary data.
 #include "sshstream.h"
 #include "sshencode.h"
 
+#define SSH_DEBUG_MODULE "SshEncode"
+
 /* Appends data at the end of the buffer as specified by the
    variable-length argument list.  Each element must start with a
    SshEncodingFormat type, be followed by arguments of the appropriate
@@ -64,7 +66,7 @@ size_t ssh_encode_va(SshBuffer *buffer, va_list ap)
           break;
 
         case SSH_FORMAT_BOOLEAN:
-          b = va_arg(ap, Boolean);
+          b = va_arg(ap, unsigned int);
           buffer_put_boolean(buffer, b);
           break;
 
@@ -145,7 +147,7 @@ size_t ssh_encode_alloc(unsigned char **buf_return, ...)
   ssh_buffer_init(&buffer);
   bytes = ssh_encode_va(&buffer, ap);
   va_end(ap);
-  assert(bytes == ssh_buffer_len(&buffer));
+  SSH_ASSERT(bytes == ssh_buffer_len(&buffer));
 
   if (buf_return != NULL)
     {
@@ -169,7 +171,7 @@ size_t ssh_encode_alloc_va(unsigned char **buf_return, va_list ap)
   
   ssh_buffer_init(&buffer);
   bytes = ssh_encode_va(&buffer, ap);
-  assert(bytes == ssh_buffer_len(&buffer));
+  SSH_ASSERT(bytes == ssh_buffer_len(&buffer));
 
   if (buf_return != NULL)
     {

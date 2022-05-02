@@ -12,7 +12,7 @@
   All rights reserved.
 
   SSH User authentication protocol, server-side.
-		   
+                   
 */
 
 #include "sshincludes.h"
@@ -66,7 +66,7 @@ typedef struct {
      This is allocated by ssh_xmalloc. */
   char *client_ip;
 
-  /* Client-side post number, as a string (e.g., "1241").  This is
+  /* Client-side port number, as a string (e.g., "1241").  This is
      allocated by ssh_xmalloc. */
   char *client_port;
 
@@ -98,7 +98,7 @@ typedef struct {
   char *successful_authentications;
 
   /* Comma-separated list of authentication methods that can purposefully
-     continue authetication.  This is the list sent to the client in
+     continue authentication.  This is the list sent to the client in
      failure messages.  This is allocated by ssh_xmalloc. */
   char *continuations;
 } *SshAuthServer;
@@ -106,7 +106,7 @@ typedef struct {
 
 /* Forward declarations. */
 void ssh_auths_call_method(SshAuthServer auth, SshAuthServerOperation op,
-			   const unsigned char *data, size_t len);
+                           const unsigned char *data, size_t len);
 
 
 /* Sends a SSH_MSG_USERAUTH_FAILURE packet down (to the client). */
@@ -114,11 +114,11 @@ void ssh_auths_call_method(SshAuthServer auth, SshAuthServerOperation op,
 void ssh_auths_send_failure(SshAuthServer auth, Boolean partial_success)
 {
   ssh_cross_down_send_encode(auth->down, SSH_CROSS_PACKET,
-			     SSH_FORMAT_CHAR, SSH_MSG_USERAUTH_FAILURE,
-			     SSH_FORMAT_UINT32_STR, 
-			      auth->continuations, strlen(auth->continuations),
-			     SSH_FORMAT_BOOLEAN, partial_success,
-			     SSH_FORMAT_END);
+                             SSH_FORMAT_CHAR, SSH_MSG_USERAUTH_FAILURE,
+                             SSH_FORMAT_UINT32_STR, 
+                              auth->continuations, strlen(auth->continuations),
+                             SSH_FORMAT_BOOLEAN, partial_success,
+                             SSH_FORMAT_END);
 }
 
 /* Sends a disconnect packet and marks the protocol as dead. */
@@ -134,18 +134,19 @@ void ssh_auths_disconnect(SshAuthServer auth, const char *msg)
 
   /* Send the disconnect message and EOF down. */
   ssh_cross_down_send_disconnect(auth->down, TRUE,
-				 SSH_DISCONNECT_AUTHENTICATION_ERROR,
-				 "%s", msg);
+                                 SSH_DISCONNECT_AUTHENTICATION_ERROR,
+                                 "%s", msg);
   ssh_cross_down_send_eof(auth->down);
 
   /* Send the disconnect message and EOF up. */
   ssh_cross_up_send_disconnect(auth->up, TRUE,
-			       SSH_DISCONNECT_AUTHENTICATION_ERROR,
-			       "%s (user '%s', client address '%s:%s', requested service '%s')", 
-			       msg, auth->requested_user,
-			       auth->client_ip,
-			       auth->client_port,
-			       auth->requested_service);
+                               SSH_DISCONNECT_AUTHENTICATION_ERROR,
+                               "%s (user '%s', client address '%s:%s', "
+                               "requested service '%s')", 
+                               msg, auth->requested_user,
+                               auth->client_ip,
+                               auth->client_port,
+                               auth->requested_service);
 
   ssh_cross_up_send_eof(auth->up);
 }
@@ -175,9 +176,9 @@ Boolean ssh_auths_register_success(SshAuthServer auth, const char *method)
   /* Call the policy function to determine whether this is sufficient, and
      if not, which methods to suggest next. */
   cp = (*auth->policy_proc)(auth->requested_user, auth->requested_service,
-			    auth->client_ip, auth->client_port,
-			    auth->successful_authentications,
-			    auth->policy_context);
+                            auth->client_ip, auth->client_port,
+                            auth->successful_authentications,
+                            auth->policy_context);
   /* XXX should remove already completed methods? */
   if (auth->continuations)
     ssh_xfree(auth->continuations);
@@ -191,7 +192,7 @@ Boolean ssh_auths_register_success(SshAuthServer auth, const char *method)
    also calls the function for those methods not called yet. */
 
 void ssh_auths_clear_all_state(SshAuthServer auth,
-			       SshAuthServerOperation op)
+                               SshAuthServerOperation op)
 {
   int i;
 
@@ -211,36 +212,36 @@ void ssh_auths_success(SshAuthServer auth)
   /* Set status to successful (but drain pending output), and send
      SUCCESS packet. */
   SSH_DEBUG(6, ("success method = %s",
-		auth->methods[auth->active_method_index].name));
+                auth->methods[auth->active_method_index].name));
 
   /* Clear longtime_placeholders. */
   ssh_auths_clear_all_state(auth,
-			    SSH_AUTH_SERVER_OP_CLEAR_LONGTIME);
+                            SSH_AUTH_SERVER_OP_CLEAR_LONGTIME);
 
   /* Send SSH_MSG_USERAUTH_SUCCESS. */
   ssh_cross_down_send_encode(auth->down, SSH_CROSS_PACKET,
-			     SSH_FORMAT_CHAR, SSH_MSG_USERAUTH_SUCCESS,
-			     SSH_FORMAT_END);
+                             SSH_FORMAT_CHAR, SSH_MSG_USERAUTH_SUCCESS,
+                             SSH_FORMAT_END);
 
   /* Send up the buffered STARTUP packet. */
   ssh_cross_up_send(auth->up, SSH_CROSS_STARTUP,
-		    ssh_buffer_ptr(auth->startup_packet),
-		    ssh_buffer_len(auth->startup_packet));
+                    ssh_buffer_ptr(auth->startup_packet),
+                    ssh_buffer_len(auth->startup_packet));
 
   /* Send up the buffered ALGORITHMS packet. */
   ssh_cross_up_send(auth->up, SSH_CROSS_ALGORITHMS,
-		    ssh_buffer_ptr(auth->algorithms_packet),
-		    ssh_buffer_len(auth->algorithms_packet));
+                    ssh_buffer_ptr(auth->algorithms_packet),
+                    ssh_buffer_len(auth->algorithms_packet));
 
   /* Send up an AUTHENTICATED packet. */
   ssh_cross_up_send_encode(auth->up, SSH_CROSS_AUTHENTICATED,
-			   SSH_FORMAT_UINT32_STR,
-			     auth->requested_user,
-			     strlen(auth->requested_user),
-			   SSH_FORMAT_UINT32_STR,
-			     auth->requested_service,
-			     strlen(auth->requested_service),
-			   SSH_FORMAT_END);
+                           SSH_FORMAT_UINT32_STR,
+                             auth->requested_user,
+                             strlen(auth->requested_user),
+                           SSH_FORMAT_UINT32_STR,
+                             auth->requested_service,
+                             strlen(auth->requested_service),
+                           SSH_FORMAT_END);
   
   /* Shortcircuit communications between the up stream and the down stream.
      Functions in this module will no longer be called until the up stream
@@ -255,8 +256,8 @@ void ssh_auths_success(SshAuthServer auth)
    the authentication method.. */
 
 void ssh_auths_call_method(SshAuthServer auth,
-			   SshAuthServerOperation op,
-			   const unsigned char *data, size_t len)
+                           SshAuthServerOperation op,
+                           const unsigned char *data, size_t len)
 {
   int i;
   unsigned int packet_type;
@@ -275,10 +276,10 @@ void ssh_auths_call_method(SshAuthServer auth,
   
   /* Call the authentication method. */
   result = (*auth->methods[i].proc)(op, auth->requested_user, buffer,
-				    auth->session_id, auth->session_id_len,
-				    &auth->state_placeholders[i],
-				    &auth->longtime_placeholders[i],
-				    auth->method_context);
+                                    auth->session_id, auth->session_id_len,
+                                    &auth->state_placeholders[i],
+                                    &auth->longtime_placeholders[i],
+                                    auth->method_context);
 
   /* Process the return value depending on the operation. */
   switch (op)
@@ -286,90 +287,90 @@ void ssh_auths_call_method(SshAuthServer auth,
     case SSH_AUTH_SERVER_OP_START:
     case SSH_AUTH_SERVER_OP_CONTINUE:
       switch (result)
-	{
-	case SSH_AUTH_SERVER_ACCEPTED:
-	  /* Authentication method was successful.  Should have no state
-	     left between packets. */
-	  assert(auth->state_placeholders[i] == NULL);
-	  
-	  /* Register the success, and determine what to do next. */
-	  if (ssh_auths_register_success(auth, auth->methods[i].name))
-	    {
-	      /* No more authentication is needed.  Authentication
-		 successful. */
-	      ssh_auths_success(auth);
-	    }
-	  else
-	    {
-	      /* More authentications are needed. */
-	      SSH_DEBUG(6, ("call_method: More authentications needed."));
-	      auth->waiting_continuation = FALSE;
-	      ssh_auths_send_failure(auth, TRUE);
-	    }
-	  break;
-	  
-	case SSH_AUTH_SERVER_REJECTED:
-	  /* This authentication method was rejected (but it might have
-	     had side-effects that were recorded in longtime_placeholder). */
-	  assert(auth->state_placeholders[i] == NULL);
-	  auth->waiting_continuation = FALSE;
-	  ssh_auths_send_failure(auth, FALSE);
-	  break;
+        {
+        case SSH_AUTH_SERVER_ACCEPTED:
+          /* Authentication method was successful.  Should have no state
+             left between packets. */
+          assert(auth->state_placeholders[i] == NULL);
+          
+          /* Register the success, and determine what to do next. */
+          if (ssh_auths_register_success(auth, auth->methods[i].name))
+            {
+              /* No more authentication is needed.  Authentication
+                 successful. */
+              ssh_auths_success(auth);
+            }
+          else
+            {
+              /* More authentications are needed. */
+              SSH_DEBUG(6, ("call_method: More authentications needed."));
+              auth->waiting_continuation = FALSE;
+              ssh_auths_send_failure(auth, TRUE);
+            }
+          break;
+          
+        case SSH_AUTH_SERVER_REJECTED:
+          /* This authentication method was rejected (but it might have
+             had side-effects that were recorded in longtime_placeholder). */
+          assert(auth->state_placeholders[i] == NULL);
+          auth->waiting_continuation = FALSE;
+          ssh_auths_send_failure(auth, FALSE);
+          break;
       
-	case SSH_AUTH_SERVER_REJECTED_AND_METHOD_DISABLED:
-	  /* This authentication method was rejected and cannot be 
-	     used again in this authentication.  This can be used
-	     for example in limiting login attempts. */
-	  assert(auth->state_placeholders[i] == NULL);
-	  auth->waiting_continuation = FALSE;
-	  ssh_auths_disconnect(auth, "Authentication method disabled."); 
-	  break;
+        case SSH_AUTH_SERVER_REJECTED_AND_METHOD_DISABLED:
+          /* This authentication method was rejected and cannot be 
+             used again in this authentication.  This can be used
+             for example in limiting login attempts. */
+          assert(auth->state_placeholders[i] == NULL);
+          auth->waiting_continuation = FALSE;
+          ssh_auths_disconnect(auth, "Authentication method disabled."); 
+          break;
 
-	case SSH_AUTH_SERVER_REJECTED_WITH_PACKET_BACK:
-	  /* The authentication method wants to send out a packet, and then
-	     continue authentication with the same method. */
-	  auth->waiting_continuation = FALSE;
-	  /* Sanity check the outgoing packet. */
+        case SSH_AUTH_SERVER_REJECTED_WITH_PACKET_BACK:
+          /* The authentication method wants to send out a packet, and then
+             continue authentication with the same method. */
+          auth->waiting_continuation = FALSE;
+          /* Sanity check the outgoing packet. */
 
-	  if (ssh_decode_array(ssh_buffer_ptr(buffer), ssh_buffer_len(buffer),
-			       SSH_FORMAT_CHAR, &packet_type,
-			       SSH_FORMAT_END) == 0)
-	    ssh_fatal("ssh_auths_call_method: unable to decode the packet "
-		      "type");
+          if (ssh_decode_array(ssh_buffer_ptr(buffer), ssh_buffer_len(buffer),
+                               SSH_FORMAT_CHAR, &packet_type,
+                               SSH_FORMAT_END) == 0)
+            ssh_fatal("ssh_auths_call_method: unable to decode the packet "
+                      "type");
 
-	  if (packet_type < SSH_FIRST_USERAUTH_METHOD_PACKET ||
-	      packet_type > SSH_LAST_USERAUTH_METHOD_PACKET)
-	    ssh_fatal("ssh_auths_call_method: method sending bad packet "
-		      "(1) %d",
-		      (int)packet_type);
-	  /* Send the packet down. */
-	  ssh_cross_down_send(auth->down, SSH_CROSS_PACKET,
-			      ssh_buffer_ptr(buffer), ssh_buffer_len(buffer));
-	  break;
+          if (packet_type < SSH_FIRST_USERAUTH_METHOD_PACKET ||
+              packet_type > SSH_LAST_USERAUTH_METHOD_PACKET)
+            ssh_fatal("ssh_auths_call_method: method sending bad packet "
+                      "(1) %d",
+                      (int)packet_type);
+          /* Send the packet down. */
+          ssh_cross_down_send(auth->down, SSH_CROSS_PACKET,
+                              ssh_buffer_ptr(buffer), ssh_buffer_len(buffer));
+          break;
       
-	case SSH_AUTH_SERVER_CONTINUE_WITH_PACKET_BACK:
-	  /* The authentication method wants to send out a packet, and then
-	     continue authentication with the same method. */
-	  auth->waiting_continuation = TRUE;
+        case SSH_AUTH_SERVER_CONTINUE_WITH_PACKET_BACK:
+          /* The authentication method wants to send out a packet, and then
+             continue authentication with the same method. */
+          auth->waiting_continuation = TRUE;
        
-	  /* Sanity check the outgoing packet. */
-	  if (ssh_decode_array(ssh_buffer_ptr(buffer), ssh_buffer_len(buffer),
-			       SSH_FORMAT_CHAR, &packet_type,
-			       SSH_FORMAT_END) == 0 ||
-	      packet_type < SSH_FIRST_USERAUTH_METHOD_PACKET ||
-	      packet_type > SSH_LAST_USERAUTH_METHOD_PACKET)
-	    ssh_fatal("ssh_auths_call_method: method sending bad packet"
-		      "(2) %d",
-		      (int)packet_type);
-	  /* Send the packet down. */
-	  ssh_cross_down_send(auth->down, SSH_CROSS_PACKET,
-			      ssh_buffer_ptr(buffer), ssh_buffer_len(buffer));
-	  break;
+          /* Sanity check the outgoing packet. */
+          if (ssh_decode_array(ssh_buffer_ptr(buffer), ssh_buffer_len(buffer),
+                               SSH_FORMAT_CHAR, &packet_type,
+                               SSH_FORMAT_END) == 0 ||
+              packet_type < SSH_FIRST_USERAUTH_METHOD_PACKET ||
+              packet_type > SSH_LAST_USERAUTH_METHOD_PACKET)
+            ssh_fatal("ssh_auths_call_method: method sending bad packet"
+                      "(2) %d",
+                      (int)packet_type);
+          /* Send the packet down. */
+          ssh_cross_down_send(auth->down, SSH_CROSS_PACKET,
+                              ssh_buffer_ptr(buffer), ssh_buffer_len(buffer));
+          break;
 
-	default:
-	  /* Unexpected result from method function. */
-	  ssh_fatal("ssh_auths_call_method: unknown result %d", (int)result);
-	}
+        default:
+          /* Unexpected result from method function. */
+          ssh_fatal("ssh_auths_call_method: unknown result %d", (int)result);
+        }
       break;
 
     case SSH_AUTH_SERVER_OP_ABORT:
@@ -400,7 +401,7 @@ void ssh_auths_call_method(SshAuthServer auth,
    headers).  This will consume data from the packet, but will not free it. */
 
 void ssh_auths_process_request(SshAuthServer auth, const unsigned char *data,
-			       size_t len)
+                               size_t len)
 {
   unsigned int packet_type;
   char *user, *service, *method;
@@ -410,11 +411,11 @@ void ssh_auths_process_request(SshAuthServer auth, const unsigned char *data,
 
   /* Decode the common part of the authentication request. */
   parsed_bytes = ssh_decode_array(data, len,
-				  SSH_FORMAT_CHAR, &packet_type,
-				  SSH_FORMAT_UINT32_STR, &user, NULL,
-				  SSH_FORMAT_UINT32_STR, &service, NULL,
-				  SSH_FORMAT_UINT32_STR, &method, NULL,
-				  SSH_FORMAT_END);
+                                  SSH_FORMAT_CHAR, &packet_type,
+                                  SSH_FORMAT_UINT32_STR, &user, NULL,
+                                  SSH_FORMAT_UINT32_STR, &service, NULL,
+                                  SSH_FORMAT_UINT32_STR, &method, NULL,
+                                  SSH_FORMAT_END);
   if (parsed_bytes == 0)
     {
       ssh_auths_disconnect(auth, "Received bad authentication packet");
@@ -443,16 +444,11 @@ void ssh_auths_process_request(SshAuthServer auth, const unsigned char *data,
     {
       ch = user[i];
       if (isalnum(ch))
-	continue;
+        continue;
       if (ch == '-' || ch == '+' || ch == '_' || ch == '.')
-	continue;
+        continue;
       if (ch >= 128) /* Assume 8-bit iso-latin characters. */
-	continue;
-#ifdef SSHDIST_WINDOWS /* Domain name/user name delimeter. Not allowed in *nix.
-			  Used as ssh2 -l DOMAIN:user host */
-      if (ch == ':')
-	continue;
-#endif /* SSHDIST_WINDOWS */
+        continue;
       ssh_xfree(user);
       ssh_xfree(service);
       ssh_xfree(method);
@@ -461,15 +457,15 @@ void ssh_auths_process_request(SshAuthServer auth, const unsigned char *data,
     }
 
   SSH_DEBUG(6, ("process_request: user %.20s service %.20s method %.20s",
-		user, service, method));
+                user, service, method));
 
   /* If the possible continuations haven't been computed yet, do it now. */
   if (auth->continuations == NULL)
     auth->continuations = (*auth->policy_proc)(user, service,
-					       auth->client_ip,
-					       auth->client_port,
-					       "",
-					       auth->policy_context);
+                                               auth->client_ip,
+                                               auth->client_port,
+                                               "",
+                                               auth->policy_context);
   
   /* If continuing authentication and method is different, abort the old
      authentication method. */
@@ -491,24 +487,24 @@ void ssh_auths_process_request(SshAuthServer auth, const unsigned char *data,
       SSH_DEBUG(6, ("process_request: undoing old state"));
       ssh_auths_clear_all_state(auth, SSH_AUTH_SERVER_OP_UNDO_LONGTIME);
       if (auth->requested_user)
-	{
-	  ssh_xfree(auth->requested_user);
-	  ssh_xfree(auth->requested_service);
-	  auth->requested_user = NULL;
-	  auth->requested_service = NULL;
-	}
+        {
+          ssh_xfree(auth->requested_user);
+          ssh_xfree(auth->requested_service);
+          auth->requested_user = NULL;
+          auth->requested_service = NULL;
+        }
       /* Reset the possible continuations. */
       ssh_xfree(auth->continuations);
       auth->continuations = (*auth->policy_proc)(user, service,
-						 auth->client_ip,
-						 auth->client_port,
-						 "",
-						 auth->policy_context);
+                                                 auth->client_ip,
+                                                 auth->client_port,
+                                                 "",
+                                                 auth->policy_context);
       if (auth->successful_authentications)
-	{
-	  ssh_xfree(auth->successful_authentications);
-	  auth->successful_authentications = NULL;
-	}
+        {
+          ssh_xfree(auth->successful_authentications);
+          auth->successful_authentications = NULL;
+        }
       assert(!auth->waiting_continuation);
     }
 
@@ -524,8 +520,8 @@ void ssh_auths_process_request(SshAuthServer auth, const unsigned char *data,
   for (i = 0; auth->methods[i].name != NULL; i++)
     if (strcmp(auth->methods[i].name, method) == 0)
       {
-	auth->active_method_index = i;
-	break;
+        auth->active_method_index = i;
+        break;
       }
 
   /* Free the allocated strings. */
@@ -543,10 +539,10 @@ void ssh_auths_process_request(SshAuthServer auth, const unsigned char *data,
   /* Process the authentication request. */
   if (auth->waiting_continuation)
     ssh_auths_call_method(auth, SSH_AUTH_SERVER_OP_CONTINUE,
-			  data + parsed_bytes, len - parsed_bytes);
+                          data + parsed_bytes, len - parsed_bytes);
   else
     ssh_auths_call_method(auth, SSH_AUTH_SERVER_OP_START,
-			  data + parsed_bytes, len - parsed_bytes);
+                          data + parsed_bytes, len - parsed_bytes);
 }
 
 /* Processes an incoming packet from the transport stream.  `type' is
@@ -554,8 +550,8 @@ void ssh_auths_process_request(SshAuthServer auth, const unsigned char *data,
    layer packet (the header has already been stripped). */
 
 void ssh_auths_down_received_packet(SshCrossPacketType type,
-				    const unsigned char *data, size_t len,
-				    void *context)
+                                    const unsigned char *data, size_t len,
+                                    void *context)
 {
   SshAuthServer auth = (SshAuthServer)context;
   char *service;
@@ -579,45 +575,45 @@ void ssh_auths_down_received_packet(SshCrossPacketType type,
       
     case SSH_CROSS_STARTUP:
       /* Received a startup packet.  We save the entire packet for passing
-	 up later.  We also extract from the packet the fields that are
-	 relevant for authentication. */
+         up later.  We also extract from the packet the fields that are
+         relevant for authentication. */
       SSH_DEBUG(6, ("down_received_packet: Received STARTUP packet."));
       assert(auth->client_ip == NULL);
       auth->startup_packet = ssh_buffer_allocate();
       ssh_buffer_append(auth->startup_packet, data, len);
       if (ssh_decode_array(data, len,
-			   SSH_FORMAT_UINT32_STR, NULL, NULL,
-			   SSH_FORMAT_UINT32_STR, 
-			     &auth->session_id, &auth->session_id_len,
-			   SSH_FORMAT_UINT32_STR, NULL, NULL,
-			   SSH_FORMAT_UINT32_STR, &auth->client_ip, NULL,
-			   SSH_FORMAT_UINT32_STR, &auth->client_port, NULL,
-			   SSH_FORMAT_END) == 0)
-	ssh_auths_disconnect(auth, "Bad startup packet");
+                           SSH_FORMAT_UINT32_STR, NULL, NULL,
+                           SSH_FORMAT_UINT32_STR, 
+                             &auth->session_id, &auth->session_id_len,
+                           SSH_FORMAT_UINT32_STR, NULL, NULL,
+                           SSH_FORMAT_UINT32_STR, &auth->client_ip, NULL,
+                           SSH_FORMAT_UINT32_STR, &auth->client_port, NULL,
+                           SSH_FORMAT_END) == 0)
+        ssh_auths_disconnect(auth, "Bad startup packet");
       break;
       
     case SSH_CROSS_ALGORITHMS:
       SSH_DEBUG(6, ("down_received_packet: Received ALGORITHMS packet."));
       if (auth->algorithms_packet == NULL)
-	auth->algorithms_packet = ssh_buffer_allocate();
+        auth->algorithms_packet = ssh_buffer_allocate();
       else
-	ssh_buffer_clear(auth->algorithms_packet);
+        ssh_buffer_clear(auth->algorithms_packet);
       ssh_buffer_append(auth->algorithms_packet, data, len);
       break;
 
     case SSH_CROSS_SERVICE_REQUEST:
       SSH_DEBUG(6, ("down_received_packet: Received SERVICE_REQUEST packet."));
       if (ssh_decode_array(data, len,
-			   SSH_FORMAT_UINT32_STR, &service, NULL,
-			   SSH_FORMAT_END) == 0)
-	{
-	  ssh_auths_disconnect(auth, "Bad service request packet");
-	  break;
-	}
+                           SSH_FORMAT_UINT32_STR, &service, NULL,
+                           SSH_FORMAT_END) == 0)
+        {
+          ssh_auths_disconnect(auth, "Bad service request packet");
+          break;
+        }
       if (strcmp(service, SSH_USERAUTH_SERVICE) == 0)
-	ssh_cross_down_send(auth->down, SSH_CROSS_SERVICE_ACCEPT, NULL, 0);
+        ssh_cross_down_send(auth->down, SSH_CROSS_SERVICE_ACCEPT, NULL, 0);
       else
-	ssh_auths_disconnect(auth, "Wrong service name.");
+        ssh_auths_disconnect(auth, "Wrong service name.");
       break;
 
     default:
@@ -684,10 +680,10 @@ void ssh_auths_up_destroy(void *context)
    the policy function.  The context points to the SshAuthServer object. */
 
 char *ssh_auths_default_policy_proc(const char *user, const char *service,
-				    const char *client_ip,
-				    const char *client_port,
-				    const char *completed,
-				    void *context)
+                                    const char *client_ip,
+                                    const char *client_port,
+                                    const char *completed,
+                                    void *context)
 {
   SshAuthServer auth = (SshAuthServer)context;
   SshBuffer buffer;
@@ -695,7 +691,7 @@ char *ssh_auths_default_policy_proc(const char *user, const char *service,
   int i;
 
   SSH_DEBUG(6, ("default_policy_proc: user '%s' client_ip '%s' completed '%s'",
-		user, client_ip, completed));
+                user, client_ip, completed));
 
   /* If we have successfully completed some authentication, allow the user
      in. */
@@ -710,9 +706,9 @@ char *ssh_auths_default_policy_proc(const char *user, const char *service,
   for (i = 0; i < auth->num_methods; i++)
     {
       if (i > 0)
-	ssh_buffer_append(&buffer, (unsigned char *) ",", 1);
+        ssh_buffer_append(&buffer, (unsigned char *) ",", 1);
       ssh_buffer_append(&buffer, (unsigned char *) auth->methods[i].name,
-		    strlen(auth->methods[i].name));
+                    strlen(auth->methods[i].name));
     }
   ssh_buffer_append(&buffer, (unsigned char *) "\0", 1);
   cp = ssh_xstrdup(ssh_buffer_ptr(&buffer));
@@ -759,18 +755,18 @@ char *ssh_auths_default_policy_proc(const char *user, const char *service,
      `transport'            transport layer stream
      `policy_proc'          function to control authentication policy
                             (may be NULL, in which case each method in
-			    the array is individually acceptable)
+                            the array is individually acceptable)
      `policy_context'       passed to the policy function
      `methods'              array of supported methods, terminated by
-     			    an element with NULL name.  This needs to stay
-			    valid until the stream is destroyed.
+                            an element with NULL name.  This needs to stay
+                            valid until the stream is destroyed.
      `method_context'       context to pass to methods (normally NULL) */
 
 SshStream ssh_auth_server_wrap(SshStream transport,
-			       SshAuthPolicyProc policy_proc,
-			       void *policy_context,
-			       const SshAuthServerMethod *methods,
-			       void *method_context)
+                               SshAuthPolicyProc policy_proc,
+                               void *policy_context,
+                               const SshAuthServerMethod *methods,
+                               void *method_context)
 {
   SshAuthServer auth;
   int num_methods;
@@ -782,12 +778,12 @@ SshStream ssh_auth_server_wrap(SshStream transport,
   /* Allocate and initialize memory. */
   auth = ssh_xcalloc(sizeof(*auth), 1);
   auth->down = ssh_cross_down_create(transport,
-				     ssh_auths_down_received_packet,
-				     ssh_auths_down_received_eof,
-				     NULL, (void *)auth);
+                                     ssh_auths_down_received_packet,
+                                     ssh_auths_down_received_eof,
+                                     NULL, (void *)auth);
   auth->up = ssh_cross_up_create(NULL, NULL, NULL,
-				 ssh_auths_up_destroy,
-				 (void *)auth);
+                                 ssh_auths_up_destroy,
+                                 (void *)auth);
   auth->waiting_continuation = FALSE;
   auth->active_method_index = -1;
   if (policy_proc == NULL)

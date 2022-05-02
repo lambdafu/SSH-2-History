@@ -10,11 +10,11 @@
  *        $Author: kivinen $
  *
  *        Creation          : 11:03 Oct  9 1998 kivinen
- *        Last Modification : 12:09 Nov  5 1998 kivinen
- *        Last check in     : $Date: 1998/11/05 11:50:21 $
- *        Revision number   : $Revision: 1.4 $
+ *        Last Modification : 04:32 Nov 13 1998 kivinen
+ *        Last check in     : $Date: 1998/11/18 14:08:26 $
+ *        Revision number   : $Revision: 1.5 $
  *        State             : $State: Exp $
- *        Version           : 1.82
+ *        Version           : 1.107
  *
  *        Description       : Read and write file from and to the disk
  *                            in various formats.
@@ -101,7 +101,7 @@ Boolean ssh_read_file_base64(const char *file_name, unsigned char **buf,
             break;
           
           if (inside)
-            end = i - 1;
+            end = i;
           header = 1;
           inside ^= 1;
           skip = 1;
@@ -120,7 +120,12 @@ Boolean ssh_read_file_base64(const char *file_name, unsigned char **buf,
           break;
         }
     }
-  if ((end == 0 && start == 0) || end == start)
+  if (end == 0 && start == 0)
+    {
+      start = 0;
+      end = len;
+    }
+  if (end == start)
     {
       ssh_xfree(tmp);
       return FALSE;
@@ -199,6 +204,32 @@ Boolean ssh_read_file_hexl(const char *file_name, unsigned char **buf,
   return TRUE;
 }
 
+
+/* Read pem/hexl/binary file from the disk. Return mallocated buffer and the
+   size of the buffer. If the reading of file failes return FALSE. If the file
+   name starts with :p: then assume file is pem encoded, if it starts with :h:
+   then it is assumed to be hexl format, and if it starts with :b: then it is
+   assumed to be binary. If no :[bph]: is given then file is assumed to be
+   binary. If any other letter is given between colons then warning message is
+   printed and operation fails. If the file name is NULL or "-" then read from
+   the stdin (":p:-" == stdin in pem encoded format). */
+Boolean ssh_read_gen_file(const char *file_name,
+                          unsigned char **buf,
+                          size_t *buf_len)
+{
+  if (strlen(file_name) < 3 || file_name[0] != ':' || file_name[2] != ':')
+    return ssh_read_file(file_name, buf, buf_len);
+  if (file_name[1] == 'b')
+    return ssh_read_file(file_name + 3, buf, buf_len);
+  if (file_name[1] == 'p')
+    return ssh_read_file_base64(file_name + 3, buf, buf_len);
+  if (file_name[1] == 'h')
+    return ssh_read_file_hexl(file_name + 3, buf, buf_len);
+  ssh_warning("Unknown file format given to ssh_read_gen_file");
+  return FALSE;
+}
+
+
 /* Write binary file to the disk. If the write fails retuns FALSE. If the file
    name is NULL or "-" then write to the stdout */
 Boolean ssh_write_file(const char *file_name,
@@ -252,38 +283,29 @@ Boolean ssh_write_file_base64(const char *file_name,
   if (fp == NULL)
     return FALSE;
 
-  if (fprintf(fp, "%s\n", begin) < 0)
-    {
-      if (file_name)
-        fclose(fp);
-      return FALSE;
-    }
+  if (begin)
+    if (fprintf(fp, "%s\n", begin) < 0)
+      goto error;
 
   len = strlen(tmp);
   for (i = 0; i + 64 < len; i += 64)
     {
       if (fwrite(tmp + i, 1, 64, fp) != 64 || fprintf(fp, "\n") < 0)
-        {
-          if (file_name)
-            fclose(fp);
-          return FALSE;
-        }
+        goto error;
     }
   if (fwrite(tmp + i, 1, len - i, fp) != (len - i))
-    {
-      if (file_name)
-        fclose(fp);
-      return FALSE;
-    }
-  if (fprintf(fp, "\n%s\n", end) < 0)
-    {
-      if (file_name)
-        fclose(fp);
-      return FALSE;
-    }
+    goto error;
+
+  if (end)
+    if (fprintf(fp, "\n%s\n", end) < 0)
+      goto error;
   if (file_name)
     fclose(fp);
   return TRUE;
+error:
+  if (file_name)
+    fclose(fp);
+  return FALSE;
 }
 
 /* Write hexl encoded file to the disk. If the write fails retuns FALSE. If the
@@ -307,47 +329,27 @@ Boolean ssh_write_file_hexl(const char *file_name,
   for(i = 0; i < buf_len; i += 16)
     {
       if (fprintf(fp, "%08x: ", i) < 0)
-        {
-          if (file_name)
-            fclose(fp);
-          return FALSE;
-        }
+        goto error;
       for(j = 0; j < 16; j++)
         {
           if (i + j < buf_len)
             {
               if (fprintf(fp, "%02x", buf[i + j]) < 0)
-                {
-                  if (file_name)
-                    fclose(fp);
-                  return FALSE;
-                }
+                goto error;
             }
           else
             {
               if (fprintf(fp, "  ") < 0)
-                {
-                  if (file_name)
-                    fclose(fp);
-                  return FALSE;
-                }
+                goto error;
             }
           if ((j % 2) == 1)
             {
               if (fprintf(fp, " ") < 0)
-                {
-                  if (file_name)
-                    fclose(fp);
-                  return FALSE;
-                }
+                goto error;
             }
         }
       if (fprintf(fp, " ") < 0)
-        {
-          if (file_name)
-            fclose(fp);
-          return FALSE;
-        }
+        goto error;
         
       for(j = 0; j < 16; j++)
         {
@@ -356,42 +358,54 @@ Boolean ssh_write_file_hexl(const char *file_name,
               if (isprint(buf[i + j]))
                 {
                   if (fprintf(fp, "%c", buf[i + j]) < 0)
-                    {
-                      if (file_name)
-                        fclose(fp);
-                      return FALSE;
-                    }
+                    goto error;
                 }
               else
                 {
                   if (fprintf(fp, ".") < 0)
-                    {
-                      if (file_name)
-                        fclose(fp);
-                      return FALSE;
-                    }
+                    goto error;
                 }
             }
           else
             {
               if (fprintf(fp, " ") < 0)
-                {
-                  if (file_name)
-                    fclose(fp);
-                  return FALSE;
-                }
+                goto error;
             }
         }
       if (fprintf(fp, "\n") < 0)
-        {
-          if (file_name)
-            fclose(fp);
-          return FALSE;
-        }
+        goto error;
     }
 
   if (file_name)
     fclose(fp);
   return TRUE;
+error:
+  if (file_name)
+    fclose(fp);
+  return FALSE;
 }
 
+/* Write pem/hexl/binary file from the disk. If the write fails retuns FALSE.
+   If the file name starts with :p: then assume file is pem encoded, if it
+   starts with :h: then it is assumed to be hexl format, and if it starts with
+   :b: then it is assumed to be binary. If no :[bph]: is given then file is
+   assumed to be binary. If any other letter is given between colons then
+   warning message is printed and operation fails. If the file name is NULL or
+   "-" then read from the stdout (":p:-" == stdout in pem encoded format). */
+Boolean ssh_write_gen_file(const char *file_name,
+                           const char *begin, 
+                           const char *end, 
+                           unsigned char *buf,
+                           size_t buf_len)
+{
+  if (strlen(file_name) < 3 || file_name[0] != ':' || file_name[2] != ':')
+    return ssh_write_file(file_name, buf, buf_len);
+  if (file_name[1] == 'b')
+    return ssh_write_file(file_name + 3, buf, buf_len);
+  if (file_name[1] == 'p')
+    return ssh_write_file_base64(file_name + 3, begin, end, buf, buf_len);
+  if (file_name[1] == 'h')
+    return ssh_write_file_hexl(file_name + 3, buf, buf_len);
+  ssh_warning("Unknown file format given to ssh_read_gen_file");
+  return FALSE;
+}

@@ -20,7 +20,7 @@ Sending messages to the system log.
 
 /* Internal prototypes. */
 char *ssh_debug_format(const char *fmt, ...);
-void ssh_debug_output(const char *file, unsigned int line,
+void ssh_debug_output(int level, const char *file, unsigned int line,
                       const char *module, const char *function, char *message);
 Boolean ssh_debug_enabled(const char *module, int level);
 void ssh_debug_hexdump(size_t offset, const unsigned char *buf, size_t len);
@@ -157,8 +157,8 @@ void ssh_generic_assert(int value, const char *expression,
 /* Outputs a debug message.  This macro is always compiled into the binary. */
 #define SSH_TRACE(level, varcall) \
 do { \
-  if (ssh_debug_enabled(SSH_DEBUG_MODULE, level)) { \
-    ssh_debug_output(__FILE__, __LINE__, SSH_DEBUG_MODULE, \
+  if (ssh_debug_enabled(SSH_DEBUG_MODULE, (level))) { \
+    ssh_debug_output((level), __FILE__, __LINE__, SSH_DEBUG_MODULE, \
                      SSH_DEBUG_FUNCTION, \
                      ssh_debug_format varcall); \
   } \
@@ -174,11 +174,11 @@ do { \
 
 #define SSH_TRACE_HEXDUMP(level, varcall, buf, len) \
 do { \
-  if (ssh_debug_enabled(SSH_DEBUG_MODULE, level)) { \
-    ssh_debug_output(__FILE__, __LINE__, SSH_DEBUG_MODULE, \
+  if (ssh_debug_enabled(SSH_DEBUG_MODULE, (level))) { \
+    ssh_debug_output((level), __FILE__, __LINE__, SSH_DEBUG_MODULE, \
                      SSH_DEBUG_FUNCTION, \
                      ssh_debug_format varcall); \
-    ssh_debug_hexdump(0, buf, len); \
+    ssh_debug_hexdump(0, (buf), (len)); \
   } \
 } while (0)
 
@@ -188,7 +188,7 @@ do { \
 
 #define _SSH_GEN_ASSERT(expr, type) \
         ssh_generic_assert((int)(expr), #expr, __FILE__, __LINE__, \
-                           SSH_DEBUG_MODULE, SSH_DEBUG_FUNCTION, type)
+                           SSH_DEBUG_MODULE, SSH_DEBUG_FUNCTION, (type))
 
 #define SSH_VERIFY(expr)        _SSH_GEN_ASSERT(expr, 5)
 
@@ -208,9 +208,9 @@ do { \
 
 /* SSH_DEBUG is compiled in only if DEBUG_LIGHT is defined. */
 #ifdef DEBUG_LIGHT
-#define SSH_DEBUG(level, varcall) SSH_TRACE(level, varcall)
+#define SSH_DEBUG(level, varcall) SSH_TRACE((level), varcall)
 #define SSH_DEBUG_HEXDUMP(level, varcall, buf, len) \
-     SSH_TRACE_HEXDUMP(level, varcall, buf, len)
+     SSH_TRACE_HEXDUMP((level), varcall, (buf), (len))
 #else
 #define SSH_DEBUG(level, varcall) do {} while (0)
 #define SSH_DEBUG_HEXDUMP(level, varcall, buf, len) do {} while (0)
@@ -218,9 +218,9 @@ do { \
 
 /* DEBUG_HEAVY is compiled in only if DEBUG_HEAVY is defined. */
 #ifdef DEBUG_HEAVY
-#define SSH_HEAVY_DEBUG(level, varcall) SSH_TRACE(level, varcall)
+#define SSH_HEAVY_DEBUG(level, varcall) SSH_TRACE((level), varcall)
 #define SSH_HEAVY_DEBUG_HEXDUMP(level, varcall, buf, len) \
-     SSH_TRACE_HEXDUMP(level, varcall, buf, len)
+     SSH_TRACE_HEXDUMP((level), varcall, (buf), (len))
 #else
 #define SSH_HEAVY_DEBUG(level, varcall) do {} while (0)
 #define SSH_HEAVY_DEBUG_HEXDUMP(level, varcall, buf, len) do {} while (0)
@@ -239,6 +239,30 @@ void ssh_debug_set_level_string(const char *string);
 
 /* Sets the debugging level for all modules. */
 void ssh_debug_set_global_level(unsigned int level);
+
+/* Sets the formatting string. If `override' is TRUE the string set
+   will override one defined in UNIX environment. If `override' is
+   FALSE the version from environment will have preference when set.
+   If no format string is set a reasonable default is used with
+   override naturally FALSE.
+
+   The pointer given to ssh_debug_set_format_string must remain valid
+   until the program exits or can be ensured in some other way that no
+   more instances of SSH_TRACE, SSH_DEBUG and SSH_TRACE_HEXDUMP,
+   SSH_VERIFY, SSH_PRECOND, SSH_POSTCOND, SSH_ASSERT, SSH_INVARIANT,
+   SSH_NOTREACHED and possibly other similar debugging macros will be
+   encountered before the program exits.  This is reasonable because
+   it is assumed that if the string is set programmatically it is set
+   from the argv[] list of the program or from a constant. In any
+   other case dynamic allocation can be used.
+
+   IMPORTANT NOTE: The format string cannot be changed during program
+   execution. When the first debug message is printed the format
+   string is compiled into an internal data structure for
+   efficiency. Therefore this call will also have effect only before
+   ANY debugging output has taken place.  */
+   
+void ssh_debug_set_format_string(const char *string, Boolean override);
 
 /***********************************************************************
  * Functions for debugging, warning, and fatal error messages
@@ -287,7 +311,16 @@ typedef enum {
   SSH_LOGFACILITY_USER,
 
   /* The message is related to the e-mail subsystem. */
-  SSH_LOGFACILITY_MAIL
+  SSH_LOGFACILITY_MAIL,
+
+  SSH_LOGFACILITY_LOCAL0,
+  SSH_LOGFACILITY_LOCAL1,
+  SSH_LOGFACILITY_LOCAL2,
+  SSH_LOGFACILITY_LOCAL3,
+  SSH_LOGFACILITY_LOCAL4,
+  SSH_LOGFACILITY_LOCAL5,
+  SSH_LOGFACILITY_LOCAL6,
+  SSH_LOGFACILITY_LOCAL7
 } SshLogFacility;
 
 /* Log message severity definitions.  These identify the severity of the

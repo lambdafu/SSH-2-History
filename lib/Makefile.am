@@ -19,17 +19,17 @@ SUBDIRS = zlib sshmath sshreadline sshutil sshapputil sshcrypt sshproto sshsessi
 # sshtest testsuite
 
 lib_LIBRARIES = libssh.a
-# libsshcrypt.kpure.a 
+# libsshcrypt.kpure.a
 
 SUBLIBRARIES = sshmath/libsshmath.a zlib/libz.a sshutil/libsshutil.a sshapputil/libsshapputil.a sshcrypt/libsshcrypt.a sshproto/libsshproto.a sshsession/libsshsession.a sshreadline/libsshreadline.a
 
 libssh.a: $(SUBLIBRARIES)
 	-rm -f libssh.a
-	for lib in $(SUBDIRS); do \
+	$(AR) rc libssh.a `for lib in $(SUBDIRS); do \
 	  (cd $$lib; \
-	   $(AR) rc ../libssh.a `$(MAKE) -s list_libssh_a_objects | sed -n 's,BEGIN_FILE_LIST:\([^:]*\):END_FILE_LIST,\1,p'`; \
+	   $(MAKE) -s list_libssh_a_objects | sed -n 's,BEGIN_FILE_LIST:\([^:]*\):END_FILE_LIST,\1,p' | sed -n 's, $$,,g; s, , '"$$lib"'/,g; p'; \
            ); \
-	done; \
+	done;`
 	$(RANLIB) libssh.a
 
 libsshcrypt.kpure.a: sshcrypt/libsshcrypt.kpure.a

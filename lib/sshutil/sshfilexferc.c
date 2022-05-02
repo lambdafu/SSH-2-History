@@ -428,7 +428,8 @@ void ssh_file_client_read(SshFileHandle handle,
                           SshFileDataCallback callback,
                           void *context)
 {
-  unsigned long off_high, off_low;
+  SshUInt64 seek_offset = 0L;
+  
   SshFileClientRequest request;
   
   if (handle->client->eof_received)
@@ -437,13 +438,11 @@ void ssh_file_client_read(SshFileHandle handle,
       return;
     }
 
-  off_low = offset & 0xffffffffL;
-  off_high = sizeof(offset) > 4 ? (offset >> 32) : 0;
+  seek_offset = (SshUInt64)offset;
   request = ssh_file_request(handle->client, SSH_FXP_READ,
                              SSH_FILEXFER_DATA_REPLY,
                              SSH_FORMAT_UINT32_STR, handle->value, handle->len,
-                             SSH_FORMAT_UINT32, off_high,
-                             SSH_FORMAT_UINT32, off_low,
+                             SSH_FORMAT_UINT64, seek_offset,
                              SSH_FORMAT_UINT32, (unsigned long)len,
                              SSH_FORMAT_END);
   request->data_callback = callback;
@@ -459,7 +458,7 @@ void ssh_file_client_write(SshFileHandle handle,
                            SshFileStatusCallback callback,
                            void *context)
 {
-  unsigned long off_high, off_low;
+  SshUInt64 seek_offset = 0L;
   SshFileClientRequest request;
   
   if (handle->client->eof_received)
@@ -468,14 +467,12 @@ void ssh_file_client_write(SshFileHandle handle,
       return;
     }
 
-  off_low = offset & 0xffffffffL;
-  off_high = sizeof(offset) > 4 ? (offset >> 32) : 0;
+  seek_offset = (SshUInt64)offset;
   request = ssh_file_request(handle->client, SSH_FXP_WRITE,
                              SSH_FILEXFER_STATUS_REPLY,
                              SSH_FORMAT_UINT32_STR, 
                                handle->value, handle->len,
-                             SSH_FORMAT_UINT32, off_high,
-                             SSH_FORMAT_UINT32, off_low,
+                             SSH_FORMAT_UINT64, seek_offset,
                              SSH_FORMAT_UINT32_STR, 
                                buf, len,
                              SSH_FORMAT_END);

@@ -122,7 +122,7 @@ void ssh_common_disconnect(int reason, const char *msg, void *context)
   SSH_DEBUG(2, ("DISCONNECT received: %s", msg));
 
   /* Log the disconnect in the system log. */
-  ssh_log_event(SSH_LOGFACILITY, SSH_LOG_INFORMATIONAL,
+  ssh_log_event(common->config->log_facility, SSH_LOG_INFORMATIONAL,
                 "Remote host disconnected: %s", msg);
 
   /* Call the disconnect function.  Note that it is always given.
@@ -171,6 +171,7 @@ void ssh_common_special(SshCrossPacketType type, const unsigned char *data,
         {
           common->user_data = ssh_user_initialize(common->user, TRUE);
           if (!common->user_data)
+            /* XXX do not call ssh_fatal, disconnect instead. */
             ssh_fatal("ssh_common_special: user data init failed for '%s'",
                       common->user);
         }
@@ -190,6 +191,41 @@ void ssh_common_special(SshCrossPacketType type, const unsigned char *data,
       SSH_TRACE(0, ("Unknown special packet %d", (int)type));
       break;
     }
+}
+
+void ssh_common_finalize(SshIpError error,
+                         const char *result,
+                         void *context)
+{
+  SshCommon common = (SshCommon) context;
+  
+  if (error == SSH_IP_OK)
+    {
+      SSH_DEBUG(3, ("remote hostname is \"%s\".", result));
+      common->remote_host = ssh_xstrdup(result);
+    }
+  else
+    {
+      SSH_DEBUG(2, ("DNS lookup failed. Using host-IP-number (\"%s\") " \
+                    "as hostname.", common->remote_ip));
+      ssh_log_event(common->config->log_facility,
+                    SSH_LOG_WARNING,
+                    "DNS lookup failed for \"%s\".",
+                    common->remote_ip);
+      
+      common->remote_host = ssh_xstrdup(common->remote_ip);
+    }
+  
+  /* Create connection protocol object. */
+  SSH_DEBUG(5, ("creating connection protocol"));
+  common->conn = ssh_conn_wrap(common->auth, SSH_CONNECTION_SERVICE,
+                               common->global_requests,
+                               common->channel_opens,
+                               ssh_common_disconnect,
+                               ssh_common_debug,
+                               ssh_common_special,
+                               (void *)common);
+  SSH_DEBUG(5, ("connection protocol created"));
 }
 
 /* Creates the common processing object for the SSH server/client connection.
@@ -240,6 +276,12 @@ SshCommon ssh_common_wrap(SshStream connection,
   common->server_host_name =
     server_host_name ? ssh_xstrdup(server_host_name) : NULL;
   common->being_destroyed = FALSE;
+  common->auth = auth;
+
+  common->last_login_time = 0;
+  common->sizeof_last_login_from_host = 100;
+  common->last_login_from_host =
+    ssh_xcalloc(common->sizeof_last_login_from_host, sizeof(char));
   
   /* Get information from the connection. */
   common->remote_ip = ssh_xmalloc(100);
@@ -254,11 +296,6 @@ SshCommon ssh_common_wrap(SshStream connection,
   common->local_port = ssh_xmalloc(100);
   if (!ssh_tcp_get_local_port(connection, common->local_port, 100))
     strcpy(common->local_port, "UNKNOWN");
-  /*
-   * Set remote host name to ip address.  If reverse mapping is done
-   * later, this string should be set to real host name from DNS PTR.
-   */
-  common->remote_host = ssh_xstrdup(common->remote_ip);
 
   SSH_DEBUG(5, ("initializing channel types and requests"));
   
@@ -302,16 +339,20 @@ SshCommon ssh_common_wrap(SshStream connection,
         common->type_contexts[i] = NULL;
     }
 
-  /* Create connection protocol object. */
-  SSH_DEBUG(5, ("creating connection protocol"));
-  common->conn = ssh_conn_wrap(auth, SSH_CONNECTION_SERVICE,
-                               common->global_requests,
-                               common->channel_opens,
-                               ssh_common_disconnect,
-                               ssh_common_debug,
-                               ssh_common_special,
+  /* Set remote host name to ip address. There is no need to do
+     reverse mapping in the client (yet) */
+  if (!client)
+    {
+      ssh_tcp_get_host_by_addr(common->remote_ip, ssh_common_finalize,
                                (void *)common);
-  SSH_DEBUG(5, ("connection protocol created"));
+    }
+  else
+    {    
+      common->remote_host = ssh_xstrdup(common->remote_ip);
+    }
+  
+  if(client)
+    ssh_common_finalize(SSH_IP_OK, common->remote_ip, common);
   
   return common;
 }

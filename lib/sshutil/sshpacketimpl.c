@@ -3,7 +3,7 @@
 sshpacketimpl.c
 
 Author: Tatu Ylonen <ylo@ssh.fi>
-	Tero Kivinen <kivinen@ssh.fi>
+        Tero Kivinen <kivinen@ssh.fi>
 
 Copyright (c) 1998 SSH Communications Security, Finland
                    All rights reserved
@@ -24,8 +24,10 @@ easy to do packet-based communications over a SshStream.
 #include "sshpacketstream.h"
 #include "sshpacketint.h"
 
-#define ALLOW_AFTER_BUFFER_FULL		(10000 + 5)
-#define BUFFER_MAX_SIZE			50000
+#define SSH_DEBUG_MODULE "SshPacketImplementation"
+
+#define ALLOW_AFTER_BUFFER_FULL         (10000 + 5)
+#define BUFFER_MAX_SIZE                 50000
 
 typedef struct SshPacketImplRec {
   /* SshBuffer for a partial incoming packet. */
@@ -113,9 +115,9 @@ void ssh_packet_impl_restart_output(SshPacketImpl up)
   if (up->up_write_blocked)
     {
       /* Schedule an event from which we'll call the callback.  The event
-	 is cancelled if the stream is destroyed. */
+         is cancelled if the stream is destroyed. */
       ssh_register_timeout(0L, 0L, ssh_packet_impl_signal_output_proc,
-			   (void *)up);
+                           (void *)up);
       up->up_write_blocked = FALSE;
     }
 }
@@ -129,9 +131,9 @@ void ssh_packet_impl_restart_input(SshPacketImpl up)
   if (up->up_read_blocked)
     {
       /* Schedule an event from which we'll call the callback.  The event
-	 is cancelled if the stream is destroyed. */
+         is cancelled if the stream is destroyed. */
       ssh_register_timeout(0L, 0L, ssh_packet_impl_signal_input_proc,
-			   (void *)up);
+                           (void *)up);
       up->up_read_blocked = FALSE;
     }
 }
@@ -145,9 +147,9 @@ void ssh_packet_impl_restart_send(SshPacketImpl up)
   if (up->send_blocked)
     {
       /* Schedule an event from which we'll call the callback.  The event
-	 is cancelled if the stream is destroyed. */
+         is cancelled if the stream is destroyed. */
       ssh_register_timeout(0L, 0L, ssh_packet_impl_signal_send_proc,
-			   (void *)up);
+                           (void *)up);
       up->send_blocked = FALSE;
     }
 }
@@ -169,16 +171,16 @@ int ssh_packet_impl_read(void *context, unsigned char *buf, size_t size)
     {
       /* If shortcircuiting, pass it to the shortcircuit stream. */
       if (up->shortcircuit_stream)
-	return ssh_stream_read(up->shortcircuit_stream, buf, size);
+        return ssh_stream_read(up->shortcircuit_stream, buf, size);
 
       /* Return EOF or "no more data available yet". */
       if (up->outgoing_eof)
-	return 0;
+        return 0;
       else
-	{
-	  up->up_read_blocked = TRUE;
-	  return -1;
-	}
+        {
+          up->up_read_blocked = TRUE;
+          return -1;
+        }
     }
   
   /* Move data to the caller's buffer. */
@@ -197,7 +199,7 @@ int ssh_packet_impl_read(void *context, unsigned char *buf, size_t size)
    packet is received at once, and a partial packet is received.  */
 
 int ssh_packet_impl_write(void *context, const unsigned char *buf,
-			  size_t size)
+                          size_t size)
 {
   SshPacketImpl up = (SshPacketImpl)context;
   size_t offset, payload_len, len;
@@ -206,7 +208,7 @@ int ssh_packet_impl_write(void *context, const unsigned char *buf,
   /* If shortcircuiting, direct the write down. */
   if (up->shortcircuit_stream)
     {
-      assert(ssh_buffer_len(&up->incoming) == 0);
+      SSH_ASSERT(ssh_buffer_len(&up->incoming) == 0);
       return ssh_stream_write(up->shortcircuit_stream, buf, size);
     }
 
@@ -214,24 +216,24 @@ int ssh_packet_impl_write(void *context, const unsigned char *buf,
 
 normal:
   while (up->can_receive && !up->incoming_eof && offset < size &&
-	 !up->shortcircuit_stream)
+         !up->shortcircuit_stream)
     {
       /* If already processing a partial packet, continue it now. */
       if (ssh_buffer_len(&up->incoming) > 0)
-	goto partial;
+        goto partial;
       
       /* If only partial packet available, do special proccessing. */
       if (size - offset < 4)
-	goto partial;  /* Need partial packet processing. */
+        goto partial;  /* Need partial packet processing. */
       payload_len = SSH_GET_32BIT(buf + offset);
 
       if (size - offset < 4 + payload_len)
-	goto partial;  /* Need partial packet processing. */
+        goto partial;  /* Need partial packet processing. */
       
       /* The entire packet is available; pass it to the callback. */
       if (up->received_packet)
-	(*up->received_packet)((SshPacketType)buf[offset + 4],
-			       buf + offset + 5, payload_len - 1, up->context);
+        (*up->received_packet)((SshPacketType)buf[offset + 4],
+                               buf + offset + 5, payload_len - 1, up->context);
       offset += 4 + payload_len;
     }
   /* We cannot take more data now.  If we processed some data, return
@@ -251,7 +253,7 @@ partial:
     {
       len = 4 - len;
       if (size - offset < len)
-	len = size - offset;
+        len = size - offset;
       ssh_buffer_append(&up->incoming, buf + offset, len);
       offset += len;
     }
@@ -277,8 +279,8 @@ partial:
   ucp = ssh_buffer_ptr(&up->incoming);
   if (up->received_packet)
     (*up->received_packet)((SshPacketType)ucp[4], ucp + 5, 
-			   payload_len - 1,
-			   up->context);
+                           payload_len - 1,
+                           up->context);
   
   /* Clear the incoming partial packet buffer and resume normal processing. */
   ssh_buffer_clear(&up->incoming);
@@ -313,7 +315,7 @@ void ssh_packet_impl_output_eof(void *context)
    with the stream. */
 
 void ssh_packet_impl_set_callback(void *context, SshStreamCallback callback,
-				  void *callback_context)
+                                  void *callback_context)
 {
   SshPacketImpl up = (SshPacketImpl)context;
 
@@ -328,7 +330,7 @@ void ssh_packet_impl_set_callback(void *context, SshStreamCallback callback,
   /* If shortcircuiting, set the callbacks for the shortcircuited stream. */
   if (up->shortcircuit_stream)
     ssh_stream_set_callback(up->shortcircuit_stream, callback,
-			    callback_context);
+                            callback_context);
 }
 
 /* Destroys the stream.  This is called when the application destroys the
@@ -393,10 +395,10 @@ const SshStreamMethodsTable ssh_packet_impl_methods =
    packets. */
 
 SshStream ssh_packet_impl_create(SshPacketReceiveProc received_packet,
-				 SshPacketEofProc received_eof,
-				 SshPacketCanSendProc can_send,
-				 SshPacketImplDestroyProc destroy,
-				 void *context)
+                                 SshPacketEofProc received_eof,
+                                 SshPacketCanSendProc can_send,
+                                 SshPacketImplDestroyProc destroy,
+                                 void *context)
 {
   SshPacketImpl up;
   SshStream stream;
@@ -521,8 +523,8 @@ Boolean ssh_packet_impl_can_send(SshStream up_stream)
    as specified for ssh_encode_buffer_va. */
 
 void ssh_packet_impl_send_encode_va(SshStream up_stream,
-				    SshPacketType type,
-				    va_list va)
+                                    SshPacketType type,
+                                    va_list va)
 {
   SshPacketImpl up;
 
@@ -547,7 +549,7 @@ void ssh_packet_impl_send_encode_va(SshStream up_stream,
 
   /* Append the packet to the outgoing buffer. */
   ssh_buffer_append(&up->outgoing, ssh_buffer_ptr(&up->outgoing_packet),
-		ssh_buffer_len(&up->outgoing_packet));
+                ssh_buffer_len(&up->outgoing_packet));
 
   /* Restart reads by upper level. */
   ssh_packet_impl_restart_input(up);
@@ -555,15 +557,15 @@ void ssh_packet_impl_send_encode_va(SshStream up_stream,
   /* Sanity check that we didn't exceed max buffer size. */
   if (ssh_buffer_len(&up->outgoing) > BUFFER_MAX_SIZE)
     ssh_debug("ssh_packet_impl_send: buffer max size exceeded: size %ld",
-	      (long)ssh_buffer_len(&up->outgoing));
+              (long)ssh_buffer_len(&up->outgoing));
 }
 
 /* Sends a packet to the stream, encoding the payload of the packet
    as specified for ssh_encode_buffer. */
 
 void ssh_packet_impl_send_encode(SshStream up_stream,
-				 SshPacketType type,
-				 ...)
+                                 SshPacketType type,
+                                 ...)
 {
   va_list va;
 
@@ -581,11 +583,11 @@ void ssh_packet_impl_send_encode(SshStream up_stream,
    function). */
 
 void ssh_packet_impl_send(SshStream up_stream, SshPacketType type,
-			  const unsigned char *data, size_t len)
+                          const unsigned char *data, size_t len)
 {
   ssh_packet_impl_send_encode(up_stream, type,
-			   SSH_FORMAT_DATA, data, len,
-			   SSH_FORMAT_END);
+                           SSH_FORMAT_DATA, data, len,
+                           SSH_FORMAT_END);
 }
 
 /* INTERNAL FUNCTION - not to be called from applications.  This
@@ -595,7 +597,7 @@ void ssh_packet_impl_send(SshStream up_stream, SshPacketType type,
    incoming packet in the up_stream stream buffers. */
 
 void ssh_packet_impl_shortcircuit_now(SshStream up_stream,
-				      SshStream down_stream)
+                                      SshStream down_stream)
 {
   SshPacketImpl up;
 
@@ -609,7 +611,7 @@ void ssh_packet_impl_shortcircuit_now(SshStream up_stream,
   up->shortcircuit_stream = down_stream;
 
   /* We currently require there to be no partial incoming packet. */
-  assert(ssh_buffer_len(&up->incoming) == 0);
+  SSH_ASSERT(ssh_buffer_len(&up->incoming) == 0);
   
   /* If it is non-NULL, make it use application callbacks directly. */
   if (down_stream)

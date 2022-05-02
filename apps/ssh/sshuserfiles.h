@@ -36,11 +36,7 @@
 /* the random seed file */
 
 #ifndef SSH_RANDSEED_FILE
-#ifndef SSHDIST_WINDOWS
 #  define SSH_RANDSEED_FILE "random_seed"
-#else /* SSHDIST_WINDOWS */
-
-#endif /* SSHDIST_WINDOWS */
 #endif /* SSH_RANDSEED_FILE */
 
 /* the size of the random seed file (in bytes) */
@@ -78,21 +74,12 @@
 #endif /* SSH_IDENTIFICATION_FILE */
 
 /* the standard "hostkey" file */
-#ifndef SSHDIST_WINDOWS
 #  ifndef SSH_HOSTKEY_FILE
 #    define SSH_HOSTKEY_FILE "hostkey"
 #  endif /* SSH_HOSTKEY_FILE */
 #  ifndef SSH_PUBLIC_HOSTKEY
 #    define SSH_PUBLIC_HOSTKEY "hostkey.pub"
 #  endif
-#else /* SSHDIST_WINDOWS */
-
-
-
-
-
-
-#endif /* SSHDIST_WINDOWS */
 /* server directory */
 
 #ifndef ETCDIR
@@ -121,15 +108,6 @@
 #define SSH_SERVER_CONFIG_FILE "sshd2_config"
 #endif /* SSH_SERVER_CONFIG_FILE */
 
-#ifdef SSHDIST_WINDOWS
-
-
-
-
-
-
-
-#endif /* SSHDIST_WINDOWS */
 
 /* Magic identifying codes for private and public key files. */
 
@@ -138,7 +116,6 @@
 #define SSH_KEY_MAGIC_PRIVATE           0x73736802
 #define SSH_KEY_MAGIC_PRIVATE_ENCRYPTED 0x73736803
 
-#ifndef SSHDIST_WINDOWS
 /* Return a pointer to user's ssh2 directory.
    The directory is created if `create_if_needed' is TRUE. 
    Return NULL on failure.  The returned value has been allocated with ssh_xmalloc,
@@ -160,7 +137,6 @@ char *ssh_randseed_file(SshUser user, SshConfig config);
 void ssh_randseed_load(SshUser user, SshRandomState random_state,
                        SshConfig config);
 
-#endif /* SSHDIST_WINDOWS */
 
 /* Reads a blob into a buffer. Return TRUE on failure.  The caller must free
    `*blob' with ssh_xfree when no longer needed. */
@@ -175,13 +151,13 @@ Boolean ssh_blob_write(SshUser user, const char *fname, mode_t mode,
 /* Read a public/private key blob from a file. Return the magic code
    or SSH_KEY_MAGIC_FAIL on failure.  The caller should free comment
    with ssh_xfree when no longer needed. */
-unsigned long ssh_key_blob_read(SshUser user, const char *fname, 
+unsigned long ssh2_key_blob_read(SshUser user, const char *fname, 
                                 char **comment,
                                 unsigned char **blob,
                                 size_t *bloblen, void *context);
 
 /* Write a key blob. Return TRUE on failure. */
-Boolean ssh_key_blob_write(SshUser user, const char *fname, mode_t mode,
+Boolean ssh2_key_blob_write(SshUser user, const char *fname, mode_t mode,
                            unsigned long magic,
                            const char *comment, const unsigned char *key,
                            size_t keylen, void * context);
@@ -228,6 +204,10 @@ Boolean ssh_privkey_write(SshUser user,
    no longer needed. */
 char **ssh_privkey_list(SshUser user, char *host, SshConfig config);
 
+/* definition for the ssh2 log facility. */
+#ifndef SSH_LOGFACILITY
+#define SSH_LOGFACILITY SSH_LOGFACILITY_AUTH
+#endif /* SSH_LOGFACILITY */
 
 /* Generate a name string from any blob.  String consists of
    caller given string and space and sha1 hash of the blob in hex. 

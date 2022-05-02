@@ -33,10 +33,6 @@ INCLUDES = -I../.. -I. -I.. -I$(srcdir) -I$(srcdir)/.. \
 
 t_mathtest_SOURCES = t-mathtest.c
 t_mathtest_DEPENDENCIES = $(LDADD)
-#ifdef SSHDIST_MATH_ADVANCED
-#
-#
-#endif /* SSHDIST_MATH_ADVANCED */
 t_mathspeed_SOURCES = t-mathspeed.c
 t_mathspeed_DEPENDENCIES = $(LDADD)
 

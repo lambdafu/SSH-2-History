@@ -43,13 +43,13 @@
 #endif /* NEED_SYS_SYSLOG_H */
 int allow_severity = SSH_LOG_INFORMATIONAL;
 int deny_severity = SSH_LOG_WARNING;
-#endif /* LIBWRAP */
+#endif /* HAVE_LIBWRAP */
 
 /* Program name, without path. */
 const char *av0;
 SshRandomState random_state;
 
-#define SSH2_GETOPT_ARGUMENTS "c:Cvd:e:fF:hi:l:L:no:p:PqR:s:Stx"
+#define SSH2_GETOPT_ARGUMENTS "ac:Cvd:e:fF:hi:l:L:no:p:PqR:s:Stx"
 
 void client_disconnect(int reason, const char *msg, void *context)
 {
@@ -277,6 +277,23 @@ void ssh_stream_sink_filter_destroy(void *context)
   return;
 }
 
+void remote_forward_completion(Boolean success, void *context)
+{
+  SshForward fwd = (SshForward) context;
+  
+  if (!success)
+    {
+      ssh_warning("Remote forward %s:%s:%s failed. Operation was denied by " \
+                  "the server.",
+                  fwd->port, fwd->connect_to_host, fwd->connect_to_port);    
+    }
+  else
+    {
+      SSH_TRACE(2, ("Remote forward request %s:%s:%s succeeded.",
+                    fwd->port, fwd->connect_to_host, fwd->connect_to_port));
+    }
+}
+
 void client_authenticated(const char *user, void *context)
 {
   int ret = 0;
@@ -286,9 +303,9 @@ void client_authenticated(const char *user, void *context)
   SshForward fwd;
 #endif /* SSH_CHANNEL_TCPFWD */
   
-  ssh_debug("client_authenticated");
+  SSH_TRACE(2, ("client_authenticated"));
 
-  /* XXX does this need something more? is this in the right place? */
+  /* If we are requested to go to background, do it now. */
   if (data->config->go_background)
     {
       ret = fork();
@@ -330,7 +347,8 @@ void client_authenticated(const char *user, void *context)
     ssh_client_remote_tcp_ip_forward(data->client, fwd->local_addr,
                                      fwd->port, fwd->connect_to_host,
                                      fwd->connect_to_port,
-                                     NULL, NULL);  
+                                     remote_forward_completion,
+                                     (void *) fwd);
 #endif /* SSH_CHANNEL_TCPFWD */
 
   if (data->config->dont_read_stdin)
@@ -427,13 +445,6 @@ static void finalize_password_prompt(char **prompt, char *host, char *user)
 void ssh2_version(const char *name)
 {
   fprintf(stderr, "%s: ", name);
-#ifdef SSHDIST_SSH2_INTERNAL_RELEASE
-
-#else /* SSHDIST_SSH2_INTERNAL_RELEASE */
-#ifdef SSHDIST_SSH2_F_SECURE_COMMERCIAL
-
-#endif /* SSHDIST_SSH2_F_SECURE_COMMERCIAL */
-#endif /* SSHDIST_SSH2_INTERNAL_RELEASE */
   fprintf(stderr, "SSH Version %s\n", SSH2_VERSION);
 }
 
@@ -616,6 +627,11 @@ int main(int argc, char **argv)
   /* Try to read in the user configuration file. */
 
   userdir = ssh_userdir(tuser, data->config, TRUE);
+  if (userdir == NULL)
+    {
+      ssh_fatal("Failed to create user ssh directory.");
+    }
+  
   snprintf(temp_s, sizeof (temp_s), "%s/%s",
            userdir, SSH_CLIENT_CONFIG_FILE);
   ssh_xfree(userdir);

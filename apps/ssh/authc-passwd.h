@@ -21,15 +21,15 @@
 /* Password authentication, client-side. */
 
 void ssh_client_auth_password(SshAuthClientOperation op,
-			      const char *user,
-			      unsigned int packet_type,
-			      SshBuffer *packet_in,
-			      const unsigned char *session_id,
-			      size_t session_id_len,
-			      void **state_placeholder,
-			      SshAuthClientCompletionProc completion,
-			      void *completion_context,
-			      void *method_context);
+                              const char *user,
+                              unsigned int packet_type,
+                              SshBuffer *packet_in,
+                              const unsigned char *session_id,
+                              size_t session_id_len,
+                              void **state_placeholder,
+                              SshAuthClientCompletionProc completion,
+                              void *completion_context,
+                              void *method_context);
 
 #endif /* AUTHC_PASSWD_H */
 

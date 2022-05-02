@@ -21,16 +21,18 @@ SSH Connection Protocol.
 #include "sshconn.h"
 
 /* Maximum number of simultaneously open channels. */
-#define MAX_OPEN_CHANNELS	1000
-#define MAX_EXTENDED_TYPES	10
-#define MAX_WINDOW_SIZE		(16*1024*1024)
+#define MAX_OPEN_CHANNELS       1000
+#define MAX_EXTENDED_TYPES      10
+#define MAX_WINDOW_SIZE         (16*1024*1024)
+
+#define SSH_DEBUG_MODULE "SshConnection"
 
 typedef struct SshChannelRec
 {
   /* Back-link to the controlling SshConn protocol. */
   SshConn conn;
 
-  /* Local identifieer for the channel. */
+  /* Local identifier for the channel. */
   unsigned long local_id;
 
   /* Remote identifier for the channel. */
@@ -262,18 +264,18 @@ void ssh_conn_channel_free(SshConn conn, SshChannel channel)
     {
       /* Clear the stream callback. */
       if (channel->extended[i].stream != NULL &&
-	  channel->extended[i].stream != SSH_CONN_POSTPONE_STREAM)
-	ssh_stream_set_callback(channel->extended[i].stream, NULL, NULL);
+          channel->extended[i].stream != SSH_CONN_POSTPONE_STREAM)
+        ssh_stream_set_callback(channel->extended[i].stream, NULL, NULL);
 
       /* Destroy the stream if auto_close. */
       if (channel->extended[i].auto_close &&
-	  channel->extended[i].stream != NULL &&
-	  channel->extended[i].stream != SSH_CONN_POSTPONE_STREAM)
-	ssh_stream_destroy(channel->extended[i].stream);
+          channel->extended[i].stream != NULL &&
+          channel->extended[i].stream != SSH_CONN_POSTPONE_STREAM)
+        ssh_stream_destroy(channel->extended[i].stream);
 
       /* Free the buffer. */
       if (channel->extended[i].buf != NULL)
-	ssh_xfree(channel->extended[i].buf);
+        ssh_xfree(channel->extended[i].buf);
     }
 
   /* Fill with known value to ease debugging. */
@@ -286,7 +288,7 @@ void ssh_conn_channel_free(SshConn conn, SshChannel channel)
    This sends as much data of the given type as is available. */
 
 Boolean ssh_conn_send_channel_data_type(SshConn conn, SshChannel channel,
-					int i)
+                                        int i)
 {
   int len;
   unsigned char buf[4096];
@@ -294,105 +296,105 @@ Boolean ssh_conn_send_channel_data_type(SshConn conn, SshChannel channel,
   for (;;)
     {
       /* If we already know that read has failed, and have not received
-	 INPUT_AVAILABLE callback, just return immediately. */
+         INPUT_AVAILABLE callback, just return immediately. */
       if (channel->extended[i].stream == NULL ||
-	  channel->extended[i].stream == SSH_CONN_POSTPONE_STREAM ||
-	  channel->extended[i].write_only ||
-	  channel->extended[i].read_has_failed ||
-	  channel->extended[i].eof_received)
-	return FALSE;
+          channel->extended[i].stream == SSH_CONN_POSTPONE_STREAM ||
+          channel->extended[i].write_only ||
+          channel->extended[i].read_has_failed ||
+          channel->extended[i].eof_received)
+        return FALSE;
       
       /* If cannot send, record that and return. */
       if (!ssh_cross_down_can_send(conn->down))
-	{
-	  conn->send_blocked = TRUE;
-	  return TRUE;
-	}
+        {
+          conn->send_blocked = TRUE;
+          return TRUE;
+        }
 
       /* We cannot send any data if there is no window space. */
       if (channel->outgoing_window_remaining == 0)
-	return FALSE;
+        return FALSE;
 
       /* Determine the maximum amount of data to read. */
       len = channel->outgoing_window_remaining;
       if (len > sizeof(buf))
-	len = sizeof(buf);
+        len = sizeof(buf);
       if (len > channel->max_outgoing_packet_size)
-	len = channel->max_outgoing_packet_size;
+        len = channel->max_outgoing_packet_size;
 
       /* Try to read data from the stream. */
       len = ssh_stream_read(channel->extended[i].stream, buf, len);
       if (len < 0)
-	{
-	  /* No more data available at this time.  We'll receive an
-	     INPUT_AVAILABLE callback when data is again available. */
-	  channel->extended[i].read_has_failed = TRUE;
-	  return FALSE;
-	}
+        {
+          /* No more data available at this time.  We'll receive an
+             INPUT_AVAILABLE callback when data is again available. */
+          channel->extended[i].read_has_failed = TRUE;
+          return FALSE;
+        }
       if (len == 0)
-	{
+        {
 #ifdef DEBUG
-	  ssh_debug("ssh_conn_send_channel_data_type eof from channel stream");
+          ssh_debug("ssh_conn_send_channel_data_type eof from channel stream");
 #endif
-	  /* EOF received from one of the streams. */
-	  if (i != 0 || channel->eof_sent)
-	    return FALSE; /* We only process EOF from the main stream. */
+          /* EOF received from one of the streams. */
+          if (i != 0 || channel->eof_sent)
+            return FALSE; /* We only process EOF from the main stream. */
 
-	  channel->extended[i].eof_received = TRUE;
+          channel->extended[i].eof_received = TRUE;
 
-	  /* If an EOF callback has been registered, call it now. */
-	  if (channel->eof_callback != NULL)
-	    (*channel->eof_callback)(channel->eof_context);
-	  
-	  /* Send an EOF or CLOSE message to the other side. */
-	  if (channel->close_on_eof)
-	    {
-	      /* Send a close message for the channel. */
-	      ssh_cross_down_send_encode(conn->down, SSH_CROSS_PACKET,
-					 SSH_FORMAT_CHAR,
-				           SSH_MSG_CHANNEL_CLOSE,
-					 SSH_FORMAT_UINT32,
-					   channel->remote_id,
-					 SSH_FORMAT_END);
-	      channel->close_sent = TRUE;
-	    }
-	  else
-	    {
-	      /* Send EOF for the channel. */
-	      ssh_cross_down_send_encode(conn->down, SSH_CROSS_PACKET,
-					 SSH_FORMAT_CHAR,
-					   SSH_MSG_CHANNEL_EOF,
-					 SSH_FORMAT_UINT32,
-					   channel->remote_id,
-					 SSH_FORMAT_END);
-	      channel->eof_sent = TRUE;
-	    }
-	      
-	  return FALSE;
-	}
+          /* If an EOF callback has been registered, call it now. */
+          if (channel->eof_callback != NULL)
+            (*channel->eof_callback)(channel->eof_context);
+          
+          /* Send an EOF or CLOSE message to the other side. */
+          if (channel->close_on_eof)
+            {
+              /* Send a close message for the channel. */
+              ssh_cross_down_send_encode(conn->down, SSH_CROSS_PACKET,
+                                         SSH_FORMAT_CHAR,
+                                           SSH_MSG_CHANNEL_CLOSE,
+                                         SSH_FORMAT_UINT32,
+                                           channel->remote_id,
+                                         SSH_FORMAT_END);
+              channel->close_sent = TRUE;
+            }
+          else
+            {
+              /* Send EOF for the channel. */
+              ssh_cross_down_send_encode(conn->down, SSH_CROSS_PACKET,
+                                         SSH_FORMAT_CHAR,
+                                           SSH_MSG_CHANNEL_EOF,
+                                         SSH_FORMAT_UINT32,
+                                           channel->remote_id,
+                                         SSH_FORMAT_END);
+              channel->eof_sent = TRUE;
+            }
+              
+          return FALSE;
+        }
       
       /* Received some data from the stream.  Now wrap it into a
-	 packet and send to the other side. */
+         packet and send to the other side. */
       if (i == 0)
-	{
-	  /* Send normal data. */
-	  ssh_cross_down_send_encode(conn->down, SSH_CROSS_PACKET,
-				     SSH_FORMAT_CHAR, SSH_MSG_CHANNEL_DATA,
-				     SSH_FORMAT_UINT32, channel->remote_id,
-				     SSH_FORMAT_UINT32_STR, buf, len,
-				     SSH_FORMAT_END);
-	}
+        {
+          /* Send normal data. */
+          ssh_cross_down_send_encode(conn->down, SSH_CROSS_PACKET,
+                                     SSH_FORMAT_CHAR, SSH_MSG_CHANNEL_DATA,
+                                     SSH_FORMAT_UINT32, channel->remote_id,
+                                     SSH_FORMAT_UINT32_STR, buf, len,
+                                     SSH_FORMAT_END);
+        }
       else
-	{
-	  /* Send extended data. */
-	  ssh_cross_down_send_encode(conn->down, SSH_CROSS_PACKET,
-				     SSH_FORMAT_CHAR,
-				       SSH_MSG_CHANNEL_EXTENDED_DATA,
-				     SSH_FORMAT_UINT32, channel->remote_id,
-				     SSH_FORMAT_UINT32, (long)i,
-				     SSH_FORMAT_UINT32_STR, buf, len,
-				     SSH_FORMAT_END);
-	}
+        {
+          /* Send extended data. */
+          ssh_cross_down_send_encode(conn->down, SSH_CROSS_PACKET,
+                                     SSH_FORMAT_CHAR,
+                                       SSH_MSG_CHANNEL_EXTENDED_DATA,
+                                     SSH_FORMAT_UINT32, channel->remote_id,
+                                     SSH_FORMAT_UINT32, (long)i,
+                                     SSH_FORMAT_UINT32_STR, buf, len,
+                                     SSH_FORMAT_END);
+        }
 
       /* Adjust the window size. */
       channel->outgoing_window_remaining -= len;
@@ -419,14 +421,14 @@ Boolean ssh_conn_send_channel_data(SshConn conn, SshChannel channel)
   for (i = channel->next_type; i <= channel->highest_type; i++)
     if (ssh_conn_send_channel_data_type(conn, channel, i))
       {
-	channel->next_type = i + 1;
-	return TRUE;
+        channel->next_type = i + 1;
+        return TRUE;
       }
   for (i = 0; i < channel->next_type; i++)
     if (ssh_conn_send_channel_data_type(conn, channel, i))
       {
-	channel->next_type = i + 1;
-	return TRUE;
+        channel->next_type = i + 1;
+        return TRUE;
       }
 
   /* Next time, start sending from extended type zero. */
@@ -453,19 +455,19 @@ void ssh_conn_send_some_data(SshConn conn)
      from. */
   for (i = conn->next_channel; i <= conn->highest_channel; i++)
     if (conn->channels[i] &&
-	ssh_conn_send_channel_data(conn, conn->channels[i]))
+        ssh_conn_send_channel_data(conn, conn->channels[i]))
       {
-	/* Cannot send more data now.  Record that we'll continue with
+        /* Cannot send more data now.  Record that we'll continue with
            the next channel. */
-	conn->next_channel = i + 1;
-	return;
+        conn->next_channel = i + 1;
+        return;
       }
   for (i = 0; i < conn->next_channel; i++)
     if (conn->channels[i] &&
-	ssh_conn_send_channel_data(conn, conn->channels[i]))
+        ssh_conn_send_channel_data(conn, conn->channels[i]))
       {
-	conn->next_channel = i + 1;
-	return;
+        conn->next_channel = i + 1;
+        return;
       }
 
   /* Writing didn't block.  Start from the first channel the next time. */
@@ -507,11 +509,11 @@ void ssh_conn_channel_check_adjust(SshConn conn, SshChannel channel)
 
   /* Send an adjust message to the other side. */
   ssh_cross_down_send_encode(conn->down, SSH_CROSS_PACKET,
-			     SSH_FORMAT_CHAR,
-			       SSH_MSG_CHANNEL_WINDOW_ADJUST,
-			     SSH_FORMAT_UINT32, channel->remote_id,
-			     SSH_FORMAT_UINT32, adjust,
-			     SSH_FORMAT_END);
+                             SSH_FORMAT_CHAR,
+                               SSH_MSG_CHANNEL_WINDOW_ADJUST,
+                             SSH_FORMAT_UINT32, channel->remote_id,
+                             SSH_FORMAT_UINT32, adjust,
+                             SSH_FORMAT_END);
   channel->incoming_window_received -= adjust;
 }  
 
@@ -524,6 +526,11 @@ void ssh_conn_channel_write(SshConn conn, SshChannel channel)
   int len, i;
   size_t ws;
 
+  /* If we have sent close to the channel, don't write to it */
+  
+  if (channel->close_sent)
+    return;
+  
   did_something = FALSE;
   ws = channel->incoming_window_size;
 
@@ -531,42 +538,69 @@ void ssh_conn_channel_write(SshConn conn, SshChannel channel)
   for (i = 0; i <= channel->highest_type; i++)
     {
       /* Keep looping for each stream until we break out.  This is because
-	 the data might not all be written at once. */
+         the data might not all be written at once. */
       for (;;)
-	{
-	  /* If no data to write, continue with the next stream. */
-	  len = channel->extended[i].inbuf;
+        {
+          /* If no data to write, continue with the next stream. */
+          len = channel->extended[i].inbuf;
+          if (len == 0)
+            {
+              if (channel->eof_received)
+                ssh_stream_output_eof(channel->extended[i].stream);
+              break;
+            }
+
+          /* Truncate length to end of ring buffer. */
+          if (len > ws - channel->extended[i].start)
+            len = ws - channel->extended[i].start;
+
+          /* Try to write data to the stream. */
+          len = ssh_stream_write(channel->extended[i].stream,
+                                 channel->extended[i].buf +
+                                 channel->extended[i].start,
+                                 len);
+          /* If error (or EOF on write), continue with the next stream. */
+          if (len < 0)
+            break;
+
 	  if (len == 0)
 	    {
-	      if (channel->eof_received)
-		ssh_stream_output_eof(channel->extended[i].stream);
-	      break;
-	    }
+	      SSH_DEBUG(2, ("EOF received on write from channel 0x%lx, extended "\
+			    "stream %d.", channel, i));
 
-	  /* Truncate length to end of ring buffer. */
-	  if (len > ws - channel->extended[i].start)
-	    len = ws - channel->extended[i].start;
+	      /* EOF received from one of the streams. */
+	      if (i != 0 || channel->close_sent)
+		break; /* We only process EOF from the main stream. */
 
-	  /* Try to write data to the stream. */
-	  len = ssh_stream_write(channel->extended[i].stream,
-				 channel->extended[i].buf +
-				 channel->extended[i].start,
-				 len);
-	  /* If error (or EOF on write), continue with the next stream. */
-	  if (len <= 0)
-	    break;
+	      channel->extended[i].eof_received = TRUE;
+	      
+	      /* If an EOF callback has been registered, call it now. */
+	      if (channel->eof_callback != NULL)
+		(*channel->eof_callback)(channel->eof_context);
 	  
-	  /* Mark that we actually did something. */
-	  did_something = TRUE;
+	      /* Send a close message for the channel. */
+	      ssh_cross_down_send_encode(conn->down, SSH_CROSS_PACKET,
+					 SSH_FORMAT_CHAR,
+					 SSH_MSG_CHANNEL_CLOSE,
+					 SSH_FORMAT_UINT32,
+					 channel->remote_id,
+					 SSH_FORMAT_END);
+	      channel->close_sent = TRUE;
+	      
+	      return;
+	    }
+	  
+          /* Mark that we actually did something. */
+          did_something = TRUE;
 
-	  /* Update the ring buffer to consume the already written data. */
-	  channel->extended[i].start += len;
-	  assert(channel->extended[i].start <= ws);
-	  if (channel->extended[i].start == ws)
-	    channel->extended[i].start = 0;
-	  channel->extended[i].inbuf -= len;
-	  /* We loop again to process any remaining data in the buffer. */
-	}
+          /* Update the ring buffer to consume the already written data. */
+          channel->extended[i].start += len;
+          assert(channel->extended[i].start <= ws);
+          if (channel->extended[i].start == ws)
+            channel->extended[i].start = 0;
+          channel->extended[i].inbuf -= len;
+          /* We loop again to process any remaining data in the buffer. */
+        }
     }
 
   /* If we did something, check whether we should adjust the window. */
@@ -587,7 +621,7 @@ void ssh_conn_channel_callback(SshStreamNotification op, void *context)
     {
     case SSH_STREAM_INPUT_AVAILABLE:
       for (i = 0; i <= channel->highest_type; i++)
-	channel->extended[i].read_has_failed = FALSE;
+        channel->extended[i].read_has_failed = FALSE;
       ssh_conn_send_some_data(channel->conn);
       break;
 
@@ -603,7 +637,7 @@ void ssh_conn_channel_callback(SshStreamNotification op, void *context)
       
     default:
       ssh_fatal("ssh_conn_channel_callback: unexpected notification %d",
-		(int)op);
+                (int)op);
     }
 }
 
@@ -611,7 +645,7 @@ void ssh_conn_channel_callback(SshStreamNotification op, void *context)
    at any given time. */
 
 void ssh_conn_process_global_request(SshConn conn,
-				     const unsigned char *data, size_t len)
+                                     const unsigned char *data, size_t len)
 {
   size_t bytes;
   char *request_type;
@@ -620,17 +654,17 @@ void ssh_conn_process_global_request(SshConn conn,
 
   /* Extract request type. */
   bytes = ssh_decode_array(data, len,
-			   SSH_FORMAT_UINT32_STR, &request_type, NULL,
-			   SSH_FORMAT_BOOLEAN, &want_reply,
-			   SSH_FORMAT_END);
+                           SSH_FORMAT_UINT32_STR, &request_type, NULL,
+                           SSH_FORMAT_BOOLEAN, &want_reply,
+                           SSH_FORMAT_END);
   if (bytes == 0)
     {
       /* Bad packet (didn't contain valid request type).  Disconnect.
-	 Note that the transport layer protocol will echo the request back
-	 up. */
+         Note that the transport layer protocol will echo the request back
+         up. */
       ssh_cross_down_send_disconnect(conn->down, TRUE,
-				     SSH_DISCONNECT_PROTOCOL_ERROR,
-				     "Bad request name in GLOBAL_REQUEST");
+                                     SSH_DISCONNECT_PROTOCOL_ERROR,
+                                     "Bad request name in GLOBAL_REQUEST");
       return;
     }
 
@@ -643,45 +677,45 @@ void ssh_conn_process_global_request(SshConn conn,
   for (i = 0; conn->request_types[i].name != NULL; i++)
     if (strcmp(conn->request_types[i].name, request_type) == 0)
       {
-	/* Found the appropriate request type.  Call its handler function. */
-	if (!(*conn->request_types[i].proc)(request_type,
-					    data + bytes, len - bytes,
-					    conn->context))
-	  goto fail; /* Request failed. */
-	
-	/* The request was successfully processed.  Send REQUEST_SUCCESS
-	   packet. */
-	if (want_reply)
-	  ssh_cross_down_send_encode(conn->down, SSH_CROSS_PACKET,
-				     SSH_FORMAT_CHAR,
-				       SSH_MSG_REQUEST_SUCCESS,
-				     SSH_FORMAT_END);
+        /* Found the appropriate request type.  Call its handler function. */
+        if (!(*conn->request_types[i].proc)(request_type,
+                                            data + bytes, len - bytes,
+                                            conn->context))
+          goto fail; /* Request failed. */
+        
+        /* The request was successfully processed.  Send REQUEST_SUCCESS
+           packet. */
+        if (want_reply)
+          ssh_cross_down_send_encode(conn->down, SSH_CROSS_PACKET,
+                                     SSH_FORMAT_CHAR,
+                                       SSH_MSG_REQUEST_SUCCESS,
+                                     SSH_FORMAT_END);
 
-	ssh_xfree(request_type);
-	return;
+        ssh_xfree(request_type);
+        return;
       }
 
   /* Send SSH_MSG_REQUEST_FAILURE to indicate that the request failed. */
 fail:
   if (want_reply)
     ssh_cross_down_send_encode(conn->down, SSH_CROSS_PACKET,
-			       SSH_FORMAT_CHAR, SSH_MSG_REQUEST_FAILURE,
-			       SSH_FORMAT_END);
+                               SSH_FORMAT_CHAR, SSH_MSG_REQUEST_FAILURE,
+                               SSH_FORMAT_END);
   ssh_xfree(request_type);
 }
 
 /* Process a received reply to a global request. */
 
 void ssh_conn_process_global_reply(SshConn conn, unsigned int packet_type,
-				   const unsigned char *data, size_t len)
+                                   const unsigned char *data, size_t len)
 {
   SshConnSendGlobalRequestCallback cb;
   
   if (len != 0)
     {
       ssh_cross_down_send_disconnect(conn->down, TRUE,
-				     SSH_DISCONNECT_PROTOCOL_ERROR,
-				     "Extra data at end of global reply.");
+                                     SSH_DISCONNECT_PROTOCOL_ERROR,
+                                     "Extra data at end of global reply.");
       return;
     }
 
@@ -692,13 +726,13 @@ void ssh_conn_process_global_reply(SshConn conn, unsigned int packet_type,
     {
       conn->global_request_send_callback = NULL;
       (*cb)((packet_type == SSH_MSG_REQUEST_SUCCESS),
-	    conn->global_request_send_context);
+            conn->global_request_send_context);
 
     }
   else
     ssh_cross_down_send_disconnect(conn->down, TRUE,
-				   SSH_DISCONNECT_PROTOCOL_ERROR,
-				   "Received unexpected global req reply.");
+                                   SSH_DISCONNECT_PROTOCOL_ERROR,
+                                   "Received unexpected global req reply.");
 }
 
 /* Called by a channel open handler, this completes the process of opening
@@ -706,28 +740,28 @@ void ssh_conn_process_global_reply(SshConn conn, unsigned int packet_type,
    fields will be ignored (except ``completion_context'').  Otherwise,
    ``data_stream'' is set as the default data stream for the channel and
    an open confirmation is sent to the remote side.
-     `result'		 status code to send back to client (SSH_OPEN_*)
+     `result'            status code to send back to client (SSH_OPEN_*)
      `data_stream'       stream to pass data to/from the channel
      `auto_close'        TRUE means close data_stream when channel closed
      `window_size'       initial window size for receiving
-     `data'		 type-specific part of open confirmation reply
+     `data'              type-specific part of open confirmation reply
      `len'               length of the type-specific data
-     `request'		 handler for channel requests, or NULL
+     `request'           handler for channel requests, or NULL
      `destroy'           handler for channel destroy, or NULL
      `callback_context'  context argument for ``request'' and ``destroy''
      `completion_context' completion context argument from handler call. */
 
 void ssh_conn_channel_open_completion(int result,
-				      SshStream data_stream,
-				      Boolean auto_close,
-				      Boolean close_on_eof,
-				      size_t window_size,
-				      const unsigned char *data,
-				      size_t len,
-				      SshConnChannelRequestProc request,
-				      SshConnChannelDestroyProc destroy,
-				      void *callback_context,
-				      void *completion_context)
+                                      SshStream data_stream,
+                                      Boolean auto_close,
+                                      Boolean close_on_eof,
+                                      size_t window_size,
+                                      const unsigned char *data,
+                                      size_t len,
+                                      SshConnChannelRequestProc request,
+                                      SshConnChannelDestroyProc destroy,
+                                      void *callback_context,
+                                      void *completion_context)
 {
   SshChannel channel = (SshChannel)completion_context;
   SshConn conn = channel->conn;
@@ -737,13 +771,13 @@ void ssh_conn_channel_open_completion(int result,
   if (result != SSH_OPEN_OK)
     {
       /* Open failed.  Free the channel data structures and send back
-	 a failure message. */
+         a failure message. */
       ssh_cross_down_send_encode(conn->down, SSH_CROSS_PACKET,
-				 SSH_FORMAT_CHAR,
-				   SSH_MSG_CHANNEL_OPEN_FAILURE,
-				 SSH_FORMAT_UINT32, (long)channel->remote_id,
-				 SSH_FORMAT_UINT32, (long)result,
-				 SSH_FORMAT_END);
+                                 SSH_FORMAT_CHAR,
+                                   SSH_MSG_CHANNEL_OPEN_FAILURE,
+                                 SSH_FORMAT_UINT32, (long)channel->remote_id,
+                                 SSH_FORMAT_UINT32, (long)result,
+                                 SSH_FORMAT_END);
       ssh_conn_channel_free(conn, channel);
       return;
     }
@@ -765,29 +799,29 @@ void ssh_conn_channel_open_completion(int result,
 
   /* Send a channel open success message. */
   ssh_cross_down_send_encode(conn->down, SSH_CROSS_PACKET,
-			     SSH_FORMAT_CHAR,
-			       SSH_MSG_CHANNEL_OPEN_CONFIRMATION,
-			     SSH_FORMAT_UINT32, (long)channel->remote_id,
-			     SSH_FORMAT_UINT32, channel->local_id,
-			     SSH_FORMAT_UINT32,
-			       (long)channel->incoming_window_size,
-			     SSH_FORMAT_UINT32,
-			       (long)channel->max_outgoing_packet_size,
-			     SSH_FORMAT_DATA, data, len,
-			     SSH_FORMAT_END);
+                             SSH_FORMAT_CHAR,
+                               SSH_MSG_CHANNEL_OPEN_CONFIRMATION,
+                             SSH_FORMAT_UINT32, (long)channel->remote_id,
+                             SSH_FORMAT_UINT32, channel->local_id,
+                             SSH_FORMAT_UINT32,
+                               (long)channel->incoming_window_size,
+                             SSH_FORMAT_UINT32,
+                               (long)channel->max_outgoing_packet_size,
+                             SSH_FORMAT_DATA, data, len,
+                             SSH_FORMAT_END);
 
   /* Set callbacks for ``data_stream'' to start transferring data. */
   for (i = 0; i <= channel->highest_type; i++)
     if (channel->extended[0].stream != NULL &&
-	channel->extended[0].stream != SSH_CONN_POSTPONE_STREAM)
+        channel->extended[0].stream != SSH_CONN_POSTPONE_STREAM)
       ssh_stream_set_callback(channel->extended[0].stream,
-			      ssh_conn_channel_callback, (void *)channel);
+                              ssh_conn_channel_callback, (void *)channel);
 }
 
 /* Process a received channel open request. */
 
 void ssh_conn_process_channel_open(SshConn conn,
-				   const unsigned char *data, size_t len)
+                                   const unsigned char *data, size_t len)
 {
   size_t bytes;
   char *channel_type;
@@ -798,19 +832,19 @@ void ssh_conn_process_channel_open(SshConn conn,
 
   /* Extract channel type and other common data. */
   bytes = ssh_decode_array(data, len,
-			   SSH_FORMAT_UINT32_STR, &channel_type, NULL,
-			   SSH_FORMAT_UINT32, &remote_channel,
-			   SSH_FORMAT_UINT32, &initial_window_size,
-			   SSH_FORMAT_UINT32, &max_packet_size,
-			   SSH_FORMAT_END);
+                           SSH_FORMAT_UINT32_STR, &channel_type, NULL,
+                           SSH_FORMAT_UINT32, &remote_channel,
+                           SSH_FORMAT_UINT32, &initial_window_size,
+                           SSH_FORMAT_UINT32, &max_packet_size,
+                           SSH_FORMAT_END);
   if (bytes == 0)
     {
       /* Bad packet (didn't contain valid common data).  Disconnect.
-	 Note that the transport layer protocol will echo the request back
-	 up. */
+         Note that the transport layer protocol will echo the request back
+         up. */
       ssh_cross_down_send_disconnect(conn->down, TRUE,
-				     SSH_DISCONNECT_PROTOCOL_ERROR,
-				     "Bad request name in GLOBAL_REQUEST");
+                                     SSH_DISCONNECT_PROTOCOL_ERROR,
+                                     "Bad request name in GLOBAL_REQUEST");
       return;
     }
 
@@ -823,64 +857,64 @@ void ssh_conn_process_channel_open(SshConn conn,
   for (i = 0; conn->open_types[i].name != NULL; i++)
     if (strcmp(conn->open_types[i].name, channel_type) == 0)
       {
-	/* Found the correct type.  Allocate a channel.  The allocated channel
-	   comes with channel->conn and channel->local_id initialized, and
-	   the channel entered in the conn->channels array.  The fact
-	   that channel->extended[0].stream is NULL indicates that it is still
-	   ephemeral. */
-	channel = ssh_conn_channel_allocate(conn);
-	if (channel == NULL)
-	  {
-	    ssh_cross_down_send_debug(conn->down, TRUE,
-				      "Channel allocation failed.");
-	    break; /* Allocation failed, send failure. */
-	  }
+        /* Found the correct type.  Allocate a channel.  The allocated channel
+           comes with channel->conn and channel->local_id initialized, and
+           the channel entered in the conn->channels array.  The fact
+           that channel->extended[0].stream is NULL indicates that it is still
+           ephemeral. */
+        channel = ssh_conn_channel_allocate(conn);
+        if (channel == NULL)
+          {
+            ssh_cross_down_send_debug(conn->down, TRUE,
+                                      "Channel allocation failed.");
+            break; /* Allocation failed, send failure. */
+          }
 
-	/* Initialize the channel data structure. */
-	channel->ephemeral = TRUE;
-	channel->remote_id = remote_channel;
-	channel->extended[0].stream = NULL;
-	channel->extended[0].buf = NULL;
-	channel->extended[0].start = 0;
-	channel->extended[0].inbuf = 0;
-	channel->next_type = 0;
-	channel->highest_type = 0;
-	channel->outgoing_window_remaining = initial_window_size;
-	channel->incoming_window_received = 0;
-	channel->incoming_window_size = 0;
-	channel->max_outgoing_packet_size = max_packet_size;
-	channel->request = NULL;
-	channel->destroy = NULL;
-	channel->callback_context = NULL;
-	
-	/* Call the handler procedure.  It will call the completion
-	   procedure when done. */
-	(*conn->open_types[i].proc)(channel_type, channel->local_id,
-				    data + bytes, len - bytes,
-				    ssh_conn_channel_open_completion,
-				    (void *)channel,
-				    conn->context);
+        /* Initialize the channel data structure. */
+        channel->ephemeral = TRUE;
+        channel->remote_id = remote_channel;
+        channel->extended[0].stream = NULL;
+        channel->extended[0].buf = NULL;
+        channel->extended[0].start = 0;
+        channel->extended[0].inbuf = 0;
+        channel->next_type = 0;
+        channel->highest_type = 0;
+        channel->outgoing_window_remaining = initial_window_size;
+        channel->incoming_window_received = 0;
+        channel->incoming_window_size = 0;
+        channel->max_outgoing_packet_size = max_packet_size;
+        channel->request = NULL;
+        channel->destroy = NULL;
+        channel->callback_context = NULL;
+        
+        /* Call the handler procedure.  It will call the completion
+           procedure when done. */
+        (*conn->open_types[i].proc)(channel_type, channel->local_id,
+                                    data + bytes, len - bytes,
+                                    ssh_conn_channel_open_completion,
+                                    (void *)channel,
+                                    conn->context);
 
-	ssh_xfree(channel_type);
-	return;
+        ssh_xfree(channel_type);
+        return;
       }
 
 fail:
   
   /* The requested channel type is not supported.  Send a failure. */
   ssh_cross_down_send_encode(conn->down, SSH_CROSS_PACKET,
-			     SSH_FORMAT_CHAR, SSH_MSG_CHANNEL_OPEN_FAILURE,
-			     SSH_FORMAT_UINT32, remote_channel,
-			     SSH_FORMAT_UINT32, SSH_OPEN_UNKNOWN_CHANNEL_TYPE,
-			     SSH_FORMAT_END);
+                             SSH_FORMAT_CHAR, SSH_MSG_CHANNEL_OPEN_FAILURE,
+                             SSH_FORMAT_UINT32, remote_channel,
+                             SSH_FORMAT_UINT32, SSH_OPEN_UNKNOWN_CHANNEL_TYPE,
+                             SSH_FORMAT_END);
   ssh_xfree(channel_type);
 }
 
 /* Process a received channel open confirmation. */
 
 void ssh_conn_process_channel_open_confirmation(SshConn conn,
-						const unsigned char *data,
-						size_t len)
+                                                const unsigned char *data,
+                                                size_t len)
 {
   size_t bytes;
   long local_id, remote_id, initial_window_size, max_packet_size;
@@ -889,16 +923,16 @@ void ssh_conn_process_channel_open_confirmation(SshConn conn,
 
   /* Parse the packet. */
   bytes = ssh_decode_array(data, len,
-			   SSH_FORMAT_UINT32, &local_id,
-			   SSH_FORMAT_UINT32, &remote_id,
-			   SSH_FORMAT_UINT32, &initial_window_size,
-			   SSH_FORMAT_UINT32, &max_packet_size,
-			   SSH_FORMAT_END);
+                           SSH_FORMAT_UINT32, &local_id,
+                           SSH_FORMAT_UINT32, &remote_id,
+                           SSH_FORMAT_UINT32, &initial_window_size,
+                           SSH_FORMAT_UINT32, &max_packet_size,
+                           SSH_FORMAT_END);
   if (bytes == 0)
     {
       ssh_cross_down_send_disconnect(conn->down, TRUE,
-				     SSH_DISCONNECT_PROTOCOL_ERROR,
-				     "Extra data at end of OPEN_CONFIRMATION");
+                                     SSH_DISCONNECT_PROTOCOL_ERROR,
+                                     "Extra data at end of OPEN_CONFIRMATION");
       return;
     }
 
@@ -908,8 +942,8 @@ void ssh_conn_process_channel_open_confirmation(SshConn conn,
       !conn->channels[local_id]->ephemeral)
     {
       ssh_cross_down_send_disconnect(conn->down, TRUE,
-				     SSH_DISCONNECT_PROTOCOL_ERROR,
-				     "Bad local id in OPEN_CONFIRMATION.");
+                                     SSH_DISCONNECT_PROTOCOL_ERROR,
+                                     "Bad local id in OPEN_CONFIRMATION.");
       return;
     }
 
@@ -925,23 +959,23 @@ void ssh_conn_process_channel_open_confirmation(SshConn conn,
 
   /* Set callbacks for the channel data stream. */
   ssh_stream_set_callback(channel->extended[0].stream,
-			  ssh_conn_channel_callback, (void *)channel);
+                          ssh_conn_channel_callback, (void *)channel);
 
   /* Call the user callback, if supplied. */
   completion = channel->open_callback;
   channel->open_callback = NULL;
   if (completion)
     (*completion)(SSH_OPEN_OK, channel->local_id,
-		  data + bytes, len - bytes,
-		  channel->open_context);
+                  data + bytes, len - bytes,
+                  channel->open_context);
 }
 
 /* Process a received channel open failure.  This calls the user callback
    and frees the ephemeral channel. */
 
 void ssh_conn_process_channel_open_failure(SshConn conn,
-					   const unsigned char *data,
-					   size_t len)
+                                           const unsigned char *data,
+                                           size_t len)
 {
   size_t bytes;
   long local_id, result;
@@ -950,14 +984,14 @@ void ssh_conn_process_channel_open_failure(SshConn conn,
 
   /* Parse the packet. */
   bytes = ssh_decode_array(data, len,
-			   SSH_FORMAT_UINT32, &local_id,
-			   SSH_FORMAT_UINT32, &result,
-			   SSH_FORMAT_END);
+                           SSH_FORMAT_UINT32, &local_id,
+                           SSH_FORMAT_UINT32, &result,
+                           SSH_FORMAT_END);
   if (bytes != len)
     {
       ssh_cross_down_send_disconnect(conn->down, TRUE,
-				     SSH_DISCONNECT_PROTOCOL_ERROR,
-				     "Extra data at end of OPEN_FAILURE.");
+                                     SSH_DISCONNECT_PROTOCOL_ERROR,
+                                     "Extra data at end of OPEN_FAILURE.");
       return;
     }
 
@@ -967,8 +1001,8 @@ void ssh_conn_process_channel_open_failure(SshConn conn,
       !conn->channels[local_id]->ephemeral)
     {
       ssh_cross_down_send_disconnect(conn->down, TRUE,
-				     SSH_DISCONNECT_PROTOCOL_ERROR,
-				     "Bad local id in received OPEN_FAILURE.");
+                                     SSH_DISCONNECT_PROTOCOL_ERROR,
+                                     "Bad local id in received OPEN_FAILURE.");
       return;
     }
 
@@ -987,8 +1021,8 @@ void ssh_conn_process_channel_open_failure(SshConn conn,
 /* Process a received window adjust message. */
 
 void ssh_conn_process_channel_window_adjust(SshConn conn,
-					    const unsigned char *data,
-					    size_t len)
+                                            const unsigned char *data,
+                                            size_t len)
 {
   long local_id, bytes_to_add;
   SshChannel channel;
@@ -996,14 +1030,14 @@ void ssh_conn_process_channel_window_adjust(SshConn conn,
 
   /* Parse the packet. */
   bytes = ssh_decode_array(data, len,
-			   SSH_FORMAT_UINT32, &local_id,
-			   SSH_FORMAT_UINT32, &bytes_to_add,
-			   SSH_FORMAT_END);
+                           SSH_FORMAT_UINT32, &local_id,
+                           SSH_FORMAT_UINT32, &bytes_to_add,
+                           SSH_FORMAT_END);
   if (bytes != len)
     {
       ssh_cross_down_send_disconnect(conn->down, TRUE,
-				     SSH_DISCONNECT_PROTOCOL_ERROR,
-				     "Extra data at end of WINDOW_ADJUST.");
+                                     SSH_DISCONNECT_PROTOCOL_ERROR,
+                                     "Extra data at end of WINDOW_ADJUST.");
       return;
     }
 
@@ -1013,8 +1047,8 @@ void ssh_conn_process_channel_window_adjust(SshConn conn,
       conn->channels[local_id]->ephemeral)
     {
       ssh_cross_down_send_disconnect(conn->down, TRUE,
-				     SSH_DISCONNECT_PROTOCOL_ERROR,
-				     "Bad local id in received WINDOW_ADJUST");
+                                     SSH_DISCONNECT_PROTOCOL_ERROR,
+                                     "Bad local id in received WINDOW_ADJUST");
       return;
     }
 
@@ -1025,8 +1059,8 @@ void ssh_conn_process_channel_window_adjust(SshConn conn,
       channel->outgoing_window_remaining + bytes_to_add > MAX_WINDOW_SIZE)
     {
       ssh_cross_down_send_disconnect(conn->down, TRUE,
-				     SSH_DISCONNECT_PROTOCOL_ERROR,
-				     "Bad window size in WINDOW_ADJUST.");
+                                     SSH_DISCONNECT_PROTOCOL_ERROR,
+                                     "Bad window size in WINDOW_ADJUST.");
       return;
     }
       
@@ -1040,10 +1074,10 @@ void ssh_conn_process_channel_window_adjust(SshConn conn,
 /* Common part of processing for SSH_MSG_CHANNEL_DATA and EXTENDED_DATA. */
 
 void ssh_conn_process_channel_data_common(SshConn conn,
-					  long local_id,
-					  long type,
-					  const unsigned char *data,
-					  size_t len)
+                                          long local_id,
+                                          long type,
+                                          const unsigned char *data,
+                                          size_t len)
 {
   SshChannel channel;
   size_t offset, ws;
@@ -1055,8 +1089,8 @@ void ssh_conn_process_channel_data_common(SshConn conn,
       conn->channels[local_id]->eof_received)
     {
       ssh_cross_down_send_disconnect(conn->down, TRUE,
-				     SSH_DISCONNECT_PROTOCOL_ERROR,
-				     "Bad channel in received channel data.");
+                                     SSH_DISCONNECT_PROTOCOL_ERROR,
+                                     "Bad channel in received channel data.");
       return;
     }
 
@@ -1073,8 +1107,8 @@ void ssh_conn_process_channel_data_common(SshConn conn,
   if (channel->extended[type].stream == SSH_CONN_POSTPONE_STREAM)
     {
       ssh_cross_down_send_disconnect(conn->down, TRUE,
-				     SSH_DISCONNECT_PROTOCOL_ERROR,
-				     "Window overflow received channel data.");
+                                     SSH_DISCONNECT_PROTOCOL_ERROR,
+                                     "Window overflow received channel data.");
       return;
     }
 
@@ -1082,8 +1116,8 @@ void ssh_conn_process_channel_data_common(SshConn conn,
   if (len + channel->incoming_window_received > ws)
     {
       ssh_cross_down_send_disconnect(conn->down, TRUE,
-				     SSH_DISCONNECT_PROTOCOL_ERROR,
-				     "Window overflow received channel data.");
+                                     SSH_DISCONNECT_PROTOCOL_ERROR,
+                                     "Window overflow received channel data.");
       return;
     }
 
@@ -1102,7 +1136,7 @@ void ssh_conn_process_channel_data_common(SshConn conn,
     {
       memcpy(channel->extended[type].buf + offset, data, ws - offset);
       memcpy(channel->extended[type].buf, data + ws - offset,
-	     len - (ws - offset));
+             len - (ws - offset));
     }
   channel->extended[type].inbuf += len;
 
@@ -1118,8 +1152,8 @@ void ssh_conn_process_channel_data_common(SshConn conn,
 /* Process received channel data. */
 
 void ssh_conn_process_channel_data(SshConn conn,
-				   const unsigned char *data,
-				   size_t len)
+                                   const unsigned char *data,
+                                   size_t len)
 {
   long local_id;
   size_t bytes, p_len;
@@ -1127,14 +1161,14 @@ void ssh_conn_process_channel_data(SshConn conn,
 
   /* Parse the packet. */
   bytes = ssh_decode_array(data, len,
-			   SSH_FORMAT_UINT32, &local_id,
-			   SSH_FORMAT_UINT32_STR_NOCOPY, &p, &p_len,
-			   SSH_FORMAT_END);
+                           SSH_FORMAT_UINT32, &local_id,
+                           SSH_FORMAT_UINT32_STR_NOCOPY, &p, &p_len,
+                           SSH_FORMAT_END);
   if (bytes != len)
     {
       ssh_cross_down_send_disconnect(conn->down, TRUE,
-				     SSH_DISCONNECT_PROTOCOL_ERROR,
-				     "Extra data at end of CHANNEL_DATA.");
+                                     SSH_DISCONNECT_PROTOCOL_ERROR,
+                                     "Extra data at end of CHANNEL_DATA.");
       return;
     }
 
@@ -1145,8 +1179,8 @@ void ssh_conn_process_channel_data(SshConn conn,
 /* Process received CHANNEL_EXTENDED_DATA packet. */
 
 void ssh_conn_process_channel_extended_data(SshConn conn,
-					    const unsigned char *data,
-					    size_t len)
+                                            const unsigned char *data,
+                                            size_t len)
 {
   long local_id, data_type;
   size_t bytes, p_len;
@@ -1154,15 +1188,15 @@ void ssh_conn_process_channel_extended_data(SshConn conn,
 
   /* Parse the packet. */
   bytes = ssh_decode_array(data, len,
-			   SSH_FORMAT_UINT32, &local_id,
-			   SSH_FORMAT_UINT32, &data_type,
-			   SSH_FORMAT_UINT32_STR_NOCOPY, &p, &p_len,
-			   SSH_FORMAT_END);
+                           SSH_FORMAT_UINT32, &local_id,
+                           SSH_FORMAT_UINT32, &data_type,
+                           SSH_FORMAT_UINT32_STR_NOCOPY, &p, &p_len,
+                           SSH_FORMAT_END);
   if (bytes != len)
     {
       ssh_cross_down_send_disconnect(conn->down, TRUE,
-				     SSH_DISCONNECT_PROTOCOL_ERROR,
-				     "Extra data at end of CHANNEL_DATA.");
+                                     SSH_DISCONNECT_PROTOCOL_ERROR,
+                                     "Extra data at end of CHANNEL_DATA.");
       return;
     }
   
@@ -1173,7 +1207,7 @@ void ssh_conn_process_channel_extended_data(SshConn conn,
 /* Processes a CHANNEL_EOF message received for a channel. */
 
 void ssh_conn_process_channel_eof(SshConn conn,
-				  const unsigned char *data, size_t len)
+                                  const unsigned char *data, size_t len)
 {
   size_t bytes;
   SshChannel channel;
@@ -1181,13 +1215,13 @@ void ssh_conn_process_channel_eof(SshConn conn,
   int i;
 
   bytes = ssh_decode_array(data, len,
-			   SSH_FORMAT_UINT32, &local_id,
-			   SSH_FORMAT_END);
+                           SSH_FORMAT_UINT32, &local_id,
+                           SSH_FORMAT_END);
   if (bytes != len)
     {
       ssh_cross_down_send_disconnect(conn->down, TRUE,
-				     SSH_DISCONNECT_PROTOCOL_ERROR,
-				     "Extra data at end of CHANNEL_EOF.");
+                                     SSH_DISCONNECT_PROTOCOL_ERROR,
+                                     "Extra data at end of CHANNEL_EOF.");
       return;
     }
 
@@ -1197,8 +1231,8 @@ void ssh_conn_process_channel_eof(SshConn conn,
       conn->channels[local_id]->ephemeral)
     {
       ssh_cross_down_send_disconnect(conn->down, TRUE,
-				     SSH_DISCONNECT_PROTOCOL_ERROR,
-				     "Bad local id in received CHANNEL_EOF.");
+                                     SSH_DISCONNECT_PROTOCOL_ERROR,
+                                     "Bad local id in received CHANNEL_EOF.");
       return;
     }
 
@@ -1208,8 +1242,8 @@ void ssh_conn_process_channel_eof(SshConn conn,
   if (channel->extended[0].stream == SSH_CONN_POSTPONE_STREAM)
     {
       ssh_cross_down_send_disconnect(conn->down, TRUE,
-				     SSH_DISCONNECT_PROTOCOL_ERROR,
-				     "Postponed channel in CHANNEL_EOF.");
+                                     SSH_DISCONNECT_PROTOCOL_ERROR,
+                                     "Postponed channel in CHANNEL_EOF.");
       return;
     }
   
@@ -1217,8 +1251,8 @@ void ssh_conn_process_channel_eof(SshConn conn,
   if (channel->eof_received)
     {
       ssh_cross_down_send_disconnect(conn->down, TRUE,
-				     SSH_DISCONNECT_PROTOCOL_ERROR,
-				     "EOF already received in CHANNEL_EOF.");
+                                     SSH_DISCONNECT_PROTOCOL_ERROR,
+                                     "EOF already received in CHANNEL_EOF.");
       return;
     }
 
@@ -1229,8 +1263,8 @@ void ssh_conn_process_channel_eof(SshConn conn,
      that have data in buffer will send EOF once the buffer has drained). */
   for (i = 0; i <= channel->highest_type; i++)
     if (channel->extended[i].stream != NULL &&
-	channel->extended[i].inbuf == 0 &&
-	!channel->extended[i].write_only)
+        channel->extended[i].inbuf == 0 &&
+        !channel->extended[i].write_only)
       ssh_stream_output_eof(channel->extended[i].stream);
 }
 
@@ -1238,20 +1272,20 @@ void ssh_conn_process_channel_eof(SshConn conn,
    if it hasn't already been sent, and frees the channel. */
 
 void ssh_conn_process_channel_close(SshConn conn,
-				    const unsigned char *data, size_t len)
+                                    const unsigned char *data, size_t len)
 {
   size_t bytes;
   SshChannel channel;
   long local_id;
 
   bytes = ssh_decode_array(data, len,
-			   SSH_FORMAT_UINT32, &local_id,
-			   SSH_FORMAT_END);
+                           SSH_FORMAT_UINT32, &local_id,
+                           SSH_FORMAT_END);
   if (bytes != len)
     {
       ssh_cross_down_send_disconnect(conn->down, TRUE,
-				     SSH_DISCONNECT_PROTOCOL_ERROR,
-				     "Extra data at end of CHANNEL_CLOSE.");
+                                     SSH_DISCONNECT_PROTOCOL_ERROR,
+                                     "Extra data at end of CHANNEL_CLOSE.");
       return;
     }
 
@@ -1261,8 +1295,8 @@ void ssh_conn_process_channel_close(SshConn conn,
       conn->channels[local_id]->ephemeral)
     {
       ssh_cross_down_send_disconnect(conn->down, TRUE,
-				     SSH_DISCONNECT_PROTOCOL_ERROR,
-				     "Bad local id in CHANNEL_CLOSE.");
+                                     SSH_DISCONNECT_PROTOCOL_ERROR,
+                                     "Bad local id in CHANNEL_CLOSE.");
       return;
     }
 
@@ -1271,9 +1305,9 @@ void ssh_conn_process_channel_close(SshConn conn,
   /* Send back a channel close message unless we have already sent one. */
   if (!channel->close_sent)
     ssh_cross_down_send_encode(conn->down, SSH_CROSS_PACKET,
-			       SSH_FORMAT_CHAR, SSH_MSG_CHANNEL_CLOSE,
-			       SSH_FORMAT_UINT32, channel->remote_id,
-			       SSH_FORMAT_END);
+                               SSH_FORMAT_CHAR, SSH_MSG_CHANNEL_CLOSE,
+                               SSH_FORMAT_UINT32, channel->remote_id,
+                               SSH_FORMAT_END);
       
   /* Free the channel now. */
   ssh_conn_channel_free(conn, channel);
@@ -1283,7 +1317,7 @@ void ssh_conn_process_channel_close(SshConn conn,
 /* Processes a channel request message. */
 
 void ssh_conn_process_channel_request(SshConn conn,
-				      const unsigned char *data, size_t len)
+                                      const unsigned char *data, size_t len)
 {
   size_t bytes;
   char *type;
@@ -1294,15 +1328,15 @@ void ssh_conn_process_channel_request(SshConn conn,
 
   /* Parse the common part of the request message. */
   bytes = ssh_decode_array(data, len,
-			   SSH_FORMAT_UINT32, &local_id,
-			   SSH_FORMAT_UINT32_STR, &type, NULL,
-			   SSH_FORMAT_BOOLEAN, &want_reply,
-			   SSH_FORMAT_END);
+                           SSH_FORMAT_UINT32, &local_id,
+                           SSH_FORMAT_UINT32_STR, &type, NULL,
+                           SSH_FORMAT_BOOLEAN, &want_reply,
+                           SSH_FORMAT_END);
   if (bytes == 0)
     {
       ssh_cross_down_send_disconnect(conn->down, TRUE,
-				     SSH_DISCONNECT_PROTOCOL_ERROR,
-				     "Garbage at end of CHANNEL_REQUEST.");
+                                     SSH_DISCONNECT_PROTOCOL_ERROR,
+                                     "Garbage at end of CHANNEL_REQUEST.");
       return;
     }
 
@@ -1312,8 +1346,8 @@ void ssh_conn_process_channel_request(SshConn conn,
       conn->channels[local_id]->ephemeral)
     {
       ssh_cross_down_send_disconnect(conn->down, TRUE,
-				     SSH_DISCONNECT_PROTOCOL_ERROR,
-				     "Bad local id in CHANNEL_REQUEST.");
+                                     SSH_DISCONNECT_PROTOCOL_ERROR,
+                                     "Bad local id in CHANNEL_REQUEST.");
       return;
     }
 
@@ -1321,22 +1355,22 @@ void ssh_conn_process_channel_request(SshConn conn,
   
   if (channel->request)
     result = (*channel->request)(type, data + bytes, len - bytes,
-				 channel->callback_context);
+                                 channel->callback_context);
   else
     result = FALSE;
 
   if (want_reply)
     {
       if (result)
-	ssh_cross_down_send_encode(conn->down, SSH_CROSS_PACKET,
-				   SSH_FORMAT_CHAR, SSH_MSG_CHANNEL_SUCCESS,
-				   SSH_FORMAT_UINT32, channel->remote_id,
-				   SSH_FORMAT_END);
+        ssh_cross_down_send_encode(conn->down, SSH_CROSS_PACKET,
+                                   SSH_FORMAT_CHAR, SSH_MSG_CHANNEL_SUCCESS,
+                                   SSH_FORMAT_UINT32, channel->remote_id,
+                                   SSH_FORMAT_END);
       else
-	ssh_cross_down_send_encode(conn->down, SSH_CROSS_PACKET,
-				   SSH_FORMAT_CHAR, SSH_MSG_CHANNEL_FAILURE,
-				   SSH_FORMAT_UINT32, channel->remote_id,
-				   SSH_FORMAT_END);
+        ssh_cross_down_send_encode(conn->down, SSH_CROSS_PACKET,
+                                   SSH_FORMAT_CHAR, SSH_MSG_CHANNEL_FAILURE,
+                                   SSH_FORMAT_UINT32, channel->remote_id,
+                                   SSH_FORMAT_END);
     }
   ssh_xfree(type);
 }
@@ -1344,7 +1378,7 @@ void ssh_conn_process_channel_request(SshConn conn,
 /* Process a received reply to a channel request. */
 
 void ssh_conn_process_channel_reply(SshConn conn, unsigned int packet_type,
-				    const unsigned char *data, size_t len)
+                                    const unsigned char *data, size_t len)
 {
   long local_id;
   size_t bytes;
@@ -1352,8 +1386,8 @@ void ssh_conn_process_channel_reply(SshConn conn, unsigned int packet_type,
   SshConnSendChannelRequestCallback cb;
 
   bytes = ssh_decode_array(data, len,
-			   SSH_FORMAT_UINT32, &local_id,
-			   SSH_FORMAT_END);
+                           SSH_FORMAT_UINT32, &local_id,
+                           SSH_FORMAT_END);
 
   /* Check validity of the received channel number. */
   if (bytes == 0 || local_id < 0 || local_id > conn->highest_channel ||
@@ -1361,8 +1395,8 @@ void ssh_conn_process_channel_reply(SshConn conn, unsigned int packet_type,
       conn->channels[local_id]->ephemeral)
     {
       ssh_cross_down_send_disconnect(conn->down, TRUE,
-				     SSH_DISCONNECT_PROTOCOL_ERROR,
-				     "Bad local id in channel reply.");
+                                     SSH_DISCONNECT_PROTOCOL_ERROR,
+                                     "Bad local id in channel reply.");
       return;
     }
   
@@ -1375,9 +1409,9 @@ void ssh_conn_process_channel_reply(SshConn conn, unsigned int packet_type,
     {
       /* Unexpect channel reply. */
       ssh_cross_down_send_disconnect(conn->down, TRUE,
-				     SSH_DISCONNECT_PROTOCOL_ERROR,
-				     "Unexpected channel reply %d ch %d",
-				     (int)packet_type, (int)local_id);
+                                     SSH_DISCONNECT_PROTOCOL_ERROR,
+                                     "Unexpected channel reply %d ch %d",
+                                     (int)packet_type, (int)local_id);
       return;
     }
   
@@ -1395,7 +1429,7 @@ void ssh_conn_process_channel_reply(SshConn conn, unsigned int packet_type,
      `len'          remaining data len. */
 
 void ssh_conn_process_packet(SshConn conn, unsigned int packet_type,
-			     const unsigned char *data, size_t len)
+                             const unsigned char *data, size_t len)
 {
   switch (packet_type)
     {
@@ -1452,12 +1486,12 @@ void ssh_conn_process_packet(SshConn conn, unsigned int packet_type,
     default:
 #ifdef DEBUG
       ssh_debug("ssh_conn_process_packet: received unexpected packet %d",
-		(int)packet_type);
+                (int)packet_type);
 #endif
       ssh_cross_down_send_disconnect(conn->down, TRUE,
-				     SSH_DISCONNECT_PROTOCOL_ERROR,
-				     "Received unexpect packet %d",
-				     (int)packet_type);
+                                     SSH_DISCONNECT_PROTOCOL_ERROR,
+                                     "Received unexpect packet %d",
+                                     (int)packet_type);
       break;
     }
 }
@@ -1469,8 +1503,8 @@ void ssh_conn_process_packet(SshConn conn, unsigned int packet_type,
      `context'   context argument (points to SshConn structure) */
 
 void ssh_conn_received_packet(SshCrossPacketType type,
-			      const unsigned char *data, size_t len,
-			      void *context)
+                              const unsigned char *data, size_t len,
+                              void *context)
 {
   SshConn conn = (SshConn)context;
   Boolean locally_generated;
@@ -1483,36 +1517,36 @@ void ssh_conn_received_packet(SshCrossPacketType type,
     {
     case SSH_CROSS_PACKET:
       bytes = ssh_decode_array(data, len,
-			       SSH_FORMAT_CHAR, &packet_type,
-			       SSH_FORMAT_END);
+                               SSH_FORMAT_CHAR, &packet_type,
+                               SSH_FORMAT_END);
 
       if (bytes == 0)
-	{
-	  /* Note: the transport layer will echo the disconnect message
-	     back up, so we'll also receive this back. */
-	  ssh_cross_down_send_disconnect(conn->down, TRUE,
-					 SSH_DISCONNECT_PROTOCOL_ERROR,
-					 "Bad packet (bad type field).");
-	  return;
-	}
+        {
+          /* Note: the transport layer will echo the disconnect message
+             back up, so we'll also receive this back. */
+          ssh_cross_down_send_disconnect(conn->down, TRUE,
+                                         SSH_DISCONNECT_PROTOCOL_ERROR,
+                                         "Bad packet (bad type field).");
+          return;
+        }
 
       if (!conn->authenticated)
-	ssh_fatal("ssh_conn_received_packet: PACKET before authentication.");
+        ssh_fatal("ssh_conn_received_packet: PACKET before authentication.");
 
       ssh_conn_process_packet(conn, packet_type, data + bytes, len - bytes);
       break;
 
     case SSH_CROSS_DISCONNECT:
       if (ssh_decode_array(data, len,
-			   SSH_FORMAT_BOOLEAN, &locally_generated,
-			   SSH_FORMAT_UINT32, &reason_code,
-			   SSH_FORMAT_UINT32_STR, &msg, NULL,
-			   SSH_FORMAT_UINT32_STR, &lang, NULL,
-			   SSH_FORMAT_END) == 0)
-	ssh_fatal("ssh_conn_received_packet: bad DISCONNECT");
+                           SSH_FORMAT_BOOLEAN, &locally_generated,
+                           SSH_FORMAT_UINT32, &reason_code,
+                           SSH_FORMAT_UINT32_STR, &msg, NULL,
+                           SSH_FORMAT_UINT32_STR, &lang, NULL,
+                           SSH_FORMAT_END) == 0)
+        ssh_fatal("ssh_conn_received_packet: bad DISCONNECT");
 
       if (conn->disconnect)
-	(*conn->disconnect)((int)reason_code, msg, conn->context);
+        (*conn->disconnect)((int)reason_code, msg, conn->context);
 
       ssh_xfree(msg);
       ssh_xfree(lang);
@@ -1520,14 +1554,14 @@ void ssh_conn_received_packet(SshCrossPacketType type,
       
     case SSH_CROSS_DEBUG:
       if (ssh_decode_array(data, len,
-			   SSH_FORMAT_BOOLEAN, &debug_type,
-			   SSH_FORMAT_UINT32_STR, &msg, NULL,
-			   SSH_FORMAT_UINT32_STR, &lang, NULL,
-			   SSH_FORMAT_END) == 0)
-	ssh_fatal("ssh_conn_received_packet: bad DEBUG");
+                           SSH_FORMAT_BOOLEAN, &debug_type,
+                           SSH_FORMAT_UINT32_STR, &msg, NULL,
+                           SSH_FORMAT_UINT32_STR, &lang, NULL,
+                           SSH_FORMAT_END) == 0)
+        ssh_fatal("ssh_conn_received_packet: bad DEBUG");
 
       if (conn->debug)
-	(*conn->debug)((int)debug_type, msg, conn->context);
+        (*conn->debug)((int)debug_type, msg, conn->context);
 
       ssh_xfree(msg);
       ssh_xfree(lang);
@@ -1535,51 +1569,51 @@ void ssh_conn_received_packet(SshCrossPacketType type,
 
     case SSH_CROSS_SERVICE_REQUEST:
       if (ssh_decode_array(data, len,
-			   SSH_FORMAT_UINT32_STR, &service, NULL,
-			   SSH_FORMAT_END) == 0)
-	ssh_fatal("ssh_conn_received_packet: bad SERVICE_REQUEST");
+                           SSH_FORMAT_UINT32_STR, &service, NULL,
+                           SSH_FORMAT_END) == 0)
+        ssh_fatal("ssh_conn_received_packet: bad SERVICE_REQUEST");
 
       if (strcmp(service, SSH_CONNECTION_SERVICE) == 0)
-	{
-	  /* Accept the service. */
-	  ssh_cross_down_send(conn->down, SSH_CROSS_SERVICE_ACCEPT, NULL, 0);
-	}
+        {
+          /* Accept the service. */
+          ssh_cross_down_send(conn->down, SSH_CROSS_SERVICE_ACCEPT, NULL, 0);
+        }
       else
-	{
-	  /* Wrong service requested.  Send a disconnect.  Note that the
-	     transport layer will echo this back up. */
-	  ssh_cross_down_send_disconnect(conn->down, TRUE,
-					 SSH_DISCONNECT_SERVICE_NOT_AVAILABLE,
-					 "Service `%.100s' not available.",
-					 service);
-	}
+        {
+          /* Wrong service requested.  Send a disconnect.  Note that the
+             transport layer will echo this back up. */
+          ssh_cross_down_send_disconnect(conn->down, TRUE,
+                                         SSH_DISCONNECT_SERVICE_NOT_AVAILABLE,
+                                         "Service `%.100s' not available.",
+                                         service);
+        }
       ssh_xfree(service);
       break;
       
     case SSH_CROSS_AUTHENTICATED:
       /* Extract the service name from the packet. */
       if (ssh_decode_array(data, len,
-			   SSH_FORMAT_UINT32_STR, NULL, NULL,
-			   SSH_FORMAT_UINT32_STR, &service, NULL,
-			   SSH_FORMAT_END) == 0)
-	ssh_fatal("ssh_conn_received_packet: bad SSH_CROSS_AUTHENTICATED");
+                           SSH_FORMAT_UINT32_STR, NULL, NULL,
+                           SSH_FORMAT_UINT32_STR, &service, NULL,
+                           SSH_FORMAT_END) == 0)
+        ssh_fatal("ssh_conn_received_packet: bad SSH_CROSS_AUTHENTICATED");
 
       /* Connected to wrong service. */
       if (strcmp(service, conn->service_name) != 0)
-	{
-	  /* Wrong service requested.  Send a disconnect.  Note that the
-	     transport layer will echo this back up. */
-	  ssh_cross_down_send_disconnect(conn->down, TRUE,
-					 SSH_DISCONNECT_SERVICE_NOT_AVAILABLE,
-					 "Service '%.100s' not available.",
-					 service);
-	}
+        {
+          /* Wrong service requested.  Send a disconnect.  Note that the
+             transport layer will echo this back up. */
+          ssh_cross_down_send_disconnect(conn->down, TRUE,
+                                         SSH_DISCONNECT_SERVICE_NOT_AVAILABLE,
+                                         "Service '%.100s' not available.",
+                                         service);
+        }
       else
-	conn->authenticated = TRUE;
+        conn->authenticated = TRUE;
 
       /* Pass the packet to the special callback. */
       if (conn->special)
-	(*conn->special)(type, data, len, conn->context);
+        (*conn->special)(type, data, len, conn->context);
 
       ssh_xfree(service);
       break;
@@ -1592,7 +1626,7 @@ void ssh_conn_received_packet(SshCrossPacketType type,
     default:
       /* Pass the packet to the special callback. */
       if (conn->special)
-	(*conn->special)(type, data, len, conn->context);
+        (*conn->special)(type, data, len, conn->context);
       break;
     }
 }
@@ -1606,7 +1640,7 @@ void ssh_conn_received_eof(void *context)
   
   if (conn->disconnect)
     (*conn->disconnect)(SSH_DISCONNECT_CONNECTION_LOST,
-			"Connection closed.", conn->context);
+                        "Connection closed.", conn->context);
 }
 
 /* Called when ssh_cross_down_can_send has returned FALSE and sending
@@ -1628,23 +1662,23 @@ void ssh_conn_can_send(void *context)
    This will call the given request functions to process global requests,
    and the given open functions to process channel opens.
      `auth_stream'         the underlying lower-level stream
-     `service_name'	   service name to accept if SERVICE_REQUEST received
-     `requests'		   array of supported requests
-     `opens'		   array of supported channel types
-     `disconnect'	   called if disconnect msg or EOF received, or NULL
+     `service_name'        service name to accept if SERVICE_REQUEST received
+     `requests'            array of supported requests
+     `opens'               array of supported channel types
+     `disconnect'          called if disconnect msg or EOF received, or NULL
      `debug'               called if debug msg received, or NULL
-     `special'		   called when a special packet is received, or NULL
-     `context'		   argument to give to request/open functions.
+     `special'             called when a special packet is received, or NULL
+     `context'             argument to give to request/open functions.
    Any of the callbacks may be NULL to specify that it will be ignored. */
 
 SshConn ssh_conn_wrap(SshStream auth_stream,
-		      const char *service_name,
-		      SshConnGlobalRequest *requests,
-		      SshConnChannelOpen *opens,
-		      SshConnDisconnectProc disconnect,
-		      SshConnDebugProc debug,
-		      SshConnSpecialProc special,
-		      void *context)
+                      const char *service_name,
+                      SshConnGlobalRequest *requests,
+                      SshConnChannelOpen *opens,
+                      SshConnDisconnectProc disconnect,
+                      SshConnDebugProc debug,
+                      SshConnSpecialProc special,
+                      void *context)
 {
   SshConn conn;
   int i;
@@ -1658,10 +1692,10 @@ SshConn ssh_conn_wrap(SshStream auth_stream,
 
   /* Create a handler for the cross-layer protocol. */
   conn->down = ssh_cross_down_create(auth_stream,
-				     ssh_conn_received_packet,
-				     ssh_conn_received_eof,
-				     ssh_conn_can_send,
-				     (void *)conn);
+                                     ssh_conn_received_packet,
+                                     ssh_conn_received_eof,
+                                     ssh_conn_can_send,
+                                     (void *)conn);
 
   /* Initialize remaining fields. */
   conn->send_blocked = FALSE;
@@ -1761,17 +1795,17 @@ void ssh_conn_send_debug(SshConn conn, Boolean display, const char *fmt, ...)
    request completed successfully or not.
      `conn'      the connection protocol object
      `type'      request type
-     `data'	 type-specific request data, NULL if none
+     `data'      type-specific request data, NULL if none
      `len'       length of type-specific request data, 0 if none
      `completion' completion procedure to call when reply received, or NULL
      `context'   context to pass to completion procedure */
 
 void ssh_conn_send_global_request(SshConn conn,
-				  const char *type,
-				  const unsigned char *data,
-				  size_t len,
-				  SshConnSendGlobalRequestCallback completion,
-				  void *completion_context)
+                                  const char *type,
+                                  const unsigned char *data,
+                                  size_t len,
+                                  SshConnSendGlobalRequestCallback completion,
+                                  void *completion_context)
 {
   if (conn->global_request_send_callback != NULL)
     ssh_fatal("ssh_conn_send_global_request: previous request not yet completed");
@@ -1779,21 +1813,21 @@ void ssh_conn_send_global_request(SshConn conn,
   conn->global_request_send_context = completion_context;
 
   ssh_cross_down_send_encode(conn->down, SSH_CROSS_PACKET,
-			     SSH_FORMAT_CHAR, SSH_MSG_GLOBAL_REQUEST,
-			     SSH_FORMAT_UINT32_STR, type, strlen(type),
-			     SSH_FORMAT_BOOLEAN, (Boolean)(completion != NULL),
-			     SSH_FORMAT_DATA, data, len,
-			     SSH_FORMAT_END);
+                             SSH_FORMAT_CHAR, SSH_MSG_GLOBAL_REQUEST,
+                             SSH_FORMAT_UINT32_STR, type, strlen(type),
+                             SSH_FORMAT_BOOLEAN, (Boolean)(completion != NULL),
+                             SSH_FORMAT_DATA, data, len,
+                             SSH_FORMAT_END);
 }
 
 /* Sends a channel open request to the stream.
      `conn'        the connection protocol object
-     `type'	   channel type to open
+     `type'        channel type to open
      `data_stream' data stream for the channel
      `auto_close'  if TRUE, close ``data_stream'' when channel closed
      `window_size' maximum window size for the channel
      `max_packet_size' max size of data packet to send
-     `data'	   type-specific data for the request, NULL if none
+     `data'        type-specific data for the request, NULL if none
      `len'         length of type-specific data, 0 if none
      `request'     function to process channel requests, or NULL
      `destroy'     function to process channel destroy, or NULL
@@ -1802,19 +1836,19 @@ void ssh_conn_send_global_request(SshConn conn,
      `completion_context' context to pass to `completion' */
 
 void ssh_conn_send_channel_open(SshConn conn,
-				const char *type,
-				SshStream data_stream,
-				Boolean auto_close,
-				Boolean close_on_eof,
-				size_t window_size,
-				size_t max_packet_size,
-				const unsigned char *data,
-				size_t len,
-				SshConnChannelRequestProc request,
-				SshConnChannelDestroyProc destroy,
-				void *callback_context,
-				SshConnSendChannelOpenCallback completion,
-				void *completion_context)
+                                const char *type,
+                                SshStream data_stream,
+                                Boolean auto_close,
+                                Boolean close_on_eof,
+                                size_t window_size,
+                                size_t max_packet_size,
+                                const unsigned char *data,
+                                size_t len,
+                                SshConnChannelRequestProc request,
+                                SshConnChannelDestroyProc destroy,
+                                void *callback_context,
+                                SshConnSendChannelOpenCallback completion,
+                                void *completion_context)
 {
   SshChannel channel;
 
@@ -1826,7 +1860,7 @@ void ssh_conn_send_channel_open(SshConn conn,
     {
       ssh_debug("Channel allocation failed.");
       (*completion)(SSH_OPEN_RESOURCE_SHORTAGE, 0, NULL, 0,
-		    completion_context);
+                    completion_context);
     }
 
   /* Initialize channel data structures. */
@@ -1846,14 +1880,14 @@ void ssh_conn_send_channel_open(SshConn conn,
   
   /* Send an open request to the other side. */
   ssh_cross_down_send_encode(conn->down, SSH_CROSS_PACKET,
-			     SSH_FORMAT_CHAR, SSH_MSG_CHANNEL_OPEN,
-			     SSH_FORMAT_UINT32_STR, type, strlen(type),
-			     SSH_FORMAT_UINT32, (long)channel->local_id,
-			     SSH_FORMAT_UINT32, (long)window_size,
-			     SSH_FORMAT_UINT32,
-			       (long)channel->max_outgoing_packet_size,
-			     SSH_FORMAT_DATA, data, len,
-			     SSH_FORMAT_END);
+                             SSH_FORMAT_CHAR, SSH_MSG_CHANNEL_OPEN,
+                             SSH_FORMAT_UINT32_STR, type, strlen(type),
+                             SSH_FORMAT_UINT32, (long)channel->local_id,
+                             SSH_FORMAT_UINT32, (long)window_size,
+                             SSH_FORMAT_UINT32,
+                               (long)channel->max_outgoing_packet_size,
+                             SSH_FORMAT_DATA, data, len,
+                             SSH_FORMAT_END);
 }
 
 /* Sends a channel request to the stream.  ``data'' is type-specific part
@@ -1870,12 +1904,12 @@ void ssh_conn_send_channel_open(SshConn conn,
      `context'     context to pass to ``cb''. */
 
 void ssh_conn_send_channel_request(SshConn conn,
-				   int channel_id,
-				   const char *type,
-				   const unsigned char *data,
-				   size_t len,
-				   SshConnSendChannelRequestCallback cb,
-				   void *context)
+                                   int channel_id,
+                                   const char *type,
+                                   const unsigned char *data,
+                                   size_t len,
+                                   SshConnSendChannelRequestCallback cb,
+                                   void *context)
 {
   SshChannel channel;
   Boolean want_reply;
@@ -1886,7 +1920,7 @@ void ssh_conn_send_channel_request(SshConn conn,
       conn->channels[channel_id]->ephemeral ||
       conn->channels[channel_id]->close_sent)
     ssh_fatal("ssh_conn_send_channel_request: bad channel_id %d.",
-	      (int)channel_id);
+              (int)channel_id);
 
   /* Save the callback. */
   channel = conn->channels[channel_id];
@@ -1898,12 +1932,12 @@ void ssh_conn_send_channel_request(SshConn conn,
   
   /* Send the request packet. */
   ssh_cross_down_send_encode(conn->down, SSH_CROSS_PACKET,
-			     SSH_FORMAT_CHAR, SSH_MSG_CHANNEL_REQUEST,
-			     SSH_FORMAT_UINT32, channel->remote_id,
-			     SSH_FORMAT_UINT32_STR, type, strlen(type),
-			     SSH_FORMAT_BOOLEAN, want_reply,
-			     SSH_FORMAT_DATA, data, len,
-			     SSH_FORMAT_END);
+                             SSH_FORMAT_CHAR, SSH_MSG_CHANNEL_REQUEST,
+                             SSH_FORMAT_UINT32, channel->remote_id,
+                             SSH_FORMAT_UINT32_STR, type, strlen(type),
+                             SSH_FORMAT_BOOLEAN, want_reply,
+                             SSH_FORMAT_DATA, data, len,
+                             SSH_FORMAT_END);
 }
 
 /* Registers a separate stream for extended data of the specified type.
@@ -1919,11 +1953,11 @@ void ssh_conn_send_channel_request(SshConn conn,
    is sent as extended data of the given type. */
 
 void ssh_conn_channel_register_extended(SshConn conn,
-					int channel_id,
-					int extended_type,
-					SshStream stream,
-					Boolean write_only,
-					Boolean auto_close)
+                                        int channel_id,
+                                        int extended_type,
+                                        SshStream stream,
+                                        Boolean write_only,
+                                        Boolean auto_close)
 {
   SshChannel channel;
   
@@ -1932,7 +1966,7 @@ void ssh_conn_channel_register_extended(SshConn conn,
       conn->channels[channel_id] == NULL ||
       conn->channels[channel_id]->close_sent)
     ssh_fatal("ssh_conn_channel_register_extended: bad channel_id %d.",
-	      channel_id);
+              channel_id);
 
   /* Save the callback. */
   channel = conn->channels[channel_id];
@@ -1940,7 +1974,7 @@ void ssh_conn_channel_register_extended(SshConn conn,
   /* Check that the extended type value is sensible. */
   if (extended_type < 0 || extended_type >= MAX_EXTENDED_TYPES)
     ssh_fatal("ssh_conn_channel_register_extended: bad extended type %d",
-	      (int)extended_type);
+              (int)extended_type);
 
   /* Currently we do not allow changing an existing stream. */
   if (channel->extended[extended_type].stream != NULL &&
@@ -1965,7 +1999,7 @@ void ssh_conn_channel_register_extended(SshConn conn,
   /* Set stream callback for the stream. */
   if (!channel->ephemeral)
     ssh_stream_set_callback(stream, ssh_conn_channel_callback,
-			    (void *)channel);
+                            (void *)channel);
 }
 
 /* Registers a callback that is to be called when EOF is received from the
@@ -1977,9 +2011,9 @@ void ssh_conn_channel_register_extended(SshConn conn,
      `context'        argument to pass to ``callback''. */
 
 void ssh_conn_channel_register_eof_callback(SshConn conn,
-					    int channel_id,
-					    void (*callback)(void *context),
-					    void *context)
+                                            int channel_id,
+                                            void (*callback)(void *context),
+                                            void *context)
 {
   SshChannel channel;
   
@@ -1988,7 +2022,7 @@ void ssh_conn_channel_register_eof_callback(SshConn conn,
       conn->channels[channel_id] == NULL ||
       conn->channels[channel_id]->close_sent)
     ssh_fatal("ssh_conn_channel_register_eof_callback: bad channel_id %d.",
-	      channel_id);
+              channel_id);
 
   /* Save the callback. */
   channel = conn->channels[channel_id];
@@ -2013,7 +2047,7 @@ void ssh_conn_channel_close(SshConn conn, int channel_id)
       conn->channels[channel_id]->ephemeral ||
       conn->channels[channel_id]->close_sent)
     ssh_fatal("ssh_conn_channel_close: bad channel_id %d.",
-	      channel_id);
+              channel_id);
 
   /* Save the callback. */
   channel = conn->channels[channel_id];
@@ -2022,9 +2056,9 @@ void ssh_conn_channel_close(SshConn conn, int channel_id)
      The channel will be freed when we receive a reply from the other
      side. */
   ssh_cross_down_send_encode(conn->down, SSH_CROSS_PACKET,
-			     SSH_FORMAT_CHAR, SSH_MSG_CHANNEL_CLOSE,
-			     SSH_FORMAT_UINT32, channel->remote_id,
-			     SSH_FORMAT_END);
+                             SSH_FORMAT_CHAR, SSH_MSG_CHANNEL_CLOSE,
+                             SSH_FORMAT_UINT32, channel->remote_id,
+                             SSH_FORMAT_END);
   channel->close_sent = TRUE;
 }
 
@@ -2033,7 +2067,7 @@ void ssh_conn_channel_close(SshConn conn, int channel_id)
    ssh_cross_down_send_encode.
      `conn'        the connection protocol object
      `type'        cross-layer packet type to send
-     `...'	   varialble length SSH_FORMAT_* list. */
+     `...'         varialble length SSH_FORMAT_* list. */
 
 void ssh_conn_send_encode(SshConn conn, SshCrossPacketType type, ...)
 {
@@ -2044,6 +2078,6 @@ void ssh_conn_send_encode(SshConn conn, SshCrossPacketType type, ...)
   va_end(va);
 }
 
-/* XXX change all disconnects to go trough ssh_conn_send_disconnect. */
+/* XXX change all disconnects to go through ssh_conn_send_disconnect. */
 /* XXX grouping data from several reads together. */
 /* XXX there is a probable memory leak (at least with t-conn).  FIX! */

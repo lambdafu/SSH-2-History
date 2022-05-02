@@ -90,11 +90,13 @@ SUFFIXES = .S .s
 CLEANFILES = tmp-*.s
 
 LDADD = libsshcrypt.a \
-../sshutil/libsshutil.a ../sshmath/libsshmath.a
+	../sshutil/libsshutil.a ../sshmath/libsshmath.a
+
 INCLUDES = -I../.. -I. -I$(srcdir) \
 	-I$(top_builddir) -I$(top_srcdir) \
 	-I../sshutil -I$(srcdir)/../sshutil \
-	-I../sshmath -I$(srcdir)/../sshmath -I../zlib -I$(srcdir)/../zlib \
+	-I../sshmath -I$(srcdir)/../sshmath \
+	-I../zlib -I$(srcdir)/../zlib \
 	-I../sshscard -I$(srcdir)/../sshscard \
 	-I../trq -I$(srcdir)/../trq
 

@@ -27,12 +27,12 @@ Public interface to SSH2 session channels.
 /* This function is called whenever an open request is received for a
    session channel. */
 void ssh_channel_session_open(const char *type,
-			      int channel_id,
-			      const unsigned char *data,
-			      size_t len,
-			      SshConnOpenCompletionProc completion,
-			      void *completion_context,
-			      void *context);
+                              int channel_id,
+                              const unsigned char *data,
+                              size_t len,
+                              SshConnOpenCompletionProc completion,
+                              void *completion_context,
+                              void *context);
 
 /* Starts a new command at the remote end.
      `common'       the common protocol object
@@ -56,14 +56,14 @@ void ssh_channel_session_open(const char *type,
    the cannnel fails.  It is legal to call ssh_conn_destroy from
    ``close_notify'', unless it has already been called. */
 void ssh_channel_start_session(SshCommon common, SshStream stdio_stream,
-			       SshStream stderr_stream, Boolean auto_close,
-			       Boolean is_subsystem, const char *command,
-			       Boolean allocate_pty, const char *term,
-			       const char **env,
-			       Boolean forward_x11, Boolean forward_agent,
-			       void (*completion)(Boolean success,
-						  void *context),
-			       void (*close_notify)(void *context),
-			       void *context);
+                               SshStream stderr_stream, Boolean auto_close,
+                               Boolean is_subsystem, const char *command,
+                               Boolean allocate_pty, const char *term,
+                               const char **env,
+                               Boolean forward_x11, Boolean forward_agent,
+                               void (*completion)(Boolean success,
+                                                  void *context),
+                               void (*close_notify)(void *context),
+                               void *context);
 
 #endif /* SSHCHSESSION_H */

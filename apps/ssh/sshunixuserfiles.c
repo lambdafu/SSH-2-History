@@ -43,24 +43,19 @@ char *ssh_userdir(SshUser user, SshConfig config, Boolean create_if_needed)
 
   /* create the .ssh2 directory name */
 
-  if (ssh_user_uid(user) == 0)
-    {
-      sshdir = ssh_xstrdup(SSH_SERVER_DIR);
-    }
-  else
-    {
-      sshdir = ssh_user_conf_dir(config, user);
-    } 
+  sshdir = ssh_user_conf_dir(config, user);
 
   if (stat(sshdir, &st) < 0)
     {
       if (create_if_needed)
         {
           if (mkdir(sshdir, 0755) < 0)
-            ssh_debug("ssh_userdir: could not create user's ssh" 
+            {
+              ssh_debug("ssh_userdir: could not create user's ssh" 
                         "directory %s", sshdir);
-          ssh_xfree(sshdir);
-          return NULL;
+              ssh_xfree(sshdir);
+              return NULL;
+            }  
         }
       else
         {

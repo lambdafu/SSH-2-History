@@ -20,6 +20,7 @@
 
 #include "sshuser.h"
 #include "sshcrypt.h"
+#include "sshdllist.h"
 
 #define SUBSYSTEM_PREFIX "subsystem-"
 #define SUBSYSTEM_PREFIX_LEN 10
@@ -96,6 +97,12 @@ struct SshConfigRec
   char *login_as_user;
   SshForward local_forwards;
   SshForward remote_forwards;
+
+  SshDlList allowed_hosts;
+  SshDlList denied_hosts;
+  Boolean require_reverse_mapping;
+
+  SshLogFacility log_facility;
   
   Boolean fall_back_to_rsh;
   Boolean use_rsh;
@@ -185,6 +192,11 @@ Boolean ssh_config_set_parameter(SshConfig config, char *var, char *val);
 
 /* Parse a line of input. Return TRUE if an error occurs. */
 Boolean ssh_config_parse_line(SshConfig config, char *line);
+
+/* Parses a given comma-separated list to tokens, which are stored in
+   a SshDlList. The list is allocated and returned by this
+   function. On error, returns NULL. */
+SshDlList ssh_config_parse_list(char *string);
 
 /* separate (commandline)options from their parameters */
 void ssh_split_arguments(int argc, char **argv, int *dest_ac, char ***dest_av);

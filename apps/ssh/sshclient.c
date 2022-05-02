@@ -132,7 +132,7 @@ void ssh_client_key_check(const char *server_name,
   
   blob2 = NULL;
 
-  magic = ssh_key_blob_read(client->user_data, filen, NULL,
+  magic = ssh2_key_blob_read(client->user_data, filen, NULL,
                             &blob2, &blob2_len, NULL);
 
   switch(magic)
@@ -146,7 +146,7 @@ void ssh_client_key_check(const char *server_name,
                server_name, ssh_user_name(client->user_data), ctime(&now));
       comment[strlen(comment)-1] = '\0';
 
-      if (ssh_key_blob_write(client->user_data, filen, 0600,
+      if (ssh2_key_blob_write(client->user_data, filen, 0600,
                              SSH_KEY_MAGIC_PUBLIC,
                              comment, blob, len, NULL))
         ssh_warning("Unable to write host key %s", filen);
@@ -259,6 +259,7 @@ void ssh_client_version_check(const char *version, void *context)
       close(client->config->ssh1_fd);
 
       /* Prepare arguments for the ssh1 client. */
+      /* XXX this is bull */
       arg = 0;
       args[arg++] = "ssh";
       for (i = 1; client->config->ssh1_args[i]; i++)

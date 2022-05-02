@@ -980,13 +980,11 @@ unsigned int ssh_dlp_action_param_get(void *context, va_list *ap,
   return 1;
 }
 
-#ifdef SSHDIST_CRYPT_DSA
 void ssh_dlp_dsa_nist(void *context)
 {
   SshDLPInitCtx *ctx = context;
   ctx->flag |= DLP_FLAG_DSA;
 }
-#endif /* SSHDIST_CRYPT_DSA */
 
 void *ssh_dlp_action_make(void *context, int type)
 {
@@ -1176,7 +1174,6 @@ void mprint(const char *str, MP_INT *n)
 }
 #endif
 
-#ifdef SSHDIST_CRYPT_DSA
 
 
 /* DSA - Digital Signature Algorithm */
@@ -1433,11 +1430,9 @@ retry0:
   return TRUE;
 }
 
-#endif /* SSHDIST_CRYPT_DSA */
 
 /************************ Key exchange **************************/
 
-#ifdef SSHDIST_CRYPT_DH
 
 void *ssh_dlp_mp_out(MP_INT *k)
 {
@@ -1901,4 +1896,3 @@ Boolean ssh_dlp_kex_dh_elgamal_phase4(unsigned char *input_packet,
                             
      
 #endif
-#endif /* SSHDIST_CRYPT_DH */

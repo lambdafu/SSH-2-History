@@ -15,12 +15,14 @@ failure (they call fatal if they encounter an error).
 */
 
 /*
- * $Id: sshmalloc.c,v 1.4 1998/08/23 06:30:11 ylo Exp $
+ * $Id: sshmalloc.c,v 1.7 1999/01/18 11:07:53 sjl Exp $
  * $Log: sshmalloc.c,v $
  * $EndLog$
  */
 
 #include "sshincludes.h"
+
+#define SSH_DEBUG_MODULE "SshMalloc"
 
 #undef malloc
 #undef calloc
@@ -33,11 +35,11 @@ void *ssh_xmalloc(unsigned long size)
 
   if (size > XMALLOC_MAX_SIZE)
     ssh_fatal("ssh_xmalloc: allocation too large (allocating %ld bytes)",
-	      size);
+              size);
 
   if (size == 0)
     size = 1;
-  ptr = malloc((size_t) size);
+  ptr = (void *)malloc((size_t) size);
   if (ptr == NULL)
     ssh_fatal("ssh_xmalloc: out of memory (allocating %ld bytes)", size);
   return ptr;
@@ -54,13 +56,13 @@ void *ssh_xcalloc(unsigned long nitems, unsigned long size)
 
   if (size * nitems > XMALLOC_MAX_SIZE)
     ssh_fatal("ssh_xcalloc: allocation too large (allocating %ld*%ld bytes)",
-	  size, nitems);
+          size, nitems);
   
-  ptr = calloc((size_t) nitems, (size_t) size);
+  ptr = (void *)calloc((size_t) nitems, (size_t) size);
   
   if (ptr == NULL)
     ssh_fatal("ssh_xcalloc: out of memory (allocating %ld*%ld bytes)",
-	  nitems, size);
+          nitems, size);
   return ptr;
 }
 
@@ -73,14 +75,14 @@ void *ssh_xrealloc(void *ptr, unsigned long new_size)
 
   if (new_size > XMALLOC_MAX_SIZE)
     ssh_fatal("ssh_xrealloc: allocation too large (allocating %ld bytes)",
-	      (long)new_size);
+              (long)new_size);
   
   if (new_size == 0)
     new_size = 1;
-  new_ptr = realloc(ptr, (size_t) new_size);
+  new_ptr = (void *)realloc(ptr, (size_t) new_size);
   if (new_ptr == NULL)
     ssh_fatal("ssh_xrealloc: out of memory (new_size %ld bytes)",
-	      (long)new_size);
+              (long)new_size);
   return new_ptr;
 }
 
@@ -95,7 +97,7 @@ void *ssh_xstrdup(const void *p)
   const char *str;
   char *cp;
 
-  assert(p != NULL);
+  SSH_ASSERT(p != NULL);
   str = (const char *)p;
   cp = ssh_xmalloc(strlen(str) + 1);
   strcpy(cp, str);

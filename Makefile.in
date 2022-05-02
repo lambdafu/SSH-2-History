@@ -88,6 +88,7 @@ LN_S = @LN_S@
 M4 = @M4@
 MAKEINFO = @MAKEINFO@
 MATH_CONF_OBJS = @MATH_CONF_OBJS@
+NM_PATH = @NM_PATH@
 RANLIB = @RANLIB@
 SSH1_PATH = @SSH1_PATH@
 SSHSESSION_CONFOBJS = @SSHSESSION_CONFOBJS@
@@ -106,9 +107,9 @@ ACLOCAL_M4 = $(top_srcdir)/aclocal.m4
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = sshconf.h
 CONFIG_CLEAN_FILES = 
-DIST_COMMON =  README Makefile.am Makefile.in acconfig.h acinclude.m4 \
-aclocal.m4 config.guess config.sub configure configure.in install-sh \
-missing mkinstalldirs sshconf.h.in stamp-h.in
+DIST_COMMON =  README INSTALL Makefile.am Makefile.in acconfig.h \
+acinclude.m4 aclocal.m4 config.guess config.sub configure configure.in \
+install-sh missing mkinstalldirs sshconf.h.in stamp-h.in
 
 
 DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
@@ -384,6 +385,9 @@ dist-ssh-noncommercial:
 
 dist-ssh-internal:
 	$(MAKE) make-dist dist=ssh-internal
+
+dist-ssh-aa:
+	$(MAKE) make-dist dist=ssh-aa
 
 dist-ipsec-100:
 	$(MAKE) make-dist dist=ipsec

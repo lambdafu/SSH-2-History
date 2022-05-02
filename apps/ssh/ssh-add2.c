@@ -16,7 +16,7 @@ Adds an identity to the authentication server, or removes an identity.
 */
 
 /*
- * $Id: ssh-add2.c,v 1.14 1998/11/15 13:33:43 tri Exp $
+ * $Id: ssh-add2.c,v 1.18 1999/01/20 12:30:44 tri Exp $
  * $Log: ssh-add2.c,v $
  * $EndLog$
  */
@@ -32,6 +32,11 @@ Adds an identity to the authentication server, or removes an identity.
 #include "sshgetopt.h"
 
 #define SSH_DEBUG_MODULE "SshAdd"
+
+#ifdef HAVE_LIBWRAP
+int allow_severity = SSH_LOG_INFORMATIONAL;
+int deny_severity = SSH_LOG_WARNING;
+#endif /* HAVE_LIBWRAP */
 
 #define EXIT_STATUS_OK          0
 #define EXIT_STATUS_NOAGENT     1
@@ -140,7 +145,7 @@ void add_file(SshAgent agent, const char *filename)
     }
   
   /* Read the public key blob. */
-  magic = ssh_key_blob_read(user, pubname, &saved_comment, &certs, &certs_len,
+  magic = ssh2_key_blob_read(user, pubname, &saved_comment, &certs, &certs_len,
                             NULL);
   if (magic != SSH_KEY_MAGIC_PUBLIC)
     {
@@ -342,7 +347,7 @@ void agent_open_callback(SshAgent agent, void *context)
 {
   char buf[1024];
   FILE *f;
-  char *password;
+  char *password, *password_vrfy;
 
   if (!agent)
     {
@@ -384,6 +389,18 @@ void agent_open_callback(SshAgent agent, void *context)
           password = ssh_read_passphrase("Enter lock password: ", use_stdin);
           if (password == NULL)
             {
+              fprintf(stderr, "Unable to read password.\n");
+                exit(EXIT_STATUS_BADPASS);
+            }
+          password_vrfy = ssh_read_passphrase("Again: ", use_stdin);
+          if (password_vrfy == NULL)
+            {
+              fprintf(stderr, "Unable to read password.\n");
+              exit(EXIT_STATUS_BADPASS);
+            }
+          if (strcmp(password, password_vrfy) != 0)
+            {
+              fprintf(stderr, "Passwords don't match.\n");
               exit(EXIT_STATUS_BADPASS);
             }
         }
@@ -433,7 +450,7 @@ void agent_open_callback(SshAgent agent, void *context)
 void usage(void);
 void usage()
 {
-  fprintf(stderr, "Usage: ssh-add [-l] [-d] [-p] [-t key_exp] [-f hop_limit] [-1] [files...]\n");
+  fprintf(stderr, "Usage: ssh-add [-l] [-d] [-D] [-p] [-t key_exp] [-f hop_limit] [-1] [files...]\n");
 }
 
 /* This is the main program for the agent. */
@@ -441,7 +458,7 @@ void usage()
 int main(int ac, char **av)
 {
   int opt, i, len;
-  DIR *ssh2dir;
+  DIR *ssh2dir = NULL;
   char *ssh2dirname;
   Boolean dynamic_array = FALSE;
   struct dirent * cand;
@@ -453,7 +470,7 @@ int main(int ac, char **av)
     {
       if (!ssh_optval)
         {
-          fprintf(stderr, "Usage: ssh-add [-l] [-d] [-u] [-p] [files...]\n");
+          usage();
           exit(EXIT_STATUS_ERROR);
         }
       switch (opt)
@@ -538,6 +555,10 @@ int main(int ac, char **av)
       snprintf(ssh2dirname, len, "%s/%s", ssh_user_dir(user), SSH_USER_DIR);
       
       ssh2dir = opendir(ssh2dirname);
+
+      if (!ssh2dir)
+          ssh_fatal("Could not open directory \"%s\".", ssh2dirname);
+          
       while ((cand = readdir(ssh2dir)) != NULL)
         {
           if (strlen(cand->d_name) >= strlen(ID_PREFIX) &&

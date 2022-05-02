@@ -87,6 +87,7 @@ LN_S = @LN_S@
 M4 = @M4@
 MAKEINFO = @MAKEINFO@
 MATH_CONF_OBJS = @MATH_CONF_OBJS@
+NM_PATH = @NM_PATH@
 PACKAGE = @PACKAGE@
 RANLIB = @RANLIB@
 SSH1_PATH = @SSH1_PATH@
@@ -139,6 +140,8 @@ libsshutil_a_SOURCES = \
 	filelock.c		\
 	sshfileio.c		\
 	sshtimemeasure.c	\
+	sshdllist.c		\
+	mapping.c		\
 	sshpacketwrapper.c	\
 	sshpacketstream.c	\
 	sshpacketimpl.c		\
@@ -181,6 +184,8 @@ include_HEADERS = \
 	filelock.h		\
 	sshfileio.h		\
 	sshtimemeasure.h	\
+	sshdllist.h		\
+	mapping.h		\
 	sshpacketstream.h	\
 	sshmalloc.h
 
@@ -188,7 +193,8 @@ noinst_HEADERS = sshpacketint.h sshfilexferi.h
 
 EXTRA_DIST = \
 	memmove.c memset.c putenv.c random.c remove.c snprintf.c   \
-	strcasecmp.c strerror.c strncasecmp.c crypt.c getopt.c
+	strcasecmp.c strerror.c strncasecmp.c crypt.c getopt.c \
+	inet_ntoa.c
 
 INCLUDES = -I. -I$(srcdir) -I.. -I$(srcdir)/..	\
 	-I$(top_builddir) -I$(top_srcdir) 	\
@@ -216,16 +222,16 @@ sshenum.o sshencode.o sshsocks.o sshunixlocalstream.o sshstreampair.o \
 sshfilterstream.o base64.o sshutf8.o sshfilexfer.o sshfilexferc.o \
 sshfilexfers.o sshfilexferi.o sshunixrealpath.o sshurl.o sshgetopt.o \
 sshinet.o cstack.o vlint32.o crc32.o filelock.o sshfileio.o \
-sshtimemeasure.o sshpacketwrapper.o sshpacketstream.o sshpacketimpl.o \
-sshmalloc.o
+sshtimemeasure.o sshdllist.o mapping.o sshpacketwrapper.o \
+sshpacketstream.o sshpacketimpl.o sshmalloc.o
 CFLAGS = @CFLAGS@
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS)
 LINK = $(CC) $(CFLAGS) $(LDFLAGS) -o $@
 HEADERS =  $(include_HEADERS) $(noinst_HEADERS)
 
-DIST_COMMON =  Makefile.am Makefile.in crypt.c getopt.c memmove.c \
-memset.c putenv.c random.c remove.c snprintf.c strcasecmp.c strerror.c \
-strncasecmp.c
+DIST_COMMON =  Makefile.am Makefile.in crypt.c getopt.c inet_ntoa.c \
+memmove.c memset.c putenv.c random.c remove.c snprintf.c strcasecmp.c \
+strerror.c strncasecmp.c
 
 
 DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)

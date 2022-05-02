@@ -11,7 +11,7 @@ Interface to sockets.
 */
 
 /*
- * $Id: sshtcp.c,v 1.7 1998/07/10 17:50:39 tri Exp $
+ * $Id: sshtcp.c,v 1.8 1999/01/26 15:32:36 sjl Exp $
  * $Log: sshtcp.c,v $
  * $EndLog$
  */
@@ -36,13 +36,13 @@ typedef enum
 /* A context used to track SOCKS server connection status. */
 
 typedef struct {
-  ConnectState state;			/* Status of the connect operation. */
+  ConnectState state;                   /* Status of the connect operation. */
   
   /* Information about the target host. */
-  char *host_name;			/* host to connect to. */
-  char *host_addresses;			/* addresses for the host to connect */
-  const char *next_address;		/* next address to try */
-  unsigned int host_port;		/* port to connect on the host */
+  char *host_name;                      /* host to connect to. */
+  char *host_addresses;                 /* addresses for the host to connect */
+  const char *next_address;             /* next address to try */
+  unsigned int host_port;               /* port to connect on the host */
 
   /* User callback. */
   SshTcpCallback user_callback;
@@ -53,13 +53,13 @@ typedef struct {
   unsigned int attempts_done;
 
   /* Information about the socks server. */
-  char *socks_host;			/* socks server host */
-  char *socks_exceptions;      		/* exceptions when to use socks */
-  unsigned char *socks_addresses;	/* socks server addresses */
-  const char *socks_next_address;	/* next address to try */
-  unsigned int socks_port;		/* socks port */
-  char *user_name;			/* user requesting connection */
-  SshBuffer *socks_buf;			/* Socks buffer */
+  char *socks_host;                     /* socks server host */
+  char *socks_exceptions;               /* exceptions when to use socks */
+  unsigned char *socks_addresses;       /* socks server addresses */
+  const char *socks_next_address;       /* next address to try */
+  unsigned int socks_port;              /* socks port */
+  char *user_name;                      /* user requesting connection */
+  SshBuffer *socks_buf;                 /* Socks buffer */
 
   /* An open stream to either the socks server or the final destination. */
   SshStream stream;
@@ -70,7 +70,7 @@ typedef struct {
    The address to use is the first address from the list.  This
    function is defined in the machine-specific file. */
 void ssh_socket_low_connect(const char *address_list, unsigned int port,
-			    SshTcpCallback callback, void *context);
+                            SshTcpCallback callback, void *context);
 
 /* Forward declaration; defined later in this file. */
 void ssh_socket_connect_step(ConnectContext);
@@ -97,11 +97,11 @@ void ssh_socket_connect_step(ConnectContext);
    connections without apparent reason, and retrying usually succeeds in
    those cases). */
 void ssh_tcp_connect_with_socks(const char *host_name_or_address,
-				const char *port_or_service,
-				const char *socks_server_url,
-				unsigned int connection_attempts,
-				SshTcpCallback callback,
-				void *context)
+                                const char *port_or_service,
+                                const char *socks_server_url,
+                                unsigned int connection_attempts,
+                                SshTcpCallback callback,
+                                void *context)
 {
   ConnectContext c;
   c = ssh_xmalloc(sizeof(*c));
@@ -128,25 +128,25 @@ void ssh_tcp_connect_with_socks(const char *host_name_or_address,
       char *scheme, *port;
 
       ssh_url_parse_and_decode(socks_server_url, &scheme,
-			       &(c->socks_host), &port,
-			       &(c->user_name), NULL, &(c->socks_exceptions));
+                               &(c->socks_host), &port,
+                               &(c->user_name), NULL, &(c->socks_exceptions));
       
       if (scheme != NULL && strcmp(scheme, "socks") != 0)
-	ssh_warning("Socks server scheme not socks");
+        ssh_warning("Socks server scheme not socks");
       if (scheme != NULL)
-	ssh_xfree(scheme);
+        ssh_xfree(scheme);
 
       if (c->socks_host != NULL)
-	{
-	  c->socks_buf = ssh_buffer_allocate();
-	  c->socks_addresses = NULL;
-	  if (port == NULL || strcmp(port, ""))
-	    c->socks_port = 1080; /* The standard socks port. */
-	  else
-	    c->socks_port = ssh_tcp_get_port_by_service(port, "tcp");
-	}
+        {
+          c->socks_buf = ssh_buffer_allocate();
+          c->socks_addresses = NULL;
+          if (port == NULL || strcmp(port, "") == 0)
+            c->socks_port = 1080; /* The standard socks port. */
+          else
+            c->socks_port = ssh_tcp_get_port_by_service(port, "tcp");
+        }
       if (port != NULL)
-	ssh_xfree(port);
+        ssh_xfree(port);
     }
   else
     c->socks_host = NULL;
@@ -163,12 +163,12 @@ void ssh_tcp_connect_with_socks(const char *host_name_or_address,
    reason for the connection failing, and the stream will be NULL. */
 
 void ssh_tcp_connect(const char *host_name_or_address,
-		     const char *port_or_service,
-		     SshTcpCallback callback,
-		     void *context)
+                     const char *port_or_service,
+                     SshTcpCallback callback,
+                     void *context)
 {
   ssh_tcp_connect_with_socks(host_name_or_address, port_or_service,
-			     NULL, 1, callback, context);
+                             NULL, 1, callback, context);
 }
 
 /* Destroys the connection context. */
@@ -198,7 +198,7 @@ void ssh_socket_destroy_connect_context(ConnectContext c)
    Destroys the context. */
 
 void ssh_socket_connect_final(ConnectContext c, SshStream stream,
-			      SshIpError error)
+                              SshIpError error)
 {
   if (stream)
     {
@@ -206,7 +206,7 @@ void ssh_socket_connect_final(ConnectContext c, SshStream stream,
       c->stream = NULL;
 
       /* Clear our callback function.  We don't want to get notifications
-	 for this stream anymore. */
+         for this stream anymore. */
       ssh_stream_set_callback(stream, NULL, NULL);
     }
 
@@ -234,14 +234,14 @@ Boolean ssh_socket_failure(ConnectContext c, SshIpError error)
 /* This callback is called when the host addresses have been looked up. */
 
 void ssh_socket_connect_host_lookup_done(SshIpError error,
-					 const char *result,
-					 void *context)
+                                         const char *result,
+                                         void *context)
 {
   ConnectContext c = (ConnectContext)context;
   if (error != SSH_IP_OK)
     {
       if (ssh_socket_failure(c, error))
-	return;
+        return;
 
       /* Try again. */
       ssh_socket_connect_step(c);
@@ -264,14 +264,14 @@ void ssh_socket_connect_host_lookup_done(SshIpError error,
    up. */
 
 void ssh_socket_connect_socks_lookup_done(SshIpError error,
-					  const char *result,
-					  void *context)
+                                          const char *result,
+                                          void *context)
 {
   ConnectContext c = (ConnectContext)context;
   if (error != SSH_IP_OK)
     {
       if (ssh_socket_failure(c, error))
-	return;
+        return;
       
       /* Try again. */
       ssh_socket_connect_step(c);
@@ -288,14 +288,14 @@ void ssh_socket_connect_socks_lookup_done(SshIpError error,
       char *next;
       next = strchr(c->host_addresses, ',');
       if (next)
-	*next = '\0';
+        *next = '\0';
       if (ssh_inet_compare_netmask(c->socks_exceptions,
-				   c->host_addresses))
-	c->state = CONNECT_STATE_HOST_CONNECT;
+                                   c->host_addresses))
+        c->state = CONNECT_STATE_HOST_CONNECT;
       else
-	c->state = CONNECT_STATE_SOCKS_CONNECT;
+        c->state = CONNECT_STATE_SOCKS_CONNECT;
       if (next)
-	*next = ',';
+        *next = ',';
     }
   else
     c->state = CONNECT_STATE_SOCKS_CONNECT;
@@ -306,8 +306,8 @@ void ssh_socket_connect_socks_lookup_done(SshIpError error,
    attempt has failed.  This will either call user callback or retry. */
 
 void DLLCALLCONV ssh_socket_host_connect_done(SshIpError error,
-					      SshStream stream,
-					      void *context)
+                                              SshStream stream,
+                                              void *context)
 {
   ConnectContext c = (ConnectContext)context;
 
@@ -315,16 +315,16 @@ void DLLCALLCONV ssh_socket_host_connect_done(SshIpError error,
     {
       /* Get next address. */
       if (strchr(c->next_address, ','))
-	c->next_address = strchr(c->next_address, ',') + 1;
+        c->next_address = strchr(c->next_address, ',') + 1;
       else
-	{ /* At end of list; consider it as a failure. */
-	  if (ssh_socket_failure(c, error))
-	    return;
-	  c->next_address = c->host_addresses;
-	}
+        { /* At end of list; consider it as a failure. */
+          if (ssh_socket_failure(c, error))
+            return;
+          c->next_address = c->host_addresses;
+        }
       /* Try connecting again. */
       ssh_socket_low_connect(c->next_address, c->host_port,
-			     ssh_socket_host_connect_done, (void *)c);
+                             ssh_socket_host_connect_done, (void *)c);
       return;
     }
 
@@ -338,7 +338,7 @@ void DLLCALLCONV ssh_socket_host_connect_done(SshIpError error,
    I wouldn't count on it.  */
 
 void ssh_socket_socks_notify(SshStreamNotification notification,
-			     void *context)
+                             void *context)
 {
   ConnectContext c = (ConnectContext)context;
 
@@ -356,34 +356,34 @@ void ssh_socket_socks_notify(SshStreamNotification notification,
       c->stream = NULL;
       /* Count this as a failure. */
       if (ssh_socket_failure(c, SSH_IP_FAILURE))
-	return;
+        return;
       if (c->socks_host)
-	{
-	  if (c->socks_exceptions)
-	    {
-	      char *next;
-	      next = strchr(c->host_addresses, ',');
-	      if (next)
-		*next = '\0';
-	      if (ssh_inet_compare_netmask(c->socks_exceptions,
-					   c->host_addresses))
-		c->state = CONNECT_STATE_HOST_CONNECT;
-	      else
-		c->state = CONNECT_STATE_SOCKS_CONNECT;
-	      if (next)
-		*next = ',';
-	    }
-	  else
-	    c->state = CONNECT_STATE_SOCKS_CONNECT;
-	}
+        {
+          if (c->socks_exceptions)
+            {
+              char *next;
+              next = strchr(c->host_addresses, ',');
+              if (next)
+                *next = '\0';
+              if (ssh_inet_compare_netmask(c->socks_exceptions,
+                                           c->host_addresses))
+                c->state = CONNECT_STATE_HOST_CONNECT;
+              else
+                c->state = CONNECT_STATE_SOCKS_CONNECT;
+              if (next)
+                *next = ',';
+            }
+          else
+            c->state = CONNECT_STATE_SOCKS_CONNECT;
+        }
       else
-	c->state = CONNECT_STATE_HOST_CONNECT;
+        c->state = CONNECT_STATE_HOST_CONNECT;
       ssh_socket_connect_step(c);
       break;
 
     default:
       ssh_fatal("ssh_socket_socks_notify: unexpected notification %d",
-		(int)notification);
+                (int)notification);
     }
 }
 
@@ -392,8 +392,8 @@ void ssh_socket_socks_notify(SshStreamNotification notification,
    retry, or switch to the next state. */
 
 void DLLCALLCONV ssh_socket_socks_connect_done(SshIpError error,
-					       SshStream stream,
-					       void *context)
+                                               SshStream stream,
+                                               void *context)
 {
   ConnectContext c = (ConnectContext)context;
   struct SocksInfoRec socksinfo;
@@ -404,16 +404,16 @@ void DLLCALLCONV ssh_socket_socks_connect_done(SshIpError error,
     {
       /* Get next address. */
       if (strchr(c->socks_next_address, ','))
-	c->socks_next_address = strchr(c->socks_next_address, ',') + 1;
+        c->socks_next_address = strchr(c->socks_next_address, ',') + 1;
       else
-	{ /* At end of list; consider it as a failure. */
-	  if (ssh_socket_failure(c, error))
-	    return;
-	  c->socks_next_address = (char *) c->socks_addresses;
-	}
+        { /* At end of list; consider it as a failure. */
+          if (ssh_socket_failure(c, error))
+            return;
+          c->socks_next_address = (char *) c->socks_addresses;
+        }
       /* Try connecting again. */
       ssh_socket_low_connect(c->socks_next_address, c->socks_port,
-			     ssh_socket_socks_connect_done, (void *)c);
+                             ssh_socket_socks_connect_done, (void *)c);
       return;
     }
 
@@ -436,9 +436,9 @@ void DLLCALLCONV ssh_socket_socks_connect_done(SshIpError error,
   if (ret != SSH_SOCKS_SUCCESS)
     {
       if (ret == SSH_SOCKS_ERROR_INVALID_ARGUMENT)
-	ssh_socket_connect_final(c, NULL, SSH_IP_NO_ADDRESS);
+        ssh_socket_connect_final(c, NULL, SSH_IP_NO_ADDRESS);
       else
-	ssh_socket_connect_final(c, NULL, SSH_IP_FAILURE);
+        ssh_socket_connect_final(c, NULL, SSH_IP_FAILURE);
       return;
     }
 
@@ -460,106 +460,106 @@ restart:
     {
     case CONNECT_STATE_HOST_LOOKUP:
       ssh_tcp_get_host_addrs_by_name(c->host_name,
-				     ssh_socket_connect_host_lookup_done,
-				     (void *)c);
+                                     ssh_socket_connect_host_lookup_done,
+                                     (void *)c);
       break;
       
     case CONNECT_STATE_SOCKS_LOOKUP:
       ssh_tcp_get_host_addrs_by_name(c->socks_host,
-				     ssh_socket_connect_socks_lookup_done,
-				     (void *)c);
+                                     ssh_socket_connect_socks_lookup_done,
+                                     (void *)c);
       break;
       
     case CONNECT_STATE_HOST_CONNECT:
       ssh_socket_low_connect(c->next_address, c->host_port,
-			     ssh_socket_host_connect_done, (void *)c);
+                             ssh_socket_host_connect_done, (void *)c);
       break;
       
     case CONNECT_STATE_SOCKS_CONNECT:
       ssh_socket_low_connect(c->socks_next_address, c->socks_port,
-			     ssh_socket_socks_connect_done, (void *)c);
+                             ssh_socket_socks_connect_done, (void *)c);
       break;
       
     case CONNECT_STATE_SOCKS_SEND:
       /* Loop trying to send until either write fails or we are done. */
       do
-	{
-	  len = ssh_stream_write(c->stream, ssh_buffer_ptr(c->socks_buf),
-				 ssh_buffer_len(c->socks_buf));
-	  if (len > 0)
-	    ssh_buffer_consume(c->socks_buf, len);
-	  if (ssh_buffer_len(c->socks_buf) == 0)
-	    {
-	      c->state = CONNECT_STATE_SOCKS_RECEIVE;
-	      goto restart;
-	    }
-	}
+        {
+          len = ssh_stream_write(c->stream, ssh_buffer_ptr(c->socks_buf),
+                                 ssh_buffer_len(c->socks_buf));
+          if (len > 0)
+            ssh_buffer_consume(c->socks_buf, len);
+          if (ssh_buffer_len(c->socks_buf) == 0)
+            {
+              c->state = CONNECT_STATE_SOCKS_RECEIVE;
+              goto restart;
+            }
+        }
       while (len > 0);
       break;
 
     case CONNECT_STATE_SOCKS_RECEIVE:
       /* Loop trying to read until read fails or we are done. */
       do
-	{
-	  unsigned char *p;
+        {
+          unsigned char *p;
 
-	  ssh_buffer_append_space(c->socks_buf, &p, 1);
-	  len = ssh_stream_read(c->stream, p, 1);
-	  if (len == 0)
-	    { /* Premature EOF received. */
-	      goto socks_fail;
-	    }
-	  if (len > 0)
-	    {
-	      SocksError err;
+          ssh_buffer_append_space(c->socks_buf, &p, 1);
+          len = ssh_stream_read(c->stream, p, 1);
+          if (len == 0)
+            { /* Premature EOF received. */
+              goto socks_fail;
+            }
+          if (len > 0)
+            {
+              SocksError err;
 
-	      err = ssh_socks_client_parse_reply(c->socks_buf, NULL);
-	      if (err == SSH_SOCKS_TRY_AGAIN)
-		continue;
-	      if (err == SSH_SOCKS_SUCCESS)
-		{
-		  ssh_socket_connect_final(c, c->stream, SSH_IP_OK);
-		  return;
-		}
-	      /* Failure; try the next one. */
-	      goto socks_fail;
-	    }
-	  else
-	    {
-	      ssh_buffer_consume_end(c->socks_buf, 1);
-	    }
-	  continue;
+              err = ssh_socks_client_parse_reply(c->socks_buf, NULL);
+              if (err == SSH_SOCKS_TRY_AGAIN)
+                continue;
+              if (err == SSH_SOCKS_SUCCESS)
+                {
+                  ssh_socket_connect_final(c, c->stream, SSH_IP_OK);
+                  return;
+                }
+              /* Failure; try the next one. */
+              goto socks_fail;
+            }
+          else
+            {
+              ssh_buffer_consume_end(c->socks_buf, 1);
+            }
+          continue;
 
         socks_fail:
-	  /* Connecting has failed.  Try the next host address. */
-	  ssh_stream_destroy(c->stream);
-	  c->stream = NULL;
-	  /* Get the next host address. */
-	  if (strchr(c->next_address, ','))
-	    c->next_address = strchr(c->next_address, ',') + 1;
-	  else
-	    {
-	      if (ssh_socket_failure(c, SSH_IP_FAILURE))
-		return;
-	      c->next_address = c->host_addresses;
-	    }
-	  if (c->socks_exceptions)
-	    {
-	      char *next;
-	      next = strchr(c->host_addresses, ',');
-	      if (next)
-		*next = '\0';
-	      if (ssh_inet_compare_netmask(c->socks_exceptions,
-					   c->host_addresses))
-		c->state = CONNECT_STATE_HOST_CONNECT;
-	      else
-		c->state = CONNECT_STATE_SOCKS_CONNECT;
-	      if (next)
-		*next = ',';
-	    }
-	  else
-	    c->state = CONNECT_STATE_SOCKS_CONNECT;
-	  goto restart;
+          /* Connecting has failed.  Try the next host address. */
+          ssh_stream_destroy(c->stream);
+          c->stream = NULL;
+          /* Get the next host address. */
+          if (strchr(c->next_address, ','))
+            c->next_address = strchr(c->next_address, ',') + 1;
+          else
+            {
+              if (ssh_socket_failure(c, SSH_IP_FAILURE))
+                return;
+              c->next_address = c->host_addresses;
+            }
+          if (c->socks_exceptions)
+            {
+              char *next;
+              next = strchr(c->host_addresses, ',');
+              if (next)
+                *next = '\0';
+              if (ssh_inet_compare_netmask(c->socks_exceptions,
+                                           c->host_addresses))
+                c->state = CONNECT_STATE_HOST_CONNECT;
+              else
+                c->state = CONNECT_STATE_SOCKS_CONNECT;
+              if (next)
+                *next = ',';
+            }
+          else
+            c->state = CONNECT_STATE_SOCKS_CONNECT;
+          goto restart;
         }
       while (len > 0);
       break;

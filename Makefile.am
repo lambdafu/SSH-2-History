@@ -54,6 +54,9 @@ dist-ssh-noncommercial:
 dist-ssh-internal:
 	$(MAKE) make-dist dist=ssh-internal
 
+dist-ssh-aa:
+	$(MAKE) make-dist dist=ssh-aa
+
 dist-ipsec-100:
 	$(MAKE) make-dist dist=ipsec
 

@@ -62,8 +62,8 @@ Code for X11 forwarding channels for SSH2 servers and clients.
 
 #define SSH_DEBUG_MODULE "Ssh2ChannelX11"
 
-#define X11_WINDOW_SIZE		 30000
-#define X11_PACKET_SIZE		  1024
+#define X11_WINDOW_SIZE          30000
+#define X11_PACKET_SIZE           1024
 
 /* Maximum number of fake X11 displays to try. */
 #define X11_MAX_DISPLAYS  1000
@@ -83,11 +83,11 @@ typedef struct SshChannelX11SessionRec
   SshCommon common;
   
   /* X11-related data for the server. */
-  Boolean forward_x11;	        /* True if forwarding has been requested. */
+  Boolean forward_x11;          /* True if forwarding has been requested. */
   char *auth_protocol;          /* The received auth protocol. */
-  char *auth_cookie;		/* The received auth cookie (hex string). */
-  unsigned long screen_number;	/* Screen number. */
-  char *display;		/* Value for DISPLAY variable. */
+  char *auth_cookie;            /* The received auth cookie (hex string). */
+  unsigned long screen_number;  /* Screen number. */
+  char *display;                /* Value for DISPLAY variable. */
   SshTcpListener x11_listener;  /* Socket listening for X11 connections. */
   Boolean single_x11_connection; /* If true, close listener after first conn */
 } *SshChannelX11Session;
@@ -148,7 +148,7 @@ void ssh_channel_x11_destroy(void *context)
    state. */
 
 void ssh_channel_x11_session_create(SshCommon common,
-				    void **session_placeholder)
+                                    void **session_placeholder)
 {
   SshChannelX11Session session;
 
@@ -158,7 +158,7 @@ void ssh_channel_x11_session_create(SshCommon common,
 
   *session_placeholder = (void *)session;
 }
-					
+                                        
 /* This function is called once whenever a session channel is destroyed.
    This should free any X11 forwarding state related to the session; however,
    this should typically not close forwarded X11 channels. */
@@ -236,30 +236,30 @@ void ssh_channel_x11_send_request(SshCommon common, int session_channel_id)
 #ifdef XAUTH_PATH
       /* Try to get Xauthority information for the display. */
       snprintf(line, sizeof(line), "%s list %s 2>/dev/null", 
-	       XAUTH_PATH, getenv("DISPLAY"));
+               XAUTH_PATH, getenv("DISPLAY"));
       f = popen(line, "r");
       if (f && fgets(line, sizeof(line), f) && 
-	  sscanf(line, "%*s %s %s", proto, data) == 2)
-	got_data = TRUE;
+          sscanf(line, "%*s %s %s", proto, data) == 2)
+        got_data = TRUE;
       else
-	ssh_debug("Failed to get local xauth data.");
+        ssh_debug("Failed to get local xauth data.");
       if (f)
-	pclose(f);
+        pclose(f);
 #else /* XAUTH_PATH */
       ssh_debug("No xauth program was found at configure time.");
 #endif /* XAUTH_PATH */
       /* If we didn't get authentication data, just make up some data.  The
-	 forwarding code will check the validity of the response anyway, and
-	 substitute this data.  The X11 server, however, will ignore this
-	 fake data and use whatever authentication mechanisms it was using
-	 otherwise for the local connection. */
+         forwarding code will check the validity of the response anyway, and
+         substitute this data.  The X11 server, however, will ignore this
+         fake data and use whatever authentication mechanisms it was using
+         otherwise for the local connection. */
       if (!got_data)
-	{
-	  strcpy(proto, "MIT-MAGIC-COOKIE-1");
-	  for (i = 0; i < 16; i++)
-	    snprintf(data + 2 * i, 3, "%02x",
-		     ssh_random_get_byte(common->random_state));
-	}
+        {
+          strcpy(proto, "MIT-MAGIC-COOKIE-1");
+          for (i = 0; i < 16; i++)
+            snprintf(data + 2 * i, 3, "%02x",
+                     ssh_random_get_byte(common->random_state));
+        }
       
       /* Save protocol name. */
       ct->x11_real_proto = ssh_xstrdup(proto);
@@ -268,7 +268,7 @@ void ssh_channel_x11_send_request(SshCommon common, int session_channel_id)
       ct->x11_fake_proto_len = strlen(proto);
 
       /* Extract real authentication data and generate fake data of the same
-	 length. */
+         length. */
       data_len = strlen(data) / 2;
       ct->x11_real_cookie = ssh_xmalloc(data_len);
       ct->x11_real_cookie_len = data_len;
@@ -277,38 +277,38 @@ void ssh_channel_x11_send_request(SshCommon common, int session_channel_id)
 
       /* Convert the real cookie into binary. */
       for (i = 0; i < data_len; i++)
-	{
-	  if (sscanf(data + 2 * i, "%2x", &value) != 1)
-	    {
-	      ssh_warning("ssh_channel_x11_send_request: bad data: %s",
-			  data);
-	      return;
-	    }
-	  ct->x11_real_cookie[i] = value;
-	}
+        {
+          if (sscanf(data + 2 * i, "%2x", &value) != 1)
+            {
+              ssh_warning("ssh_channel_x11_send_request: bad data: %s",
+                          data);
+              return;
+            }
+          ct->x11_real_cookie[i] = value;
+        }
 
       /* Generate fake cookie. */
       for (i = 0; i < data_len; i++)
-	ct->x11_fake_cookie[i] = ssh_random_get_byte(common->random_state);
+        ct->x11_fake_cookie[i] = ssh_random_get_byte(common->random_state);
     }
   
   /* Convert the fake data into hex for transmission. */
   new_data = ssh_xmalloc(2 * ct->x11_fake_cookie_len + 1);
   for (i = 0; i < ct->x11_fake_cookie_len; i++)
     snprintf(new_data + 2 * i, 3, "%02x",
-	     (unsigned char)ct->x11_fake_cookie[i]);
+             (unsigned char)ct->x11_fake_cookie[i]);
 
   ssh_buffer_init(&buffer);
   ssh_encode_buffer(&buffer,
-		    SSH_FORMAT_BOOLEAN, FALSE, /* XXX single-connection */
-		    SSH_FORMAT_UINT32_STR,
-		      ct->x11_fake_proto, ct->x11_fake_proto_len,
-		    SSH_FORMAT_UINT32_STR, new_data, strlen(new_data),
-		    SSH_FORMAT_UINT32, screen_number,
-		    SSH_FORMAT_END);
+                    SSH_FORMAT_BOOLEAN, FALSE, /* XXX single-connection */
+                    SSH_FORMAT_UINT32_STR,
+                      ct->x11_fake_proto, ct->x11_fake_proto_len,
+                    SSH_FORMAT_UINT32_STR, new_data, strlen(new_data),
+                    SSH_FORMAT_UINT32, screen_number,
+                    SSH_FORMAT_END);
   ssh_conn_send_channel_request(common->conn, session_channel_id,
-				"x11-req", ssh_buffer_ptr(&buffer),
-				ssh_buffer_len(&buffer), NULL, NULL);
+                                "x11-req", ssh_buffer_ptr(&buffer),
+                                ssh_buffer_len(&buffer), NULL, NULL);
   ssh_buffer_uninit(&buffer);
   ssh_xfree(new_data);
 
@@ -334,7 +334,7 @@ void ssh_channel_x11_connection_destroy(void *context)
 /* This function is called whenever a new X11 connection is received. */
 
 void ssh_channel_x11_connection(SshIpError error, SshStream stream,
-				void *context)
+                                void *context)
 {
   SshChannelX11Session session = (SshChannelX11Session)context;
   SshBuffer buffer;
@@ -367,46 +367,52 @@ void ssh_channel_x11_connection(SshIpError error, SshStream stream,
      the destroy function. */
   ssh_common_new_channel(session->common);
 
-  /* XXXXXXXX */
 #ifdef HAVE_LIBWRAP
   {
     struct request_info req;
-    /* struct servent *serv;*/
-		
+    void *old_handler;
+    
+    old_handler = signal(SIGCHLD, SIG_DFL);
+                
     /* Fill req struct with port name and fd number */
     request_init(&req, RQ_DAEMON, "sshdfwd-X11",
-		 RQ_FILE, ssh_stream_fd_get_readfd(stream), NULL);
+                 RQ_FILE, ssh_stream_fd_get_readfd(stream), NULL);
     fromhost(&req);
     if (!hosts_access(&req))
       {
-	ssh_conn_send_debug(session->common->conn, TRUE, "Fwd X11 connection "
-			    "from %.500s refused by tcp_wrappers.",
-			    eval_client(&req));
-	ssh_stream_destroy(stream);
-	/*	packet_send_debug("Fwd X11 connection from %.500s refused by tcp_wrappers.", eval_client(&req));
-		error("Fwd X11 connection from %.500s refused by tcp_wrappers.",
-		eval_client(&req));
-		shutdown(newsock, 2);
-		close(newsock); 
-		break; */
-	return;
+        ssh_conn_send_debug(session->common->conn, TRUE, "Fwd X11 connection "
+                            "from %.500s refused by tcp_wrappers.",
+                            eval_client(&req));
+        ssh_log_event(session->common->config->log_facility, SSH_LOG_WARNING,
+                      "Fwd X11 connection "
+                      "from %.500s refused by tcp_wrappers.",
+                      eval_client(&req));
+        ssh_stream_destroy(stream);
+        signal(SIGCHLD, old_handler);
+
+        return;
       }
-    ssh_log_event(SSH_LOGFACILITY_SECURITY, SSH_LOG_INFORMATIONAL, "fwd X11 connect from %.500s",
-		  eval_client(&req));
+
+    signal(SIGCHLD, old_handler);
+
+    ssh_log_event(session->common->config->log_facility, SSH_LOG_INFORMATIONAL,
+                  "fwd X11 connect from %.500s",
+                  eval_client(&req));
   }
 #endif /* HAVE_LIBWRAP */
+  /* XXX Logging*/
 
   /* Send a channel open request to the other side. */
   ssh_buffer_init(&buffer);
   ssh_encode_buffer(&buffer,
-		    SSH_FORMAT_UINT32_STR, msg, strlen(msg),
-		    SSH_FORMAT_END);
+                    SSH_FORMAT_UINT32_STR, msg, strlen(msg),
+                    SSH_FORMAT_END);
   ssh_conn_send_channel_open(session->common->conn, "x11", stream, TRUE, TRUE,
-			     X11_WINDOW_SIZE, X11_PACKET_SIZE,
-			     ssh_buffer_ptr(&buffer), ssh_buffer_len(&buffer),
-			     NULL,
-			     ssh_channel_x11_connection_destroy,
-			     (void *)session->common, NULL, NULL);
+                             X11_WINDOW_SIZE, X11_PACKET_SIZE,
+                             ssh_buffer_ptr(&buffer), ssh_buffer_len(&buffer),
+                             NULL,
+                             ssh_channel_x11_connection_destroy,
+                             (void *)session->common, NULL, NULL);
   ssh_buffer_uninit(&buffer);
 }
 
@@ -418,8 +424,8 @@ void ssh_channel_x11_connection(SshIpError error, SshStream stream,
    accepted, FALSE otherwise. */
 
 Boolean ssh_channel_x11_process_request(void *session_placeholder,
-					const unsigned char *data,
-					size_t len)
+                                        const unsigned char *data,
+                                        size_t len)
 {
   int display_number;
   char buf[512], hostname[257];
@@ -441,13 +447,13 @@ Boolean ssh_channel_x11_process_request(void *session_placeholder,
 
   /* Parse the request. */
   if (ssh_decode_array(data, len,
-		       SSH_FORMAT_BOOLEAN, &session->single_x11_connection,
-		       SSH_FORMAT_UINT32_STR,
-		         &session->auth_protocol, NULL,
-		       SSH_FORMAT_UINT32_STR,
-		         &session->auth_cookie, NULL,
-		       SSH_FORMAT_UINT32, &session->screen_number,
-		       SSH_FORMAT_END) != len)
+                       SSH_FORMAT_BOOLEAN, &session->single_x11_connection,
+                       SSH_FORMAT_UINT32_STR,
+                         &session->auth_protocol, NULL,
+                       SSH_FORMAT_UINT32_STR,
+                         &session->auth_cookie, NULL,
+                       SSH_FORMAT_UINT32, &session->screen_number,
+                       SSH_FORMAT_END) != len)
     {
       SSH_DEBUG(0, ("request_x11: bad data"));
       return FALSE;
@@ -471,12 +477,12 @@ Boolean ssh_channel_x11_process_request(void *session_placeholder,
 
       /* Open a TCP/IP socket for listening the port. */
       session->x11_listener =
-	ssh_tcp_make_listener("0.0.0.0", buf, ssh_channel_x11_connection,
-			      (void *)session);
+        ssh_tcp_make_listener("0.0.0.0", buf, ssh_channel_x11_connection,
+                              (void *)session);
 
       /* Break if we got the display number. */
       if (session->x11_listener != NULL)
-	break;
+        break;
     }
 
   /* If we failed to allocate a display number, fail. */
@@ -500,14 +506,14 @@ Boolean ssh_channel_x11_process_request(void *session_placeholder,
     hp = gethostbyname(buf);
     if (hp == NULL || !hp->h_addr_list[0])
       {
-	ssh_warning("Could not get server IP address for %.200s.", buf);
-	ssh_tcp_destroy_listener(session->x11_listener);
-	session->x11_listener = NULL;
-	return FALSE;
+        ssh_warning("Could not get server IP address for %.200s.", buf);
+        ssh_tcp_destroy_listener(session->x11_listener);
+        session->x11_listener = NULL;
+        return FALSE;
       }
     memcpy(&addr, hp->h_addr_list[0], sizeof(addr));
     snprintf(buf, sizeof(buf), "%s:%d.%d",
-	     inet_ntoa(addr), display_number, session->screen_number);
+             inet_ntoa(addr), display_number, session->screen_number);
   }
 #else /* HPSUX_NONSTANDARD_X11_KLUDGE */
   /* Get the name of the local host. */
@@ -515,7 +521,7 @@ Boolean ssh_channel_x11_process_request(void *session_placeholder,
 
   /* Format the DISPLAY value. */
   snprintf(buf, sizeof(buf), "%s:%d.%lu",
-	   hostname, display_number, session->screen_number);
+           hostname, display_number, session->screen_number);
 #endif /* HPSUX_NONSTANDARD_X11_KLUDGE */
   
   /* Save the display name. */
@@ -556,16 +562,16 @@ void ssh_channel_x11_x_destroy(SshX11Connection x)
    cookie in the packet by the real cookie, and shortcircuit the filter. */
 
 int ssh_channel_x11_filter(SshBuffer *data,
-			   size_t offset,
-			   Boolean eof_received,
-			   void *context)
+                           size_t offset,
+                           Boolean eof_received,
+                           void *context)
 {
   SshX11Connection x = (SshX11Connection)context;
   unsigned char *ucp;
   size_t received_len, data_len, proto_len, desired_len;
 
   SSH_DEBUG(6, ("filter: data len %d, offset %d",
-		(int)ssh_buffer_len(data), (int)offset));
+                (int)ssh_buffer_len(data), (int)offset));
   
   /* Compute the start and length of data that we have in the filter. */
   ucp = ssh_buffer_ptr(data);
@@ -577,9 +583,9 @@ int ssh_channel_x11_filter(SshBuffer *data,
     {
       /* Not yet...  Keep receiving, unless we've got EOF. */
       if (eof_received)
-	return SSH_FILTER_DISCONNECT; /* Abort the connection. */
+        return SSH_FILTER_DISCONNECT; /* Abort the connection. */
       else
-	return SSH_FILTER_HOLD; /* Wait for more data. */
+        return SSH_FILTER_HOLD; /* Wait for more data. */
     }
 
   /* Parse the lengths of variable-length fields. */
@@ -591,14 +597,14 @@ int ssh_channel_x11_filter(SshBuffer *data,
   else
     if (ucp[0] == 0x6c)
       { /* Byte order LSB first. */
-	proto_len = ucp[6] + 256 * ucp[7];
-	data_len = ucp[8] + 256 * ucp[9];
+        proto_len = ucp[6] + 256 * ucp[7];
+        data_len = ucp[8] + 256 * ucp[9];
       }
     else
       {
-	ssh_warning("Initial X11 packet contains bad byte order byte: 0x%x",
-		    ucp[0]);
-	return SSH_FILTER_DISCONNECT;
+        ssh_warning("Initial X11 packet contains bad byte order byte: 0x%x",
+                    ucp[0]);
+        return SSH_FILTER_DISCONNECT;
       }
 
   /* Compute the length of the packet we must receive. */
@@ -612,9 +618,9 @@ int ssh_channel_x11_filter(SshBuffer *data,
   if (received_len < desired_len)
     {
       if (eof_received)
-	return SSH_FILTER_DISCONNECT; /* Abort the connection. */
+        return SSH_FILTER_DISCONNECT; /* Abort the connection. */
       else
-	return SSH_FILTER_HOLD;
+        return SSH_FILTER_HOLD;
     }
 
   /* Check if authentication protocol matches. */
@@ -622,17 +628,17 @@ int ssh_channel_x11_filter(SshBuffer *data,
       memcmp(ucp + 12, x->ct->x11_fake_proto, proto_len) != 0)
     {
       if (proto_len > 100)
-	proto_len = 100; /* Limit length of output. */
+        proto_len = 100; /* Limit length of output. */
       ssh_warning("X11 connection requests different authentication protocol: '%.*s' vs. '%.*s'.",
-		  x->ct->x11_fake_proto_len, x->ct->x11_fake_proto,
-		  proto_len, (const char *)(ucp + 12));
+                  x->ct->x11_fake_proto_len, x->ct->x11_fake_proto,
+                  proto_len, (const char *)(ucp + 12));
       return SSH_FILTER_DISCONNECT;
     }
 
   /* Check if authentication data matches our fake data. */
   if (data_len != x->ct->x11_fake_cookie_len ||
       memcmp(ucp + 12 + ((proto_len + 3) & ~3),
-	     x->ct->x11_fake_cookie, x->ct->x11_fake_cookie_len) != 0)
+             x->ct->x11_fake_cookie, x->ct->x11_fake_cookie_len) != 0)
     {
       ssh_warning("X11 auth data does not match fake data.");
       return SSH_FILTER_DISCONNECT;
@@ -642,7 +648,7 @@ int ssh_channel_x11_filter(SshBuffer *data,
      Substitute the fake data with real data. */
   assert(x->ct->x11_fake_cookie_len == x->ct->x11_real_cookie_len);
   memcpy(ucp + 12 + ((proto_len + 3) & ~3),
-	 x->ct->x11_real_cookie, x->ct->x11_real_cookie_len);
+         x->ct->x11_real_cookie, x->ct->x11_real_cookie_len);
 
   /* Otherwise, we accept and shortcircuit any further communications. */
   return SSH_FILTER_SHORTCIRCUIT;
@@ -663,17 +669,17 @@ void ssh_channel_x11_filter_destroy(void *context)
    request. */
 
 void ssh_channel_x11_open_connected(SshStream stream,
-				    void *context)
+                                    void *context)
 {
   SshX11Connection x = (SshX11Connection)context;
 
   if (stream == NULL)
     {
       SSH_DEBUG(6, ("x11_open_connected: Connecting to the real "
-		    "X server failed."));
+                    "X server failed."));
       (*x->completion)(SSH_OPEN_CONNECT_FAILED,
-		       NULL, FALSE, FALSE, 0, NULL, 0, NULL, NULL, NULL,
-		       x->context);
+                       NULL, FALSE, FALSE, 0, NULL, 0, NULL, NULL, NULL,
+                       x->context);
       ssh_channel_x11_x_destroy(x);
       return;
     }
@@ -687,31 +693,31 @@ void ssh_channel_x11_open_connected(SshStream stream,
   /* Wrap the stream to the X server into a filter stream that is used
      to replace the fake authentication cookie with the real one. */
   stream = ssh_stream_filter_create(stream, X11_MAX_AUTH_PACKET_SIZE,
-				    ssh_channel_x11_filter,
-				    NULL, ssh_channel_x11_filter_destroy,
-				    (void *)x);
+                                    ssh_channel_x11_filter,
+                                    NULL, ssh_channel_x11_filter_destroy,
+                                    (void *)x);
 
   /* Call the open completion procedure. */
   (*x->completion)(SSH_OPEN_OK,
-		   stream, TRUE, TRUE, X11_WINDOW_SIZE, NULL, 0,
-		   NULL, ssh_channel_x11_connection_destroy,
-		   (void *)x->common, x->context);
+                   stream, TRUE, TRUE, X11_WINDOW_SIZE, NULL, 0,
+                   NULL, ssh_channel_x11_connection_destroy,
+                   (void *)x->common, x->context);
 }
 
 /* This function is called whenever connecting to a TCP/IP X11 display
    completes. */
 
 void ssh_channel_x11_open_connected_tcp(SshIpError error,
-					SshStream stream,
-					void *context)
+                                        SshStream stream,
+                                        void *context)
 {
   SshX11Connection x = (SshX11Connection)context;
   if (error != SSH_IP_OK)
     {
       SSH_DEBUG(6, ("Connecting to the real X server failed."));
       (*x->completion)(SSH_OPEN_CONNECT_FAILED,
-		       NULL, FALSE, FALSE, 0, NULL, 0, NULL, NULL, NULL,
-		       x->context);
+                       NULL, FALSE, FALSE, 0, NULL, 0, NULL, NULL, NULL,
+                       x->context);
       ssh_channel_x11_x_destroy(x);
       return;
     }
@@ -731,9 +737,9 @@ void ssh_channel_x11_open_connected_tcp(SshIpError error,
    channel. */
 
 void ssh_channel_x11_open(const char *type, int channel_id,
-			  const unsigned char *data, size_t len,
-			  SshConnOpenCompletionProc completion,
-			  void *completion_context, void *context)
+                          const unsigned char *data, size_t len,
+                          SshConnOpenCompletionProc completion,
+                          void *completion_context, void *context)
 {
   SshCommon common = (SshCommon)context;
   SshX11Connection x;
@@ -748,8 +754,8 @@ void ssh_channel_x11_open(const char *type, int channel_id,
   ct = (SshChannelTypeX11)ssh_common_get_channel_type_context(common, "x11");
   
   if (ssh_decode_array(data, len,
-		       SSH_FORMAT_UINT32_STR, &originator, NULL,
-		       SSH_FORMAT_END) != len)
+                       SSH_FORMAT_UINT32_STR, &originator, NULL,
+                       SSH_FORMAT_END) != len)
     {
       SSH_DEBUG(0, ("x11_open: bad data"));
       goto fail;
@@ -786,46 +792,46 @@ void ssh_channel_x11_open(const char *type, int channel_id,
     {
       /* Connect to the unix domain socket. */
       if (sscanf(strrchr(display, ':') + 1, "%d", &display_number) != 1)
-	{
-	  ssh_warning("Could not parse display number from DISPLAY: %.100s",
-		      display);
-	  goto fail;
-	}
+        {
+          ssh_warning("Could not parse display number from DISPLAY: %.100s",
+                      display);
+          goto fail;
+        }
 
       /* Determine the name to use for the socket. */
 #ifdef HPSUX_NONSTANDARD_X11_KLUDGE
       {
-	/* HPSUX release 10.X uses /var/spool/sockets/X11/0 for the
-	   unix-domain sockets, while earlier releases stores the
-	   socket in /usr/spool/sockets/X11/0 with soft-link from
-	   /tmp/.X11-unix/`uname -n`0 */
+        /* HPSUX release 10.X uses /var/spool/sockets/X11/0 for the
+           unix-domain sockets, while earlier releases stores the
+           socket in /usr/spool/sockets/X11/0 with soft-link from
+           /tmp/.X11-unix/`uname -n`0 */
 
-	struct stat st;
+        struct stat st;
 
-	if (stat("/var/spool/sockets/X11", &st) == 0)
-	  {
-	    snprintf(buf, sizeof(buf), "%s/%d",
-		     "/var/spool/sockets/X11", display_number);
-	  }
-	else
-	  {
-	    if (stat("/usr/spool/sockets/X11", &st) == 0)
-	      {
-		snprintf(buf, sizeof(buf), "%s/%d",
-			 "/usr/spool/sockets/X11", display_number);
-	      }
-	    else
-	      {
-		struct utsname utsbuf;
-		/* HPSUX stores unix-domain sockets in
-		   /tmp/.X11-unix/`hostname`0 
-		   instead of the normal /tmp/.X11-unix/X0. */
-		if (uname(&utsbuf) < 0)
-		  ssh_fatal("uname: %.100s", strerror(errno));
-		snprintf(buf, sizeof(buf), "%.20s/%.64s%d",
-			 X11_DIR, utsbuf.nodename, display_number);
-	      }
-	  }
+        if (stat("/var/spool/sockets/X11", &st) == 0)
+          {
+            snprintf(buf, sizeof(buf), "%s/%d",
+                     "/var/spool/sockets/X11", display_number);
+          }
+        else
+          {
+            if (stat("/usr/spool/sockets/X11", &st) == 0)
+              {
+                snprintf(buf, sizeof(buf), "%s/%d",
+                         "/usr/spool/sockets/X11", display_number);
+              }
+            else
+              {
+                struct utsname utsbuf;
+                /* HPSUX stores unix-domain sockets in
+                   /tmp/.X11-unix/`hostname`0 
+                   instead of the normal /tmp/.X11-unix/X0. */
+                if (uname(&utsbuf) < 0)
+                  ssh_fatal("uname: %.100s", strerror(errno));
+                snprintf(buf, sizeof(buf), "%.20s/%.64s%d",
+                         X11_DIR, utsbuf.nodename, display_number);
+              }
+          }
       }
 #else /* HPSUX_NONSTANDARD_X11_KLUDGE */
       snprintf(buf, sizeof(buf), "%.80s/X%d", X11_DIR, display_number);
@@ -848,8 +854,8 @@ void ssh_channel_x11_open(const char *type, int channel_id,
       ssh_channel_x11_x_destroy(x);
     fail:
       (*completion)(SSH_OPEN_CONNECT_FAILED,
-		    NULL, FALSE, FALSE, 0, NULL, 0, NULL, NULL, NULL,
-		    completion_context);
+                    NULL, FALSE, FALSE, 0, NULL, 0, NULL, NULL, NULL,
+                    completion_context);
       return;
     }
   *cp = 0;
@@ -857,7 +863,7 @@ void ssh_channel_x11_open(const char *type, int channel_id,
   if (sscanf(cp + 1, "%d", &display_number) != 1)
     {
       ssh_warning("Could not parse display number from DISPLAY: %.100s",
-		  display);
+                  display);
       goto free_x_and_fail;
     }
 
@@ -865,8 +871,8 @@ void ssh_channel_x11_open(const char *type, int channel_id,
   snprintf(port, sizeof(port), "%d", 6000 + display_number);
 
   ssh_tcp_connect_with_socks(buf, port, NULL, 1,
-			     ssh_channel_x11_open_connected_tcp, 
-			     (void *)x);
+                             ssh_channel_x11_open_connected_tcp, 
+                             (void *)x);
 }
 
 /* Returns the value of DISPLAY in the server. */

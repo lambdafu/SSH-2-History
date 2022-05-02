@@ -19,6 +19,11 @@ Copyright (c) 1997 SSH Communications Security, Finland
 
 #define SSH_DEBUG_MODULE "SshAskPass"
 
+#ifdef HAVE_LIBWRAP
+int allow_severity = SSH_LOG_INFORMATIONAL;
+int deny_severity = SSH_LOG_WARNING;
+#endif /* HAVE_LIBWRAP */
+
 #define DISPLAY_VARIABLE "DISPLAY"
 #define RESOURCES_MAX_LENGTH 20000L
 #define CANCEL_STRING "Cancel"

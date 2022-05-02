@@ -179,6 +179,9 @@
 /* Path for compatible scp 1.x. */
 #undef SCP1_PATH
 
+/* Enable ssh-agent1 compatibility in ssh-agent2. */
+#undef WITH_SSH_AGENT1_COMPAT
+
 /* Default socks server for the client. */
 #undef SOCKS_DEFAULT_SERVER
 /* Enable the IDEA cipher. */
@@ -211,6 +214,10 @@
 #undef SSHMATH_I386
 
 
+/* Define this, if /usr/xpg4/include/term.h is to be used instead of
+   /usr/include/term.h */
+#undef HAVE_USR_XPG4_INCLUDE_TERM_H
+
 /* Define this if you have setpgid() (replaces setpgrp) */
 #undef HAVE_SETPGID
 
@@ -227,7 +234,14 @@
 /* Define if you have OSF1 C2 security installed on the system */
 #undef HAVE_OSF1_C2_SECURITY
 
+/* Define this if your system has minor */
+#undef HAVE_MINOR
 
+/* Define this if spwd has membe sp_expire*/
+#undef HAVE_STRUCT_SPWD_EXPIRE
+
+/* Define this if spwd has membe sp_inact */
+#undef HAVE_STRUCT_SPWD_INACT
 /* This is defined if /var/run exists. */
 #undef HAVE_VAR_RUN
 
@@ -236,3 +250,6 @@
 
 /* Define this if connect(2) system call fails with nonblocking sockets. */
 #undef NO_NONBLOCKING_CONNECT
+
+/* Define this if S_IFSOCK is defined */
+#undef HAVE_S_IFSOCK

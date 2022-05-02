@@ -15,6 +15,7 @@ noinst_LIBRARIES = libz.a
 
 libz_a_SOURCES = adler32.c deflate.c infblock.c infcodes.c inffast.c \
   inflate.c inftrees.c infutil.c trees.c zutil.c
+
 list_libssh_a_objects:
 	@echo BEGIN_FILE_LIST: $(libz_a_OBJECTS) $(libz_a_LIBADD) :END_FILE_LIST
 

@@ -40,11 +40,18 @@
 #endif /* NEED_SYS_SYSLOG_H */
 int allow_severity = LOG_INFO;
 int deny_severity = LOG_WARNING;
-#endif /* LIBWRAP */
+#endif /* HAVE_LIBWRAP */
 
 #if HAVE_OSF1_C2_SECURITY
 #include "tcbc2.h"
 #endif /* HAVE_OSF1_C2_SECURITY */
+
+#if HAVE_SCO_ETC_SHADOW
+#include <sys/types.h>
+#include <sys/security.h>
+#include <sys/audit.h>
+#include <prot.h>
+#endif /* HAVE_SCO_ETC_SHADOW */
 
 #define SSH_DEBUG_MODULE "Sshd2"
 
@@ -75,77 +82,70 @@ void server_disconnect(int reason, const char *msg, void *context)
   switch(reason)
     {
     case SSH_DISCONNECT_HOST_NOT_ALLOWED_TO_CONNECT:
-      ssh_log_event(SSH_LOGFACILITY_SECURITY, SSH_LOG_WARNING,
+      ssh_log_event(c->server->config->log_facility,
+                    SSH_LOG_WARNING,
                     "Disallowed connect from denied host. '%s'",
                     msg);
       break;
     case SSH_DISCONNECT_PROTOCOL_ERROR:
-      if(c->shared->config->fascist_logging)
-        ssh_log_event(SSH_LOGFACILITY_SECURITY,
-                      SSH_LOG_WARNING,
-                      "Protocol error: '%s'", msg);
+      ssh_log_event(c->server->config->log_facility,
+                    SSH_LOG_WARNING,
+                    "Protocol error: '%s'", msg);
       break;
     case SSH_DISCONNECT_KEY_EXCHANGE_FAILED:
-      if(c->shared->config->fascist_logging)
-        ssh_log_event(SSH_LOGFACILITY_AUTH,
-                      SSH_LOG_WARNING, 
-                      "Key exchange failed: '%s'", msg);
+      ssh_log_event(c->server->config->log_facility,
+                    SSH_LOG_WARNING, 
+                    "Key exchange failed: '%s'", msg);
       break;
     case SSH_DISCONNECT_HOST_AUTHENTICATION_FAILED:
-      if(c->shared->config->fascist_logging)
-        ssh_log_event(SSH_LOGFACILITY_AUTH,
-                      SSH_LOG_WARNING,
-                      "Host authentication failed: '%s'", msg);
+      ssh_log_event(c->server->config->log_facility,
+                    SSH_LOG_WARNING,
+                    "Host authentication failed: '%s'", msg);
       break;
     case SSH_DISCONNECT_MAC_ERROR:
-      if(c->shared->config->fascist_logging)
-        ssh_log_event(SSH_LOGFACILITY_AUTH,
-                      SSH_LOG_WARNING,
-                      "MAC failed, disconnecting: '%s'", msg);
+      ssh_log_event(c->server->config->log_facility,
+                    SSH_LOG_WARNING,
+                    "MAC failed, disconnecting: '%s'", msg);
       break;
     case SSH_DISCONNECT_COMPRESSION_ERROR:
-      if(c->shared->config->fascist_logging)
-        ssh_log_event(SSH_LOGFACILITY_AUTH,
-                      SSH_LOG_WARNING,
-                      "compression error, disconnecting: '%s'", msg);
+      ssh_log_event(c->server->config->log_facility,
+                    SSH_LOG_WARNING,
+                    "compression error, disconnecting: '%s'", msg);
       break;
     case SSH_DISCONNECT_SERVICE_NOT_AVAILABLE:
-      if(c->shared->config->fascist_logging)
-        ssh_log_event(SSH_LOGFACILITY_AUTH,
-                      SSH_LOG_WARNING,
-                      "service not available: '%s'", msg);
+      ssh_log_event(c->server->config->log_facility,
+                    SSH_LOG_WARNING,
+                    "service not available: '%s'", msg);
       break;
     case SSH_DISCONNECT_PROTOCOL_VERSION_NOT_SUPPORTED:
-      if(c->shared->config->fascist_logging)
-        ssh_log_event(SSH_LOGFACILITY_AUTH,
-                      SSH_LOG_INFORMATIONAL,
-                      "protocol version not supported: '%s'", msg);
+      ssh_log_event(c->server->config->log_facility,
+                    SSH_LOG_INFORMATIONAL,
+                    "protocol version not supported: '%s'", msg);
       break;
     case SSH_DISCONNECT_HOST_KEY_NOT_VERIFIABLE:
-      if(c->shared->config->fascist_logging)
-        ssh_log_event(SSH_LOGFACILITY_AUTH,
-                      SSH_LOG_WARNING,
-                      "host key not verifiable: '%s'", msg);
+      ssh_log_event(c->server->config->log_facility,
+                    SSH_LOG_WARNING,
+                    "host key not verifiable: '%s'", msg);
       break;
     case SSH_DISCONNECT_CONNECTION_LOST:
-      if(c->shared->config->fascist_logging)
-        ssh_log_event(SSH_LOGFACILITY_AUTH,
-                      SSH_LOG_INFORMATIONAL,
-                      "connection lost: '%s'", msg);
+      ssh_log_event(c->server->config->log_facility,
+                    SSH_LOG_INFORMATIONAL,
+                    "connection lost: '%s'", msg);
       break;
     case SSH_DISCONNECT_BY_APPLICATION:
-      if(c->shared->config->fascist_logging)
-        ssh_log_event(SSH_LOGFACILITY_AUTH,
-                      SSH_LOG_INFORMATIONAL,
-                      "disconnected by application: '%s'", msg);        
+      ssh_log_event(c->server->config->log_facility,
+                    SSH_LOG_INFORMATIONAL,
+                    "disconnected by application: '%s'", msg);        
       break;
     case SSH_DISCONNECT_AUTHENTICATION_ERROR:
-      ssh_log_event(SSH_LOGFACILITY_AUTH, SSH_LOG_WARNING,
+      ssh_log_event(c->server->config->log_facility,
+                    SSH_LOG_WARNING,
                     "User authentication failed: '%s'",
                     msg);
       break;
     default:
-      ssh_log_event(SSH_LOGFACILITY_DAEMON, SSH_LOG_ERROR,
+      ssh_log_event(c->server->config->log_facility,
+                    SSH_LOG_ERROR,
                     "Unknown reason code for disconnect. msg: '%s'",
                     msg);
       ssh_debug("Unknown reason code for disconnect. msg: '%s'", msg);
@@ -265,6 +265,19 @@ void ssh_server_version_check(const char *version, void *context)
     }
 }
 
+/* This called, when we have an authenticated user ready to continue. */
+
+void client_authenticated(const char *user, void *context)
+{
+  SshServerConnection connection = (SshServerConnection) context;
+  SshCommon common = connection->server->common;
+  
+  ssh_log_event(common->config->log_facility,
+                SSH_LOG_NOTICE,
+                "User %s, coming from %s, authenticated.",
+                user, common->remote_host);
+}
+
 /* This function is called whenever we receive a new connection. */
 
 void new_connection_callback(SshIpError error, SshStream stream,
@@ -274,6 +287,7 @@ void new_connection_callback(SshIpError error, SshStream stream,
   SshServerConnection c;
   pid_t ret;
   const char *s;
+  char buf[256];
   
   if (error != SSH_IP_NEW_CONNECTION)
     {
@@ -281,7 +295,18 @@ void new_connection_callback(SshIpError error, SshStream stream,
       return;
     }
 
-  ssh_debug("new_connection_callback");
+  if (!ssh_tcp_get_remote_address(stream, buf, sizeof(buf)))
+    {
+      SSH_DEBUG(2, ("failed to fetch remote ip address."));
+      ssh_log_event(data->config->log_facility, SSH_LOG_WARNING,
+                    "failed to fetch remote ip address.");
+      snprintf(buf, sizeof(buf), "UNKNOWN");
+    }
+  
+  ssh_log_event(data->config->log_facility, SSH_LOG_INFORMATIONAL,
+                "connection from \"%s\"", buf);
+  
+  SSH_DEBUG(2, ("new_connection_callback"));
 
   /* Fork to execute the new child, unless in debug mode. */
   if (data->debug)
@@ -291,7 +316,6 @@ void new_connection_callback(SshIpError error, SshStream stream,
   if (ret == 0)
     {
       /* Child. */
-
       /* Destroy the listener. */
       if (data->listener)
         ssh_tcp_destroy_listener(data->listener);
@@ -303,28 +327,29 @@ void new_connection_callback(SshIpError error, SshStream stream,
       data->config->ssh1_fd = ssh_stream_fd_get_readfd(stream);
       
 #ifdef HAVE_LIBWRAP
-  {
-    struct request_info req;
-    void *old_handler;
-    
-    old_handler = signal(SIGCHLD, SIG_DFL);
-                
-    request_init(&req, RQ_DAEMON, av0, RQ_FILE,
-                 ssh_stream_fd_get_readfd(stream), NULL);
-    fromhost(&req); /* validate client host info */
-    if (!hosts_access(&req))
       {
-        ssh_warning("Denied connection from %s by tcp wrappers.",
-                    eval_client(&req));
-        ssh_log_event(SSH_LOGFACILITY_SECURITY, SSH_LOG_WARNING,
-                      "Denied connection from %s by tcp wrappers.",
-                      eval_client(&req));
-        refuse(&req); /* If connection is not allowed, clean up and exit. */
-      }
+        struct request_info req;
+        void *old_handler;
+        
+        old_handler = signal(SIGCHLD, SIG_DFL);
+        /* XXX SIGALRM, SIGHUP */
+        
+        request_init(&req, RQ_DAEMON, av0, RQ_FILE,
+                     ssh_stream_fd_get_readfd(stream), NULL);
+        fromhost(&req); /* validate client host info */
+        if (!hosts_access(&req))
+          {
+            ssh_warning("Denied connection from %s by tcp wrappers.",
+                        eval_client(&req));
+            ssh_log_event(data->config->log_facility, SSH_LOG_WARNING,
+                          "Denied connection from %s by tcp wrappers.",
+                          eval_client(&req));
+            refuse(&req);/* If connection is not allowed, clean up and exit.*/
+          }
 
-    signal(SIGCHLD, old_handler);
+        signal(SIGCHLD, old_handler);
     
-  }
+      }
 #endif /* HAVE_LIBWRAP */
   
       /* Create a context structure for the connection. */
@@ -336,6 +361,7 @@ void new_connection_callback(SshIpError error, SshStream stream,
                                   (data->config->ssh1compatibility &&
                                    data->config->ssh1_path != NULL) ?
                                   ssh_server_version_check : NULL,
+                                  client_authenticated,
                                   (void *)c);
     }
   else
@@ -345,7 +371,7 @@ void new_connection_callback(SshIpError error, SshStream stream,
         {
           s = "Forking a server for a new connection failed.";
           ssh_warning(s);
-          ssh_log_event(SSH_LOGFACILITY_DAEMON, SSH_LOG_WARNING, s);
+          ssh_log_event(data->config->log_facility, SSH_LOG_WARNING, s);
           ssh_stream_write(stream, (const unsigned char *)s, strlen(s));
           ssh_stream_write(stream, (const unsigned char *)"\r\n", 2);
         }
@@ -389,7 +415,7 @@ void server_ssh_fatal(const char *msg, void *context)
   SshServerData data = (SshServerData)context;
   data->ssh_fatal_called = TRUE;
 
-  ssh_log_event(SSH_LOGFACILITY_DAEMON, SSH_LOG_ERROR, "FATAL ERROR: %s", 
+  ssh_log_event(data->config->log_facility, SSH_LOG_ERROR, "FATAL ERROR: %s", 
                 msg);
 
   fprintf(stderr, "FATAL: %s\r\n", msg);  
@@ -430,6 +456,22 @@ int ssh_log_facility(SshLogFacility facility)
       return LOG_USER;
     case SSH_LOGFACILITY_MAIL:
       return LOG_MAIL;
+    case SSH_LOGFACILITY_LOCAL0:
+      return LOG_LOCAL0;
+    case SSH_LOGFACILITY_LOCAL1:
+      return LOG_LOCAL1;
+    case SSH_LOGFACILITY_LOCAL2:
+      return LOG_LOCAL2;
+    case SSH_LOGFACILITY_LOCAL3:
+      return LOG_LOCAL3;
+    case SSH_LOGFACILITY_LOCAL4:
+      return LOG_LOCAL4;
+    case SSH_LOGFACILITY_LOCAL5:
+      return LOG_LOCAL5;
+    case SSH_LOGFACILITY_LOCAL6:
+      return LOG_LOCAL6;
+    case SSH_LOGFACILITY_LOCAL7:
+      return LOG_LOCAL7;      
     }
   ssh_debug("ssh_log_facility: Unknown facility.");
   return -1;
@@ -454,7 +496,7 @@ void server_ssh_log(SshLogFacility facility, SshLogSeverity
       if (config->verbose_mode)
         logopt |= LOG_PERROR;
 #endif /* LOG_PERROR */
-      logfac = LOG_DAEMON;
+      logfac = ssh_log_facility(config->log_facility);
 
       openlog(av0, logopt, logfac);
       logopen = 1;
@@ -496,6 +538,30 @@ Boolean parameter_defined(const char param, int num, char **elements)
   return FALSE;
 }
 
+Boolean restart;
+
+/* signal callback for SIGHUP*/
+
+void sighup_handler(int signal, void *context)
+{
+  SshServerData data = (SshServerData) context;
+  
+  if (signal != SIGHUP)
+    {
+      SSH_DEBUG(0, ("Invalid signal received by SIGHUP-handler."));
+      ssh_log_event(data->config->log_facility, SSH_LOG_WARNING,
+                    "Invalid signal received by SIGHUP-handler.");
+      return;
+    }
+
+  /* We cannot call fork() and exec() here directly, because we are in
+     a signal handler. It seems that eventloop must be uninitialized
+     for this to work. */
+  restart = TRUE;
+
+  ssh_event_loop_abort();
+}
+
 /*
  *
  *  SSH2 server main()
@@ -518,12 +584,17 @@ int main(int argc, char **argv)
     av0 = argv[0];
 
   /* Initializations */
-
+  restart = FALSE;
+  
 #if HAVE_OSF1_C2_SECURITY
   /* this is still very heavily under construction. */
   tcbc2_initialize_security(argc, argv);
 #endif /* HAVE_OSF1_C2_SECURITY */
-  
+
+#if HAVE_SCO_ETC_SHADOW
+  set_auth_parameters(argc, argv);
+#endif /* HAVE_SCO_ETC_SHADOW */
+
   data = ssh_xcalloc(1, sizeof(*data));
   user = ssh_user_initialize(NULL, TRUE);
   
@@ -567,6 +638,9 @@ int main(int argc, char **argv)
   ssh_signals_prevent_core(TRUE, data);
   ssh_register_signal(SIGPIPE, NULL, NULL);
 
+  /* register SIGHUP for restart callback */
+  ssh_register_signal(SIGHUP, sighup_handler, data);
+  
   /* Register SIGCHLD signal handler, to kill those darn zombies */
 
   ssh_sigchld_initialize();
@@ -575,8 +649,20 @@ int main(int argc, char **argv)
      on the commandline. */
   if (!parameter_defined('f', argc, argv))
     {
+      char *conf_dir;
+
+      if (ssh_user_uid(user) == 0 )
+        {
+          conf_dir = ssh_xstrdup(SSH_SERVER_DIR);
+        }
+      else
+        {
+          if ((conf_dir = ssh_userdir(user, data->config, TRUE)) == NULL)
+            ssh_fatal("ssh_server_load_host_key: no ssh2 user directory");
+        }
+
       snprintf(config_fn, sizeof(config_fn), "%s/%s",
-               ssh_userdir(user, data->config, TRUE), SSH_SERVER_CONFIG_FILE);
+               conf_dir, SSH_SERVER_CONFIG_FILE);
       if (!ssh_config_read_file(user, data->config, NULL, config_fn, NULL))
         ssh_warning("%s: Failed to read config file %s", av0, config_fn);
     }
@@ -616,7 +702,7 @@ int main(int argc, char **argv)
           ssh_debug_set_level_string("2");
           break;
 
-              /* An additional configuration file */
+          /* An additional configuration file */
         case 'f':
           if (!ssh_optval)
             ssh_fatal("%s: Illegal -f parameter.", av0);
@@ -656,7 +742,7 @@ int main(int argc, char **argv)
           i++;
           break;
 
-              /* is inetd enabled ? */
+          /* is inetd enabled ? */
         case 'i':
           data->config->inetd_mode = (ssh_optval != 0);
           break;
@@ -679,7 +765,7 @@ int main(int argc, char **argv)
           i++;
           break;
 
-              /* Quiet mode */
+          /* Quiet mode */
         case 'q':
           data->config->quiet_mode = (ssh_optval != 0);
           break;
@@ -727,6 +813,9 @@ int main(int argc, char **argv)
     {
       SshStream stream;
 
+      ssh_log_event(data->config->log_facility,
+                    SSH_LOG_WARNING,
+                    "Starting daemon in inetd mode.");
       /* We are being called from inetd.  Take stdio to be the connection
          and proceed with the new connection. */
       stream = ssh_stream_fd_stdio();
@@ -748,6 +837,11 @@ int main(int argc, char **argv)
                   data->config->port);
       ssh_debug("Listener created");
 
+      ssh_log_event(data->config->log_facility,
+                    SSH_LOG_WARNING,
+                    "Listener created on port %s.",
+                    data->config->port);
+      
       /* If not debugging, fork into background. */
       if (!data->debug)
         {
@@ -784,7 +878,7 @@ int main(int argc, char **argv)
           setpgrp(0, 0);
 #else /* ultrix */
           if (setsid() < 0)
-            ssh_log_event(SSH_LOGFACILITY_DAEMON, SSH_LOG_NOTICE,
+            ssh_log_event(data->config->log_facility, SSH_LOG_NOTICE,
                           "setsid: %.100s", strerror(errno));
 #endif /* ultrix */
 #endif /* HAVE_SETSID */
@@ -810,6 +904,10 @@ int main(int argc, char **argv)
       fprintf(f, "%ld\n", (long)getpid());
       fclose(f);
     }
+
+  ssh_log_event(data->config->log_facility,
+                SSH_LOG_WARNING,
+                "Daemon is running.");
   
   ssh_debug("Running event loop");
   ssh_event_loop_run();
@@ -820,7 +918,45 @@ int main(int argc, char **argv)
   ssh_event_loop_uninitialize();
 
   if (data->listener)
-    remove(pidfile);
+    {
+      remove(pidfile);
+      
+      if (restart)
+        {
+          int ret;
+          
+          ssh_tcp_destroy_listener(data->listener);
+          data->listener = NULL;
+          
+          SSH_DEBUG(0, ("restarting..."));
+          ssh_log_event(data->config->log_facility, SSH_LOG_WARNING,
+                        "restarting...");
+          
+          ret = fork();
+          
+          if (ret == 0)
+            {
+              /* Child */
+              execv(argv[0], argv);
+              ssh_fatal("Restart (exec) failed on SIGHUP. "
+                        "(error message \"%s\")",
+                        strerror(errno));
+            }
+          else
+            {
+              /* Parent */
+              if (ret == -1)
+                {
+                  /* Fork failed */
+                  ssh_fatal("Restart (fork) failed on SIGHUP.");
+                }
+              else
+                {
+                  exit(0);
+                }
+            }
+        }
+    }
   
   return 0;
 }

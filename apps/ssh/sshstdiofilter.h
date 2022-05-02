@@ -24,14 +24,14 @@
 #define SSHSTDIOFILTER_H
 
 int ssh_stdio_output_filter(SshBuffer *data,
-			    size_t offset,
-			    Boolean eof_received,
-			    void *context);
+                            size_t offset,
+                            Boolean eof_received,
+                            void *context);
 
 int ssh_stdio_input_filter(SshBuffer *data,
-			   size_t offset, 
-			   Boolean eof_received,
-			   void *context);
+                           size_t offset, 
+                           Boolean eof_received,
+                           void *context);
 
 void ssh_stdio_filter_destroy(void *context);
 

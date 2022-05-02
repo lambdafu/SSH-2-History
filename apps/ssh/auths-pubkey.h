@@ -9,7 +9,7 @@
 
   Copyright (C) 1997-1998 SSH Communications Security Oy, Espoo, Finland
   All rights reserved.
-		  
+                  
   Public key authentication, server-side.
 */
 
@@ -21,12 +21,12 @@
 /* Public key authentication for the server side. */
 
 SshAuthServerResult ssh_server_auth_pubkey(SshAuthServerOperation op,
-					   const char *user,
-					   SshBuffer *packet,
-					   const unsigned char *session_id,
-					   size_t session_id_len,
-					   void **state_placeholder,
-					   void **longtime_placeholder,
-					   void *method_context);
+                                           const char *user,
+                                           SshBuffer *packet,
+                                           const unsigned char *session_id,
+                                           size_t session_id_len,
+                                           void **state_placeholder,
+                                           void **longtime_placeholder,
+                                           void *method_context);
 
 #endif /* AUTHS_PUBKEY_H */

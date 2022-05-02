@@ -14,7 +14,7 @@ information.
 */
 
 /*
- * $Id: des.h,v 1.14 1998/11/04 12:06:06 ylo Exp $
+ * $Id: des.h,v 1.15 1998/12/03 19:48:14 mkojo Exp $
  * $Log: des.h,v $
  * $EndLog$
  */
@@ -25,62 +25,67 @@ information.
 /* Single des */
 
 /* Returns the size of a des key context. */
-size_t des_ctxsize(void);
+size_t ssh_des_ctxsize(void);
 
 /* Initializes an already allocated des key context */
-void des_init(void *context, const unsigned char *key, size_t keylen,
-                   Boolean for_encryption);
+Boolean ssh_des_init(void *context, const unsigned char *key, size_t keylen,
+                     Boolean for_encryption);
+
+/* Initializes an already allocated des key context */
+Boolean ssh_des_init_with_key_check(void *context,
+                                    const unsigned char *key, size_t keylen,
+                                    Boolean for_encryption);
 
 /* Encrypt in ecb/cbc/cfb/ofb modes. */
-void des_ecb(void *context, unsigned char *dest,
+void ssh_des_ecb(void *context, unsigned char *dest,
              const unsigned char *src, size_t len,
              unsigned char *iv);
 
-void des_cbc(void *context, unsigned char *dest,
+void ssh_des_cbc(void *context, unsigned char *dest,
              const unsigned char *src, size_t len,
              unsigned char *iv);
 
-void des_cfb(void *context, unsigned char *dest,
+void ssh_des_cfb(void *context, unsigned char *dest,
              const unsigned char *src, size_t len,
              unsigned char *iv);
 
-void des_ofb(void *context, unsigned char *dest,
+void ssh_des_ofb(void *context, unsigned char *dest,
              const unsigned char *src, size_t len,
              unsigned char *iv);
 
 /* Triple des */
 
 /* Returns the size of a 3des key context. */
-size_t des3_ctxsize(void);
+size_t ssh_des3_ctxsize(void);
 
 #ifndef KERNEL
 /* Sets the des key for the context.  Initializes the context.  The least
    significant bit of each byte of the key is ignored as parity. */
-void *des3_allocate(const unsigned char *key, size_t keylen,
+void *ssh_des3_allocate(const unsigned char *key, size_t keylen,
                     Boolean for_encryption);
 #endif /* !KERNEL */
 
 /* Sets an already allocated 3des context. */
-void des3_init(void *context, const unsigned char *key, size_t keylen,
-               Boolean for_encryption);
+Boolean ssh_des3_init(void *context, const unsigned char *key, size_t keylen,
+                      Boolean for_encryption);
 
 /* Destroy any sensitive data in the context. */
-void des3_free(void *context);
+void ssh_des3_free(void *context);
 
 /* Encrypt using ecb/cbc/cfb/ofb modes. */
-void des3_ecb(void *context, unsigned char *dest,
+void ssh_des3_ecb(void *context, unsigned char *dest,
               const unsigned char *src, size_t len,
               unsigned char *iv);
 
-void des3_cbc(void *context, unsigned char *dest,
+void ssh_des3_cbc(void *context, unsigned char *dest,
               const unsigned char *src, size_t len,
               unsigned char *iv);
 
-void des3_cfb(void *context, unsigned char *dest,
+void ssh_des3_cfb(void *context, unsigned char *dest,
               const unsigned char *src, size_t len,
               unsigned char *iv);
 
-void des3_ofb(void *context, unsigned char *dest,
+void ssh_des3_ofb(void *context, unsigned char *dest,
               const unsigned char *src, size_t len,
               unsigned char *iv);
 

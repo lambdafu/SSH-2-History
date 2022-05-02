@@ -24,21 +24,10 @@
 #include "sshcrypt.h"
 #include "sshconn.h"
 
-#ifdef SSHDIST_SSH2_INTERNAL_RELEASE
-
-
-#else /* SSHDIST_SSH2_INTERNAL_RELEASE */
-#ifdef SSHDIST_SSH2_F_SECURE_COMMERCIAL
-
-
-#else /* SSHDIST_SSH2_F_SECURE_COMMERCIAL */
 #define SSH2_PROTOCOL_VERSION_STRING \
                 SSH2_VERSION " (non-commercial)"
-#endif /* SSHDIST_SSH2_F_SECURE_COMMERCIAL */
-#endif /* SSHDIST_SSH2_INTERNAL_RELEASE */
 
 /* XXX temporarily defined here. */
-#ifndef SSHDIST_WINDOWS
 #define SSH_CHANNEL_SESSION
 #define SSH_CHANNEL_AGENT
 #define SSH_CHANNEL_SSH1_AGENT
@@ -46,9 +35,6 @@
 #if !defined (X_DISPLAY_MISSING) && defined (XAUTH_PATH)
 #define SSH_CHANNEL_X11
 #endif /* X_DISPLAY_MISSING */
-#else /* SSHDIST_WINDOWS */
-
-#endif /* SSHDIST_WINDOWS */
 
 /* Data type for representing the common protocol object for both server and
    client. */
@@ -104,10 +90,19 @@ struct SshCommonRec
   char *remote_port;
   char *remote_host; /* Hostname or ip number */
 
+  /* Authentication protocol object, needed here because of
+     ssh_common_finalize */
+  SshStream auth;
+  
   /* Local ip address and port. */
   char *local_ip;
   char *local_port;
 
+  /* Last login data */
+  time_t last_login_time;
+  char *last_login_from_host;
+  unsigned int sizeof_last_login_from_host;
+  
   /* Authenticated host name, or empty if none. */
   char *authenticated_client_host;
 

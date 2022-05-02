@@ -10,8 +10,8 @@
  *
  *        Creation          : 19:47 Mar 12 1997 kivinen
  *        Last Modification : 18:07 Oct  8 1998 kivinen
- *        Last check in     : $Date: 1998/11/05 12:24:50 $
- *        Revision number   : $Revision: 1.12 $
+ *        Last check in     : $Date: 1999/01/18 10:48:05 $
+ *        Revision number   : $Revision: 1.13 $
  *        State             : $State: Exp $
  *        Version           : 1.665
  *
@@ -34,11 +34,15 @@
 #include <curses.h>
 #endif
 #ifdef HAVE_TERMCAP_H
-#include <termcap.h>
+# include <termcap.h>
 #else /* HAVE_TERMCAP_H */
-#ifdef HAVE_TERM_H
-#include <term.h>
-#endif
+# ifdef HAVE_USR_XPG4_INCLUDE_TERM_H
+#  include </usr/xpg4/include/term.h>
+# else /* HAVE_USR_XPG4_INCLUDE_TERM_H */
+#  ifdef HAVE_TERM_H
+#   include <term.h>
+#  endif
+# endif /* HAVE_USR_XPG4_INCLUDE_TERM_H */
 #endif /* HAVE_TERMCAP_H */
 #include <sys/ioctl.h>
 
@@ -1257,7 +1261,7 @@ void ssh_rl_initialize_termcap(ReadLine *rl)
       ssh_last_term->term_buffer = ssh_xmalloc(1024);
       ssh_last_term->term_type = NULL;
     }
-  term = getenv("TERM");
+  term = (char *)getenv("TERM");
   if (term == NULL)
     {
       ssh_last_term->term_type = term;

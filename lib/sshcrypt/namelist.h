@@ -122,25 +122,15 @@ char *ssh_name_list_intersection_sshproto(const char *src1, const char *src2);
    of algorithm names.  The caller is responsible for freeing the result
    with ssh_xfree.  The output will contain the nams in the order in which
    they are listed in the argument list. */
-#ifdef SSHDIST_CRYPT_GENCIPH
 char *ssh_name_list_intersection_cipher(const char *src);
-#endif /* SSHDIST_CRYPT_GENCIPH */
-#ifdef SSHDIST_CRYPT_GENMAC
 char *ssh_name_list_intersection_mac(const char *src);
-#endif /* SSHDIST_CRYPT_GENMAC */
-#ifdef SSHDIST_CRYPT_GENHASH
 char *ssh_name_list_intersection_hash(const char *src);
-#endif /* SSHDIST_CRYPT_GENHASH */
-#ifdef SSHDIST_CRYPT_COMPRESS
 char *ssh_name_list_intersection_compression(const char *src);
-#endif /* SSHDIST_CRYPT_COMPRESS */
 
 /* Public key routines are special case, because they implement the use of
    trees. This means that you have to prepare the input in a way that
    allows expansion to trees. Mainly the restriction is to note that {, } are
    reserved for subtree separation. */
-#ifdef SSHDIST_CRYPT_GENPKCS
 char *ssh_name_list_intersection_public_key(const char *src);
-#endif /* SSHDIST_CRYPT_GENPKCS */
 
 #endif /* NAMELIST_H */

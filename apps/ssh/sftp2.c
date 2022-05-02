@@ -1,6 +1,6 @@
 /*
 
-  sftp.c
+  sftp2.c
 
   Authors:
         Tatu Ylonen <ylo@ssh.fi>
@@ -29,6 +29,11 @@
 #include "sshunixpipestream.h"
 
 #define SSH_DEBUG_MODULE "SshSftp"
+
+#ifdef HAVE_LIBWRAP
+int allow_severity = SSH_LOG_INFORMATIONAL;
+int deny_severity = SSH_LOG_WARNING;
+#endif /* HAVE_LIBWRAP */
 
 /* saved program name */
 const char *av0;
@@ -71,6 +76,9 @@ typedef struct
   SshFileClient remote_client; 
   char *remote_path;
   
+  /* pid of the child process, which exec's ssh2 */
+  pid_t child_pid; 
+
   /* Streams */
   SshStream local_server_stream;
   SshStream local_client_stream;
@@ -573,16 +581,19 @@ Boolean sftp_open_connection(Sftp sftp)
   switch (ssh_pipe_create_and_fork(&sftp->remote_client_stream,
                                    NULL))
     {
-     case SSH_PIPE_ERROR:
+    case SSH_PIPE_ERROR:
       ssh_fatal("ssh_pipe_create_and_fork() failed");
       
-     case SSH_PIPE_PARENT_OK:      
+    case SSH_PIPE_PARENT_OK:      
+
+      sftp->child_pid = ssh_pipe_get_pid(sftp->remote_client_stream);
+
       /* Try to wrap this as the server */
       
       sftp->remote_client = 
         ssh_file_client_wrap(sftp->remote_client_stream);
       printf("remote path : ");   
-
+      
       if (sftp_pwd(0, NULL, sftp))
         {
           printf("\nremote server failed.\n");
@@ -594,14 +605,15 @@ Boolean sftp_open_connection(Sftp sftp)
           sftp->connected = TRUE;
           return FALSE;
         }
-                     
-     case SSH_PIPE_CHILD_OK:
-       /* execlp("sftp-server", "sftp-server", NULL); */
-       
-       i = 0;
-       args[i++] = sftp->ssh_path;
-       if (sftp->remote_port && *sftp->remote_port)
-         {
+      
+    case SSH_PIPE_CHILD_OK:
+      /* execlp("sftp-server", "sftp-server", NULL); */
+      
+      i = 0;
+      args[i++] = sftp->ssh_path;
+
+      if (sftp->remote_port && *sftp->remote_port)
+        {
            args[i++] = "-p";
            args[i++] = sftp->remote_port;
          }
@@ -620,7 +632,7 @@ Boolean sftp_open_connection(Sftp sftp)
             cipher != NULL; 
             cipher = cipher->next)
          {
-           assert(i < SFTP_MAX_ARGS);
+           SSH_ASSERT(i < SFTP_MAX_ARGS);
            
            args[i++] = "-c";
            args[i++] = cipher->name;
@@ -631,7 +643,7 @@ Boolean sftp_open_connection(Sftp sftp)
        args[i++] = "sftp";
        args[i] = NULL;
 
-       assert(i < SFTP_MAX_ARGS);
+       SSH_ASSERT(i < SFTP_MAX_ARGS);
 
        for (i = 0; args[i]; i++)
          ssh_debug("args[%d] = %s", i, args[i]);
@@ -751,15 +763,20 @@ int sftp_page_compar(const void *a, const void *b)
 
 void sftp_page_prompt_return(Sftp sftp)
 {
-  int ch;
-  printf("<press return for more>");
-          
-  fflush(stdout);
-  do
+  char *line;
+
+  line = NULL;
+
+  if (fflush(stdout))
     {
-      ch = getchar();
-    } while (ch != EOF && ch != '\n');
-  printf("\r");  
+      perror("sftp_page_prompt_return");
+      printf("\nErrno: %d\n", errno);
+    }
+  
+  if (ssh_readline("<press return for more>", (unsigned char **)&line, fileno(stdin)) == -1)
+    ssh_warning("sftp_page_prompt_return: error getting char.");
+
+  printf("\r\n");
 }
 
 /* Sort and paginate a list of strings that ends with NULL. */
@@ -795,8 +812,7 @@ void sftp_page_list(char **list, Sftp sftp)
     columns = 1;
 
   /* Print the list */
-  
-  k = 0;    
+  k = 0;
   
   while (k < no_elem)
     {  
@@ -813,13 +829,20 @@ void sftp_page_list(char **list, Sftp sftp)
                 continue;         
               printf("%*s", -max_width, list[j * h + i + k]);     
             }      
-          printf("\n");
+          printf("\r\n");
         }
       k += h * columns;
       
       if (k < no_elem)
-        sftp_page_prompt_return(sftp);
+        {
+          /*      printf("\r\n");*/
+          sftp_page_prompt_return(sftp);
+        }
+      
     }
+
+  fflush(stdout);
+  
 }
 
 /* Command not supported. */
@@ -1103,7 +1126,7 @@ void sftp_kitt(off_t pos, off_t total, int width)
 
   p = width * pos / total;  
 
-  printf("\r|");
+  printf("\r\n|");
   for (i = 1; i < width - 2; i++)
     {
       switch(i - p)
@@ -1852,6 +1875,8 @@ struct SftpCmdRec sftp_cmd[] =
 
 /* Allocate a new sftp structure */
     
+Sftp sftp_init(void);
+
 Sftp sftp_init()
 {
   Sftp sftp;
@@ -1876,6 +1901,8 @@ Sftp sftp_init()
   sftp->local_path = ssh_xstrdup(".");
   sftp->remote_path = ssh_xstrdup(".");
   sftp->mask = NULL;
+
+  sftp->child_pid = 0;
   
   /* Create the local server/client pair */  
   ssh_stream_pair_create(&sftp->local_server_stream, 
@@ -1931,12 +1958,6 @@ void sftp_debug(const char *msg, void *context)
     fprintf(stderr, "debug: %s\r\n", msg);
 }
 
-/*
- * 
- *  sftp main
- * 
- */
-
 SftpCipherName sftp_new_cipher_item(char *name)
 {
   SftpCipherName r;
@@ -1947,12 +1968,48 @@ SftpCipherName sftp_new_cipher_item(char *name)
   return r;
 }
 
+void fatal_signal_handler(int signal, void *context)
+{
+  Sftp session = (Sftp) context;
+  
+  if (session->child_pid == 0)
+    ssh_fatal("\r\nReceived signal %d. No child to kill.", signal);
+
+  /* Kill child-ssh. */
+  if (kill(session->child_pid, signal) != 0)
+    {
+      SSH_TRACE(2, ("killing child process did not succeed."));
+    }
+  
+  ssh_fatal("\r\nReceived signal %d. Child with pid %d killed.",
+            signal,
+            session->child_pid);
+}
+
+/* clear O_NONBLOCK flag from filedescriptor */
+void clear_nonblock(int fd)
+{
+#if defined(O_NONBLOCK) && !defined(O_NONBLOCK_BROKEN)
+  fcntl(fd, F_SETFL, 
+        fcntl(fd, F_GETFL, 0) & ~O_NONBLOCK);
+#else /* O_NONBLOCK && !O_NONBLOCK_BROKEN */
+  fcntl(fd, F_SETFL,
+        fcntl(fd, F_GETFL, 0) & ~O_NDELAY);
+#endif /* O_NONBLOCK && !O_NONBLOCK_BROKEN */
+}
+      
+/*
+ * 
+ *  sftp main
+ * 
+ */
+
 int main(int argc, char **argv)
 {
   Sftp sftp;
   char *cmdbuf, *earg[2];
   char **parm, prompt_buf[40];
-  int i, parms, ttyfd;
+  int i, parms;
   
   /* Save program name. */
   
@@ -1964,6 +2021,7 @@ int main(int argc, char **argv)
   /* initializations */
   signal(SIGPIPE, SIG_IGN);
   ssh_event_loop_initialize();
+
   sftp = sftp_init();
   ssh_debug_register_callbacks(NULL, NULL, sftp_debug, (void *)sftp);
 
@@ -2076,11 +2134,18 @@ int main(int argc, char **argv)
           *strchr(sftp->remote_host, '#') = '\0';
         }
     }
-    
+
+  ssh_register_signal(SIGHUP, fatal_signal_handler, (void *)sftp);
+  ssh_register_signal(SIGINT, fatal_signal_handler, (void *)sftp);
+  ssh_register_signal(SIGILL, fatal_signal_handler, (void *)sftp);
+  ssh_register_signal(SIGABRT, fatal_signal_handler, (void *)sftp);
+  ssh_register_signal(SIGFPE, fatal_signal_handler, (void *)sftp);
+  ssh_register_signal(SIGBUS, fatal_signal_handler, (void *)sftp);
+  ssh_register_signal(SIGSEGV, fatal_signal_handler, (void *)sftp);
+  ssh_register_signal(SIGTERM, fatal_signal_handler, (void *)sftp);
+
   ssh_debug("host %s port %s", sftp->remote_host, sftp->remote_port);
 
-  if ((ttyfd = open("/dev/tty", O_RDWR, 0)) == -1)
-    ttyfd = 0;    
   parm = ssh_xcalloc(SFTP_MAX_ARGS, sizeof(char *));
   
   
@@ -2094,7 +2159,16 @@ int main(int argc, char **argv)
   cmdbuf = NULL;
   earg[0] = NULL;
   earg[1] = NULL;
-  
+
+  /* XXX currently we don't need or want stdio or stdout in
+     nonblocking mode. */
+
+  /* Clear O_NONBLOCK from stdout */
+  {      
+      clear_nonblock(fileno(stdin));
+      clear_nonblock(fileno(stdout));   
+  }
+
   /* main loop */
   
   while (sftp->alive)
@@ -2202,12 +2276,9 @@ int main(int argc, char **argv)
         }
     }
 
-  printf("\r"); /* XXX */
+  printf("\r\n"); /* XXX */
 
   ssh_event_loop_uninitialize();
-  
-  if (ttyfd > 0)
-    close(ttyfd);
   
   ssh_xfree(cmdbuf);
   ssh_xfree(earg[0]);

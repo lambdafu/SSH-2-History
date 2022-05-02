@@ -24,7 +24,7 @@
   */
 
 /*
- * $Id: genmp.c,v 1.27 1998/06/08 21:43:03 mkojo Exp $
+ * $Id: genmp.c,v 1.28 1999/01/27 22:33:15 mkojo Exp $
  * $Log: genmp.c,v $
  * $EndLog$
  */
@@ -176,7 +176,7 @@ const unsigned int ssh_prime_table[SSH_MAX_PRIMES_IN_TABLE + 1] =
    generator). */
 
 void ssh_mp_random_integer(MP_INT *ret, SshRandomState state,
-			   unsigned int bits)
+                           unsigned int bits)
 {
   unsigned int i;
   SshUInt32 limb;
@@ -187,9 +187,9 @@ void ssh_mp_random_integer(MP_INT *ret, SshRandomState state,
     {
       /* Construct one limb */
       limb = (((SshUInt32)ssh_random_get_byte(state) << 24) |
-	      ((SshUInt32)ssh_random_get_byte(state) << 16) |
-	      ((SshUInt32)ssh_random_get_byte(state) << 8) |
-	      ((SshUInt32)ssh_random_get_byte(state) & 0xff));
+              ((SshUInt32)ssh_random_get_byte(state) << 16) |
+              ((SshUInt32)ssh_random_get_byte(state) << 8) |
+              ((SshUInt32)ssh_random_get_byte(state) & 0xff));
       /* Shift and add */
       mpz_mul_2exp(ret, ret, 32);
       mpz_add_ui(ret, ret, limb);
@@ -201,7 +201,7 @@ void ssh_mp_random_integer(MP_INT *ret, SshRandomState state,
 /* Generate traditional prime. */
 
 void ssh_mp_random_prime(MP_INT *ret, SshRandomState state,
-			 unsigned int bits)
+                         unsigned int bits)
 {
   MP_INT start, aux;
   unsigned int num_primes;
@@ -236,10 +236,10 @@ void ssh_mp_random_prime(MP_INT *ret, SshRandomState state,
   else
     {
       for (num_primes = 1; ssh_prime_table[num_primes] != 0; num_primes++)
-	{
-	  mpz_mod_ui(&aux, &start, ssh_prime_table[num_primes]);
-	  moduli[num_primes] = mpz_get_ui(&aux);
-	}
+        {
+          mpz_mod_ui(&aux, &start, ssh_prime_table[num_primes]);
+          moduli[num_primes] = mpz_get_ui(&aux);
+        }
     }
 
   /* Look for numbers that are not evenly divisible by any of the small
@@ -249,42 +249,33 @@ void ssh_mp_random_prime(MP_INT *ret, SshRandomState state,
       unsigned int i;
       
       if (difference > 0x70000000)
-	{ /* Should never happen, I think... */
-	  ssh_xfree(moduli);
-	  goto retry;
-	}
+        { /* Should never happen, I think... */
+          ssh_xfree(moduli);
+          goto retry;
+        }
 
       /* Check if it is a multiple of any small prime.  Note that this
-	 updates the moduli into negative values as difference grows. */
+         updates the moduli into negative values as difference grows. */
       for (i = 1; i < num_primes; i++)
-	{
-	  while (moduli[i] + difference >= ssh_prime_table[i])
-	    moduli[i] -= ssh_prime_table[i];
-	  if (moduli[i] + difference == 0)
-	    break;
-	}
+        {
+          while (moduli[i] + difference >= ssh_prime_table[i])
+            moduli[i] -= ssh_prime_table[i];
+          if (moduli[i] + difference == 0)
+            break;
+        }
       if (i < num_primes)
-	continue; /* Multiple of a known prime. */
+        continue; /* Multiple of a known prime. */
 
       /* Progress information. */
       ssh_crypto_progress_monitor(SSH_CRYPTO_PRIME_SEARCH,
-				  ++progress_counter);
+                                  ++progress_counter);
       
       /* Compute the number in question. */
       mpz_add_ui(ret, &start, difference);
 
-      /* Perform the fermat test for witness 2.  This means:
-	 it is not prime if 2^n mod n != 2. */
-      mpz_set_ui(&aux, 2);
-      mpz_powm(&aux, &aux, ret, ret);
-      if (mpz_cmp_ui(&aux, 2) == 0)
-	{
-	  /* Passed the fermat test for witness 2. */
-
-	  /* Perform Miller-Rabin strong pseudo primality tests */
-	  if (mpz_probab_prime_p(ret, 20))
-	    break; 
-	}
+      /* Perform Miller-Rabin strong pseudo primality tests */
+      if (mpz_probab_prime_p(ret, 20))
+        break; 
     }
 
   /* Found a (probable) prime.  It is in ret. */
@@ -333,35 +324,35 @@ void ssh_mp_next_prime(MP_INT *ret, MP_INT *x)
   if (mpz_cmp_ui(&start, ssh_prime_table[SSH_MAX_PRIMES_IN_TABLE - 2]) <= 0)
     {
       if (mpz_cmp_ui(&start, 2) < 0)
-	{
-	  /* Give the smallest (it could be thought that 1 is not
-	     prime, but the unit) prime. */
-	  mpz_set_ui(ret, 2);
-	  return;
-	}
+        {
+          /* Give the smallest (it could be thought that 1 is not
+             prime, but the unit) prime. */
+          mpz_set_ui(ret, 2);
+          return;
+        }
 
       /* We got rather small value seek for it. */
       t = mpz_get_ui(&start);
 
       /* Check using the prime table, which we already know. */
       for (num_primes = 1; ssh_prime_table[num_primes] != 0; num_primes++)
-	{
-	  if (ssh_prime_table[num_primes] < t)
-	    {
-	      if (ssh_prime_table[num_primes + 1] != 0)
-		{
-		  mpz_set_ui(ret, ssh_prime_table[num_primes + 1]);
-		  return;
-		}
-	      
-	      break;
-	    }
-	  if (ssh_prime_table[num_primes] == t)
-	    {
-	      mpz_set_ui(ret, ssh_prime_table[num_primes]);
-	      return;
-	    }
-	}
+        {
+          if (ssh_prime_table[num_primes] < t)
+            {
+              if (ssh_prime_table[num_primes + 1] != 0)
+                {
+                  mpz_set_ui(ret, ssh_prime_table[num_primes + 1]);
+                  return;
+                }
+              
+              break;
+            }
+          if (ssh_prime_table[num_primes] == t)
+            {
+              mpz_set_ui(ret, ssh_prime_table[num_primes]);
+              return;
+            }
+        }
     }
   
   /* Initialize some temporary variables. */
@@ -382,42 +373,32 @@ void ssh_mp_next_prime(MP_INT *ret, MP_INT *x)
   for (difference = 0; ; difference += 2)
     {
       if (difference > (0xffffffff - 2))
-	ssh_fatal("ssh_mp_next_prime: prime was not found.");
+        ssh_fatal("ssh_mp_next_prime: prime was not found.");
 
       /* Check if it is a multiple of any small prime. Implemented little
          different, this might be a matter of taste... I guess this is
-	 in average as fast. */
+         in average as fast. */
       for (i = 1, divisible = FALSE; i < num_primes; i++)
-	{
-	  if (moduli[i] >= ssh_prime_table[i])
-	    moduli[i] -= ssh_prime_table[i];
-	  if (moduli[i] == 0)
-	    divisible = TRUE;
-	  moduli[i] += 2;
-	}
+        {
+          if (moduli[i] >= ssh_prime_table[i])
+            moduli[i] -= ssh_prime_table[i];
+          if (moduli[i] == 0)
+            divisible = TRUE;
+          moduli[i] += 2;
+        }
       if (divisible)
-	continue; /* Multiple of a known prime. */
+        continue; /* Multiple of a known prime. */
 
       /* Acknowledge application that we have found possibly good number. */
       ssh_crypto_progress_monitor(SSH_CRYPTO_PRIME_SEARCH,
-				  ++progress_counter);
+                                  ++progress_counter);
       
       /* Compute the number in question. */
       mpz_add_ui(ret, &start, difference);
 
-      /* Perform the fermat test for witness 2.  This means:
-	 it is not prime if 2^n mod n != 2. */
-      mpz_set_ui(&aux, 2);
-      mpz_powm(&aux, &aux, ret, ret);
-      if (mpz_cmp_ui(&aux, 2) == 0)
-	{
-	  /* Passed the fermat test for witness 2. It is high probablity
-	     that we now know a strong pseudo prime, but better to be sure. */
-
-	  /* Perform Miller-Rabin strong pseudo primality tests */
-	  if (mpz_probab_prime_p(ret, 15))
-	    break; 
-	}
+      /* Perform Miller-Rabin strong pseudo primality tests */
+      if (mpz_probab_prime_p(ret, 15))
+        break; 
     }
 
   /* Free the small prime moduli; they are no longer needed. */
@@ -434,8 +415,8 @@ void ssh_mp_next_prime(MP_INT *ret, MP_INT *x)
 /* Generate random prime number using explicitly set limits. */
 
 void ssh_mp_random_prime_within_limits(MP_INT *ret,
-				       int min_bits, int max_bits,
-				       SshRandomState state)
+                                       int min_bits, int max_bits,
+                                       SshRandomState state)
 {
   MP_INT pprime, temp;
   unsigned long *moduli, difference, num_primes;
@@ -449,7 +430,7 @@ void ssh_mp_random_prime_within_limits(MP_INT *ret,
   if (min_bits >= max_bits)
     {
       /* Assume we still want random prime so get it but use more bits
-	 rather than less. */
+         rather than less. */
       
       min_bits = max_bits;
       max_bits = min_bits + 2;
@@ -493,56 +474,56 @@ retry:
 
       /* In now and them add the difference to the probable prime. */
       if (difference > 1000)
-	{
-	  mpz_add_ui(&pprime, &pprime, difference);
-	  difference = 0;
+        {
+          mpz_add_ui(&pprime, &pprime, difference);
+          difference = 0;
 
-	  len = mpz_sizeinbase(&pprime, 2);
-	  if (len > max_bits)
-	    {
-	      mpz_set_ui(&temp, 1);
-	      mpz_mul_2exp(&temp, &temp, max_bits);
-	      mpz_sub(&pprime, &pprime, &temp);
-	      
-	      mpz_div_2exp(&temp, &temp, max_bits - min_bits);
-	      mpz_add(&pprime, &pprime, &temp);
-	      mpz_sub_ui(&pprime, &pprime, 1);
+          len = mpz_sizeinbase(&pprime, 2);
+          if (len > max_bits)
+            {
+              mpz_set_ui(&temp, 1);
+              mpz_mul_2exp(&temp, &temp, max_bits);
+              mpz_sub(&pprime, &pprime, &temp);
+              
+              mpz_div_2exp(&temp, &temp, max_bits - min_bits);
+              mpz_add(&pprime, &pprime, &temp);
+              mpz_sub_ui(&pprime, &pprime, 1);
 
-	      /* Check that the probable prime is odd. */
-	      if ((mpz_get_ui(&pprime) & 0x1) == 0)
-		mpz_add_ui(&pprime, &pprime, 1);
+              /* Check that the probable prime is odd. */
+              if ((mpz_get_ui(&pprime) & 0x1) == 0)
+                mpz_add_ui(&pprime, &pprime, 1);
 
-	      /* Compute again the moduli table. */
-	      for (i = 1; i < num_primes; i++)
-		{
-		  mpz_mod_ui(&temp, &pprime, ssh_prime_table[i]);
-		  moduli[i] = mpz_get_ui(&temp);
-		}
-	    }
-	}
-	      
+              /* Compute again the moduli table. */
+              for (i = 1; i < num_primes; i++)
+                {
+                  mpz_mod_ui(&temp, &pprime, ssh_prime_table[i]);
+                  moduli[i] = mpz_get_ui(&temp);
+                }
+            }
+        }
+              
       /* Check if it is a multiple of any small prime. */
       for (i = 1; i < num_primes; i++)
-	{
-	  /* Check for this round. */
-	  if (moduli[i] == 0)
-	    divisible = TRUE;
-	  /* Compute for the next round. */
-	  moduli[i] += 2;
-	  if (moduli[i] >= ssh_prime_table[i])
-	    moduli[i] -= ssh_prime_table[i];
-	}
+        {
+          /* Check for this round. */
+          if (moduli[i] == 0)
+            divisible = TRUE;
+          /* Compute for the next round. */
+          moduli[i] += 2;
+          if (moduli[i] >= ssh_prime_table[i])
+            moduli[i] -= ssh_prime_table[i];
+        }
 
       /* Add the difference by 2. */
       difference += 2;
       
       /* Multiple of known prime. */
       if (divisible)
-	continue; 
+        continue; 
 
       /* Acknowledge application. */
       ssh_crypto_progress_monitor(SSH_CRYPTO_PRIME_SEARCH,
-				  ++progress_counter);
+                                  ++progress_counter);
       
       /* Set to ret and check if gone over the max limit. */
       mpz_add_ui(&pprime, &pprime, difference);
@@ -551,44 +532,35 @@ retry:
       /* Check the length. */
       len = mpz_sizeinbase(&pprime, 2);
       if (len > max_bits)
-	{
-	  /* compute: pprime - 2^max_bits + 2^min_bits - 1 */
-	  mpz_set_ui(&temp, 1);
-	  mpz_mul_2exp(&temp, &temp, max_bits);
-	  mpz_sub(&pprime, &pprime, &temp);
-	  mpz_set_ui(&temp, 1);
-	  mpz_mul_2exp(&temp, &temp, min_bits);
-	  mpz_add(&pprime, &pprime, &temp);
-	  mpz_sub_ui(&pprime, &pprime, 1);
-	  
-	  /* Check that the probable prime is odd. */
-	  if ((mpz_get_ui(&pprime) & 0x1) == 0)
-	    mpz_add_ui(&pprime, &pprime, 1);
-	  
-	  /* Compute again the moduli table. */
-	  for (i = 1; i < num_primes; i++)
-	    {
-	      mpz_mod_ui(&temp, &pprime, ssh_prime_table[i]);
-	      moduli[i] = mpz_get_ui(&temp);
-	    }
-	  continue;
-	}
+        {
+          /* compute: pprime - 2^max_bits + 2^min_bits - 1 */
+          mpz_set_ui(&temp, 1);
+          mpz_mul_2exp(&temp, &temp, max_bits);
+          mpz_sub(&pprime, &pprime, &temp);
+          mpz_set_ui(&temp, 1);
+          mpz_mul_2exp(&temp, &temp, min_bits);
+          mpz_add(&pprime, &pprime, &temp);
+          mpz_sub_ui(&pprime, &pprime, 1);
+          
+          /* Check that the probable prime is odd. */
+          if ((mpz_get_ui(&pprime) & 0x1) == 0)
+            mpz_add_ui(&pprime, &pprime, 1);
+          
+          /* Compute again the moduli table. */
+          for (i = 1; i < num_primes; i++)
+            {
+              mpz_mod_ui(&temp, &pprime, ssh_prime_table[i]);
+              moduli[i] = mpz_get_ui(&temp);
+            }
+          continue;
+        }
       
       /* Compute the number in question. */
       mpz_set(ret, &pprime);
 
-      /* Perform the fermat test for witness 2.  This means:
-	 it is not prime if 2^n mod n != 2. */
-      mpz_set_ui(&temp, 2);
-      mpz_powm(&temp, &temp, ret, ret);
-      if (mpz_cmp_ui(&temp, 2) == 0)
-	{
-	  /* Passed the fermat test for witness 2. */
-
-	  /* Perform Miller-Rabin strong pseudo primality tests */
-	  if (mpz_probab_prime_p(ret, 15))
-	    break; 
-	}
+      /* Perform Miller-Rabin strong pseudo primality tests */
+      if (mpz_probab_prime_p(ret, 15))
+        break; 
     }
 
   /* Found a (probable) prime.  It is in ret. */
@@ -611,9 +583,9 @@ retry:
    rather slow. */
 
 void ssh_mp_random_prime_with_congruence(MP_INT *ret,
-					 int min_bits, int max_bits,
-					 MP_INT *r, MP_INT *a,
-					 SshRandomState state)
+                                         int min_bits, int max_bits,
+                                         MP_INT *r, MP_INT *a,
+                                         SshRandomState state)
 {
   MP_INT pprime, temp, w, r2;
   unsigned int len;
@@ -624,7 +596,7 @@ void ssh_mp_random_prime_with_congruence(MP_INT *ret,
   if (min_bits >= max_bits)
     {
       /* Assume we still want random prime so get it but use more bits
-	 rather than less. */
+         rather than less. */
       
       min_bits = max_bits;
       max_bits = min_bits + 2;
@@ -663,48 +635,39 @@ retry:
       /* Check the length. */
       len = mpz_sizeinbase(&pprime, 2);
       if (len > max_bits)
-	{
-	  /* compute: pprime - 2^max_bits + 2^min_bits - 1 */
-	  mpz_set_ui(&temp, 1);
-	  mpz_mul_2exp(&temp, &temp, max_bits);
-	  mpz_sub(&pprime, &pprime, &temp);
-	  mpz_set_ui(&temp, 1);
-	  mpz_mul_2exp(&temp, &temp, min_bits);
-	  mpz_add(&pprime, &pprime, &temp);
-	  mpz_sub_ui(&pprime, &pprime, 1);
-	  
-	  /* Check that the probable prime is odd. */
-	  if ((mpz_get_ui(&pprime) & 0x1) == 0)
-	    mpz_add_ui(&pprime, &pprime, 1);
+        {
+          /* compute: pprime - 2^max_bits + 2^min_bits - 1 */
+          mpz_set_ui(&temp, 1);
+          mpz_mul_2exp(&temp, &temp, max_bits);
+          mpz_sub(&pprime, &pprime, &temp);
+          mpz_set_ui(&temp, 1);
+          mpz_mul_2exp(&temp, &temp, min_bits);
+          mpz_add(&pprime, &pprime, &temp);
+          mpz_sub_ui(&pprime, &pprime, 1);
+          
+          /* Check that the probable prime is odd. */
+          if ((mpz_get_ui(&pprime) & 0x1) == 0)
+            mpz_add_ui(&pprime, &pprime, 1);
 
-	  mpz_mod(&w, &pprime, &r2);
-	  
-	  mpz_add(&pprime, &pprime, &r2);
-	  mpz_add(&pprime, &pprime, a);
-	  mpz_sub(&pprime, &pprime, &w);
-	  continue;
-	}
+          mpz_mod(&w, &pprime, &r2);
+          
+          mpz_add(&pprime, &pprime, &r2);
+          mpz_add(&pprime, &pprime, a);
+          mpz_sub(&pprime, &pprime, &w);
+          continue;
+        }
 
       ssh_crypto_progress_monitor(SSH_CRYPTO_PRIME_SEARCH,
-				  ++progress_counter);
+                                  ++progress_counter);
       
       /* Check for primality. */
       
       /* Compute the number in question. */
       mpz_set(ret, &pprime);
 
-      /* Perform the fermat test for witness 2.  This means:
-	 it is not prime if 2^n mod n != 2. */
-      mpz_set_ui(&temp, 2);
-      mpz_powm(&temp, &temp, ret, ret);
-      if (mpz_cmp_ui(&temp, 2) == 0)
-	{
-	  /* Passed the fermat test for witness 2. */
-
-	  /* Perform Miller-Rabin strong pseudo primality tests */
-	  if (mpz_probab_prime_p(ret, 15))
-	    break;
-	}
+      /* Perform Miller-Rabin strong pseudo primality tests */
+      if (mpz_probab_prime_p(ret, 15))
+        break;
     }
 
   /* Sanity check. */
@@ -725,15 +688,15 @@ retry:
    large primes. Also 'div' = r. */
 
 void ssh_mp_strong_p1363_random_prime(MP_INT *prime, MP_INT *div, 
-				      int big_bits, int small_bits,
-				      SshRandomState state)
+                                      int big_bits, int small_bits,
+                                      SshRandomState state)
 {
   MP_INT t, r, s, u, v, a, temp;
   unsigned int lt_bits, lr_bits, ls_bits;
 
   if (small_bits < 160 || big_bits < 320)
     ssh_fatal("error: discrete log might be too easy with primes (%d, %d).\n",
-	      big_bits, small_bits);
+              big_bits, small_bits);
 
   if (small_bits > big_bits)
     big_bits = small_bits + 10;
@@ -756,7 +719,7 @@ void ssh_mp_strong_p1363_random_prime(MP_INT *prime, MP_INT *div,
   
   ssh_mp_random_prime_within_limits(&t, lt_bits - 1, lt_bits, state);
   ssh_mp_random_prime_with_congruence(&r, lr_bits - 1, lr_bits, &t, &temp,
-				      state);
+                                      state);
   ssh_mp_random_prime_within_limits(&s, ls_bits - 1, ls_bits, state);
 
   /* Invert s (mod r) and r (mod s). */
@@ -772,7 +735,7 @@ void ssh_mp_strong_p1363_random_prime(MP_INT *prime, MP_INT *div,
   mpz_mod(&a, &a, &temp);
 
   ssh_mp_random_prime_with_congruence(prime, big_bits - 1, big_bits, &temp, &a,
-				      state);
+                                      state);
 
   mpz_set(div, &r);
   
@@ -786,38 +749,41 @@ void ssh_mp_strong_p1363_random_prime(MP_INT *prime, MP_INT *div,
   mpz_clear(&temp);
 }
 
-/* Generate a strong random prime. That is, p = q * c, where p and q are
-   prime and c > 1. We can use following facts:
+/* Generate a strong random prime. That is, p = q * c + 1, where p and q are
+   prime and c > 1.
 
-   for prime l we know that p (mod l) = q * c (mod l) <> 0 =
-    
-   (q * 2 (mod l)) * ((c - 2) (mod l)).
-
+   Here we use the idea that given random 2^n-1 < x < 2^n, we can compute
+   y = x (mod 2q), and then p = x - y + 1 + 2tq. Given this method the
+   probability that we get values that are not in the correct range is
+   reasonably small. 
+   
    */
 
 void ssh_mp_random_strong_prime(MP_INT *prime,
-				MP_INT *order,
-				int prime_bits, int order_bits,
-				SshRandomState state)
+                                MP_INT *order,
+                                int prime_bits, int order_bits,
+                                SshRandomState state)
 {
-  MP_INT aux, u;
+  MP_INT aux, aux2, u;
   unsigned long *table_q, *table_u;
-  int i, j, table_count, upto;
+  unsigned long i, j, table_count, upto;
   Boolean flag;
 
   unsigned int progress_counter = 0;
   
-  /* Here this is more like a joke. */
+  /* Check for bugs. */
   if (prime_bits < order_bits)
-    prime_bits = order_bits + 10;
-
+    ssh_fatal("ssh_mp_random_strong_prime: "
+              "requested prime less than the group order!");
+  
   /* Keep the running in place. */
-  if (prime_bits - order_bits - 1 > 30)
-    upto = 1 << 30;
+  if (prime_bits - order_bits - 1 > 24)
+    upto = 1 << 24;
   else
     upto = 1 << (prime_bits - order_bits - 1);
   
   mpz_init(&aux);
+  mpz_init(&aux2);
   mpz_init(&u);
 
   /* There seems to be no real reason to generate this as a strong prime. */
@@ -830,80 +796,90 @@ void ssh_mp_random_strong_prime(MP_INT *prime,
     {
       mpz_mod_ui(&aux, order, ssh_prime_table[table_count]);
       table_q[table_count] =
-	(mpz_get_ui(&aux) * 2) % ssh_prime_table[table_count];
+        (mpz_get_ui(&aux) * 2) % ssh_prime_table[table_count];
     }
 
   /* In case we don't find one quickly enough. */
 retry:
 
   /* Generate a random integer large enough. */
-  ssh_mp_random_integer(&u, state, prime_bits - order_bits - 1);
+  ssh_mp_random_integer(&u, state, prime_bits);
 
-  /* Set highest bit. */
+  /* Set the highest bit on. */
   mpz_set_ui(&aux, 1);
-  mpz_mul_2exp(&aux, &aux, prime_bits - order_bits - 1);
+  mpz_mul_2exp(&aux, &aux, prime_bits - 1);
   mpz_ior(&u, &u, &aux);
   
+  /* Compute the initial value for the prime. */
+  mpz_set(&aux, order);
+  mpz_mul_2exp(&aux, &aux, 1);
+  mpz_mod(&aux2, &u, &aux);
+  mpz_sub(&u, &u, &aux2);
+  mpz_add_ui(&u, &u, 1);
+
+  /* Now check whether the value is still large enough. */
+  if (mpz_sizeinbase(&u, 2) <= prime_bits - 1)
+    goto retry;
+
+  /* Now compute the residues of the 'probable prime'. */
   for (j = 1; j < table_count; j++)
     {
       mpz_mod_ui(&aux, &u, ssh_prime_table[j]);
-      table_u[j] = (mpz_get_ui(&aux) * table_q[j]) %
-	ssh_prime_table[j];
+      table_u[j] = mpz_get_ui(&aux);
     }
 
+  /* Set the 2*q for  later. */
+  mpz_mul_2exp(&aux2, order, 1);
+  
+  /* Loop through until a prime is found. */
   for (i = 0; i < upto; i++)
     {
       flag = TRUE;
       for (j = 1; j < table_count; j++)
-	{
-	  /* Check if the result seems to indicate divisible value. */
-	  if (table_u[j] >= ssh_prime_table[j] - 1)
-	    {
-	      if (table_u[j] > ssh_prime_table[j] - 1)
-		table_u[j] -= ssh_prime_table[j];
-	      else
-		flag = FALSE;
-	    }
-	  /* For the next round compute. */
-	  table_u[j] += table_q[j];
-	}
+        {
+          unsigned long cur_p = ssh_prime_table[j];
+          unsigned long value = table_u[j];
+          /* Check if the result seems to indicate divisible value. */
+          if (value >= cur_p)
+            value -= cur_p;
+          if (value == 0)
+            flag = FALSE;
+          /* For the next round compute. */
+          table_u[j] = value + table_q[j];
+        }
 
       if (flag != TRUE)
-	{
-	  continue;
-	}
+        continue;
 
       /* Acknowledge application that again one possibly good value was
-	 found. */
+         found. */
       ssh_crypto_progress_monitor(SSH_CRYPTO_PRIME_SEARCH,
-				  ++progress_counter);
+                                  ++progress_counter);
       
       /* Compute the proposed prime. */
       mpz_set(prime, &u);
-      mpz_add_ui(prime, prime, i);
-      mpz_mul_ui(prime, prime, 2);
-      mpz_mul(prime, prime, order);
-      mpz_add_ui(prime, prime, 1);
+      mpz_mul_ui(&aux, &aux2, i);
+      mpz_add(prime, prime, &aux);
 
-      /* Fermat */
-      mpz_set_ui(&aux, 2);
-      mpz_powm(&aux, &aux, prime, prime);
-      if (mpz_cmp_ui(&aux, 2) == 0)
-	{
-	  /* Miller-Rabin */
-	  if (mpz_probab_prime_p(prime, 15))
-	    break;
-	}
+      /* Check that the size of the prime is within range. */
+      if (mpz_sizeinbase(prime, 2) > prime_bits)
+        goto retry;
+      
+      /* Miller-Rabin */
+      if (mpz_probab_prime_p(prime, 20))
+        break;
     }
 
   if (i >= upto)
     goto retry;
 
+  /* Free the moduli tables. */
+  ssh_xfree(table_q);
+
   /* Free temporary memory. */
   mpz_clear(&aux);
+  mpz_clear(&aux2);
   mpz_clear(&u);
-
-  ssh_xfree(table_q);
 }
 
 /* Method for computing a prime that is resistant against p-1 and p+1
@@ -930,10 +906,10 @@ retry:
    */
 
 void ssh_mp_random_safe_prime(MP_INT *p,
-			      MP_INT *q1,
-			      MP_INT *q2,
-			      unsigned int bits,
-			      SshRandomState state)
+                              MP_INT *q1,
+                              MP_INT *q2,
+                              unsigned int bits,
+                              SshRandomState state)
 {
   MP_INT t1, t2, t3, y1, y2, y3, m1, m2, m3, q3, qq;
   unsigned int *table_v, *table_u;
@@ -968,6 +944,11 @@ retry:
 
   /* Compute modulus. */
   mpz_mul(&m3, q1, q2);
+  
+  /* q3 = 2, thus q1*q2 mod 2 == 1. */
+  if ((mpz_get_ui(&m3) & 0x1) == 0)
+    ssh_fatal("ssh_mp_random_safe_prime: prime equals to 2.");
+
   mpz_mul_ui(&qq, &qq, 2);
   
   mpz_mul_ui(&m1, q2, 2);
@@ -978,7 +959,6 @@ retry:
   /* Compute inverses. */
   ssh_mp_mod_invert(&y1, &m1, q1);
   ssh_mp_mod_invert(&y2, &m2, q2);
-  ssh_mp_mod_invert(&y3, &m3, &q3);
   
   /* Compute first part. */
   mpz_mul(&t1, &m1, &y1);
@@ -989,12 +969,9 @@ retry:
   mpz_mul(&t2, &t2, &t3);
   mpz_mod(&t2, &t2, &qq);
 
-  /* Third part. */
-  mpz_mul(&t3, &m3, &y3);
-  
   /* Combine. */
   mpz_add(&t1, &t1, &t2);
-  mpz_add(&t1, &t1, &t3);
+  mpz_add(&t1, &t1, &m3);
   mpz_mod(&t1, &t1, &qq);
 
   /* We never should have to deal with cases like this. */
@@ -1039,35 +1016,29 @@ retry:
     {
       flag = TRUE;
       for (j = 1; j < table_count; j++)
-	{
-	  /* Check if the result seems to indicate divisible value. */
-	  if (table_v[j] == 0)
-	    flag = FALSE;
-	  /* For the next round compute. */
-	  table_v[j] += table_u[j];
-	  if (table_v[j] >= ssh_prime_table[j])
-	    table_v[j] -= ssh_prime_table[j];
-	}
+        {
+          /* Check if the result seems to indicate divisible value. */
+          if (table_v[j] == 0)
+            flag = FALSE;
+          /* For the next round compute. */
+          table_v[j] += table_u[j];
+          if (table_v[j] >= ssh_prime_table[j])
+            table_v[j] -= ssh_prime_table[j];
+        }
 
       if (flag != TRUE)
-	continue;
+        continue;
 
       ssh_crypto_progress_monitor(SSH_CRYPTO_PRIME_SEARCH,
-				  ++progress_counter);
+                                  ++progress_counter);
 
       /* Compute the proposed prime. */
       mpz_mul_ui(p, &qq, i);
       mpz_add(p, p, &t1);
       
-      /* Fermat */
-      mpz_set_ui(&t3, 2);
-      mpz_powm(&t3, &t3, p, p);
-      if (mpz_cmp_ui(&t3, 2) == 0)
-	{
-	  /* Miller-Rabin */
-	  if (mpz_probab_prime_p(p, 15))
-	    break;
-	}
+      /* Miller-Rabin */
+      if (mpz_probab_prime_p(p, 20))
+        break;
     }
 
   /* Free tables. */
@@ -1085,13 +1056,13 @@ retry:
   mpz_clear(&qq);
   mpz_clear(&q3);
 }
-			      
+                              
 /* Basic modular enhancements. Due the nature of extended euclids algorithm
    it sometimes returns integers that are negative. For our cases positive
    results are better. */
 
 int ssh_mp_mod_invert(MP_INT *op_dest, const MP_INT *op_src,
-		      const MP_INT *modulo)
+                      const MP_INT *modulo)
 {
   int status;
 
@@ -1111,8 +1082,8 @@ int ssh_mp_mod_invert(MP_INT *op_dest, const MP_INT *op_src,
    in reasonably random fashion around the available size. This would
    ensure that cryptographical use would be slightly safer. */
 void ssh_mp_mod_random_entropy(MP_INT *op, const MP_INT *modulo,
-			       SshRandomState state,
-			       unsigned int bits)
+                               SshRandomState state,
+                               unsigned int bits)
 {
   ssh_mp_random_integer(op, state, bits);
   mpz_mod(op, op, modulo);
@@ -1134,8 +1105,8 @@ void ssh_mp_mod_random(MP_INT *op, const MP_INT *modulo, SshRandomState state)
    factoring method. */
 
 void ssh_mp_reduced_lucas(MP_INT *op_dest, const MP_INT *op_e,
-			  const MP_INT *op_p,
-			  const MP_INT *op_n)
+                          const MP_INT *op_p,
+                          const MP_INT *op_n)
 {
   MP_INT v1, v2;
   char *bittable;
@@ -1158,13 +1129,13 @@ void ssh_mp_reduced_lucas(MP_INT *op_dest, const MP_INT *op_e,
     {
       scan_bit = mpz_scan1(op_e, bit);
       if (scan_bit >= maxbit)
-	break;
+        break;
 
       while (bit < scan_bit)
-	{
-	  bittable[bit] = 0;
-	  bit++;
-	}
+        {
+          bittable[bit] = 0;
+          bit++;
+        }
 
       bittable[bit] = 1;
       bit++;
@@ -1183,25 +1154,25 @@ void ssh_mp_reduced_lucas(MP_INT *op_dest, const MP_INT *op_e,
   while (bit--)
     {
       if (bittable[bit])
-	{
-	  mpz_mul(&v2, &v2, &v1);
-	  mpz_sub(&v2, &v2, op_p);
-	  mpz_mod(&v2, &v2, op_n);
+        {
+          mpz_mul(&v2, &v2, &v1);
+          mpz_sub(&v2, &v2, op_p);
+          mpz_mod(&v2, &v2, op_n);
 
-	  mpz_mul(&v1, &v1, &v1);
-	  mpz_sub_ui(&v1, &v1, 2);
-	  mpz_mod(&v1, &v1, op_n);
-	}
+          mpz_mul(&v1, &v1, &v1);
+          mpz_sub_ui(&v1, &v1, 2);
+          mpz_mod(&v1, &v1, op_n);
+        }
       else
-	{
-	  mpz_mul(&v1, &v2, &v1);
-	  mpz_sub(&v1, &v1, op_p);
-	  mpz_mod(&v1, &v1, op_n);
+        {
+          mpz_mul(&v1, &v2, &v1);
+          mpz_sub(&v1, &v1, op_p);
+          mpz_mod(&v1, &v1, op_n);
 
-	  mpz_mul(&v2, &v2, &v2);
-	  mpz_sub_ui(&v2, &v2, 2);
-	  mpz_mod(&v2, &v2, op_n);
-	}
+          mpz_mul(&v2, &v2, &v2);
+          mpz_sub_ui(&v2, &v2, 2);
+          mpz_mod(&v2, &v2, op_n);
+        }
     }
 
   /* Free bit table */
@@ -1216,8 +1187,8 @@ void ssh_mp_reduced_lucas(MP_INT *op_dest, const MP_INT *op_e,
 /* Generating lucas sequences. */
 
 void ssh_mp_lucas(MP_INT *op_dest, const MP_INT *op_src1,
-		  const MP_INT *op_src2,
-		  const MP_INT *k, const MP_INT *modulo)
+                  const MP_INT *op_src2,
+                  const MP_INT *k, const MP_INT *modulo)
 {
   MP_INT u, v, inv2, t, t1, t2, t3, a;
   int bits, scan_bits, last_bit = 0, maxbits;
@@ -1254,14 +1225,14 @@ void ssh_mp_lucas(MP_INT *op_dest, const MP_INT *op_src1,
     {
       scan_bits = mpz_scan1(k, bits);
       if (scan_bits >= maxbits)
-	break;
+        break;
       
       while (bits < scan_bits)
-	{
-	  bit_table[bits] = 0;
-	  bits++;
-	}
-	  
+        {
+          bit_table[bits] = 0;
+          bits++;
+        }
+          
       bit_table[bits] = 1;
       last_bit = bits;
       
@@ -1286,19 +1257,19 @@ void ssh_mp_lucas(MP_INT *op_dest, const MP_INT *op_src1,
       mpz_mod(&u, &t1, modulo);
       
       if (bit_table[bits])
-	{
-	  mpz_mul(&t1, op_src1, &u);
-	  mpz_add(&t1, &t1, &v);
-	  mpz_mul(&t1, &t1, &inv2);
+        {
+          mpz_mul(&t1, op_src1, &u);
+          mpz_add(&t1, &t1, &v);
+          mpz_mul(&t1, &t1, &inv2);
 
-	  mpz_mul(&t2, op_src1, &v);
-	  mpz_mul(&t3, &a, &u);
-	  mpz_add(&t2, &t2, &t3);
-	  mpz_mul(&t2, &t2, &inv2);
+          mpz_mul(&t2, op_src1, &v);
+          mpz_mul(&t3, &a, &u);
+          mpz_add(&t2, &t2, &t3);
+          mpz_mul(&t2, &t2, &inv2);
 
-	  mpz_mod(&u, &t1, modulo);
-	  mpz_mod(&v, &t2, modulo);
-	}
+          mpz_mod(&u, &t1, modulo);
+          mpz_mod(&v, &t2, modulo);
+        }
     }
 
   mpz_set(op_dest, &v);
@@ -1321,7 +1292,7 @@ void ssh_mp_lucas(MP_INT *op_dest, const MP_INT *op_src1,
    cases. */
 
 int ssh_mp_mod_sqrt(MP_INT *op_dest, const MP_INT *op_src,
-		    const MP_INT *modulo)
+                    const MP_INT *modulo)
 {
   MP_INT t, t1, t2, inv2;
 
@@ -1395,7 +1366,7 @@ int ssh_mp_mod_sqrt(MP_INT *op_dest, const MP_INT *op_src,
       mpz_mod(&t2, &t2, modulo);
 
       if (mpz_legendre(&t2, modulo) == -1)
-	break;
+        break;
 
       mpz_add_ui(&t1, &t1, 1);
     }
@@ -1429,7 +1400,7 @@ end:
    possibility. */
 
 Boolean ssh_mp_mov_condition(const MP_INT *op_b, const MP_INT *op_q,
-			     const MP_INT *op_r)
+                             const MP_INT *op_r)
 {
   MP_INT t, i;
   Boolean mov_condition = FALSE;
@@ -1445,10 +1416,10 @@ Boolean ssh_mp_mov_condition(const MP_INT *op_b, const MP_INT *op_q,
       mpz_mul(&t, &t, op_q);
       mpz_mod(&t, &t, op_r);
       if (mpz_cmp_ui(&t, 1) == 0)
-	{
-	  mov_condition = TRUE;
-	  break;
-	}
+        {
+          mov_condition = TRUE;
+          break;
+        }
 
       mpz_sub_ui(&i, &i, 1);
     }
@@ -1466,7 +1437,7 @@ Boolean ssh_mp_mov_condition(const MP_INT *op_b, const MP_INT *op_q,
    tested. */
 
 int ssh_mp_is_order(const MP_INT *op_ord, const MP_INT *op_src,
-		    const MP_INT *modulo)
+                    const MP_INT *modulo)
 {
   MP_INT t, t1;
   int i;
@@ -1490,20 +1461,20 @@ int ssh_mp_is_order(const MP_INT *op_ord, const MP_INT *op_src,
       /* Check whether op_src is divisible by a prime... */
       mpz_fdiv_r_ui(&t1, &t, ssh_prime_table[i]);
       if (mpz_cmp_ui(&t1, 0) == 0)
-	{
-	  /* This really isn't necessary but speeds up possibly a bit. */
-	  do {
-	    mpz_fdiv_q_ui(&t, &t, ssh_prime_table[i]);
-	    mpz_fdiv_r_ui(&t1, &t, ssh_prime_table[i]);
-	  } while (mpz_cmp_ui(&t1, 0) == 0);
-	    
-	  mpz_powm_ui(&t, op_src, ssh_prime_table[i], modulo);
-	  if (mpz_cmp_ui(&t, 1) == 0)
-	    {
-	      is_order = 0;
-	      break;
-	    }
-	}
+        {
+          /* This really isn't necessary but speeds up possibly a bit. */
+          do {
+            mpz_fdiv_q_ui(&t, &t, ssh_prime_table[i]);
+            mpz_fdiv_r_ui(&t1, &t, ssh_prime_table[i]);
+          } while (mpz_cmp_ui(&t1, 0) == 0);
+            
+          mpz_powm_ui(&t, op_src, ssh_prime_table[i], modulo);
+          if (mpz_cmp_ui(&t, 1) == 0)
+            {
+              is_order = 0;
+              break;
+            }
+        }
     }
 end:
   
@@ -1517,7 +1488,7 @@ end:
 /* Find a random generator of order 'order' modulo 'modulo'. */
 
 Boolean ssh_mp_random_generator(MP_INT *g, MP_INT *order, MP_INT *modulo,
-				SshRandomState state)
+                                SshRandomState state)
 {
   MP_INT aux, t;
   int bits;
@@ -1545,7 +1516,7 @@ Boolean ssh_mp_random_generator(MP_INT *g, MP_INT *order, MP_INT *modulo,
       mpz_powm(g, g, &t, modulo);
 
       if (mpz_cmp_ui(g, 1) != 0)
-	break;
+        break;
     }
 
   /* Check. */
@@ -1563,324 +1534,5 @@ Boolean ssh_mp_random_generator(MP_INT *g, MP_INT *order, MP_INT *modulo,
   return TRUE;
 }
 
-#if 0
+/* genmp.c */
 
-/* Although gmp library provides a mpz_probab_prime_p, which should be
-   analoguous to this, this shouldn't hurt either. Input op_n is
-   the large odd integer and it should be determined whether it is a prime
-   or not. op_t is the iteration count.
-
-   Use the GMP library version rather, because it might be a bit faster and
-   better tested :) */
-int ssh_mp_miller_rabin_probable_prime(const MP_INT *op_n, int op_t,
-				       SshRandomState state)
-{
-  MP_INT t1, w, t, a, b;
-  int bits;
-  int v;
-  int is_probable_prime = 1;
-  unsigned long limb;
-  int i, j;
-
-  if (mpz_cmp_ui(op_n, 0) == 0)
-    return 0;
-
-  /* Initialize temporary variables */
-  mpz_init(&t1);
-  mpz_init(&w);
-  mpz_init(&t);
-  mpz_init(&a);
-  mpz_init(&b);
-  
-  /* Compute n - 1 = 2^v w.*/
-  mpz_sub_ui(&t, op_n, 1);
-  bits = ssh_mp_bit_size(&t);
-
-  if (mpz_cmp_ui(&t, 2) < 0)
-    return 0;
-  
-  while (bits)
-    {
-      mpz_div_2exp(&w, &t, bits);
-      limb = mpz_get_ui(&w);
-      if (limb & 0x1)
-	{
-	  mpz_mul_2exp(&t1, &w, bits);
-	  if (mpz_cmp(&t1, &t) == 0)
-	    break;
-	}
-      bits--;
-    }
-  
-  v = bits;      
-
-  for (j = 0; j < op_t; j++)
-    {
-      /* Get random number [2, op_n-1] */
-      do {
-	ssh_mp_mod_random(&a, &t, state); 
-      } while(mpz_cmp_ui(&a, 2) < 0);      
-      mpz_powm(&b, &a, &w, op_n);
-      if (mpz_cmp_ui(&b, 1) != 0 && mpz_cmp(&b, &t) != 0)
-	{
-	  for (i = 0; i < v; i++)
-	    {
-	      /* This could be done also with mpz_mul and mpz_mod. */
-	      mpz_powm_ui(&b, &b, 2, op_n);
-	      if (mpz_cmp(&b, &t) == 0)
-		break;
-	      if (mpz_cmp_ui(&b, 1) == 0)
-		{
-		  is_probable_prime = 0;
- 		  goto end;
-		}
-	    }
-	  if (i == v)
-	    {
-	      is_probable_prime = 0;
-	      goto end;
-	    }
-	}
-    }
-
-end:
-  /* Clear temporary variables. */
-  mpz_clear(&a);
-  mpz_clear(&b);
-  mpz_clear(&t);
-  mpz_clear(&t1);
-  mpz_clear(&w);
-  
-  return is_probable_prime;
-}
-
-
-/* Binary Extended GCD algorithm
-
-   Timings have shown that this implementation is about 2 times SLOWER than
-   the euclids algorithm. DO NOT USE! (You could optimize the routine to
-   be slightly faster than euclids but I cannot do that here, although it
-   should be possible.)
-   
-   Refer to D.E.Knuth: The Art Of Computer Programming, Volume 2 Seminumerical
-   Algorithms.
-
-   This implementation is modified from implementation that appeared on
-   sci.crypt. It is to be noted that the original was errorneous in that it
-   didn't give correct gcd, but this version does. (It was made clear though
-   that the original poster used this routine just in RSA and thus gcd would
-   always been trivially 1.)
-
-   NOTE: u and v must be stricly positive values (you can be sure of that by
-   computing mpz_mod of them before entering).
-
-   */
-
-void ssh_mp_binary_gcdext(MP_INT *gcd, MP_INT *inv,
-			  const MP_INT *u, const MP_INT *v)
-{
-  MP_INT a, b, g;
-  MP_INT A, B, G;
-  int k = 0;
-  int lu, lv;
-  
-  /* Initialize and set up. */
-  mpz_init_set_ui(&a, 1);
-  mpz_init_set_ui(&b, 0);
-  mpz_init_set(&g, v);
-  mpz_init_set(&A, u);
-  mpz_init_set(&B, v);
-  mpz_sub_ui(&B, &B, 1);
-  mpz_init_set(&G, u);
-
-  while (mpz_cmp_ui(&G, 0) > 0)
-    {
-      if (mpz_cmp(&g, &G) < 0)
-	goto swap_2;
-    swap_1:
-
-      lu = mpz_get_ui(&G) & 0x1;
-      lv = mpz_get_ui(&g) & 0x1;
-
-      if (lu && lv)
-	{
-	  mpz_sub(&a, &a, &A);
-	  mpz_sub(&b, &b, &B);
-	  mpz_sub(&g, &g, &G);
-	}
-      if (!lu && !lv)
-	{
-	  k++;
-	}
-      if (!lv)
-	{
-	  if ((mpz_get_ui(&a) & 0x1) || (mpz_get_ui(&b) & 0x1))
-	    {
-	      mpz_add(&a, &a, u);
-	      mpz_add(&b, &b, v);
-	    }
-	  mpz_div_2exp(&a, &a, 1);
-	  mpz_div_2exp(&b, &b, 1);
-	  mpz_div_2exp(&g, &g, 1);
-	}
-      if (!lu)
-	{
-	  if ((mpz_get_ui(&A) & 0x1) || (mpz_get_ui(&B) & 0x1))
-	    {
-	      mpz_add(&A, &A, u);
-	      mpz_add(&B, &B, v);
-	    }
-	  mpz_div_2exp(&A, &A, 1);
-	  mpz_div_2exp(&B, &B, 1);
-	  mpz_div_2exp(&G, &G, 1);
-	}
-    }
-
-  while (mpz_cmp(&a, u) >= 0 && mpz_cmp(&b, v) >= 0)
-    {
-      mpz_sub(&a, &a, u);
-      mpz_sub(&b, &b, v);
-    }
-
-  mpz_mul_2exp(&g, &g, k);
-  mpz_set(gcd, &g);
-  mpz_sub(inv, v, &b);
-
-  mpz_clear(&a);
-  mpz_clear(&b);
-  mpz_clear(&g);
-  mpz_clear(&A);
-  mpz_clear(&B);
-  mpz_clear(&G);
-
-  return;
-  
-  while (mpz_cmp_ui(&g, 0) > 0)
-    {
-      if (mpz_cmp(&G, &g) < 0)
-	goto swap_1;
-    swap_2:
-
-      lu = mpz_get_ui(&g) & 0x1;
-      lv = mpz_get_ui(&G) & 0x1;
-
-      if (lu && lv)
-	{
-	  mpz_sub(&A, &A, &a);
-	  mpz_sub(&B, &B, &b);
-	  mpz_sub(&G, &G, &g);
-	}
-      if (!lu && !lv)
-	{
-	  k++;
-	}
-      if (!lv)
-	{
-	  if ((mpz_get_ui(&A) & 0x1) || (mpz_get_ui(&B) & 0x1))
-	    {
-	      mpz_add(&A, &A, u);
-	      mpz_add(&B, &B, v);
-	    }
-	  mpz_div_2exp(&A, &A, 1);
-	  mpz_div_2exp(&B, &B, 1);
-	  mpz_div_2exp(&G, &G, 1);
-	}
-      if (!lu)
-	{
-	  if ((mpz_get_ui(&a) & 0x1) || (mpz_get_ui(&b) & 0x1))
-	    {
-	      mpz_add(&a, &a, u);
-	      mpz_add(&b, &b, v);
-	    }
-	  mpz_div_2exp(&a, &a, 1);
-	  mpz_div_2exp(&b, &b, 1);
-	  mpz_div_2exp(&g, &g, 1);
-	}
-    }
-  
-  while (mpz_cmp(&A, u) >= 0 && mpz_cmp(&B, v) >= 0)
-    {
-      mpz_sub(&A, &A, u);
-      mpz_sub(&B, &B, v);
-    }
-
-  mpz_mul_2exp(&G, &G, k);
-  mpz_set(gcd, &G);
-  mpz_sub(inv, v, &B);
-
-  mpz_clear(&a);
-  mpz_clear(&b);
-  mpz_clear(&g);
-  mpz_clear(&A);
-  mpz_clear(&B);
-  mpz_clear(&G);
-  
-  return;
-}
-
-/*
-  Binary GCD algorithm
-
-  Note: u and v must be stricly positive values.
- */
-
-void ssh_mp_binary_gcd(MP_INT *gcd, const MP_INT *u, const MP_INT *v)
-{
-  int k = 0;
-  int lu, lv;
-  MP_INT g, G;
-
-  mpz_init_set(&g, u);
-  mpz_init_set(&G, v);
-
-  while (mpz_cmp_ui(&g, 0) > 0)
-    {
-      if (mpz_cmp(&g, &G) > 0)
-	goto swap_2;
-    swap_1:
-      
-      lu = mpz_get_ui(&g) & 0x1;
-      lv = mpz_get_ui(&G) & 0x1;
-      if (lu && lv)
-	mpz_sub(&G, &G, &g);
-      if (!lu && !lv)
-	k++;
-      if (!lu)
-	mpz_div_2exp(&g, &g, 1);
-      if (!lv)
-	mpz_div_2exp(&G, &G, 1);
-    }
-
-  mpz_mul_2exp(gcd, &G, k);
-  
-  mpz_clear(&g);
-  mpz_clear(&G);
-
-  return;
-  
-  while (mpz_cmp_ui(&G, 0) > 0)
-    {
-      if (mpz_cmp(&G, &g) > 0)
-	goto swap_1;
-    swap_2:
-
-      lu = mpz_get_ui(&G) & 0x1;
-      lv = mpz_get_ui(&g) & 0x1;
-      if (lu && lv)
-	mpz_sub(&g, &g, &G);
-      if (!lu && !lv)
-	k++;
-      if (!lu)
-	mpz_div_2exp(&G, &G, 1);
-      if (!lv)
-	mpz_div_2exp(&g, &g, 1);
-    }
-
-  mpz_mul_2exp(gcd, &g, k);
-  
-  mpz_clear(&g);
-  mpz_clear(&G);
-
-  return;
-}      
-#endif

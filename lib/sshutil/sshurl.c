@@ -11,22 +11,23 @@
  *        $Author: kivinen $
  *
  *        Creation          : 10:04 Jul 10 1998 kivinen
- *        Last Modification : 12:14 Jul 10 1998 kivinen
- *        Last check in     : $Date: 1998/07/10 13:28:17 $
- *        Revision number   : $Revision: 1.1 $
+ *        Last Modification : 17:45 Jan 28 1999 kivinen
+ *        Last check in     : $Date: 1999/01/28 16:10:05 $
+ *        Revision number   : $Revision: 1.2 $
  *        State             : $State: Exp $
- *        Version           : 1.95
+ *        Version           : 1.231
  *
  *        Description       : Library to parse urls
  */
 /*
- * $Id: sshurl.c,v 1.1 1998/07/10 13:28:17 kivinen Exp $
+ * $Id: sshurl.c,v 1.2 1999/01/28 16:10:05 kivinen Exp $
  * $EndLog$
  */
 
 
 #include "sshincludes.h"
 #include "sshbuffer.h"
+#include "sshurl.h"
 
 /*
  * Parses url given in format
@@ -38,8 +39,8 @@
  * those pieces will be skipped. 
  */
 Boolean ssh_url_parse(const char *url, char **scheme, char **host,
-	 	      char **port, char **username, char **password,
-		      char **path)
+                      char **port, char **username, char **password,
+                      char **path)
 {
   const char *p, *q, *start;
 
@@ -74,7 +75,7 @@ Boolean ssh_url_parse(const char *url, char **scheme, char **host,
   if (*p == ':')
     {
       if (scheme != NULL)
-	*scheme = ssh_xmemdup(start, p - start);
+        *scheme = ssh_xmemdup(start, p - start);
       p++;
       start = p;
     }
@@ -88,55 +89,55 @@ Boolean ssh_url_parse(const char *url, char **scheme, char **host,
       p = start;
       /* Check for username and password */
       while (*p && *p != '@' && *p != '/')
-	p++;
+        p++;
 
       if (*p == '@')
-	{
-	  /* User name (and possible password found) */
+        {
+          /* User name (and possible password found) */
 
-	  q = p;
-	  while (q > start && *q != ':')
-	    q--;
+          q = p;
+          while (q > start && *q != ':')
+            q--;
 
-	  if (*q == ':')
-	    {
-	      /* Password found */
-	      if (username != NULL)
-		*username = ssh_xmemdup(start, q - start);
-	      if (password != NULL)
-		*password = ssh_xmemdup(q + 1, p - (q + 1));
-	    }
-	  else
-	    {
-	      /* Only username found */
-	      if (username != NULL)
-		*username = ssh_xmemdup(start, p - start);
-	    }
-	  p++;
-	  start = p;
-	}
+          if (*q == ':')
+            {
+              /* Password found */
+              if (username != NULL)
+                *username = ssh_xmemdup(start, q - start);
+              if (password != NULL)
+                *password = ssh_xmemdup(q + 1, p - (q + 1));
+            }
+          else
+            {
+              /* Only username found */
+              if (username != NULL)
+                *username = ssh_xmemdup(start, p - start);
+            }
+          p++;
+          start = p;
+        }
 
       p = start;
       /* Check for host name */
       while (*p && *p != ':' && *p != '/')
-	p++;
+        p++;
 
       if (host != NULL)
-	*host = ssh_xmemdup(start, p - start);
+        *host = ssh_xmemdup(start, p - start);
       start = p;
       
       if (*p == ':')
-	{
-	  start = ++p;
+        {
+          start = ++p;
 
-	  while (isdigit(*p))
-	    p++;
+          while (isdigit(*p))
+            p++;
 
-	  if (port != NULL)
-	    *port = ssh_xmemdup(start, p - start);
-	  
-	  start = p;
-	}
+          if (port != NULL)
+            *port = ssh_xmemdup(start, p - start);
+          
+          start = p;
+        }
     }
 
   if (!*p)
@@ -147,16 +148,16 @@ Boolean ssh_url_parse(const char *url, char **scheme, char **host,
   if (*p != '/')
     {
       if (host != NULL && *host == NULL)
-	*host = ssh_xstrdup(p);
+        *host = ssh_xstrdup(p);
       else
-	if (path != NULL)
-	  *path = ssh_xstrdup(p);
+        if (path != NULL)
+          *path = ssh_xstrdup(p);
       return FALSE;
     }
   else
     {
       if (path != NULL)
-	*path = ssh_xstrdup(p + 1);
+        *path = ssh_xstrdup(p + 1);
       return TRUE;
     }
 }
@@ -164,13 +165,17 @@ Boolean ssh_url_parse(const char *url, char **scheme, char **host,
 /*
  * Decode url coding. If url_out is NULL then decode inplace, and modify url.
  * Otherwise return new allocated string containing the decoded buffer. Returns
- * TRUE if decoding was successfull and FALSE otherwise.
+ * TRUE if decoding was successfull and FALSE otherwise. Len is the length of
+ * the input url and length of the returned url is in stored in the len_out
+ * if it is not NULL. The decoded url is returned even if the decoding fails.
  */
-Boolean ssh_url_decode(char *url, char **url_out)
+Boolean ssh_url_decode_bin(char *url, size_t len,
+                           char **url_out, size_t *len_out)
 {
   char *src, *dst;
   unsigned int x;
   Boolean ok = TRUE;
+  size_t src_len, dst_len;
 
   if (url_out != NULL)
     {
@@ -179,40 +184,61 @@ Boolean ssh_url_decode(char *url, char **url_out)
     }
 
   src = url;
+  src_len = len;
   dst = url;
-  while (*src)
+  dst_len = 0;
+  while (src_len > 0)
     {
       if (*src == '%')
-	{
-	  if (isxdigit(src[1]) && isxdigit(src[2]))
-	    {
-	      if (isdigit(src[1]))
-		x = src[1] - '0';
-	      else
-		x = tolower(src[1]) - 'a' + 10;
-	      x *= 16;
+        {
+          if (src_len >= 3 && isxdigit(src[1]) && isxdigit(src[2]))
+            {
+              if (isdigit(src[1]))
+                x = src[1] - '0';
+              else
+                x = tolower(src[1]) - 'a' + 10;
+              x *= 16;
 
-	      if (isdigit(src[2]))
-		x += src[2] - '0';
-	      else
-		x += tolower(src[2]) - 'a' + 10;
+              if (isdigit(src[2]))
+                x += src[2] - '0';
+              else
+                x += tolower(src[2]) - 'a' + 10;
 
-	      *dst++ = x;
-	      src += 3;
-	    }
-	  else
-	    {
-	      *dst++ = *src++;
-	      ok = FALSE;
-	    }
-	}
+              *dst++ = x;
+              dst_len++;
+              src += 3;
+              src_len -= 3;
+            }
+          else
+            {
+              src_len--;
+              dst_len++;
+              *dst++ = *src++;
+              ok = FALSE;
+            }
+        }
       else
-	{
-	  *dst++ = *src++;
-	}
+        {
+          src_len--;
+          dst_len++;
+          *dst++ = *src++;
+        }
     }
   *dst = 0;
+  if (len_out != NULL)
+    *len_out = dst_len;
   return ok;
+}
+
+/*
+ * Decode url coding. If url_out is NULL then decode inplace, and modify url.
+ * Otherwise return new allocated string containing the decoded buffer. Returns
+ * TRUE if decoding was successfull and FALSE otherwise. The decoded url is
+ * returned even if the decoding fails.
+ */
+Boolean ssh_url_decode(char *url, char **url_out)
+{
+  return ssh_url_decode_bin(url, strlen(url), url_out, NULL);
 }
 
 /*
@@ -225,8 +251,8 @@ Boolean ssh_url_decode(char *url, char **url_out)
  * those pieces will be skipped. This version also decodeds url %-codings.
  */
 Boolean ssh_url_parse_and_decode(const char *url, char **scheme, char **host,
-				 char **port, char **username, char **password,
-				 char **path)
+                                 char **port, char **username, char **password,
+                                 char **path)
 {
   Boolean ok;
   
@@ -252,4 +278,136 @@ Boolean ssh_url_parse_and_decode(const char *url, char **scheme, char **host,
       ok = FALSE;
 
   return ok;
+}
+
+/* Parse one key=value pair, returns TRUE if decoding was successfull, and
+   inserts the decoded key value pair to the mapping.*/
+Boolean ssh_url_parse_one_item(SshMapping mapping, const char *item,
+                               size_t len)
+{
+  const char *key, *value;
+  size_t key_len, value_len;
+  char *decoded_key, *decoded_value, *old_value;
+  size_t decoded_key_len, decoded_value_len, old_value_len;
+  Boolean ok = TRUE;
+
+  if (len == 0)
+    return FALSE;
+  key = item;
+  value = strchr(item, '=');
+  if (value - item > len)
+    {
+      key_len = len;
+      value = item;
+      value_len = 0;
+    }
+  else
+    {
+      key_len = value - key;
+      value++;
+      value_len = len - key_len - 1;
+    }
+  if (!ssh_url_decode_bin((char *) key, key_len,
+                          &decoded_key, &decoded_key_len))
+    ok = FALSE;
+  if (!ssh_url_decode_bin((char *) value, value_len,
+                          &decoded_value, &decoded_value_len))
+    ok = FALSE;
+
+  if (ssh_mapping_get_vl(mapping, decoded_key, decoded_key_len,
+                         (void *) &old_value, &old_value_len))
+    {
+      char *p;
+
+      /* Concatenate strings, and make it null terminated */
+      p = ssh_xmalloc(old_value_len + decoded_value_len + 1);
+      memmove(p, old_value, old_value_len);
+      memmove(p + old_value_len, decoded_value, decoded_value_len + 1);
+      decoded_value_len = old_value_len + decoded_value_len;
+      ssh_xfree(decoded_value);
+      decoded_value = p;
+    }
+  ssh_mapping_put_vl(mapping, decoded_key, decoded_key_len,
+                     decoded_value, decoded_value_len);
+  return ok;
+}
+
+/*
+ * Decode http post data which have format
+ * name=value&name=value&...&name=value
+ * Returns a Mapping that has all the name and value pairs stored. It
+ * also decodes all the %-encodings from the name and values after
+ * splitting them.
+ * Returned mapping is storing only pointers to the variable length strings,
+ * and it has internal destructor, so calling ssh_mapping_free will destroy
+ * it and its contents.
+ * Returns TRUE if everything went ok, and FALSE if there was a decoding error
+ * while processing the url. 
+ */
+Boolean ssh_url_parse_post_form(const char *url, SshMapping *mapping)
+{
+  const char *p, *q;
+  Boolean ok = TRUE;
+
+  *mapping = ssh_mapping_allocate_with_func(SSH_MAPPING_FL_STORE_POINTERS |
+                                           SSH_MAPPING_FL_VARIABLE_LENGTH,
+                                           ssh_default_hash_function,
+                                           ssh_default_compare_function,
+                                           ssh_default_destructor_function,
+                                           0, 0);
+
+  p = url;
+  while ((q = strchr(p, '&')) != NULL)
+    {
+      if (!ssh_url_parse_one_item(*mapping, p, q - p))
+        ok = FALSE;
+      p = q + 1;
+    }
+  if (!ssh_url_parse_one_item(*mapping, p, strlen(p)))
+    ok = FALSE;
+  return ok;
+}
+
+
+/*
+ * Decode http get url which have format
+ * /path?name=value&name=value&...&name=value
+ * Returns path in the beginning and Mapping that has all the name
+ * and value pairs stored. It also decodes all the %-encodings from the
+ * name and values after splitting them.
+ * If `path' is not NULL then mallocated copy of decoded path component
+ * is stored there.
+ * Returned mapping is storing only pointers to the variable length strings,
+ * and it has internal destructor, so calling ssh_mapping_free will destroy
+ * it and its contents.
+ * Returns TRUE if everything went ok, and FALSE if there was a decoding error
+ * while processing the url. 
+ */
+Boolean ssh_url_parse_form(const char *url,
+                           char **path,
+                           size_t *path_length,
+                           SshMapping *mapping)
+{
+  char *p;
+
+  p = strchr(url, '?');
+  if (p == NULL)
+    {
+      if (path != NULL)
+        *path = NULL;
+      if (path_length != NULL)
+        path_length = 0;
+      return ssh_url_parse_post_form(url, mapping);
+    }
+  else
+    {
+      Boolean ok1 = TRUE, ok2 = TRUE; 
+
+      if (path != NULL)
+        ok1 = ssh_url_decode_bin((char *) url, p - url, path, path_length);
+      ok2 = ssh_url_parse_post_form(p + 1, mapping);
+      if (ok1 && ok2)
+        return TRUE;
+      return FALSE;
+    }
 }

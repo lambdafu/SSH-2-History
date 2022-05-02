@@ -14,7 +14,7 @@ trcommon.c
 */
 
 /*
- * $Id: trcommon.c,v 1.48 1998/11/14 12:12:12 tri Exp $
+ * $Id: trcommon.c,v 1.49 1998/11/26 13:44:09 sjl Exp $
  * $Log: trcommon.c,v $
  * $EndLog$
  */
@@ -1592,8 +1592,8 @@ Boolean ssh_tr_input_kex1(SshTransportCommon tr)
   return TRUE;
 }
 
-/* Process KEX2 packet.  If no packet is yet available, return NULL.  If
-   key exchange fails, initiate disconnect and return NULL.  If KEX2
+/* Process KEX2 packet.  If no packet is yet available, return FALSE.  If
+   key exchange fails, initiate disconnect and return FALSE.  If KEX2
    is successfully received and the key exchange successfully completes,
    update state, send NEWKEYS, and return TRUE.  Otherwise, this returns
    FALSE. */
@@ -1617,6 +1617,14 @@ Boolean ssh_tr_input_kex2(SshTransportCommon tr)
   else
     success = (*tr->kex->client_input_kex2)(tr, packet);
 
+  if (!success)
+    {
+      /* Disconnect. */
+      ssh_tr_up_disconnect(tr, TRUE, TRUE, SSH_DISCONNECT_KEY_EXCHANGE_FAILED,
+			   "Key exchange failed.");
+      return FALSE;
+    }
+  
   /* Key exchange has been successful.  Send newkeys. */
   ssh_tr_send_simple_packet(tr, SSH_MSG_NEWKEYS);
   
@@ -2759,6 +2767,8 @@ SshTransportCommon ssh_tr_create(SshStream connection,
   /* Initialize packet sequence numbers. */
   tr->incoming_sequence_number = 0;
   tr->outgoing_sequence_number = 0;
+
+  tr->outgoing_eof = FALSE;
   
   /* Initialize incoming/outgoing buffers. */
   ssh_buffer_init(&tr->outgoing);

@@ -14,7 +14,7 @@
   */
 
 /*
- * $Id: sshcrypti.h,v 1.14 1998/11/04 12:10:25 ylo Exp $
+ * $Id: sshcrypti.h,v 1.15 1998/12/03 19:48:28 mkojo Exp $
  * $Log: sshcrypti.h,v $
  * $EndLog$
  */
@@ -71,8 +71,12 @@ typedef struct
      key version. */
   size_t key_length;
   size_t (*ctxsize)(void);
-  void (*init)(void *context, const unsigned char *key,
-               size_t keylen, Boolean for_encryption);
+  /* Basic initialization without explicit key checks. */
+  Boolean (*init)(void *context, const unsigned char *key,
+                  size_t keylen, Boolean for_encryption);
+  /* Initialization with key checks. */
+  Boolean (*init_with_check)(void *context, const unsigned char *key,
+                             size_t keylen, Boolean for_encryption);
   void (*transform)(void *context, unsigned char *dest,
                     const unsigned char *src, size_t len,
                     unsigned char *iv);
@@ -102,14 +106,12 @@ typedef struct
 
 /* Function prototypes that are used internally. */
 
-#ifdef SSHDIST_CRYPT_GENHASH
 
 DLLEXPORT SshHash DLLCALLCONV
 ssh_hash_allocate_internal(const SshHashDef *hash_def);
 
 const SshHashDef *ssh_hash_get_definition_internal(const SshHash hash);
 
-#endif /* SSHDIST_CRYPT_GENHASH */
 
 /* Expansion from a passphrase into a key. */
 

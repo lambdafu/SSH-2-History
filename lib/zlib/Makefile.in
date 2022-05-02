@@ -84,6 +84,7 @@ LN_S = @LN_S@
 M4 = @M4@
 MAKEINFO = @MAKEINFO@
 MATH_CONF_OBJS = @MATH_CONF_OBJS@
+NM_PATH = @NM_PATH@
 PACKAGE = @PACKAGE@
 RANLIB = @RANLIB@
 SSH1_PATH = @SSH1_PATH@
@@ -329,6 +330,7 @@ clean-tags maintainer-clean-tags distdir info dvi installcheck \
 install-exec install-data install uninstall all installdirs \
 mostlyclean-generic distclean-generic clean-generic \
 maintainer-clean-generic clean mostlyclean distclean maintainer-clean
+
 
 list_libssh_a_objects:
 	@echo BEGIN_FILE_LIST: $(libz_a_OBJECTS) $(libz_a_LIBADD) :END_FILE_LIST

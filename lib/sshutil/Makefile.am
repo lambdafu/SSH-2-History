@@ -56,6 +56,8 @@ libsshutil_a_SOURCES = \
 	filelock.c		\
 	sshfileio.c		\
 	sshtimemeasure.c	\
+	sshdllist.c		\
+	mapping.c		\
 	sshpacketwrapper.c	\
 	sshpacketstream.c	\
 	sshpacketimpl.c		\
@@ -101,6 +103,8 @@ include_HEADERS = \
 	filelock.h		\
 	sshfileio.h		\
 	sshtimemeasure.h	\
+	sshdllist.h		\
+	mapping.h		\
 	sshpacketstream.h	\
 	sshmalloc.h
 
@@ -108,7 +112,8 @@ noinst_HEADERS = sshpacketint.h sshfilexferi.h
 
 EXTRA_DIST = \
 	memmove.c memset.c putenv.c random.c remove.c snprintf.c   \
-	strcasecmp.c strerror.c strncasecmp.c crypt.c getopt.c
+	strcasecmp.c strerror.c strncasecmp.c crypt.c getopt.c \
+	inet_ntoa.c
 
 INCLUDES = -I. -I$(srcdir) -I.. -I$(srcdir)/..	\
 	-I$(top_builddir) -I$(top_srcdir) 	\

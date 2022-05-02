@@ -9,7 +9,7 @@
     */
 
 /*
- * $Id: genciph.c,v 1.34 1998/11/14 12:10:46 tri Exp $
+ * $Id: genciph.c,v 1.39 1999/01/25 10:28:05 tmo Exp $
  * $Log: genciph.c,v $
  * $EndLog$
  */
@@ -22,193 +22,93 @@
 #include "sshgetput.h"
 #include "nociph.h"
 #include "sha.h"
-#ifdef SSHDIST_CRYPT_DES
+
 #include "des.h"
-#endif /* SSHDIST_CRYPT_DES */
-#ifdef SSHDIST_CRYPT_BLOWFISH
+
 #include "blowfish.h"
-#endif /* SSHDIST_CRYPT_BLOWFISH */
-#ifdef SSHDIST_CRYPT_CAST
-
-#endif /* SSHDIST_CRYPT_CAST */
-
-#ifdef SSHDIST_CRYPT_ARCFOUR
-#include "arcfour.h"
-#endif /* SSHDIST_CRYPT_ARCFOUR */
-
-#ifdef SSHDIST_CRYPT_SEAL
-
-#endif /* SSHDIST_CRYPT_SEAL */
-
-#ifdef SSHDIST_CRYPT_IDEA
 
 
 
-#endif /* SSHDIST_CRYPT_IDEA */
 
-#ifdef SSHDIST_CRYPT_SAFER
-
-#endif /* SSHDIST_CRYPT_SAFER */
-
-#ifdef SSHDIST_CRYPT_TWOFISH
 #include "twofish.h"
-#endif /* SSHDIST_CRYPT_TWOFISH */
 
-#ifdef SSHDIST_CRYPT_RC5
+#ifndef KERNEL
+/* These ciphers can only be used in user-mode code, not in the kernel.
+   To add a cipher to be used in the kernel, you must add its object
+   file to CRYPT_LNOBJS in src/ipsec/engine/Makefile.am, and move it
+   outside the #ifndef KERNEL directive both here and later in this file. */
 
-#endif /* SSHDIST_CRYPT_RC5 */
+#include "arcfour.h"
 
-#ifdef SSHDIST_CRYPT_RC6
 
-#endif /* SSHDIST_CRYPT_RC6 */
 
-#ifdef SSHDIST_CRYPT_SKIPJACK
 
-#endif /* SSHDIST_CRYPT_SKIPJACK */
 
-#ifdef SSHDIST_CRYPT_MARS
 
-#endif /* SSHDIST_CRYPT_MARS */
+#endif /* !KERNEL */
 
 /* Algorithm definitions */
 
 static const SshCipherDef ssh_cipher_algorithms[] =
 {
-#ifdef SSHDIST_CRYPT_DES
-  { "3des-ecb", 8, 24, des3_ctxsize, des3_init, des3_ecb },
-  { "3des-cbc", 8, 24, des3_ctxsize, des3_init, des3_cbc },
-  { "3des-cfb", 8, 24, des3_ctxsize, des3_init, des3_cfb },
-  { "3des-ofb", 8, 24, des3_ctxsize, des3_init, des3_ofb },
-#endif /* SSHDIST_CRYPT_DES */
+  { "3des-ecb", 8, 24, ssh_des3_ctxsize, ssh_des3_init, ssh_des3_init,
+    ssh_des3_ecb },
+  { "3des-cbc", 8, 24, ssh_des3_ctxsize, ssh_des3_init, ssh_des3_init,
+    ssh_des3_cbc },
+  { "3des-cfb", 8, 24, ssh_des3_ctxsize, ssh_des3_init, ssh_des3_init,
+    ssh_des3_cfb },
+  { "3des-ofb", 8, 24, ssh_des3_ctxsize, ssh_des3_init, ssh_des3_init,
+    ssh_des3_ofb },
 
-#ifdef SSHDIST_CRYPT_CAST
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#endif /* SSHDIST_CRYPT_CAST */
   
-#ifdef SSHDIST_CRYPT_BLOWFISH
   { "blowfish-ecb", 8, 0,
-    blowfish_ctxsize, blowfish_init, blowfish_ecb },
+    ssh_blowfish_ctxsize, ssh_blowfish_init, ssh_blowfish_init,
+    ssh_blowfish_ecb },
   { "blowfish-cbc", 8, 0,
-    blowfish_ctxsize, blowfish_init, blowfish_cbc },
+    ssh_blowfish_ctxsize, ssh_blowfish_init, ssh_blowfish_init,
+    ssh_blowfish_cbc },
   { "blowfish-cfb", 8, 0,
-    blowfish_ctxsize, blowfish_init, blowfish_cfb },
+    ssh_blowfish_ctxsize, ssh_blowfish_init, ssh_blowfish_init,
+    ssh_blowfish_cfb },
   { "blowfish-ofb", 8, 0,
-    blowfish_ctxsize, blowfish_init, blowfish_ofb },
-#endif /* SSHDIST_CRYPT_BLOWFISH */
+    ssh_blowfish_ctxsize, ssh_blowfish_init, ssh_blowfish_init,
+    ssh_blowfish_ofb },
     
-#ifdef SSHDIST_CRYPT_DES
-  { "des-ecb", 8, 8, des_ctxsize, des_init, des_ecb },
-  { "des-cbc", 8, 8, des_ctxsize, des_init, des_cbc },
-  { "des-cfb", 8, 8, des_ctxsize, des_init, des_cfb },
-  { "des-ofb", 8, 8, des_ctxsize, des_init, des_ofb },
-#endif /* SSHDIST_CRYPT_DES */
+  { "des-ecb", 8, 8, ssh_des_ctxsize, ssh_des_init,
+    ssh_des_init_with_key_check, ssh_des_ecb },
+  { "des-cbc", 8, 8, ssh_des_ctxsize, ssh_des_init,
+    ssh_des_init_with_key_check, ssh_des_cbc },
+  { "des-cfb", 8, 8, ssh_des_ctxsize, ssh_des_init,
+    ssh_des_init_with_key_check, ssh_des_cfb },
+  { "des-ofb", 8, 8, ssh_des_ctxsize, ssh_des_init,
+    ssh_des_init_with_key_check, ssh_des_ofb },
   
-#ifdef SSHDIST_CRYPT_IDEA
 
-
-
-
-
-
-#endif /* SSHDIST_CRYPT_IDEA */
-  
-#ifdef SSHDIST_CRYPT_SAFER  
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#endif /* SSHDIST_CRYPT_SAFER */
-
-#ifdef SSHDIST_CRYPT_ARCFOUR
-  { "arcfour", 1, 0, arcfour_ctxsize, arcfour_init, arcfour_transform },
-#endif /* SSHDIST_CRYPT_ARCFOUR */
-
-#ifdef SSHDIST_CRYPT_SEAL
-
-#endif /* SSHDIST_CRYPT_SEAL */
-
-#ifdef SSHDIST_CRYPT_TWOFISH
   { "twofish-ecb", 16, 0,
-    twofish_ctxsize, twofish_init, twofish_ecb },
+    ssh_twofish_ctxsize, ssh_twofish_init, ssh_twofish_init, ssh_twofish_ecb },
   { "twofish-cbc", 16, 0,
-    twofish_ctxsize, twofish_init, twofish_cbc },
+    ssh_twofish_ctxsize, ssh_twofish_init, ssh_twofish_init, ssh_twofish_cbc },
   { "twofish-cfb", 16, 0,
-    twofish_ctxsize, twofish_init, twofish_cfb },
+    ssh_twofish_ctxsize, ssh_twofish_init, ssh_twofish_init, ssh_twofish_cfb },
   { "twofish-ofb", 16, 0,
-    twofish_ctxsize, twofish_init, twofish_ofb },
-#endif /* SSHDIST_CRYPT_TWOFISH */
-
-#ifdef SSHDIST_CRYPT_RC5
+    ssh_twofish_ctxsize, ssh_twofish_init, ssh_twofish_init, ssh_twofish_ofb },
 
 
-
-
-
-
-
-
-
-
-
-
-
-
-#endif /* SSHDIST_CRYPT_RC5 */
-
-#ifdef SSHDIST_CRYPT_RC6
-
-
-
-
-#endif /* SSHDIST_CRYPT_RC6 */
-
-#ifdef SSHDIST_CRYPT_SKIPJACK
-
-
-
-
-#endif /* SSHDIST_CRYPT_SKIPJACK */
+#ifndef KERNEL
+  /* The ciphers below can only be used in user-level code.  See
+     the comments above for adding ciphers to the kernel. */
   
-#ifdef SSHDIST_CRYPT_MARS
+
+  { "arcfour", 1, 0, ssh_arcfour_ctxsize, ssh_arcfour_init, ssh_arcfour_init,
+    ssh_arcfour_transform },
 
 
 
+  
 
-#endif /* SSHDIST_CRYPT_MARS */
-
-  { "none", 1, 0, NULL, NULL, none_transform },
+#endif /* !KERNEL */
+  
+  { "none", 1, 0, NULL, NULL, NULL, ssh_none_cipher },
   
   { NULL }
 };
@@ -222,42 +122,16 @@ struct SshCipherAliasRec {
 /* Common cipher names. */
 const struct SshCipherAliasRec ssh_cipher_aliases[] =
 {
-#ifdef SSHDIST_CRYPT_DES
   { "des", "des-cbc" },
-#endif /* SSHDIST_CRYPT_DES */
-#ifdef SSHDIST_CRYPT_DES
   { "3des", "3des-cbc" },
-#endif /* SSHDIST_CRYPT_DES */
-#ifdef SSHDIST_CRYPT_CAST
-
-#endif /* SSHDIST_CRYPT_CAST */
-#ifdef SSHDIST_CRYPT_BLOWFISH
   { "blowfish", "blowfish-cbc" },
-#endif /* SSHDIST_CRYPT_BLOWFISH */
-#ifdef SSHDIST_CRYPT_IDEA
-
-#endif /* SSHDIST_CRYPT_IDEA */
-#ifdef SSHDIST_CRYPT_SAFER
-
-#endif /* SSHDIST_CRYPT_SAFER */
-#ifdef SSHDIST_CRYPT_TWOFISH
   { "twofish", "twofish-cbc" },
-#endif /* SSHDIST_CRYPT_TWOFISH */
-#ifdef SSHDIST_CRYPT_RC5
-
-#endif /* SSHDIST_CRYPT_RC5 */
-#ifdef SSHDIST_CRYPT_RC6
-
-#endif /* SSHDIST_CRYPT_RC6 */
-#ifdef SSHDIST_CRYPT_SKIPJACK
-
-#endif /* SSHDIST_CRYPT_SKIPJACK */
   { NULL, NULL }
 };
 
 struct SshCipherRec {
   const SshCipherDef *ops;
-  unsigned char iv[32];
+  unsigned char iv[SSH_CIPHER_MAX_IV_SIZE];
   void *context;
 };
 
@@ -408,13 +282,23 @@ ssh_cipher_allocate_internal(const char *name,
   unsigned char *expanded_key;
   unsigned int expanded_key_len;
   const SshCipherDef *cipher_def;
-
+  Boolean rv;
+  
   cipher_def = ssh_cipher_get_cipher_def_internal(name);
   if (cipher_def == NULL)
     return SSH_CRYPTO_UNSUPPORTED;
 
-  if (keylen == 0 && expand == FALSE)
-    return SSH_CRYPTO_KEY_TOO_SHORT;
+  if (keylen == 0)
+    {
+      /* Allow zero key length for cipher `none'. */
+      if ((strcmp(name, "none") != 0) && expand == FALSE)
+        return SSH_CRYPTO_KEY_TOO_SHORT;
+    }
+
+  /* This portion handles the key expansion computation. It uses the
+     expansion function defined in the genhash.c. It basically just
+     recomputes the hash function of choice until enough key material
+     is available. */
   
   if (expand)
     {
@@ -426,14 +310,23 @@ ssh_cipher_allocate_internal(const char *name,
       ssh_hash_expand_key_internal(expanded_key, expanded_key_len,
                                    key, keylen,
                                    NULL, 0,
+                                   /* Use SHA-1 hash function. Any other
+                                      hash function defined in this manner
+                                      is allowed. The application cannot
+                                      currently change the function! XXX */
                                    &ssh_hash_sha_def);
     }
   else
     {
+      /* No need to expand the key. */
+      
       expanded_key_len = keylen;
       expanded_key = (unsigned char *)key;
     }
-  
+
+  /* Check for error in key expansion. No keys shorter than the key length
+     of the cipher is allowed. Longer are allowed, but only the first
+     bytes are used. */
   if (expanded_key_len < cipher_def->key_length)
     {
       if (expand)
@@ -441,27 +334,55 @@ ssh_cipher_allocate_internal(const char *name,
       
       return SSH_CRYPTO_KEY_TOO_SHORT;
     }
-  
+
+  /* Initialize the cipher. */
+
   *cipher = ssh_xmalloc(sizeof(**cipher));
+
+  /* Set up the cipher definition. */
   (*cipher)->ops = cipher_def;
+  /* Clean the IV. */
   memset((*cipher)->iv, 0, sizeof((*cipher)->iv));
+
+  /* Set return value (rv) to default. */
+  rv = TRUE;
+
+  /* The "ctxsize" can be NULL if and only if the cipher is the none cipher. */
   if (cipher_def->ctxsize)
     {
-      (*cipher)->context =
-        ssh_xmalloc((*cipher_def->ctxsize)());
-      (*cipher_def->init)((*cipher)->context,
-                          expanded_key,
-                          expanded_key_len,
-                          for_encryption);
+      /* Allocate the context of the cipher. */
+      (*cipher)->context = ssh_xmalloc((*cipher_def->ctxsize)());
+      
+      if (test_weak_keys == FALSE)
+        {
+          /* Initialize the cipher without weak key checks. */
+          rv = (*cipher_def->init)((*cipher)->context,
+                                   expanded_key,
+                                   expanded_key_len,
+                                   for_encryption);
+        }
+      else
+        {
+          /* Initialize the cipher with a weak key check performed first.
+             Not all ciphers have key classes that are easy or practical to
+             test for. For those ciphers this function may perform
+             as the plain initialization. 
+             */
+          rv = (*cipher_def->init_with_check)((*cipher)->context,
+                                              expanded_key,
+                                          expanded_key_len,
+                                              for_encryption);
+        }
     }
   else
-    {
-      (*cipher)->context = NULL;
-    }
-  
+    (*cipher)->context = NULL;
+
+  /* Free memory of the expanded key if necessary. */
   if (expand)
     ssh_xfree(expanded_key);
-  
+
+  if (rv == FALSE)
+    return SSH_CRYPTO_OPERATION_FAILED;
   return SSH_CRYPTO_OK;
 }
 
@@ -529,6 +450,13 @@ ssh_cipher_get_key_length(const char *name)
 DLLEXPORT size_t DLLCALLCONV
 ssh_cipher_get_block_length(SshCipher cipher)
 {
+  return cipher->ops->block_length;
+}
+
+DLLEXPORT size_t DLLCALLCONV
+ssh_cipher_get_iv_length(SshCipher cipher)
+{
+  /* XXX Currently just returns the block length. */
   return cipher->ops->block_length;
 }
 

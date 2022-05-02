@@ -13,9 +13,6 @@ callbacks, making it easy to do packet-based communications over a SshStream.
 
 */
 
-#define ALLOW_AFTER_BUFFER_FULL		(10000 + 5)
-#define BUFFER_MAX_SIZE			50000
-
 #include "sshincludes.h"
 #include "sshbuffer.h"
 #include "bufaux.h"
@@ -24,6 +21,12 @@ callbacks, making it easy to do packet-based communications over a SshStream.
 #include "sshencode.h"
 #include "sshpacketstream.h"
 #include "sshpacketint.h"
+
+#define SSH_DEBUG_MODULE "SshPacketWrapper"
+
+#define ALLOW_AFTER_BUFFER_FULL         (10000 + 5)
+#define BUFFER_MAX_SIZE                 50000
+
 
 struct SshPacketWrapperRec
 {
@@ -34,14 +37,14 @@ struct SshPacketWrapperRec
   /* SshBuffer for incoming data (downwards). */
   SshBuffer incoming;
   Boolean incoming_eof;
-  
+
   /* SshBuffer for outgoing data (downwards). */
   SshBuffer outgoing;
   Boolean outgoing_eof;
 
   /* SshBuffer for constructing outgoing packets. */
   SshBuffer outgoing_packet;
-  
+
   /* Flag indicating that ssh_packet_wrapper_can_send has returned FALSE, and
      thus we should call the can_send callback when sending is again
      possible. */
@@ -63,7 +66,7 @@ struct SshPacketWrapperRec
   /* Set to TRUE to request immediate destroy after returning from a
      callback. */
   Boolean destroy_requested;
-  
+
   /* Flag indicating that we have shortcircuited the stream.  If this is
      FALSE but shortcircuit_up_stream is non-NULL, we have a shortcircuit
      pending as soon as downward buffers have drained. */
@@ -72,7 +75,7 @@ struct SshPacketWrapperRec
   /* The stream to which we have shortcircuited.  NULL if not shortcircuited
      and no shortcircuit pending. */
   SshStream shortcircuit_up_stream;
-  
+
   /* Application callbacks. */
   SshPacketReceiveProc received_packet;
   SshPacketEofProc received_eof;
@@ -112,17 +115,17 @@ Boolean ssh_packet_wrapper_output(SshPacketWrapper down)
     {
       /* Write as much data as possible. */
       len = ssh_stream_write(down->stream, ssh_buffer_ptr(&down->outgoing),
-			     ssh_buffer_len(&down->outgoing));
+                             ssh_buffer_len(&down->outgoing));
       if (len < 0)
-	return return_value;  /* Cannot write more now. */
+        return return_value;  /* Cannot write more now. */
       if (len == 0)
-	{
-	  /* EOF on output; will not be able to write any more. */
-	  down->outgoing_eof = TRUE;
-	  ssh_buffer_clear(&down->outgoing);
-	  return TRUE;
-	}
-      
+        {
+          /* EOF on output; will not be able to write any more. */
+          down->outgoing_eof = TRUE;
+          ssh_buffer_clear(&down->outgoing);
+          return TRUE;
+        }
+
       /* Consume written data. */
       ssh_buffer_consume(&down->outgoing, len);
 
@@ -135,16 +138,16 @@ Boolean ssh_packet_wrapper_output(SshPacketWrapper down)
     {
       down->cannot_destroy = TRUE;
       if (down->can_send)
-	(*down->can_send)(down->context);
+        (*down->can_send)(down->context);
       down->cannot_destroy = FALSE;
       if (down->destroy_requested)
-	{
-	  ssh_packet_wrapper_destroy(down);
-	  return FALSE;
-	}
+        {
+          ssh_packet_wrapper_destroy(down);
+          return FALSE;
+        }
       down->send_blocked = FALSE;
     }
-  
+
   /* If we should send EOF after output has drained, do it now. */
   if (down->outgoing_eof)
     ssh_stream_output_eof(down->stream);
@@ -155,7 +158,7 @@ Boolean ssh_packet_wrapper_output(SshPacketWrapper down)
     {
       down->shortcircuited = TRUE;
       ssh_packet_impl_shortcircuit_now(down->shortcircuit_up_stream,
-				       down->stream);
+                                       down->stream);
     }
 
   /* If there's a destroy pending (that is, waiting for buffers to drain),
@@ -166,7 +169,7 @@ Boolean ssh_packet_wrapper_output(SshPacketWrapper down)
       ssh_packet_wrapper_destroy_now(down);
 
       /* Return FALSE to ensure that the loop in ssh_packet_wrapper_callback
-	 exits without looking at the context again. */
+         exits without looking at the context again. */
       return FALSE;
     }
 
@@ -189,108 +192,111 @@ Boolean ssh_packet_wrapper_input(SshPacketWrapper down)
     {
       /* If we cannot receive, return immediately. */
       if (!down->can_receive || down->incoming_eof || down->destroy_pending ||
-	  down->shortcircuit_up_stream != NULL)
-	return return_value;
+          down->shortcircuit_up_stream != NULL)
+        return return_value;
 
       /* Get length of data read so far. */
       data_read = ssh_buffer_len(&down->incoming);
 
       /* Add enough space to buffer for reading either header or
-	 entire packet.  This also sets `ptr' to point to the place
-	 where data should be read, and `data_to_read' to the number
-	 of bytes that should be there after reading (should read
-	 data_to_read - data_read bytes). */
+         entire packet.  This also sets `ptr' to point to the place
+         where data should be read, and `data_to_read' to the number
+         of bytes that should be there after reading (should read
+         data_to_read - data_read bytes). */
       if (data_read < 4)
-	{
-	  /* Packet header not yet in buffer.  Read only header. */
-	  data_to_read = 4;
-	  ssh_buffer_append_space(&down->incoming, &ptr, 4 - data_read);
-	}
+        {
+          /* Packet header not yet in buffer.  Read only header. */
+          data_to_read = 4;
+          ssh_buffer_append_space(&down->incoming, &ptr, 4 - data_read);
+        }
       else
-	{
-	  /* Packet header already in buffer. */
-	  ptr = ssh_buffer_ptr(&down->incoming);
-	  data_to_read = 4 + SSH_GET_32BIT(ptr);
-	  if (data_to_read > 100000000L)
-	    ssh_fatal("ssh_packet_wrapper_input: "
-		      "invalid packet received: len %ld",
-		      (long)data_to_read);
-	  assert(data_to_read > data_read);
-	  ssh_buffer_append_space(&down->incoming, &ptr, data_to_read - data_read);
-	}
-  
+        {
+          /* Packet header already in buffer. */
+          ptr = ssh_buffer_ptr(&down->incoming);
+          data_to_read = 4 + SSH_GET_32BIT(ptr);
+          if (data_to_read > 100000000L)
+            ssh_fatal("ssh_packet_wrapper_input: "
+                      "invalid packet received: len %ld",
+                      (long)data_to_read);
+          SSH_ASSERT(data_to_read > data_read);
+          ssh_buffer_append_space(&down->incoming, &ptr,
+                                  data_to_read - data_read);
+        }
+
       /* Keep reading until entire packet read, or no more data available. */
       while (data_read < data_to_read)
-	{
-	  /* Try to read the remaining bytes. */
-	  ptr = (unsigned char *)ssh_buffer_ptr(&down->incoming) + data_read;
-	  ret = ssh_stream_read(down->stream, ptr, data_to_read - data_read);
-	  if (ret < 0)
-	    {
-	      /* No more data available at this time.  Remove
-		 allocated but unread space from end of buffer. */
-	      ssh_buffer_consume_end(&down->incoming, data_to_read - data_read);
-	      return return_value;
-	    }
+        {
+          /* Try to read the remaining bytes. */
+          ptr = (unsigned char *)ssh_buffer_ptr(&down->incoming) + data_read;
+          ret = ssh_stream_read(down->stream, ptr, data_to_read - data_read);
+          if (ret < 0)
+            {
+              /* No more data available at this time.  Remove
+                 allocated but unread space from end of buffer. */
+              ssh_buffer_consume_end(&down->incoming,
+                                     data_to_read - data_read);
+              return return_value;
+            }
 
-	  if (ret == 0)
-	    {
-	      /* EOF received. */
-	      ssh_buffer_consume_end(&down->incoming, data_to_read - data_read);
-	      down->incoming_eof = TRUE;
-	      
-	      /* Pass the EOF to the application callback. */
-	      down->cannot_destroy = TRUE;
-	      if (down->received_eof)
-		(*down->received_eof)(down->context);
-	      down->cannot_destroy = FALSE;
-	      if (down->destroy_requested)
-		{
-		  ssh_packet_wrapper_destroy(down);
-		  return FALSE;
-		}
-	      return TRUE;
-	    }
+          if (ret == 0)
+            {
+              /* EOF received. */
+              ssh_buffer_consume_end(&down->incoming,
+                                     data_to_read - data_read);
+              down->incoming_eof = TRUE;
 
-	  if (data_read < 4 && data_read + ret >= 4)
-	    {
-	      /* Header has now been fully received.  Prepare to receive rest
-		 of packet. */
-	      data_read += ret;
-	      ptr = ssh_buffer_ptr(&down->incoming);
-	      data_to_read = 4 + SSH_GET_32BIT(ptr);
-	      if (data_to_read > 100000000L)
-		ssh_fatal("ssh_packet_wrapper_input: "
-			  "invalid packet received: len %ld",
-			  (long)data_to_read);
-	      if (data_to_read > data_read)
-		ssh_buffer_append_space(&down->incoming, &ptr,
-				    data_to_read - data_read);
-	    }
-	  else
-	    data_read += ret;
-	}
+              /* Pass the EOF to the application callback. */
+              down->cannot_destroy = TRUE;
+              if (down->received_eof)
+                (*down->received_eof)(down->context);
+              down->cannot_destroy = FALSE;
+              if (down->destroy_requested)
+                {
+                  ssh_packet_wrapper_destroy(down);
+                  return FALSE;
+                }
+              return TRUE;
+            }
+
+          if (data_read < 4 && data_read + ret >= 4)
+            {
+              /* Header has now been fully received.  Prepare to receive rest
+                 of packet. */
+              data_read += ret;
+              ptr = ssh_buffer_ptr(&down->incoming);
+              data_to_read = 4 + SSH_GET_32BIT(ptr);
+              if (data_to_read > 100000000L)
+                ssh_fatal("ssh_packet_wrapper_input: "
+                          "invalid packet received: len %ld",
+                          (long)data_to_read);
+              if (data_to_read > data_read)
+                ssh_buffer_append_space(&down->incoming, &ptr,
+                                    data_to_read - data_read);
+            }
+          else
+            data_read += ret;
+        }
 
       /* An entire packet has been received. */
-      assert(ssh_buffer_len(&down->incoming) == data_to_read);
-      
+      SSH_ASSERT(ssh_buffer_len(&down->incoming) == data_to_read);
+
       /* Get packet type. */
       ptr = ssh_buffer_ptr(&down->incoming);
       type = (SshPacketType)ptr[4];
-      
+
       /* Call the application callback if set. */
       down->cannot_destroy = TRUE;
       if (down->received_packet)
-	(*down->received_packet)(type, ptr + 5, data_to_read - 5,
-				 down->context);
+        (*down->received_packet)(type, ptr + 5, data_to_read - 5,
+                                 down->context);
       down->cannot_destroy = FALSE;
       if (down->destroy_requested)
-	{
-	  ssh_packet_wrapper_destroy(down);
-	  return FALSE;
-	}
+        {
+          ssh_packet_wrapper_destroy(down);
+          return FALSE;
+        }
       ssh_buffer_clear(&down->incoming);
-      
+
       return_value = TRUE;
     }
   /*NOTREACHED*/
@@ -303,36 +309,36 @@ void ssh_packet_wrapper_callback(SshStreamNotification op, void *context)
 {
   SshPacketWrapper down = (SshPacketWrapper)context;
   Boolean ret;
-  
+
   ret = FALSE;
-  
+
   /* Process the notification.  We loop between input and output
      operations until one returns FALSE (they return TRUE if the other
      operation should be performed). */
   do
     {
       switch (op)
-	{
-	case SSH_STREAM_CAN_OUTPUT:
-	  ret = ssh_packet_wrapper_output(down);
-	  op = SSH_STREAM_INPUT_AVAILABLE;
-	  break;
-	  
-	case SSH_STREAM_INPUT_AVAILABLE:
-	  ret = ssh_packet_wrapper_input(down);
-	  op = SSH_STREAM_CAN_OUTPUT;
-	  break;
-	  
-	case SSH_STREAM_DISCONNECTED:
-	  ssh_debug("ssh_packet_wrapper_callback: disconnected");
-	  ret = FALSE;
-	  break;
-	  
-	default:
-	  ssh_fatal("ssh_packet_wrapper_callback: unknown op %d", (int)op);
-	}
+        {
+        case SSH_STREAM_CAN_OUTPUT:
+          ret = ssh_packet_wrapper_output(down);
+          op = SSH_STREAM_INPUT_AVAILABLE;
+          break;
+
+        case SSH_STREAM_INPUT_AVAILABLE:
+          ret = ssh_packet_wrapper_input(down);
+          op = SSH_STREAM_CAN_OUTPUT;
+          break;
+
+        case SSH_STREAM_DISCONNECTED:
+          ssh_debug("ssh_packet_wrapper_callback: disconnected");
+          ret = FALSE;
+          break;
+
+        default:
+          ssh_fatal("ssh_packet_wrapper_callback: unknown op %d", (int)op);
+        }
       /* Note: `down' might have been destroyed by now.  In that case
-	 `ret' is FALSE. */
+         `ret' is FALSE. */
     }
   while (ret == TRUE);
 }
@@ -360,10 +366,10 @@ void ssh_packet_wrapper_callback(SshStreamNotification op, void *context)
    packets. */
 
 SshPacketWrapper ssh_packet_wrap(SshStream down_stream,
-				 SshPacketReceiveProc received_packet,
-				 SshPacketEofProc received_eof,
-				 SshPacketCanSendProc can_send,
-				 void *context)
+                                 SshPacketReceiveProc received_packet,
+                                 SshPacketEofProc received_eof,
+                                 SshPacketCanSendProc can_send,
+                                 void *context)
 {
   SshPacketWrapper down;
 
@@ -390,11 +396,11 @@ SshPacketWrapper ssh_packet_wrap(SshStream down_stream,
   /* Set callback for the downward stream.  Note that this will also cause
      can_send to be called from the output callback. */
   ssh_stream_set_callback(down->stream, ssh_packet_wrapper_callback,
-			  (void *)down);
+                          (void *)down);
 
   /* Enable receives. */
   ssh_packet_wrapper_can_receive(down, TRUE);
-  
+
   return down;
 }
 
@@ -437,7 +443,7 @@ void ssh_packet_wrapper_can_receive(SshPacketWrapper down, Boolean status)
     {
       /* Reset the callbacks to ensure that our callback gets called. */
       ssh_stream_set_callback(down->stream, ssh_packet_wrapper_callback,
-			      (void *)down);
+                              (void *)down);
     }
 }
 
@@ -478,13 +484,13 @@ Boolean ssh_packet_wrapper_can_send(SshPacketWrapper down)
 
   return status;
 }
-  
+
 /* Sends a packet to the underlying stream.  The payload will be encoded as
    specified for ssh_encode_buffer_va. */
 
 void ssh_packet_wrapper_send_encode_va(SshPacketWrapper down,
-				       SshPacketType type,
-				       va_list va)
+                                       SshPacketType type,
+                                       va_list va)
 {
   /* Format the packet in a separate buffer. */
   ssh_buffer_clear(&down->outgoing_packet);
@@ -496,25 +502,25 @@ void ssh_packet_wrapper_send_encode_va(SshPacketWrapper down,
       ssh_buffer_len(&down->outgoing_packet) >= BUFFER_MAX_SIZE)
     {
       ssh_debug("ssh_packet_wrapper_send_encode_va: flow control problems; "
-		"outgoing packet dropped.");
+                "outgoing packet dropped.");
       return;
     }
 
   /* Append the packet to the outgoing buffer. */
   ssh_buffer_append(&down->outgoing, ssh_buffer_ptr(&down->outgoing_packet),
-		    ssh_buffer_len(&down->outgoing_packet));
+                    ssh_buffer_len(&down->outgoing_packet));
 
   /* Reset the callback to ensure that our callback gets called. */
   ssh_stream_set_callback(down->stream, ssh_packet_wrapper_callback,
-			  (void *)down);
+                          (void *)down);
 }
 
 /* Sends a packet to the underlying stream.  The payload will be encoded as
    specified for ssh_encode_buffer. */
 
 void ssh_packet_wrapper_send_encode(SshPacketWrapper down,
-				    SshPacketType type,
-				    ...)
+                                    SshPacketType type,
+                                    ...)
 {
   va_list va;
 
@@ -529,11 +535,11 @@ void ssh_packet_wrapper_send_encode(SshPacketWrapper down,
    the `can_send' callback to implement flow control. */
 
 void ssh_packet_wrapper_send(SshPacketWrapper down, SshPacketType type,
-			 const unsigned char *data, size_t len)
+                         const unsigned char *data, size_t len)
 {
   ssh_packet_wrapper_send_encode(down, type,
-				 SSH_FORMAT_DATA, data, len,
-				 SSH_FORMAT_END);
+                                 SSH_FORMAT_DATA, data, len,
+                                 SSH_FORMAT_END);
 }
 
 /* Causes any I/O requests from `packet_stream' (which must be implemented
@@ -551,7 +557,7 @@ void ssh_packet_wrapper_send(SshPacketWrapper down, SshPacketType type,
    module) to shortcircuit any traffic through it. */
 
 void ssh_packet_shortcircuit(SshStream packet_stream,
-			     SshPacketWrapper wrapper)
+                             SshPacketWrapper wrapper)
 {
   /* Mark that the stream is shortcircuited. */
   wrapper->shortcircuited = FALSE;
@@ -568,6 +574,6 @@ void ssh_packet_shortcircuit(SshStream packet_stream,
     {
       wrapper->shortcircuited = TRUE;
       ssh_packet_impl_shortcircuit_now(wrapper->shortcircuit_up_stream,
-				       wrapper->stream);
+                                       wrapper->stream);
     }
 }

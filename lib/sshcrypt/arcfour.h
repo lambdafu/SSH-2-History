@@ -10,7 +10,7 @@ Author: Tatu Ylonen <ylo@ssh.fi>
 */
 
 /*
- * $Id: arcfour.h,v 1.8 1998/11/04 12:04:19 ylo Exp $
+ * $Id: arcfour.h,v 1.9 1998/12/03 19:48:08 mkojo Exp $
  * $Log: arcfour.h,v $
  * $EndLog$
  */
@@ -19,18 +19,18 @@ Author: Tatu Ylonen <ylo@ssh.fi>
 #define ARCFOUR_H
 
 /* Compute Arcfour context size. */
-size_t arcfour_ctxsize(void);
+size_t ssh_arcfour_ctxsize(void);
 
 /* Sets arcfour key for encryption. */
-void arcfour_init(void *context,
-                  const unsigned char *key, size_t keylen,
-                  Boolean for_encryption);
+Boolean ssh_arcfour_init(void *context,
+                         const unsigned char *key, size_t keylen,
+                         Boolean for_encryption);
 
 /* Destroys any sensitive data in the context. */
-void arcfour_free(void *context);
+void ssh_arcfour_free(void *context);
 
 /* Encrypt/decrypt data. */
-void arcfour_transform(void *context, unsigned char *dest,
+void ssh_arcfour_transform(void *context, unsigned char *dest,
                        const unsigned char *src, size_t len,
                        unsigned char *iv);
 

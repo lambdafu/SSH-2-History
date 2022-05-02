@@ -6,12 +6,17 @@
 .\"             Markku-Juhani Saarinen <mjos@ssh.fi>
 .\"		Sami Lehtinen <sjl@ssh.fi>
 .\"
-.\" Copyright (c) 1997 SSH Communications Security, Finland
+.\" Copyright (C) 1997-1998 SSH Communications Security, Finland
 .\" All rights reserved
 .\"
 .nr CO 0
+.\" #ifdef SSHDIST_SSH2_F_SECURE_COMMERCIAL
+.\" .ie \n(CO .TH SSHD2 8 "June 29, 1998" "F-SECURE SSH2" "F-SECURE SSH2"
+.\" .el  .TH SSHD2 8 "June 29, 1998" "F-SECURE SSH2" "F-SECURE SSH2"
+.\" #else /* SSHDIST_SSH2_F_SECURE_COMMERCIAL */
 .ie \n(CO .TH SSHD2 8 "June 29, 1998" "SSH2" "SSH2"
 .el  .TH SSHD2 8 "June 29, 1998" "SSH2" "SSH2"
+.\" #endif /* SSHDIST_SSH2_F_SECURE_COMMERCIAL */
 
 .SH NAME
 sshd2 \- secure shell daemon 
@@ -107,7 +112,7 @@ Specifies the port on which the server listens for connections
 .ne 3
 .TP
 .BI \-v
-Enable verbose mode. Display verbose debugging mssages. Equal to
+Enable verbose mode. Display verbose debugging messages. Equal to
 `-d 2'. This option can also be specified in the configuration file.
 .ne 3
 .TP
@@ -115,7 +120,7 @@ Enable verbose mode. Display verbose debugging mssages. Equal to
 Quiet mode.  Nothing is sent to the system log.  Normally the
 beginning, authentication, and termination of each connection is
 logged. This option can also be specified in the configuration
-file. (logging not implemented yet.)
+file. 
 .ne 3
 .TP
 .BI \-g \ login_grace_time
@@ -376,6 +381,7 @@ is executed when the client supports only SSH 1.x protocols. The argument
 must be
 .YN
 .ne 3
+.TP
 .B Sshd1Path
 Specifies the path to 
 .B sshd1 
@@ -386,6 +392,22 @@ are passed on to
 .B sshd1 ".
 .ne 3
 .TP
+.B SyslogFacility
+Gives the facility code that is used when logging messages from
+.B sshd2.
+The possible values are: DAEMON, USER, AUTH, LOCAL0, LOCAL1, LOCAL2,
+LOCAL3, LOCAL4, LOCAL5, LOCAL6, LOCAL7.  The default is AUTH.
+.ne 3
+.TP
+.B UserConfigDirectory
+Specifies where user-specific configuration data should be fetched
+from. With this the administration can control whatever configuration
+parameters they wish that are normally the users' domain. This is
+given as a pattern string, which is expanded by sshd2. %D is the
+user's home directory, %U is user's login name, %IU is the user's user
+ID (uid) and %IG is his group ID (gid). The default is 
+.I %D/.ssh2
+
 .\" .SH SUBSYSTEMS
 .\" XXX
 .SH LOGIN PROCESS

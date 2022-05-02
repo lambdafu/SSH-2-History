@@ -10,6 +10,7 @@
 
 */
 
+#include "sshincludes.h"
 #include "sshgetopt.h"
 
 #define SSH_DEBUG_MODULE "GetOptCompat"

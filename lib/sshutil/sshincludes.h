@@ -14,7 +14,7 @@ Common include files for various platforms.
 */
 
 /*
- * $Id: sshincludes.h,v 1.25 1998/11/06 01:12:14 ylo Exp $
+ * $Id: sshincludes.h,v 1.27 1999/01/13 17:04:02 kukkonen Exp $
  * $Log: sshincludes.h,v $
  * $EndLog$
  */
@@ -23,8 +23,19 @@ Common include files for various platforms.
 #define SSHINCLUDES_H
 
 #if defined(KERNEL) || defined(_KERNEL)
+#ifdef WINNT
+#include "kernel_includes_winnt.h"
+#else
 #include "kernel_includes.h"
+#endif
 #else /* KERNEL || _KERNEL */
+
+/*
+  __STDC__ is supposed to be set by ANSI compliant compilers only!
+
+  If something breaks, one should really revise the code.
+
+  -Jussi Kukkonen
 
 #if (defined(_WINDOWS) || defined(WIN32)) && !defined(WINDOWS)
 #define WINDOWS
@@ -32,6 +43,11 @@ Common include files for various platforms.
 #define __STDC__ 1
 #endif
 #endif
+*/
+
+#if defined(WIN32)
+#include "win32/sshincludes_win32.h"
+#else
 
 #ifndef macintosh
 #include <sys/types.h>
@@ -41,29 +57,10 @@ Common include files for various platforms.
 #endif
 
 #include "sshdistdefs.h"
-
-#ifdef WINDOWS
-#include "sshwindefines.h" 
-#else /* WINDOWS */
 #include "sshconf.h"
-#endif /* WINDOWS */
 
-#ifdef WINDOWS
-#ifdef WIN32
-#ifdef DLL
-#define DLLEXPORT __declspec(dllexport)
-#else
-#define DLLEXPORT 
-#endif /* DLL */
-#define DLLCALLCONV
-#else
-#define DLLCALLCONV __far __pascal __export
-#define DLLEXPORT
-#endif /* WIN32 */
-#else /* WINDOWS */
 #define DLLCALLCONV 
 #define DLLEXPORT 
-#endif /* WINDOWS */
 
 typedef unsigned char SshUInt8;         /* At least 8 bits. */
 typedef signed char SshInt8;            /* At least 8 bits. */
@@ -289,6 +286,8 @@ typedef unsigned int Boolean;
 #define O_BINARY 0
 #endif
 
+#endif /* WIN32 */
+
 
 /* The sprintf and vsprintf functions are FORBIDDEN in all SSH code.  This is
    for security reasons - they are the source of way too many security bugs.
@@ -342,12 +341,12 @@ typedef unsigned int Boolean;
 # undef memdup
 #endif
 
-# define malloc ssh_fatal(MALLOC_IS_FORBIDDEN_USE_SSH_XMALLOC_INSTEAD)
-# define calloc ssh_fatal(CALLOC_IS_FORBIDDEN_USE_SSH_XCALLOC_INSTEAD)
-# define realloc ssh_fatal(REALLOC_IS_FORBIDDEN_USE_SSH_XREALLOC_INSTEAD)
-# define free ssh_fatal(FREE_IS_FORBIDDEN_USE_SSH_XFREE_INSTEAD)
-# define strdup ssh_fatal(STRDUP_IS_FORBIDDEN_USE_SSH_XSTRDUP_INSTEAD)
-# define memdup ssh_fatal(MEMDUP_IS_FORBIDDEN_USE_SSH_XMEMDUP_INSTEAD)
+# define malloc MALLOC_IS_FORBIDDEN_USE_SSH_XMALLOC_INSTEAD
+# define calloc CALLOC_IS_FORBIDDEN_USE_SSH_XCALLOC_INSTEAD
+# define realloc REALLOC_IS_FORBIDDEN_USE_SSH_XREALLOC_INSTEAD
+# define free FREE_IS_FORBIDDEN_USE_SSH_XFREE_INSTEAD
+# define strdup STRDUP_IS_FORBIDDEN_USE_SSH_XSTRDUP_INSTEAD
+# define memdup MEMDUP_IS_FORBIDDEN_USE_SSH_XMEMDUP_INSTEAD
 
 #ifndef HAVE_SNPRINTF
 /* Define prototypes for those systems for which we use our own versions. */

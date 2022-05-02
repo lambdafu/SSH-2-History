@@ -84,6 +84,7 @@ LN_S = @LN_S@
 M4 = @M4@
 MAKEINFO = @MAKEINFO@
 MATH_CONF_OBJS = @MATH_CONF_OBJS@
+NM_PATH = @NM_PATH@
 PACKAGE = @PACKAGE@
 RANLIB = @RANLIB@
 SSH1_PATH = @SSH1_PATH@
@@ -97,7 +98,8 @@ AUTOMAKE_OPTIONS = 1.0 foreign dist-zip no-dependencies
 TESTS = t-buffer t-crc32 t-replace t-snprintf t-malloc t-encode \
 	t-timemeasure t-dllist \
 	t-stream t-socks t-streampair t-localstream t-mapping t-udp \
-	t-asn1 t-base64 t-sshutf8 t-psystem t-filexfer t-url
+	t-asn1 t-base64 t-sshutf8 t-psystem t-filexfer t-url \
+	t-inet_ntoa
 
 # t-parser t-uf
 
@@ -107,7 +109,7 @@ EXTRA_PROGRAMS = t-buffer t-crc32 t-encode \
 	t-snprintf t-malloc t-socks t-streampair t-localstream \
 	t-mapping t-udp \
 	t-asn1 t-base64 t-sshutf8 t-psystem t-filexfer t-url t-serial \
-	t-sshlist
+	t-sshlist t-inet_ntoa t-debug
 
 LDADD = ../libsshutil.a ../../sshmath/libsshmath.a
 INCLUDES = -I../.. -I. -I.. -I$(srcdir) -I$(srcdir)/..  \
@@ -159,6 +161,10 @@ t_serial_SOURCES = t-serial.c
 t_serial_DEPENDENCIES = $(LDADD)
 t_sshlist_SOURCES = t-sshlist.c
 t_sshlist_DEPENDENCIES = $(LDADD)
+t_inet_ntoa_SOURCES = t-inet_ntoa.c
+t_inet_ntoa_DEPENDENCIES = $(LDADD)
+t_debug_SOURCES = t-debug.c
+t_debug_DEPENDENCIES = $(LDADD)
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = ../../../sshconf.h
 CONFIG_CLEAN_FILES = 
@@ -237,6 +243,12 @@ t_serial_LDFLAGS =
 t_sshlist_OBJECTS =  t-sshlist.o
 t_sshlist_LDADD = $(LDADD)
 t_sshlist_LDFLAGS = 
+t_inet_ntoa_OBJECTS =  t-inet_ntoa.o
+t_inet_ntoa_LDADD = $(LDADD)
+t_inet_ntoa_LDFLAGS = 
+t_debug_OBJECTS =  t-debug.o
+t_debug_LDADD = $(LDADD)
+t_debug_LDFLAGS = 
 CFLAGS = @CFLAGS@
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS)
 LINK = $(CC) $(CFLAGS) $(LDFLAGS) -o $@
@@ -247,8 +259,8 @@ DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
 
 TAR = tar
 GZIP = --best
-SOURCES = $(t_buffer_SOURCES) $(t_crc32_SOURCES) $(t_encode_SOURCES) $(t_timemeasure_SOURCES) $(t_dllist_SOURCES) $(t_stream_SOURCES) $(t_replace_SOURCES) $(t_snprintf_SOURCES) $(t_malloc_SOURCES) $(t_socks_SOURCES) $(t_streampair_SOURCES) $(t_localstream_SOURCES) $(t_mapping_SOURCES) $(t_udp_SOURCES) $(t_asn1_SOURCES) $(t_base64_SOURCES) $(t_sshutf8_SOURCES) $(t_psystem_SOURCES) $(t_filexfer_SOURCES) $(t_url_SOURCES) $(t_serial_SOURCES) $(t_sshlist_SOURCES)
-OBJECTS = $(t_buffer_OBJECTS) $(t_crc32_OBJECTS) $(t_encode_OBJECTS) $(t_timemeasure_OBJECTS) $(t_dllist_OBJECTS) $(t_stream_OBJECTS) $(t_replace_OBJECTS) $(t_snprintf_OBJECTS) $(t_malloc_OBJECTS) $(t_socks_OBJECTS) $(t_streampair_OBJECTS) $(t_localstream_OBJECTS) $(t_mapping_OBJECTS) $(t_udp_OBJECTS) $(t_asn1_OBJECTS) $(t_base64_OBJECTS) $(t_sshutf8_OBJECTS) $(t_psystem_OBJECTS) $(t_filexfer_OBJECTS) $(t_url_OBJECTS) $(t_serial_OBJECTS) $(t_sshlist_OBJECTS)
+SOURCES = $(t_buffer_SOURCES) $(t_crc32_SOURCES) $(t_encode_SOURCES) $(t_timemeasure_SOURCES) $(t_dllist_SOURCES) $(t_stream_SOURCES) $(t_replace_SOURCES) $(t_snprintf_SOURCES) $(t_malloc_SOURCES) $(t_socks_SOURCES) $(t_streampair_SOURCES) $(t_localstream_SOURCES) $(t_mapping_SOURCES) $(t_udp_SOURCES) $(t_asn1_SOURCES) $(t_base64_SOURCES) $(t_sshutf8_SOURCES) $(t_psystem_SOURCES) $(t_filexfer_SOURCES) $(t_url_SOURCES) $(t_serial_SOURCES) $(t_sshlist_SOURCES) $(t_inet_ntoa_SOURCES) $(t_debug_SOURCES)
+OBJECTS = $(t_buffer_OBJECTS) $(t_crc32_OBJECTS) $(t_encode_OBJECTS) $(t_timemeasure_OBJECTS) $(t_dllist_OBJECTS) $(t_stream_OBJECTS) $(t_replace_OBJECTS) $(t_snprintf_OBJECTS) $(t_malloc_OBJECTS) $(t_socks_OBJECTS) $(t_streampair_OBJECTS) $(t_localstream_OBJECTS) $(t_mapping_OBJECTS) $(t_udp_OBJECTS) $(t_asn1_OBJECTS) $(t_base64_OBJECTS) $(t_sshutf8_OBJECTS) $(t_psystem_OBJECTS) $(t_filexfer_OBJECTS) $(t_url_OBJECTS) $(t_serial_OBJECTS) $(t_sshlist_OBJECTS) $(t_inet_ntoa_OBJECTS) $(t_debug_OBJECTS)
 
 all: Makefile
 
@@ -368,6 +380,14 @@ t-serial: $(t_serial_OBJECTS) $(t_serial_DEPENDENCIES)
 t-sshlist: $(t_sshlist_OBJECTS) $(t_sshlist_DEPENDENCIES)
 	@rm -f t-sshlist
 	$(LINK) $(t_sshlist_LDFLAGS) $(t_sshlist_OBJECTS) $(t_sshlist_LDADD) $(LIBS)
+
+t-inet_ntoa: $(t_inet_ntoa_OBJECTS) $(t_inet_ntoa_DEPENDENCIES)
+	@rm -f t-inet_ntoa
+	$(LINK) $(t_inet_ntoa_LDFLAGS) $(t_inet_ntoa_OBJECTS) $(t_inet_ntoa_LDADD) $(LIBS)
+
+t-debug: $(t_debug_OBJECTS) $(t_debug_DEPENDENCIES)
+	@rm -f t-debug
+	$(LINK) $(t_debug_LDFLAGS) $(t_debug_OBJECTS) $(t_debug_LDADD) $(LIBS)
 
 tags: TAGS
 

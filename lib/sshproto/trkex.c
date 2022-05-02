@@ -16,7 +16,7 @@ Key exchange methods.
 */
 
 /*
- * $Id: trkex.c,v 1.23 1998/11/13 18:43:34 tri Exp $
+ * $Id: trkex.c,v 1.24 1999/01/26 20:29:55 vsuontam Exp $
  * $Log: trkex.c,v $
  * $EndLog$
  */
@@ -86,6 +86,8 @@ void ssh_tr_server_init_kex(SshTransportCommon tr,
     {
       public_server_key =
         ssh_private_key_derive_public_key(private_server_key);
+      if (public_server_key == NULL)
+        ssh_fatal("Deriving public server key from private key failed.");
       len = ssh_encode_pubkeyblob(public_server_key, &buf);
       if (len == 0)
         ssh_fatal("ssh_tr_client_init_kex: public server key encoding failed");

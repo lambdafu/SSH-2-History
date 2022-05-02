@@ -14,7 +14,8 @@ AUTOMAKE_OPTIONS = 1.0 foreign dist-zip no-dependencies
 TESTS = t-buffer t-crc32 t-replace t-snprintf t-malloc t-encode \
 	t-timemeasure t-dllist \
 	t-stream t-socks t-streampair t-localstream t-mapping t-udp \
-	t-asn1 t-base64 t-sshutf8 t-psystem t-filexfer t-url
+	t-asn1 t-base64 t-sshutf8 t-psystem t-filexfer t-url \
+	t-inet_ntoa
 
 
 # t-parser t-uf
@@ -25,7 +26,7 @@ EXTRA_PROGRAMS = t-buffer t-crc32 t-encode \
 	t-snprintf t-malloc t-socks t-streampair t-localstream \
 	t-mapping t-udp \
 	t-asn1 t-base64 t-sshutf8 t-psystem t-filexfer t-url t-serial \
-	t-sshlist
+	t-sshlist t-inet_ntoa t-debug
 
 LDADD = ../libsshutil.a ../../sshmath/libsshmath.a
 INCLUDES = -I../.. -I. -I.. -I$(srcdir) -I$(srcdir)/..  \
@@ -78,8 +79,7 @@ t_serial_SOURCES = t-serial.c
 t_serial_DEPENDENCIES = $(LDADD)
 t_sshlist_SOURCES = t-sshlist.c
 t_sshlist_DEPENDENCIES = $(LDADD)
-
-
-
-
-
+t_inet_ntoa_SOURCES = t-inet_ntoa.c
+t_inet_ntoa_DEPENDENCIES = $(LDADD)
+t_debug_SOURCES = t-debug.c
+t_debug_DEPENDENCIES = $(LDADD)

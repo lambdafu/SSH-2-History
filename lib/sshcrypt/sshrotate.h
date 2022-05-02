@@ -16,6 +16,14 @@
 
 /* -- look for platform specific rotation primitives -- */
 
+#if 0
+
+/*
+  Commented out until we have something which works both
+  in user- and kernel mode. It is not worth the effort to mix
+  user mode Win32 headers with DDK compilation environment.
+*/
+
 #ifdef _MSC_VER
 #include <stdlib.h>
 
@@ -27,6 +35,7 @@
 #define SSH_ROR32(x, n) _lrotr(x, n)
 #endif /* _MSC_VER */
 
+#endif
 
 /* -- fall back to generic ANSI C rotations -- */
 

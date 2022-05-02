@@ -20,6 +20,7 @@ files to perform the actual authentication.
 #include "sshuser.h"
 #include "sshserver.h"
 #include "sshconfig.h"
+#include "auths-common.h"
 
 #define SSH_DEBUG_MODULE "Ssh2AuthPasswdServer"
 
@@ -35,6 +36,8 @@ SshAuthServerResult ssh_server_auth_passwd(SshAuthServerOperation op,
                                            void **longtime_placeholder,
                                            void *method_context)
 {
+  SshServer server = (SshServer)method_context;
+  SshConfig config = server->config;
   SshUser uc = (SshUser)*longtime_placeholder;
   Boolean change_request;
   char *password, *prompt;
@@ -45,18 +48,30 @@ SshAuthServerResult ssh_server_auth_passwd(SshAuthServerOperation op,
   switch (op)
     {
     case SSH_AUTH_SERVER_OP_START:
-      /* If user context not yet allocated, do it now. */
-      if (uc == NULL)
+      /* Check whether user's login is allowed */
+      if (ssh_server_auth_check_user(&uc, user, config))
         {
-          uc = ssh_user_initialize(user, TRUE);
+          /* User does not exist or is not allowed to log in. */
+          return SSH_AUTH_SERVER_REJECTED_AND_METHOD_DISABLED;
+        }
+      else
+        {
           *longtime_placeholder = (void *)uc;
         }
 
+      if (ssh_server_auth_check_host(server->common))
+        {
+          /* logins from remote host are not allowed. */
+          ssh_log_event(config->log_facility, SSH_LOG_WARNING,
+                        "Connection from %s denied. Authentication as user "
+                        "%s was attempted.", server->common->remote_host,
+                        ssh_user_name(uc));
+          return SSH_AUTH_SERVER_REJECTED_AND_METHOD_DISABLED;
+        }
+      
       {
-        SshConfig serverconf = ((SshServer)method_context)->config;
-
-        serverconf->password_guesses--;
-        if (serverconf->password_guesses <= 0)
+        config->password_guesses--;
+        if (config->password_guesses <= 0)
           {
             /* If this attempt is not succesful, disable this method. */
             disable_method = 1;
@@ -64,11 +79,11 @@ SshAuthServerResult ssh_server_auth_passwd(SshAuthServerOperation op,
 
         /* If password authentication is denied in the configuration
            file, deny it here too. */
-        if (serverconf->password_authentication == FALSE )
+        if (config->password_authentication == FALSE )
           {
             ssh_warning("Password authentication denied. (user '%s' not"
                         " allowed to log in)", ssh_user_name(uc));
-            ssh_log_event(SSH_LOGFACILITY_SECURITY, SSH_LOG_NOTICE,
+            ssh_log_event(config->log_facility, SSH_LOG_WARNING,
                           "Password authentication denied. (user '%s' not"
                           " allowed to log in)", ssh_user_name(uc));
             /* XXX should be
@@ -77,35 +92,17 @@ SshAuthServerResult ssh_server_auth_passwd(SshAuthServerOperation op,
             goto password_bad;            
           }
         
-
-        /* If user context allocation failed, the user does not exist. */
-        if (!uc)
-          goto password_bad;
-
-        /* Reject the login if the user is not allowed to log in. */
-        if (!ssh_user_login_is_allowed(uc))
-          {
-            ssh_log_event(SSH_LOGFACILITY_SECURITY,
-                          SSH_LOG_NOTICE,
-                          "login by '%s' not allowed.", ssh_user_name(uc));
-            SSH_DEBUG(2, ("ssh_server_auth_passwd: login by '%s' "\
-                          "not allowed.",\
-                        ssh_user_name(uc)));
-            return SSH_AUTH_SERVER_REJECTED_AND_METHOD_DISABLED;
-          }
-#ifndef SSHDIST_WINDOWS
         else if(ssh_user_uid(uc) == SSH_UID_ROOT &&
-                serverconf->permit_root_login == FALSE)
+                config->permit_root_login == FALSE)
           {
             /* XXX Add client addresses etc. */
-            ssh_log_event(SSH_LOGFACILITY_SECURITY,
-                          SSH_LOG_NOTICE,
+            ssh_log_event(config->log_facility,
+                          SSH_LOG_WARNING,
                           "root logins are not permitted.");
             SSH_DEBUG(2, ("ssh_server_auth_passwd: root logins are " \
                       "not permitted."));
             return SSH_AUTH_SERVER_REJECTED_AND_METHOD_DISABLED;
           }
-#endif /* SSHDIST_WINDOWS */
       }
       
       /* Parse the password authentication request. */
@@ -140,7 +137,7 @@ SshAuthServerResult ssh_server_auth_passwd(SshAuthServerOperation op,
          needed to access disks. */
       if (ssh_user_validate_secure_rpc_password(uc, password))
         {
-          ssh_log_event(SSH_LOGFACILITY_SECURITY,
+          ssh_log_event(config->log_facility,
                         SSH_LOG_NOTICE,
                         "User %s's secure rpc password accepted.",
                         ssh_user_name(uc));
@@ -152,7 +149,7 @@ SshAuthServerResult ssh_server_auth_passwd(SshAuthServerOperation op,
          disks. */
       if (ssh_user_validate_kerberos_password(uc, password))
         {
-          ssh_log_event(SSH_LOGFACILITY_SECURITY,
+          ssh_log_event(config->log_facility,
                         SSH_LOG_NOTICE,
                         "User %s's kerberos password accepted.",
                         ssh_user_name(uc));
@@ -164,7 +161,7 @@ SshAuthServerResult ssh_server_auth_passwd(SshAuthServerOperation op,
       /* Try a local password (either normal or shadow). */
       if (ssh_user_validate_local_password(uc, password))
         {
-          ssh_log_event(SSH_LOGFACILITY_SECURITY,
+          ssh_log_event(config->log_facility,
                         SSH_LOG_NOTICE,
                         "User %s's local password accepted.",
                         ssh_user_name(uc));       
@@ -185,6 +182,10 @@ SshAuthServerResult ssh_server_auth_passwd(SshAuthServerOperation op,
          the password needs to be changed. */
       ssh_xfree(password);
 
+      ssh_log_event(config->log_facility, SSH_LOG_NOTICE,
+                    "Password authentication for user %.100s accepted.",
+                    ssh_user_name(uc));
+      
       /* Check if the user's password needs to be changed. */
       if (ssh_user_password_must_be_changed(uc, &prompt))
         {

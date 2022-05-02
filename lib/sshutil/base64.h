@@ -14,7 +14,7 @@
   */
 
 /*
- * $Id: base64.h,v 1.5 1998/09/14 08:28:01 sjl Exp $
+ * $Id: base64.h,v 1.6 1998/12/14 14:39:55 sjl Exp $
  * $Log: base64.h,v $
  * $EndLog$
  */
@@ -25,22 +25,26 @@
 /* Figure out whether this buffer contains base64 data. Returns number of
    base64 characters. */
 
+DLLEXPORT
 size_t ssh_is_base64_buf(unsigned char *buf, size_t buf_len);
   
 /* Convert to and from base64 representation. */
 
 /* Convert data from binary to format to base 64 format. Returns null
  * terminated xmallocated string. */
+DLLEXPORT
 unsigned char *ssh_buf_to_base64(const unsigned char *buf, size_t buf_len);
 
 /* Convert data from base64 format to binary. Returns xmallocated data buffer
  * and length in buf_len. */
+DLLEXPORT
 unsigned char *ssh_base64_to_buf(unsigned char *str, size_t *buf_len);
 
 /* Remove unneeded whitespace (everything that is not in base64!).
  * Returns new xmallocated string containing the string. If len is 0
  * use strlen(str) to get length of data. */
+DLLEXPORT
 unsigned char *ssh_base64_remove_whitespace(const unsigned char *str,
-					    size_t len);
+                                            size_t len);
 
 #endif /* BASE64_H */

@@ -31,13 +31,13 @@ typedef struct
   /* Encrypt/decrypt */
   Boolean for_encryption;
   /* Initialization vector */
-} BlowfishContext;
+} SshBlowfishContext;
 
 /* Blowfish's P and S -boxes, respectively. These were taken
    from Bruce Schneier's public-domain implementation.
    These are the first 4168 bytes of pi's decimals. */
 
-static SshUInt32 blowfish_pbox[16 + 2] =
+static SshUInt32 ssh_blowfish_pbox[16 + 2] =
 {
   0x243f6a88, 0x85a308d3, 0x13198a2e, 0x03707344,
   0xa4093822, 0x299f31d0, 0x082efa98, 0xec4e6c89,
@@ -46,7 +46,7 @@ static SshUInt32 blowfish_pbox[16 + 2] =
   0x9216d5d9, 0x8979fb1b,
 };
 
-static SshUInt32 blowfish_sbox[256 * 4] =
+static SshUInt32 ssh_blowfish_sbox[256 * 4] =
 {
   0xd1310ba6, 0x98dfb5ac, 0x2ffd72db, 0xd01adfb7,
   0xb8e1afed, 0x6a267e96, 0xba7c9045, 0xf12c7f99,
@@ -327,20 +327,21 @@ static SshUInt32 blowfish_sbox[256 * 4] =
 #if !defined(WINDOWS)
 #if !defined(ASM_BLOWFISH)
 
-#define GET32_3(x) (((x) & 0x00ff))
-#define GET32_2(x) (((x) >> (8)) & (0x00ff))
-#define GET32_1(x) (((x) >> (16)) & (0x00ff))
-#define GET32_0(x) (((x) >> (24)) & (0x00ff))
+#define SSH_GET32_3(x) (((x) & 0x00ff))
+#define SSH_GET32_2(x) (((x) >> (8)) & (0x00ff))
+#define SSH_GET32_1(x) (((x) >> (16)) & (0x00ff))
+#define SSH_GET32_0(x) (((x) >> (24)) & (0x00ff))
 
-#define bf_F(x) (((S[0 * 256 + GET32_0(x)] + S[1 * 256 + GET32_1(x)]) ^ \
-                  S[2 * 256 + GET32_2(x)]) + S[3 * 256 + GET32_3(x)])
+#define SSH_BF_F(x) (((S[0 * 256 + SSH_GET32_0(x)] + \
+                       S[1 * 256 + SSH_GET32_1(x)]) ^ \
+                  S[2 * 256 + SSH_GET32_2(x)]) + S[3 * 256 + SSH_GET32_3(x)])
 
-#define ROUND(a, b, n) (a ^= (bf_F(b) ^ P[n]))
+#define ROUND(a, b, n) (a ^= (SSH_BF_F(b) ^ P[n]))
      
 /*  The internal encipher, processes 64-bit blocks (as standard). */
      
-void blowfish_encrypt(BlowfishContext *context,
-                      SshUInt32 xl, SshUInt32 xr, SshUInt32 *output)
+void ssh_blowfish_encrypt(SshBlowfishContext *context,
+                          SshUInt32 xl, SshUInt32 xr, SshUInt32 *output)
 {
   register SshUInt32 yl;
   register SshUInt32 yr;
@@ -368,8 +369,8 @@ void blowfish_encrypt(BlowfishContext *context,
 /* 
   Internal decipher, two 32 bit blocks at once. */
 
-void blowfish_decrypt(BlowfishContext *context,
-                      SshUInt32 xl, SshUInt32 xr, SshUInt32 *output)
+void ssh_blowfish_decrypt(SshBlowfishContext *context,
+                          SshUInt32 xl, SshUInt32 xr, SshUInt32 *output)
 {
   register SshUInt32 yl;
   register SshUInt32 yr;
@@ -402,11 +403,11 @@ void blowfish_decrypt(BlowfishContext *context,
 
 /* Prototypes for assembler versions. */
 
-void blowfish_encrypt(BlowfishContext *context,
-                      SshUInt32 xl, SshUInt32 xr, SshUInt32 *output);
+void ssh_blowfish_encrypt(SshBlowfishContext *context,
+                          SshUInt32 xl, SshUInt32 xr, SshUInt32 *output);
 
-void blowfish_decrypt(BlowfishContext *context,
-                      SshUInt32 xl, SshUInt32 xr, SshUInt32 *output);
+void ssh_blowfish_decrypt(SshBlowfishContext *context,
+                          SshUInt32 xl, SshUInt32 xr, SshUInt32 *output);
 
 #endif /* ASM_BLOWFISH */
 
@@ -564,8 +565,9 @@ __asm _emit 0x1e
 /* Prefixed version, suffers about 1-2 cycle(s) per prefix(es) and thus might
    be only about 50 % of the speed of the true 32-bit code. */
 
-void blowfish_encrypt(BlowfishContext *context, SshUInt32 xl, SshUInt32 xr,
-                      SshUInt32 *output)
+void ssh_blowfish_encrypt(SshBlowfishContext *context,
+                          SshUInt32 xl, SshUInt32 xr,
+                          SshUInt32 *output)
 {
   /* Do the first part (see the 32bit code for clearer implementation) */
   __asm
@@ -683,8 +685,9 @@ void blowfish_encrypt(BlowfishContext *context, SshUInt32 xl, SshUInt32 xr,
     }
 }
 
-void blowfish_decrypt(BlowfishContext *context, SshUInt32 xl, SshUInt32 xr,
-                      SshUInt32 *output)
+void ssh_blowfish_decrypt(SshBlowfishContext *context, SshUInt32 xl,
+                          SshUInt32 xr,
+                          SshUInt32 *output)
 {
   __asm
     {
@@ -798,9 +801,9 @@ void blowfish_decrypt(BlowfishContext *context, SshUInt32 xl, SshUInt32 xr,
  
 /* The optimized Blowfish encrypt/decrypt functions for 32-bit Windows */
 
-void blowfish_encrypt(BlowfishContext *context,
-                      SshUInt32 xl, SshUInt32 xr,
-                      SshUInt32 *output)
+void ssh_blowfish_encrypt(SshBlowfishContext *context,
+                          SshUInt32 xl, SshUInt32 xr,
+                          SshUInt32 *output)
 {
   __asm
     {    
@@ -876,8 +879,9 @@ void blowfish_encrypt(BlowfishContext *context,
     };
 }
 
-void blowfish_decrypt(BlowfishContext *context, SshUInt32 xl, SshUInt32 xr,
-                      SshUInt32 *output)
+void ssh_blowfish_decrypt(SshBlowfishContext *context, SshUInt32 xl,
+                          SshUInt32 xr,
+                          SshUInt32 *output)
 {
   __asm
     {
@@ -959,9 +963,9 @@ void blowfish_decrypt(BlowfishContext *context, SshUInt32 xl, SshUInt32 xr,
 
 /* Sets the blowfish S and P boxes for encryption and decryption. */
 
-void blowfish_set_key(BlowfishContext *context,
-                      const unsigned char *key, size_t keybytes,
-                      Boolean for_encyption)
+void ssh_blowfish_set_key(SshBlowfishContext *context,
+                          const unsigned char *key, size_t keybytes,
+                          Boolean for_encyption)
 {
   short i;
   short j;
@@ -977,12 +981,12 @@ void blowfish_set_key(BlowfishContext *context,
     
   for (i = 0, count = 0; i < 256; i ++)
     for (j = 0; j < 4; j++, count++ )
-      S[count] = blowfish_sbox[count];
+      S[count] = ssh_blowfish_sbox[count];
 
   /* Set the p-boxes */
   
   for (i = 0; i < 16 + 2; i++)
-    P[i] = blowfish_pbox[i];
+    P[i] = ssh_blowfish_pbox[i];
   
   /* Actual subkey generation */
   
@@ -1002,7 +1006,7 @@ void blowfish_set_key(BlowfishContext *context,
 
   for (i = 0; i < 16 + 2; i += 2)
     {
-      blowfish_encrypt(context, data_l, data_r, output);
+      ssh_blowfish_encrypt(context, data_l, data_r, output);
 
       data_l = output[0];
       data_r = output[1];
@@ -1015,7 +1019,7 @@ void blowfish_set_key(BlowfishContext *context,
     {
       for (j = 0, count = i * 256; j < 256; j += 2, count += 2)
         {
-          blowfish_encrypt(context, data_l, data_r, output);
+          ssh_blowfish_encrypt(context, data_l, data_r, output);
 
           data_l = output[0];
           data_r = output[1];
@@ -1026,26 +1030,28 @@ void blowfish_set_key(BlowfishContext *context,
     }
 }
 
-size_t blowfish_ctxsize()
+size_t ssh_blowfish_ctxsize()
 {
-  return sizeof(BlowfishContext);
+  return sizeof(SshBlowfishContext);
 }
 
-void blowfish_init(void *context,
-                   const unsigned char *key, size_t keylen,
-                   Boolean for_encryption)
+Boolean ssh_blowfish_init(void *context,
+                          const unsigned char *key, size_t keylen,
+                          Boolean for_encryption)
 {
-  BlowfishContext *ctx = context;
+  SshBlowfishContext *ctx = context;
 
   ctx->for_encryption = for_encryption;
-  blowfish_set_key(ctx, key, keylen, for_encryption);
+  ssh_blowfish_set_key(ctx, key, keylen, for_encryption);
+  
+  return TRUE;
 }  
                          
-void blowfish_ecb(void *context, unsigned char *dest,
-                  const unsigned char *src, size_t len,
-                  unsigned char *iv)
+void ssh_blowfish_ecb(void *context, unsigned char *dest,
+                      const unsigned char *src, size_t len,
+                      unsigned char *iv)
 {
-  BlowfishContext *ctx = (BlowfishContext *)context;
+  SshBlowfishContext *ctx = (SshBlowfishContext *)context;
   SshUInt32 output[2], l, r;
   
   if (ctx->for_encryption)
@@ -1055,7 +1061,7 @@ void blowfish_ecb(void *context, unsigned char *dest,
           l = SSH_GET_32BIT(src);
           r = SSH_GET_32BIT(src + 4);
 
-          blowfish_encrypt(ctx, l, r, output);
+          ssh_blowfish_encrypt(ctx, l, r, output);
 
           SSH_PUT_32BIT(dest, output[0]);
           SSH_PUT_32BIT(dest + 4, output[1]);
@@ -1072,7 +1078,7 @@ void blowfish_ecb(void *context, unsigned char *dest,
           l = SSH_GET_32BIT(src);
           r = SSH_GET_32BIT(src + 4);
 
-          blowfish_decrypt(ctx, l, r, output);
+          ssh_blowfish_decrypt(ctx, l, r, output);
 
           SSH_PUT_32BIT(dest, output[0]);
           SSH_PUT_32BIT(dest + 4, output[1]);
@@ -1084,11 +1090,11 @@ void blowfish_ecb(void *context, unsigned char *dest,
     }
 }
 
-void blowfish_cbc(void *context, unsigned char *dest,
-                  const unsigned char *src, size_t len,
-                  unsigned char *iv_arg)
+void ssh_blowfish_cbc(void *context, unsigned char *dest,
+                      const unsigned char *src, size_t len,
+                      unsigned char *iv_arg)
 {
-  BlowfishContext *ctx = (BlowfishContext *)context;
+  SshBlowfishContext *ctx = (SshBlowfishContext *)context;
   SshUInt32 l, r, iv[2], temp[2];
 
   iv[0] = SSH_GET_32BIT(iv_arg);
@@ -1101,7 +1107,7 @@ void blowfish_cbc(void *context, unsigned char *dest,
           l = SSH_GET_32BIT(src) ^ iv[0];
           r = SSH_GET_32BIT(src + 4) ^ iv[1];
 
-          blowfish_encrypt(ctx, l, r, iv);
+          ssh_blowfish_encrypt(ctx, l, r, iv);
 
           SSH_PUT_32BIT(dest, iv[0]);
           SSH_PUT_32BIT(dest + 4, iv[1]);
@@ -1118,7 +1124,7 @@ void blowfish_cbc(void *context, unsigned char *dest,
           l = SSH_GET_32BIT(src);
           r = SSH_GET_32BIT(src + 4);
 
-          blowfish_decrypt(ctx, l, r, temp);
+          ssh_blowfish_decrypt(ctx, l, r, temp);
 
           temp[0] ^= iv[0];
           temp[1] ^= iv[1];
@@ -1139,11 +1145,11 @@ void blowfish_cbc(void *context, unsigned char *dest,
   SSH_PUT_32BIT(iv_arg + 4, iv[1]);
 }
 
-void blowfish_cfb(void *context, unsigned char *dest,
-                  const unsigned char *src, size_t len,
-                  unsigned char *iv)
+void ssh_blowfish_cfb(void *context, unsigned char *dest,
+                      const unsigned char *src, size_t len,
+                      unsigned char *iv)
 {
-  BlowfishContext *ctx = (BlowfishContext *)context;
+  SshBlowfishContext *ctx = (SshBlowfishContext *)context;
   SshUInt32 l, r, temp[2];
 
   l = SSH_GET_32BIT(iv);
@@ -1153,7 +1159,7 @@ void blowfish_cfb(void *context, unsigned char *dest,
     {
       while (len)
         {
-          blowfish_encrypt(ctx, l, r, temp); 
+          ssh_blowfish_encrypt(ctx, l, r, temp); 
           
           l = SSH_GET_32BIT(src) ^ temp[0];
           r = SSH_GET_32BIT(src + 4) ^ temp[1];
@@ -1173,7 +1179,7 @@ void blowfish_cfb(void *context, unsigned char *dest,
     {
       while (len)
         {
-          blowfish_encrypt(ctx, l, r, temp);
+          ssh_blowfish_encrypt(ctx, l, r, temp);
           
           l = SSH_GET_32BIT(src);
           r = SSH_GET_32BIT(src + 4);
@@ -1194,11 +1200,11 @@ void blowfish_cfb(void *context, unsigned char *dest,
   SSH_PUT_32BIT(iv + 4, r);
 }
 
-void blowfish_ofb(void *context, unsigned char *dest,
-                  const unsigned char *src, size_t len,
-                  unsigned char *iv_arg)
+void ssh_blowfish_ofb(void *context, unsigned char *dest,
+                      const unsigned char *src, size_t len,
+                      unsigned char *iv_arg)
 {
-  BlowfishContext *ctx = (BlowfishContext *)context;
+  SshBlowfishContext *ctx = (SshBlowfishContext *)context;
   SshUInt32 iv[2], l, r;
 
   iv[0] = SSH_GET_32BIT(iv_arg);
@@ -1209,7 +1215,7 @@ void blowfish_ofb(void *context, unsigned char *dest,
       l = iv[0];
       r = iv[1];
       
-      blowfish_encrypt(ctx, l, r, iv);
+      ssh_blowfish_encrypt(ctx, l, r, iv);
       
       l = SSH_GET_32BIT(src) ^ iv[0];
       r = SSH_GET_32BIT(src + 4) ^ iv[1];

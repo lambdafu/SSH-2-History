@@ -34,11 +34,9 @@ Copyright (c) 1997 SSH Communications Security, Finland
 #define USING_SGTTY
 #endif
 
-#ifndef SSHDIST_WINDOWS
 #if !defined(USING_SGTTY) && !defined(USING_TERMIOS)
   ERROR NO TERMIOS OR SGTTY
 #endif
-#endif /* SSHDIST_WINDOWS */
 
 /* Define UID_ROOT to be the user id for root (normally zero, but different
    e.g. on Amiga). */

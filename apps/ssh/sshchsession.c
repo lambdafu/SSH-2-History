@@ -625,6 +625,7 @@ void ssh_channel_session_child(SshChannelSession session,
   unsigned int envsize;
   int i;
   FILE *f;
+  char buff[100], *time_string;
   
   /* Check /etc/nologin. */
   f = fopen("/etc/nologin", "r");
@@ -701,6 +702,7 @@ void ssh_channel_session_child(SshChannelSession session,
   
   /* Get the user's shell, and the last component of it. */
   shell = ssh_user_shell(session->common->user_data);
+  
   shell_no_path = strrchr(shell, '/');
   if (shell_no_path)
     shell_no_path++;
@@ -714,10 +716,24 @@ void ssh_channel_session_child(SshChannelSession session,
       /* Start the shell.  Set initial character to '-'. */
       buf[0] = '-';
       strncpy(buf + 1, shell_no_path, sizeof(buf) - 1);
-      buf[sizeof(buf) - 1] = 0;
+      buf[sizeof(buf) - 1] = '\0';
       /* Execute the shell. */
       argv[0] = buf;
       argv[1] = NULL;
+
+      {
+        /* Convert the date to a string. */
+        time_string = ctime(&session->common->last_login_time);
+        /* Remove the trailing newline. */
+        if (strchr(time_string, '\n'))
+          *strchr(time_string, '\n') = 0;
+        /* Display the last login time.  Host if displayed if known. */
+        if (strcmp(buff, "") == 0)
+          printf("Last login: %s\r\n", time_string);
+        else
+          printf("Last login: %s from %s\r\n", time_string,
+                 session->common->last_login_from_host);
+      }
 
       /* print motd, if "PrintMotd yes" and it exists */
       if(session->common->config->print_motd)
@@ -730,6 +746,21 @@ void ssh_channel_session_child(SshChannelSession session,
               fclose(f);
             }
         }
+
+      {
+        char *mailbox;
+        mailbox = getenv("MAIL");
+        if(mailbox != NULL)
+          {
+            struct stat mailbuf;
+            if (stat(mailbox, &mailbuf) == -1 || mailbuf.st_size == 0)
+              printf("No mail.\n");
+            else if (mailbuf.st_atime > mailbuf.st_mtime)
+              printf("You have mail.\n");
+            else
+              printf("You have new mail.\n");
+          }
+      }
       
       execve(shell, argv, env);
       /* Executing the shell failed. */
@@ -846,6 +877,12 @@ Boolean ssh_channel_session_exec(SshChannelSession session, SshSessionType op,
           break;
           
         case SSH_PTY_CHILD_OK:
+          
+          session->common->last_login_time =
+            ssh_user_get_last_login_time(session->common->user_data,
+                                         session->common->last_login_from_host,
+                                         session->common->
+                                         sizeof_last_login_from_host);
 
           /* XXX Remaining tty modes... */
           ssh_user_record_login(session->common->user_data,

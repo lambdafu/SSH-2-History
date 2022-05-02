@@ -17,7 +17,7 @@ AUTOMAKE_OPTIONS = 1.0 foreign dist-zip no-dependencies
 TESTS = t-gentest \
 	t-compress \
 	t-namelist \
-	t-modetest
+	t-modetest 
 
 #  t-arcfour t-blowfish t-des t-idea t-md5 t-safer t-seal t-sha \
 #  t-genhash t-genrand t-gencrypt \
@@ -65,11 +65,5 @@ t_namelist_SOURCES = t-namelist.c
 t_namelist_DEPENDENCIES = $(LDADD)
 t_modetest_SOURCES = t-modetest.c
 t_modetest_DEPENDENCIES = $(LDADD)
-#ifdef SSHDIST_CRYPT_COMPRESS
 t_compress_SOURCES = t-compress.c
 t_compress_DEPENDENCIES = $(LDADD)
-#endif SSHDIST_CRYPT_COMPRESS
-#ifdef SSHDIST_CRYPT_COMPRESS_LZS
-#
-#
-#endif SSHDIST_CRYPT_COMPRESS_LZS

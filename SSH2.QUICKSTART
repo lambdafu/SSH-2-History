@@ -46,7 +46,7 @@ will appreciate your notice of modification.
 1. About SSH
 
 
-SSH is a truely seamless and secure replacement of old, insecure
+SSH is a truly seamless and secure replacement of old, insecure
 remote login programs such as rlogin or rsh.  According to the
 official SSH (Secure SHell) site, SSH is "the secure login program
 that revolutionized remote management of networks hosts over the
@@ -65,7 +65,7 @@ source from the master FTP server, or from its mirrors.
 SSH2 can be compatible with SSH1, but is NOT compatible by
 default. First, SSH2 requires clients and a server of SSH1 to be
 compatible. You will need to obtain and install SSH version 1.2.26 or
-later. For the version 1.2.23 and probablly any previous releases of
+later. For the version 1.2.23 and probably any previous releases of
 SSH1 did NOT work with SSH2 in our testing. I don't know about
 versions 1.2.24 and 1.2.25.  Upgrade to the latest SSH1 before
 installing SSH2.

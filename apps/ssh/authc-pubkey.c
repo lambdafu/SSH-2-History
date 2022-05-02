@@ -97,7 +97,7 @@ void ssh_client_auth_pubkey_free_ctx(SshClientPubkeyAuth state)
     }
   ssh_xfree(state->candidates);
   ssh_xfree(state->user);
-	    
+            
   /* Free the state structure itself. */
   ssh_xfree (state);
 }
@@ -113,10 +113,10 @@ SshBuffer *ssh_client_auth_pubkey_try_key_packet(SshClientPubkeyAuthCandidate c)
   b = ssh_buffer_allocate();
   ssh_encode_buffer(b,
                     SSH_FORMAT_BOOLEAN, FALSE,
-		    SSH_FORMAT_UINT32_STR, c->pubkeyblob, c->pubkeyblob_len,
-		    SSH_FORMAT_END);
+                    SSH_FORMAT_UINT32_STR, c->pubkeyblob, c->pubkeyblob_len,
+                    SSH_FORMAT_END);
   return b;
-}					      
+}                                             
 
 /* Completion procedure for signing with the authentication agent.  This is
    also called after normal local signing is complete.  `result' is the
@@ -125,9 +125,9 @@ SshBuffer *ssh_client_auth_pubkey_try_key_packet(SshClientPubkeyAuthCandidate c)
    state->completion).  The context is a pointer to the state object. */
 
 void ssh_client_auth_pubkey_sign_complete(SshAgentError error,
-					  const unsigned char *result,
-					  size_t len,
-					  void *context)
+                                          const unsigned char *result,
+                                          size_t len,
+                                          void *context)
 {
   /* XXX What if the error == SSH_AGENT_ERROR_FAILURE ? We should probably
      do something reasonable here.*/
@@ -144,17 +144,17 @@ void ssh_client_auth_pubkey_sign_complete(SshAgentError error,
   /* Construct the body of the message to send to the server. */
   b = ssh_buffer_allocate();
   ssh_encode_buffer(b,
-		    SSH_FORMAT_BOOLEAN, TRUE,
-		    SSH_FORMAT_UINT32_STR, c->pubkeyblob, c->pubkeyblob_len,
-		    SSH_FORMAT_UINT32_STR, result, len,
-		    SSH_FORMAT_END);
+                    SSH_FORMAT_BOOLEAN, TRUE,
+                    SSH_FORMAT_UINT32_STR, c->pubkeyblob, c->pubkeyblob_len,
+                    SSH_FORMAT_UINT32_STR, result, len,
+                    SSH_FORMAT_END);
 
   /* Detach the state structure from the state_placeholder. */
   *state->state_placeholder = NULL;
   
   /* Call the authentication method completion procedure. */
   (*state->completion)(SSH_AUTH_CLIENT_SEND, state->user, b,
-		       state->completion_context);
+                       state->completion_context);
 
   /* Free the buffer */
   ssh_buffer_free(b);
@@ -165,9 +165,9 @@ void ssh_client_auth_pubkey_sign_complete(SshAgentError error,
 
 
 SshPrivateKey ssh_authc_pubkey_privkey_read(SshUser user,
-					    const char *fname,
-					    const char *passphrase,
-					    char **comment)
+                                            const char *fname,
+                                            const char *passphrase,
+                                            char **comment)
 {
   SshPrivateKey privkey;
   char buf[256];
@@ -177,7 +177,7 @@ SshPrivateKey ssh_authc_pubkey_privkey_read(SshUser user,
     {
       privkey = ssh_privkey_read(user, fname, passphrase, comment, NULL);
       if (privkey != NULL)
-	return privkey;
+        return privkey;
     }
 
   privkey = ssh_privkey_read(user, fname, "", comment, NULL);
@@ -185,11 +185,11 @@ SshPrivateKey ssh_authc_pubkey_privkey_read(SshUser user,
     return privkey;
 
   snprintf(buf, sizeof (buf),
-	   "Passphrase for key \"%s\"%s%s%s",
-	   fname,
-	   *comment ? " with comment \"" : ":",
-	   *comment ? *comment : "",
-	   *comment ? "\":" : "");
+           "Passphrase for key \"%s\"%s%s%s",
+           fname,
+           *comment ? " with comment \"" : ":",
+           *comment ? *comment : "",
+           *comment ? "\":" : "");
 
   pass = ssh_read_passphrase(buf , FALSE);
 
@@ -199,7 +199,7 @@ SshPrivateKey ssh_authc_pubkey_privkey_read(SshUser user,
       memset(pass, 'F', strlen(pass));
       ssh_xfree(pass);
       if (privkey != NULL)
-	return privkey;
+        return privkey;
     }
 
   return NULL;
@@ -210,10 +210,10 @@ SshPrivateKey ssh_authc_pubkey_privkey_read(SshUser user,
    not. (note that even if other operations fail, this returns FALSE.)*/
 
 Boolean ssh_client_auth_pubkey_send_signature(SshClientPubkeyAuth state,
-					      const char *user,
-					      unsigned char *session_id,
-					      size_t session_id_len,
-					      SshRandomState random_state)
+                                              const char *user,
+                                              unsigned char *session_id,
+                                              size_t session_id_len,
+                                              SshRandomState random_state)
 {
   SshClientPubkeyAuthCandidate c;
   SshPrivateKey privkey;
@@ -223,21 +223,21 @@ Boolean ssh_client_auth_pubkey_send_signature(SshClientPubkeyAuth state,
   
   size_t signaturebuflen, signaturelen, packet_len;
 
-  ssh_debug("ssh_client_auth_pubkey_send_signature");
+  SSH_TRACE(2, ("ssh_client_auth_pubkey_send_signature"));
 
   c = &state->candidates[state->last_tried_candidate];
      
   /* Costruct a throw-away SSH_MSG_USERAUTH_REQUEST message for signing. */
   packet_len = ssh_encode_alloc(&packet,
-				SSH_FORMAT_DATA, session_id, session_id_len,
-				SSH_FORMAT_CHAR, SSH_MSG_USERAUTH_REQUEST,
-				SSH_FORMAT_UINT32_STR, user, strlen(user),
-				SSH_FORMAT_UINT32_STR, SSH_USERAUTH_SERVICE,
-				  strlen(SSH_USERAUTH_SERVICE),
-				SSH_FORMAT_BOOLEAN, TRUE,
-				SSH_FORMAT_UINT32_STR, c->pubkeyblob,
-				  c->pubkeyblob_len,
-				SSH_FORMAT_END);
+                                SSH_FORMAT_DATA, session_id, session_id_len,
+                                SSH_FORMAT_CHAR, SSH_MSG_USERAUTH_REQUEST,
+                                SSH_FORMAT_UINT32_STR, user, strlen(user),
+                                SSH_FORMAT_UINT32_STR, SSH_USERAUTH_SERVICE,
+                                  strlen(SSH_USERAUTH_SERVICE),
+                                SSH_FORMAT_BOOLEAN, TRUE,
+                                SSH_FORMAT_UINT32_STR, c->pubkeyblob,
+                                  c->pubkeyblob_len,
+                                SSH_FORMAT_END);
 
   /* Now sign the buffer.  How to do this depends on the type of the key. */
   switch (c->type)
@@ -248,83 +248,83 @@ Boolean ssh_client_auth_pubkey_send_signature(SshClientPubkeyAuth state,
 
       /* Send the data to the agent for signing. */
       ssh_agent_op(state->agent, SSH_AGENT_HASH_AND_SIGN,
-		   c->pubkeyblob, c->pubkeyblob_len,
-		   packet, packet_len,
-		   ssh_client_auth_pubkey_sign_complete, (void *)state);
+                   c->pubkeyblob, c->pubkeyblob_len,
+                   packet, packet_len,
+                   ssh_client_auth_pubkey_sign_complete, (void *)state);
 
       /* Free the data to be signed.  The agent will call _sign_complete
-	 once a response has been received.  Note that state is no longer
-	 necessarily valid when we get here. */
+         once a response has been received.  Note that state is no longer
+         necessarily valid when we get here. */
       ssh_xfree(packet);
       return FALSE;
 
     case CANDIDATE_KEYFILE:
-      ssh_debug("ssh_client_auth_pubkey_send_signature: reading %s",
-		c->privkeyfile);
+      SSH_TRACE(2, ("ssh_client_auth_pubkey_send_signature: reading %s",
+		    c->privkeyfile));
 
       privkey = ssh_authc_pubkey_privkey_read(state->client->user_data,
-	                                      c->privkeyfile,
-					      NULL,
-					      &key_comment);
+                                              c->privkeyfile,
+                                              NULL,
+                                              &key_comment);
       ssh_xfree(key_comment);
       
       if (privkey == NULL)
-	{
-	  /* The user probably gave the wrong passphrase. If this is the
+        {
+          /* The user probably gave the wrong passphrase. If this is the
              case, move to the next candidate. If we have tried all of
              them, notify the completion procedure.*/
-	  if (state->last_tried_candidate + 1 < state->num_candidates)
-	    {
-	      return TRUE;
-	    }
+          if (state->last_tried_candidate + 1 < state->num_candidates)
+            {
+              return TRUE;
+            }
 
-	  ssh_client_auth_pubkey_sign_complete(SSH_AGENT_ERROR_FAILURE,
-					       NULL, 0, (void *)state);
-	  return FALSE;
-	}
+          ssh_client_auth_pubkey_sign_complete(SSH_AGENT_ERROR_FAILURE,
+                                               NULL, 0, (void *)state);
+          return FALSE;
+        }
 
       SSH_DEBUG_HEXDUMP(7, ("auth_pubkey_send_signature: signing:"),
-			packet, packet_len);
+                        packet, packet_len);
 
       /* Use the private key to sign the data. */
       signaturebuflen = ssh_private_key_max_signature_output_len(privkey);
       signaturebuf = ssh_xmalloc(signaturebuflen);
       code = ssh_private_key_sign(privkey, 
-				  packet,
-				  packet_len,
-				  signaturebuf,
-				  signaturebuflen,
-				  &signaturelen,
-				  random_state);
+                                  packet,
+                                  packet_len,
+                                  signaturebuf,
+                                  signaturebuflen,
+                                  &signaturelen,
+                                  random_state);
 
       /* Check whether the operation was successful. */
       if (code != SSH_CRYPTO_OK)
-	{
-	  ssh_debug("Private key operation failed: %s (%s)",
-		    c->privkeyfile, ssh_crypto_status_message(code));
-	  ssh_xfree(packet);
-	  ssh_xfree(signaturebuf);
-	  ssh_private_key_free(privkey);
-	  /* Tell the completion procedure that we failed. */
-	  ssh_client_auth_pubkey_sign_complete(SSH_AGENT_ERROR_FAILURE,
-					       NULL, 0, (void *)state);
-	  /* Note that state is no longer necessarily valid. */
-	  return FALSE;
-	}
+        {
+          ssh_debug("Private key operation failed: %s (%s)",
+                    c->privkeyfile, ssh_crypto_status_message(code));
+          ssh_xfree(packet);
+          ssh_xfree(signaturebuf);
+          ssh_private_key_free(privkey);
+          /* Tell the completion procedure that we failed. */
+          ssh_client_auth_pubkey_sign_complete(SSH_AGENT_ERROR_FAILURE,
+                                               NULL, 0, (void *)state);
+          /* Note that state is no longer necessarily valid. */
+          return FALSE;
+        }
 
       /* Pass the result to the completion procedure. */
       ssh_client_auth_pubkey_sign_complete(SSH_AGENT_ERROR_OK,
-					   signaturebuf, signaturelen,
-					   (void *)state);
+                                           signaturebuf, signaturelen,
+                                           (void *)state);
       /* Free allocated data.  Note that state is no longer necessarily
-	 valid. */
+         valid. */
       ssh_xfree(signaturebuf);
       ssh_xfree(packet);
       return FALSE;
 
     default:
       ssh_fatal("ssh_client_auth_pubkey_send_signature: bad type %d",
-		(int)c->type);
+                (int)c->type);
 
       /* NOTREACHED */
     }
@@ -343,13 +343,13 @@ void ssh_client_auth_pubkey_try_this_candidate(SshClientPubkeyAuth state)
     {
       /* If we have tried all candidates, fail this authentication method. */
       if (state->last_tried_candidate >= state->num_candidates)
-	{
-	  *state->state_placeholder = NULL;
-	  (*state->completion)(SSH_AUTH_CLIENT_FAIL, state->user, NULL,
-			       state->completion_context);
-	  ssh_client_auth_pubkey_free_ctx(state);
-	  return;
-	}
+        {
+          *state->state_placeholder = NULL;
+          (*state->completion)(SSH_AUTH_CLIENT_FAIL, state->user, NULL,
+                               state->completion_context);
+          ssh_client_auth_pubkey_free_ctx(state);
+          return;
+        }
 
       /* Construct the first challenge packet */
       c = &state->candidates[state->last_tried_candidate];
@@ -359,7 +359,7 @@ void ssh_client_auth_pubkey_try_this_candidate(SshClientPubkeyAuth state)
 
   /* Probe whether the key is acceptable. */
   (*state->completion)(SSH_AUTH_CLIENT_SEND_AND_CONTINUE_MULTIPLE,
-		       state->user, b, state->completion_context);
+                       state->user, b, state->completion_context);
   ssh_buffer_free(b);
 }
 
@@ -367,15 +367,15 @@ void ssh_client_auth_pubkey_try_this_candidate(SshClientPubkeyAuth state)
    This copies the certificates. */
 
 void ssh_client_auth_pubkey_add_agent(SshClientPubkeyAuth state,
-				      const unsigned char *certs,
-				      size_t certs_len)
+                                      const unsigned char *certs,
+                                      size_t certs_len)
 {
   SshClientPubkeyAuthCandidate c;
 
   /* Extend the candidates array. */
   state->candidates =
     ssh_xrealloc(state->candidates,
-		 (state->num_candidates + 1) * sizeof(state->candidates[0]));
+                 (state->num_candidates + 1) * sizeof(state->candidates[0]));
 
   /* Get a pointer to the new candidate. */
   c = &state->candidates[state->num_candidates];
@@ -394,7 +394,7 @@ void ssh_client_auth_pubkey_add_agent(SshClientPubkeyAuth state,
 /* Adds a key file to the list of candidates.  This copies the file name. */
 
 void ssh_client_auth_pubkey_add_keyfile(SshClientPubkeyAuth state,
-					const char *privkeyfile)
+                                        const char *privkeyfile)
 {
   SshClientPubkeyAuthCandidate c;
   unsigned long magic;
@@ -404,8 +404,8 @@ void ssh_client_auth_pubkey_add_keyfile(SshClientPubkeyAuth state,
 
   /* Read the public key blob from the file. */
   snprintf(buf, sizeof(buf), "%s.pub", privkeyfile);
-  magic = ssh_key_blob_read(state->client->user_data, buf, NULL,
-			    &certs, &certs_len, NULL);
+  magic = ssh2_key_blob_read(state->client->user_data, buf, NULL,
+                            &certs, &certs_len, NULL);
   if (magic != SSH_KEY_MAGIC_PUBLIC)
     {
       ssh_warning("Could not read public key file %s", buf);
@@ -415,7 +415,7 @@ void ssh_client_auth_pubkey_add_keyfile(SshClientPubkeyAuth state,
   /* Extend the candidates array. */
   state->candidates =
     ssh_xrealloc(state->candidates,
-		 (state->num_candidates + 1) * sizeof(state->candidates[0]));
+                 (state->num_candidates + 1) * sizeof(state->candidates[0]));
 
   /* Get a pointer to the new candidate. */
   c = &state->candidates[state->num_candidates];
@@ -435,16 +435,16 @@ void ssh_client_auth_pubkey_add_keyfile(SshClientPubkeyAuth state,
    obtained (the call is faked if we have no agent). */
 
 void ssh_client_auth_pubkey_agent_list_complete(SshAgentError error,
-						unsigned int num_keys,
-						SshAgentKeyInfo keys,
-						void *context)
+                                                unsigned int num_keys,
+                                                SshAgentKeyInfo keys,
+                                                void *context)
 {
   SshClientPubkeyAuth state = (SshClientPubkeyAuth)context;
   unsigned int i;
   char **privkeyfiles;
 
-  ssh_debug("ssh_client_auth_pubkey_agent_list_complete err %d num %d",
-	    (int)error, (int)num_keys);
+  SSH_DEBUG(3, ("ssh_client_auth_pubkey_agent_list_complete err %d num %d",
+		(int)error, (int)num_keys));
 
   /* Display a warning if we couldn't get the list. */
   if (error != SSH_AGENT_ERROR_OK)
@@ -459,17 +459,17 @@ void ssh_client_auth_pubkey_agent_list_complete(SshAgentError error,
 
   /* Construct a list of private key files that may be used to log in. */
   privkeyfiles = ssh_privkey_list(state->client->user_data, 
-				  state->client->common->server_host_name,
-				  state->client->common->config);
+                                  state->client->common->server_host_name,
+                                  state->client->common->config);
 
   /* If there are no suitable keys on our part, terminate early. */
   if (privkeyfiles != NULL)
     {
       for (i = 0; privkeyfiles[i]; i++)
-	{
-	  ssh_client_auth_pubkey_add_keyfile(state, privkeyfiles[i]);
-	  ssh_xfree(privkeyfiles[i]);
-	}
+        {
+          ssh_client_auth_pubkey_add_keyfile(state, privkeyfiles[i]);
+          ssh_xfree(privkeyfiles[i]);
+        }
       ssh_xfree(privkeyfiles);
     }
 
@@ -490,26 +490,26 @@ void ssh_client_auth_pubkey_agent_open_complete(SshAgent agent, void *context)
 {
   SshClientPubkeyAuth state = (SshClientPubkeyAuth)context;
 
-  ssh_debug("ssh_client_auth_pubkey_agent_open_complete agent=0x%lx",
-	    (unsigned long)agent);
+  SSH_DEBUG(4, ("ssh_client_auth_pubkey_agent_open_complete agent=0x%lx",
+		(unsigned long)agent));
   
   if (agent)
     {
       /* A connection to the agent was successfully opened.  Save the
-	 handle. */
+         handle. */
       state->agent = agent;
 
       /* Request a list of keys supported by the agent. */
       ssh_agent_list(agent, ssh_client_auth_pubkey_agent_list_complete,
-		     (void *)state);
+                     (void *)state);
     }
   else
     {
       /* No agent.  Fake a callback to the agent list completion, with no
-	 keys. */
+         keys. */
       ssh_client_auth_pubkey_agent_list_complete(SSH_AGENT_ERROR_OK,
-						 0, NULL,
-						 (void *)state);
+                                                 0, NULL,
+                                                 (void *)state);
     }
 }
 
@@ -517,15 +517,15 @@ void ssh_client_auth_pubkey_agent_open_complete(SshAgent agent, void *context)
    everything related to the public key authentication method. */
 
 void ssh_client_auth_pubkey(SshAuthClientOperation op,
-			    const char *user,
-			    unsigned int packet_type,
-			    SshBuffer *packet_in,
-			    unsigned char *session_id,
-			    size_t session_id_len,
-			    void **state_placeholder,
-			    SshAuthClientCompletionProc completion,
-			    void *completion_context,
-			    void *method_context)
+                            const char *user,
+                            unsigned int packet_type,
+                            SshBuffer *packet_in,
+                            unsigned char *session_id,
+                            size_t session_id_len,
+                            void **state_placeholder,
+                            SshAuthClientCompletionProc completion,
+                            void *completion_context,
+                            void *method_context)
 {
   SshClientPubkeyAuth state;
   SshClient client;
@@ -539,8 +539,8 @@ void ssh_client_auth_pubkey(SshAuthClientOperation op,
     {
     case SSH_AUTH_CLIENT_OP_START_NONINTERACTIVE:
       /* For now, don't try to do anything in the non-interactive phase.
-	 However, we should probably later make this try those keys that
-	 don't need passphrases in this phase.  XXX */
+         However, we should probably later make this try those keys that
+         don't need passphrases in this phase.  XXX */
       (*completion)(SSH_AUTH_CLIENT_FAIL, user, NULL, completion_context);
       break;
       
@@ -566,9 +566,9 @@ void ssh_client_auth_pubkey(SshAuthClientOperation op,
       *state_placeholder = state;
 
       /* Try to open the authentication agent.  Rest of processing will be
-	 done in the callback. */
+         done in the callback. */
       ssh_agent_open(ssh_client_auth_pubkey_agent_open_complete,
-		     (void *)state);
+                     (void *)state);
       break;
       
     case SSH_AUTH_CLIENT_OP_CONTINUE:
@@ -585,34 +585,34 @@ void ssh_client_auth_pubkey(SshAuthClientOperation op,
       
       /* Process the received continuation packet. */
       switch (packet_type)
-	{
-	case SSH_MSG_USERAUTH_FAILURE:
-	  /* The server is not willing to accept the key.  Move to the next
-	     candidate, and try authenticating with it. */
-	try_again:
-	  state->last_tried_candidate++;
-	  ssh_client_auth_pubkey_try_this_candidate(state);
-	  break;
-	      
-	case SSH_MSG_USERAUTH_PK_OK:
-	  /* The server is willing to accept this key as authentication. */
-	  if (ssh_client_auth_pubkey_send_signature(state, user,
-						session_id, session_id_len,
-						client->common->random_state))
-	    {
-	      /* Reading private part of the key was failed. Move to the
+        {
+        case SSH_MSG_USERAUTH_FAILURE:
+          /* The server is not willing to accept the key.  Move to the next
+             candidate, and try authenticating with it. */
+        try_again:
+          state->last_tried_candidate++;
+          ssh_client_auth_pubkey_try_this_candidate(state);
+          break;
+              
+        case SSH_MSG_USERAUTH_PK_OK:
+          /* The server is willing to accept this key as authentication. */
+          if (ssh_client_auth_pubkey_send_signature(state, user,
+                                                session_id, session_id_len,
+                                                client->common->random_state))
+            {
+              /* Reading private part of the key was failed. Move to the
                  next candidate.*/
-	      goto try_again;
-	    }
-	  
-	  break;
+              goto try_again;
+            }
+          
+          break;
 
-	default:
-	  /* Unexpected response. */
-	  ssh_fatal("ssh_client_auth_pubkey: unexpected response packet %d",
-		    packet_type);
-	  /*NOTREACHED*/
-	}
+        default:
+          /* Unexpected response. */
+          ssh_fatal("ssh_client_auth_pubkey: unexpected response packet %d",
+                    packet_type);
+          /*NOTREACHED*/
+        }
       break;
 
     case SSH_AUTH_CLIENT_OP_ABORT:

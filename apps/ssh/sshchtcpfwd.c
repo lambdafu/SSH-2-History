@@ -420,28 +420,35 @@ void ssh_channel_ftcp_incoming_connection(SshIpError error, SshStream stream,
   if (!ssh_tcp_get_remote_port(stream, port, sizeof(port)))
     strcpy(port, "UNKNOWN");
 
-  ssh_debug("Connection to forwarded port %s from %s:%s",
-            fwd->port, ip, port);
+  SSH_TRACE(0, ("Connection to forwarded port %s from %s:%s",
+                fwd->port, ip, port));
+  ssh_log_event(fwd->common->config->log_facility,
+                SSH_LOG_INFORMATIONAL,
+                "Connection to forwarded port %s from %s:%s",
+                fwd->port, fwd->common->remote_host, port);
+
   /* XXXXXXXX */
 #ifdef HAVE_LIBWRAP
   {
     struct request_info req;
     struct servent *serv;
     char fwdportname[32];
-                
+    void *old_handler;
+    
+    old_handler = signal(SIGCHLD, SIG_DFL);
+
     /* try to find port's name in /etc/services */
-    /*    serv = getservbyport(htons(ch->listening_port), "tcp"); */
     serv = getservbyport(atoi(fwd->port), "tcp");
     if (serv == NULL)
       {
         /* not found (or faulty getservbyport) -
            use the number as a name */
-        /* snprintf(fwdportname, sizeof(fwdportname), "sshdfwd-%d", ch->listening_port); */
         snprintf(fwdportname, sizeof(fwdportname), "sshdfwd-%s", fwd->port);
       }
     else
       {
-        snprintf(fwdportname, sizeof(fwdportname), "sshdfwd-%.20s", serv->s_name);
+        snprintf(fwdportname, sizeof(fwdportname), "sshdfwd-%.20s",
+                 serv->s_name);
       }
     /* fill req struct with port name and fd number */
     request_init(&req, RQ_DAEMON, fwdportname,
@@ -450,16 +457,17 @@ void ssh_channel_ftcp_incoming_connection(SshIpError error, SshStream stream,
     if (!hosts_access(&req))
       {
         ssh_conn_send_debug(fwd->common->conn, TRUE,
-                            "Fwd connection from %.500s to local port %s refused by tcp_wrappers.",
+                            "Fwd connection from %.500s to local port " \
+                            "%s refused by tcp_wrappers.",
                             eval_client(&req), fwdportname);
-        /*      error("Fwd connection from %.500s to local port %s refused by tcp_wrappers.",
-              eval_client(&req), fwdportname);*/
         ssh_stream_destroy(stream);
-        /*      shutdown(newsock, 2);
-        close(newsock);*/
+        signal(SIGCHLD, old_handler);
+    
         return;
       }
-    ssh_log_event(SSH_LOGFACILITY_SECURITY, SSH_LOG_INFORMATIONAL,
+    signal(SIGCHLD, old_handler);
+        
+    ssh_log_event(fwd->common->config->log_facility, SSH_LOG_INFORMATIONAL,
                   "Remote fwd connect from %.500s to local port %s",
                   eval_client(&req), fwdportname);
   }
@@ -507,7 +515,13 @@ Boolean ssh_channel_remote_tcp_forward_request(const char *type,
   SshChannelTypeTcpForward ct;
 
   SSH_DEBUG(5, ("remote TCP/IP forwarding request received"));
-
+  ssh_log_event(common->config->log_facility,
+                SSH_LOG_INFORMATIONAL,
+                "Remote TCP/IP forwarding request received from host \"%s\", "\
+                "by authenticated user \"%s\".",
+                common->remote_host,
+                ssh_user_name(common->user_data));
+  
   ct = ssh_channel_ftcp_ct(common);
   
   /* Don't allow a server to send remote forwarding requests to the client. */
@@ -530,6 +544,45 @@ Boolean ssh_channel_remote_tcp_forward_request(const char *type,
   /* Convert port number to a string. */
   snprintf(port_string, sizeof(port_string), "%ld", port);
 
+  /* If user is not logged in as a privileged user, don't allow
+     forwarding of privileged ports. */
+  if (port < 1024)
+    {
+      if (ssh_user_uid(common->user_data))
+        {
+          SSH_TRACE(2, ("User \"%s\" not root, tried to forward " \
+                        "privileged port %d.",
+                        ssh_user_name(common->user_data), port));
+          ssh_log_event(common->config->log_facility,
+                        SSH_LOG_WARNING,
+                        "User \"%s\" not root, tried to forward " \
+                        "privileged port %d.",
+                        ssh_user_name(common->user_data), port);
+          return FALSE;
+        }
+      else
+        {
+          ssh_log_event(common->config->log_facility,
+                        SSH_LOG_NOTICE,
+                        "Privileged user \"%s\" forwarding a privileged port.",
+                        ssh_user_name(common->user_data));
+        }
+    }
+
+  if (port >= 65536)
+    {
+      SSH_TRACE(2, ("User \"%s\" tried to forward " \
+                    "port above 65535 (%d).",
+                    ssh_user_name(common->user_data), port));
+      ssh_log_event(common->config->log_facility,
+                    SSH_LOG_WARNING,
+                    "User \"%s\" tried to forward " \
+                    "port above 65535 (%d).",
+                    ssh_user_name(common->user_data), port);
+      return FALSE;
+    }
+  
+      
   /* Create a socket listener. */
   fwd = ssh_xcalloc(1, sizeof(*fwd));
   fwd->listener = ssh_tcp_make_listener(address_to_bind, port_string,
@@ -539,6 +592,11 @@ Boolean ssh_channel_remote_tcp_forward_request(const char *type,
     {
       ssh_debug("Creating remote listener for %s:%s failed.",
                 address_to_bind, port_string);
+      ssh_log_event(common->config->log_facility,
+                    SSH_LOG_NOTICE,
+                    "Creating remote listener for %s:%s failed.",
+                    address_to_bind, port_string);
+      
       ssh_xfree(address_to_bind);
       ssh_xfree(fwd);
       return FALSE;
@@ -554,6 +612,10 @@ Boolean ssh_channel_remote_tcp_forward_request(const char *type,
   /* Add to list of forwardings. */
   fwd->next = ct->remote_forwards;
   ct->remote_forwards = fwd;
+
+  ssh_log_event(common->config->log_facility,
+                SSH_LOG_INFORMATIONAL,
+                "Port %d set up for remote forwarding.", port);
   
   return TRUE;
 }  
@@ -690,26 +752,27 @@ void ssh_channel_dtcp_incoming_connection(SshStreamNotification op,
   if (!ssh_tcp_get_remote_port(stream, port, sizeof(port)))
     strcpy(port, "UNKNOWN");
 
-  /* XXXXXXXX */
 #ifdef HAVE_LIBWRAP
   {
     struct request_info req;
     struct servent *serv;
     char fwdportname[32];
-                
+    void *old_handler;
+    
+    old_handler = signal(SIGCHLD, SIG_DFL);
+    
     /* try to find port's name in /etc/services */
-    /* serv = getservbyport(htons(ch->listening_port), "tcp"); */
     serv = getservbyport(atoi(fwd->port), "tcp");
     if (serv == NULL)
       {
         /* not found (or faulty getservbyport) -
            use the number as a name */
-        /*snprintf(fwdportname, sizeof(fwdportname), "sshdfwd-%d", ch->listening_port);*/
         snprintf(fwdportname, sizeof(fwdportname), "sshdfwd-%s", fwd->port);
       }
     else
       {
-        snprintf(fwdportname, sizeof(fwdportname), "sshdfwd-%.20s", serv->s_name);
+        snprintf(fwdportname, sizeof(fwdportname), "sshdfwd-%.20s",
+                 serv->s_name);
       }
     /* fill req struct with port name and fd number */
     request_init(&req, RQ_DAEMON, fwdportname,
@@ -718,16 +781,21 @@ void ssh_channel_dtcp_incoming_connection(SshStreamNotification op,
     if (!hosts_access(&req))
       {
         ssh_conn_send_debug(fwd->common->conn, TRUE,
-                            "Fwd connection from %.500s to local port %s refused by tcp_wrappers.",
+                            "Fwd connection from %.500s to local port %s "
+                            "refused by tcp_wrappers.",
                             eval_client(&req), fwdportname);
-        /*      error("Fwd connection from %.500s to local port %s refused by tcp_wrappers.",
-              eval_client(&req), fwdportname);*/
+        ssh_log_event(fwd->common->config->log_facility, SSH_LOG_WARNING,
+                      "Fwd connection from %.500s to local port %s "
+                      "refused by tcp_wrappers.",
+                      eval_client(&req), fwdportname);
         ssh_stream_destroy(stream);
-        /*      shutdown(newsock, 2);
-        close(newsock);*/
+        signal(SIGCHLD, old_handler);
+
         return;
       }
-    ssh_log_event(SSH_LOGFACILITY_SECURITY, SSH_LOG_INFORMATIONAL,
+    signal(SIGCHLD, old_handler);
+
+    ssh_log_event(fwd->common->config->log_facility, SSH_LOG_INFORMATIONAL,
                   "direct fwd connect from %.500s to local port %s",
                   eval_client(&req), fwdportname);
   }
@@ -755,12 +823,37 @@ Boolean ssh_channel_start_local_tcp_forward(SshCommon common,
 {
   SshLocalTcpForward fwd;
   SshChannelTypeTcpDirect ct;
-
+  long portnumber;
+  SshUser user;
+  
   SSH_DEBUG(5, ("requesting local forwarding for port %s to %s:%s",
                 port, connect_to_host, connect_to_port));
 
-  ct = ssh_channel_dtcp_ct(common);
+  portnumber = atol(port);
+  user = ssh_user_initialize(NULL, FALSE);
+    /* If user is not logged in as a privileged user, don't allow
+     forwarding of privileged ports. */
+  if (portnumber < 1024)
+    {
+      if (ssh_user_uid(user))
+        {
+          ssh_warning("Tried to forward " \
+                      "privileged port %d as an ordinary user.",
+                      portnumber);
+          return FALSE;
+        }
+    }
+
+  if (portnumber >= 65536)
+    {
+      ssh_warning("Tried to forward " \
+                  "port above 65535 (%d).",
+                  portnumber);
+      return FALSE;
+    }
   
+  ct = ssh_channel_dtcp_ct(common);
+
   fwd = ssh_xcalloc(1, sizeof(*fwd));
   fwd->common = common;
   fwd->listener = ssh_tcp_make_listener(address_to_bind, port,

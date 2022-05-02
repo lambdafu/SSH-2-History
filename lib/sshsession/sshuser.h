@@ -35,29 +35,29 @@ Boolean ssh_user_login_is_allowed(SshUser uc);
 
 /* Returns TRUE if login is allowed with the given local password. */
 Boolean ssh_user_validate_local_password(SshUser uc,
-					 const char *password);
+                                         const char *password);
 
 /* Returns TRUE if the user's password needs to be changed. */
 Boolean ssh_user_password_must_be_changed(SshUser uc,
-					  char **prompt_return);
+                                          char **prompt_return);
 
 /* Changes the user's password.  Returns TRUE if the change was successful,
    FALSE if the change failed. */
 Boolean ssh_user_change_password(SshUser uc,
-				 const char *old_password,
-				 const char *new_password);
+                                 const char *old_password,
+                                 const char *new_password);
 
 /* Tries to log in with the given kerberos password.  If successful,
    obtains a kerberos ticket for the user, and the ticket will be used
    for further access by the current process.  Returns TRUE on success. */
 Boolean ssh_user_validate_kerberos_password(SshUser uc,
-					    const char *password);
+                                            const char *password);
 
 /* Tries to login with the given secure rpc password.  If successful,
    obtains a secure rpc key from the key server, and starts using that
    key for further communication.  Returns TRUE on success. */
 Boolean ssh_user_validate_secure_rpc_password(SshUser uc,
-					      const char *password);
+                                              const char *password);
 
 /* Switches the current process to the permissions and privileges of the
    specified user.  The process should not hold any confidential information
@@ -69,7 +69,7 @@ Boolean ssh_user_become(SshUser uc);
 /* Returns the login name of the user. */
 const char *ssh_user_name(SshUser uc);
 
-#ifndef SSHDIST_WINDOWS
+#ifndef WINDOWS
 
 /* Returns the uid of the user.  This is unix-specific. */
 uid_t ssh_user_uid(SshUser uc);
@@ -83,7 +83,7 @@ const char *ssh_user_dir(SshUser uc);
 /* Returns the shell of the user.  This is unix-specific. */
 const char *ssh_user_shell(SshUser uc);
 
-#endif /* SSHDIST_WINDOWS */
+#endif /* WINDOWS */
 
 /* Returns the time when the user last logged in, and name of the host
    from which the user logged in from.  Returns 0 if the information
@@ -91,8 +91,8 @@ const char *ssh_user_shell(SshUser uc);
    ssh_user_record_login.  The host the user logged in from will be
    returned in hostbuf. */
 time_t ssh_user_get_last_login_time(SshUser user,
-				    char *hostbuf,
-				    unsigned int hostbufsize);
+                                    char *hostbuf,
+                                    unsigned int hostbufsize);
 
 /* Records that the user has logged in.  I wish these parts of
    operating systems were more standardized.  This code normally needs
@@ -104,7 +104,7 @@ time_t ssh_user_get_last_login_time(SshUser user,
       ip      ip address of the host the user logged in from. */
 
 void ssh_user_record_login(SshUser user, pid_t pid, const char *ttyname,
-			   const char *host, const char *ip);
+                           const char *host, const char *ip);
 
 /* Records that the user on the tty has logged out. */
 void ssh_user_record_logout(pid_t pid, const char *ttyname);

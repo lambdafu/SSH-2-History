@@ -11,7 +11,7 @@ Copyright (C) 1996 SSH Security Communications Oy, Espoo, Finland
 */
 
 /*
- * $Id: genhash.c,v 1.23 1998/11/04 12:17:34 ylo Exp $
+ * $Id: genhash.c,v 1.24 1999/01/13 19:31:10 ylo Exp $
  * $Log: genhash.c,v $
  * $EndLog$
  */
@@ -20,55 +20,32 @@ Copyright (C) 1996 SSH Security Communications Oy, Espoo, Finland
 #include "sshcrypt.h"
 #include "sshcrypti.h"
 #include "sshbuffer.h"
-#ifdef SSHDIST_CRYPT_SHA
 #include "sha.h"
-#endif /* SSHDIST_CRYPT_SHA */
-#ifdef SSHDIST_CRYPT_MD5
 #include "md5.h"
-#endif /* SSHDIST_CRYPT_MD5 */
-#ifdef SSHDIST_CRYPT_MD2
-
-#endif /* SSHDIST_CRYPT_MD2 */
-#ifdef SSHDIST_CRYPT_RIPEMD160
 #include "ripemd160.h"
-#endif /* SSHDIST_CRYPT_RIPEMD160 */
-#ifdef SSHDIST_CRYPT_RIPEMD128
 
-#endif /* SSHDIST_CRYPT_RIPEMD128 */
-#ifdef SSHDIST_CRYPT_TIGER
+#ifndef KERNEL
 
-#endif /* SSHDIST_CRYPT_TIGER */
+
+#endif /* !KERNEL */
 
 /* List of supported hash algorithms. */
 
 static const SshHashDef *ssh_hash_algorithms[] =
 {
-#ifdef SSHDIST_CRYPT_MD5
   &ssh_hash_md5_def,
-#endif /* SSHDIST_CRYPT_MD5 */
-#ifdef SSHDIST_CRYPT_MD2
-
-#endif /* SSHDIST_CRYPT_MD2 */
-#ifdef SSHDIST_CRYPT_SHA
   &ssh_hash_sha_def,
   &ssh_hash_sha_96_def,
   &ssh_hash_sha_80_def,
-#endif /* SSHDIST_CRYPT_SHA */
-#ifdef SSHDIST_CRYPT_RIPEMD160
   &ssh_hash_ripemd160_def,
   &ssh_hash_ripemd160_96_def,
   &ssh_hash_ripemd160_80_def,
-#endif /* SSHDIST_CRYPT_RIPEMD160 */
-#ifdef SSHDIST_CRYPT_RIPEMD128
 
+#ifndef KERNEL
+  
 
+#endif /* KERNEL */
 
-#endif /* SSHDIST_CRYPT_RIPEMD128 */
-#ifdef SSHDIST_CRYPT_TIGER
-
-
-
-#endif /* SSHDIST_CRYPT_TIGER */
   NULL
 };
 

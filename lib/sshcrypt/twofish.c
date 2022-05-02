@@ -25,11 +25,11 @@ typedef struct
   SshUInt32 s[4][256];                     /* Key-dependant S-Boxes */ 
   SshUInt32 k[40];                         /* Expanded key words    */
   Boolean for_encryption;                  /* encrypt / decrypt     */
-} TwofishContext;
+} SshTwofishContext;
 
 /* Permutation q0 */
   
-const unsigned char twofish_q0[256] = 
+const unsigned char ssh_twofish_q0[256] = 
   {      
     0xa9, 0x67, 0xb3, 0xe8, 0x04, 0xfd, 0xa3, 0x76, 
     0x9a, 0x92, 0x80, 0x78, 0xe4, 0xdd, 0xd1, 0x38, 
@@ -67,7 +67,7 @@ const unsigned char twofish_q0[256] =
   
   /* Permutation q1 */
   
-const unsigned char twofish_q1[256] = 
+const unsigned char ssh_twofish_q1[256] = 
   {  
     0x75, 0xf3, 0xc6, 0xf4, 0xdb, 0x7b, 0xfb, 0xc8, 
     0x4a, 0xd3, 0xe6, 0x6b, 0x45, 0x7d, 0xe8, 0x4b, 
@@ -104,7 +104,7 @@ const unsigned char twofish_q1[256] =
 };
 
 /* Multiply two numbers over GF(2^8) with irreducible polynomial g */
-SshUInt32 twofish_gf256_mul(SshUInt32 a, SshUInt32 b, SshUInt32 g)
+SshUInt32 ssh_twofish_gf256_mul(SshUInt32 a, SshUInt32 b, SshUInt32 g)
 {
   SshUInt32 x;
 
@@ -125,71 +125,71 @@ SshUInt32 twofish_gf256_mul(SshUInt32 a, SshUInt32 b, SshUInt32 g)
  * l is an array of k bytes. 
  */
   
-SshUInt32 twofish_keysched_h0(unsigned char x, unsigned char *l, int k) 
+SshUInt32 ssh_twofish_keysched_h0(unsigned char x, unsigned char *l, int k) 
 {
   SshUInt32 y;
   
   if (k == 4)
-    x = twofish_q1[x] ^ l[3];
+    x = ssh_twofish_q1[x] ^ l[3];
   if (k >= 3)
-    x = twofish_q1[x] ^ l[2];
-  x = twofish_q0[x] ^ l[1];
-  x = twofish_q0[x] ^ l[0];
-  x = twofish_q1[x];
-  y = twofish_gf256_mul(x, 0xef, 0x169);
+    x = ssh_twofish_q1[x] ^ l[2];
+  x = ssh_twofish_q0[x] ^ l[1];
+  x = ssh_twofish_q0[x] ^ l[0];
+  x = ssh_twofish_q1[x];
+  y = ssh_twofish_gf256_mul(x, 0xef, 0x169);
   y = (y << 24) | (y << 16) | 
-    (twofish_gf256_mul(x, 0x5b, 0x169) << 8) | x;
+    (ssh_twofish_gf256_mul(x, 0x5b, 0x169) << 8) | x;
   return y;
 }
                           
-SshUInt32 twofish_keysched_h1(unsigned char x, unsigned char *l, int k) 
+SshUInt32 ssh_twofish_keysched_h1(unsigned char x, unsigned char *l, int k) 
 {
   SshUInt32 y;
   
   if (k == 4)
-    x = twofish_q0[x] ^ l[3];
+    x = ssh_twofish_q0[x] ^ l[3];
   if (k >= 3)
-    x = twofish_q1[x] ^ l[2];
-  x = twofish_q1[x] ^ l[1];
-  x = twofish_q0[x] ^ l[0];
-  x = twofish_q0[x];
-  y = twofish_gf256_mul(x, 0xef, 0x169);
-  y = y | (y << 8) | (twofish_gf256_mul(x, 0x5b, 0x169) << 16) | 
+    x = ssh_twofish_q1[x] ^ l[2];
+  x = ssh_twofish_q1[x] ^ l[1];
+  x = ssh_twofish_q0[x] ^ l[0];
+  x = ssh_twofish_q0[x];
+  y = ssh_twofish_gf256_mul(x, 0xef, 0x169);
+  y = y | (y << 8) | (ssh_twofish_gf256_mul(x, 0x5b, 0x169) << 16) | 
     (x << 24);
   return y;
 }
 
-SshUInt32 twofish_keysched_h2(unsigned char x, unsigned char *l, int k) 
+SshUInt32 ssh_twofish_keysched_h2(unsigned char x, unsigned char *l, int k) 
 {
   SshUInt32 y;
   
   if (k == 4)
-    x = twofish_q0[x] ^ l[3];
+    x = ssh_twofish_q0[x] ^ l[3];
   if (k >= 3)
-    x = twofish_q0[x] ^ l[2];
-  x = twofish_q0[x] ^ l[1];
-  x = twofish_q1[x] ^ l[0];
-  x = twofish_q1[x];
-  y = twofish_gf256_mul(x, 0xef, 0x169);
+    x = ssh_twofish_q0[x] ^ l[2];
+  x = ssh_twofish_q0[x] ^ l[1];
+  x = ssh_twofish_q1[x] ^ l[0];
+  x = ssh_twofish_q1[x];
+  y = ssh_twofish_gf256_mul(x, 0xef, 0x169);
   y = (y << 24) | (y << 8) | 
-    twofish_gf256_mul(x, 0x5b, 0x169) | (x << 16);
+    ssh_twofish_gf256_mul(x, 0x5b, 0x169) | (x << 16);
   return y;
 }
 
-SshUInt32 twofish_keysched_h3(unsigned char x, unsigned char *l, int k) 
+SshUInt32 ssh_twofish_keysched_h3(unsigned char x, unsigned char *l, int k) 
 {
   SshUInt32 y;
   
   if (k == 4)
-    x = twofish_q1[x] ^ l[3];
+    x = ssh_twofish_q1[x] ^ l[3];
   if (k >= 3)
-    x = twofish_q0[x] ^ l[2];
-  x = twofish_q1[x] ^ l[1];
-  x = twofish_q1[x] ^ l[0];
-  x = twofish_q0[x];
-  y = twofish_gf256_mul(x, 0x5b, 0x169);
+    x = ssh_twofish_q0[x] ^ l[2];
+  x = ssh_twofish_q1[x] ^ l[1];
+  x = ssh_twofish_q1[x] ^ l[0];
+  x = ssh_twofish_q0[x];
+  y = ssh_twofish_gf256_mul(x, 0x5b, 0x169);
   y = y | (y << 24) | 
-    (twofish_gf256_mul(x, 0xef, 0x169) << 16) | (x << 8);
+    (ssh_twofish_gf256_mul(x, 0xef, 0x169) << 16) | (x << 8);
   return y;
 }
                              
@@ -197,18 +197,18 @@ SshUInt32 twofish_keysched_h3(unsigned char x, unsigned char *l, int k)
  *  Initialize the twofish context.
  *  (key scheduling has not been optimized for performance)
  * 
- *  context          a pointer to a TwofishContext
+ *  context          a pointer to a SshTwofishContext
  *  key              key material
  *  keylen           length of the key in bytes (1..32)
  *  for_encryption   encryption / decryption 
  */
 
-void twofish_init(void *context,
-                  const unsigned char *key, 
-                  size_t keylen,
-                  Boolean for_encryption)
+Boolean ssh_twofish_init(void *context,
+                         const unsigned char *key, 
+                         size_t keylen,
+                         Boolean for_encryption)
 {
-  TwofishContext *ctx;
+  SshTwofishContext *ctx;
   unsigned char s[4][4], me[4][4], mo[4][4];
   int i, j, k, kl, klsub;
   SshUInt32 a, b;
@@ -247,7 +247,7 @@ void twofish_init(void *context,
   for (i = 0; i < kl; i++)
     for (j = 0; j < 8; j++)
       for (k = 0; k < 4; k++)
-        s[k][kl - i - 1] ^= twofish_gf256_mul(rs_matrix[j][k], 
+        s[k][kl - i - 1] ^= ssh_twofish_gf256_mul(rs_matrix[j][k], 
                                               key[j + (i << 3)],
                                               0x14d);
   /* Compute the S-boxes */
@@ -256,10 +256,10 @@ void twofish_init(void *context,
     kl = 2;
   for (i = 0; i < 0x100; i++)
     {
-      ctx->s[0][i] = twofish_keysched_h0(i, s[0], kl);
-      ctx->s[1][i] = twofish_keysched_h1(i, s[1], kl);
-      ctx->s[2][i] = twofish_keysched_h2(i, s[2], kl);
-      ctx->s[3][i] = twofish_keysched_h3(i, s[3], kl);      
+      ctx->s[0][i] = ssh_twofish_keysched_h0(i, s[0], kl);
+      ctx->s[1][i] = ssh_twofish_keysched_h1(i, s[1], kl);
+      ctx->s[2][i] = ssh_twofish_keysched_h2(i, s[2], kl);
+      ctx->s[3][i] = ssh_twofish_keysched_h3(i, s[3], kl);      
     }
   
   /* Compute the round keys */
@@ -275,14 +275,14 @@ void twofish_init(void *context,
   
   for (i = 0; i < 40; i += 2)
     {
-      a = twofish_keysched_h0(i, me[0], kl) ^ 
-        twofish_keysched_h1(i, me[1], kl) ^ 
-        twofish_keysched_h2(i, me[2], kl) ^ 
-        twofish_keysched_h3(i, me[3], kl);
-      b = twofish_keysched_h0(i + 1, mo[0], kl) ^ 
-        twofish_keysched_h1(i + 1, mo[1], kl) ^ 
-        twofish_keysched_h2(i + 1, mo[2], kl) ^ 
-        twofish_keysched_h3(i + 1, mo[3], kl);
+      a = ssh_twofish_keysched_h0(i, me[0], kl) ^ 
+        ssh_twofish_keysched_h1(i, me[1], kl) ^ 
+        ssh_twofish_keysched_h2(i, me[2], kl) ^ 
+        ssh_twofish_keysched_h3(i, me[3], kl);
+      b = ssh_twofish_keysched_h0(i + 1, mo[0], kl) ^ 
+        ssh_twofish_keysched_h1(i + 1, mo[1], kl) ^ 
+        ssh_twofish_keysched_h2(i + 1, mo[2], kl) ^ 
+        ssh_twofish_keysched_h3(i + 1, mo[3], kl);
       b = SSH_ROL32(b, 8);
       a += b;
       ctx->k[i] = a;
@@ -295,14 +295,16 @@ void twofish_init(void *context,
   
   memset(s, 0, sizeof(s));
   memset(me, 0, sizeof(me));
-  memset(mo, 0, sizeof(mo));  
+  memset(mo, 0, sizeof(mo));
+
+  return TRUE;
 }
 
 /*
  *  encrypt a single block using twofish
  */
 
-void twofish_encrypt(SshUInt32 *in, SshUInt32 *out, 
+void ssh_twofish_encrypt(SshUInt32 *in, SshUInt32 *out, 
                      const SshUInt32 *k, SshUInt32 s[4][256])
 {
   int i;
@@ -352,7 +354,7 @@ void twofish_encrypt(SshUInt32 *in, SshUInt32 *out,
  *  decrypt a single block using twofish 
  */
 
-void twofish_decrypt(SshUInt32 *in, SshUInt32 *out,
+void ssh_twofish_decrypt(SshUInt32 *in, SshUInt32 *out,
                      const SshUInt32 *k, SshUInt32 s[4][256])
 {
   int i;
@@ -404,20 +406,20 @@ void twofish_decrypt(SshUInt32 *in, SshUInt32 *out,
 
 /* Gets the size of twofish context. */
 
-size_t twofish_ctxsize()
+size_t ssh_twofish_ctxsize()
 {
-  return (sizeof(TwofishContext));  
+  return (sizeof(SshTwofishContext));  
 }
 
 /* Encrypt/decrypt in electronic code book mode. */
-void twofish_ecb(void *context, unsigned char *dest,
+void ssh_twofish_ecb(void *context, unsigned char *dest,
                  const unsigned char *src, size_t len,
                  unsigned char *iv)
 {
-  TwofishContext *ctx;
+  SshTwofishContext *ctx;
   SshUInt32 v[4];
 
-  ctx = (TwofishContext *) context;
+  ctx = (SshTwofishContext *) context;
 
   if (ctx->for_encryption)
     {
@@ -428,7 +430,7 @@ void twofish_ecb(void *context, unsigned char *dest,
           v[2] = SSH_GET_32BIT_LSB_FIRST(src + 8);
           v[3] = SSH_GET_32BIT_LSB_FIRST(src + 12);
 
-          twofish_encrypt(v, v, ctx->k, ctx->s);
+          ssh_twofish_encrypt(v, v, ctx->k, ctx->s);
 
           SSH_PUT_32BIT_LSB_FIRST(dest, v[0]);
           SSH_PUT_32BIT_LSB_FIRST(dest + 4, v[1]);
@@ -449,7 +451,7 @@ void twofish_ecb(void *context, unsigned char *dest,
           v[2] = SSH_GET_32BIT_LSB_FIRST(src + 8);
           v[3] = SSH_GET_32BIT_LSB_FIRST(src + 12);
 
-          twofish_decrypt(v, v, ctx->k, ctx->s);
+          ssh_twofish_decrypt(v, v, ctx->k, ctx->s);
           
           SSH_PUT_32BIT_LSB_FIRST(dest, v[0]);
           SSH_PUT_32BIT_LSB_FIRST(dest + 4, v[1]);
@@ -465,14 +467,14 @@ void twofish_ecb(void *context, unsigned char *dest,
 
 
 /* Encrypt/decrypt in cipher block chaining mode. */
-void twofish_cbc(void *context, unsigned char *dest,
+void ssh_twofish_cbc(void *context, unsigned char *dest,
                  const unsigned char *src, size_t len,
                  unsigned char *iv_arg)
 {
-  TwofishContext *ctx;
+  SshTwofishContext *ctx;
   SshUInt32 v[4], c[4], iv[4];
   
-  ctx = (TwofishContext *) context;  
+  ctx = (SshTwofishContext *) context;  
   iv[0] = SSH_GET_32BIT_LSB_FIRST(iv_arg);
   iv[1] = SSH_GET_32BIT_LSB_FIRST(iv_arg + 4);
   iv[2] = SSH_GET_32BIT_LSB_FIRST(iv_arg + 8);
@@ -487,7 +489,7 @@ void twofish_cbc(void *context, unsigned char *dest,
           iv[2] ^= SSH_GET_32BIT_LSB_FIRST(src + 8);
           iv[3] ^= SSH_GET_32BIT_LSB_FIRST(src + 12);
 
-          twofish_encrypt(iv, iv, ctx->k, ctx->s);
+          ssh_twofish_encrypt(iv, iv, ctx->k, ctx->s);
           
           SSH_PUT_32BIT_LSB_FIRST(dest, iv[0]);
           SSH_PUT_32BIT_LSB_FIRST(dest + 4, iv[1]);
@@ -508,7 +510,7 @@ void twofish_cbc(void *context, unsigned char *dest,
           c[2] = SSH_GET_32BIT_LSB_FIRST(src + 8);
           c[3] = SSH_GET_32BIT_LSB_FIRST(src + 12);
 
-          twofish_decrypt(c, v, ctx->k, ctx->s);
+          ssh_twofish_decrypt(c, v, ctx->k, ctx->s);
                           
           v[0] ^= iv[0];
           iv[0] = c[0];
@@ -541,14 +543,14 @@ void twofish_cbc(void *context, unsigned char *dest,
 
 
 /* Encrypt/decrypt in output feedback mode. */
-void twofish_ofb(void *context, unsigned char *dest,
+void ssh_twofish_ofb(void *context, unsigned char *dest,
                  const unsigned char *src, size_t len,
                  unsigned char *iv_arg)
 {
-  TwofishContext *ctx;
+  SshTwofishContext *ctx;
   SshUInt32 t, iv[4];
   
-  ctx = (TwofishContext *) context;  
+  ctx = (SshTwofishContext *) context;  
 
   iv[0] = SSH_GET_32BIT_LSB_FIRST(iv_arg);
   iv[1] = SSH_GET_32BIT_LSB_FIRST(iv_arg + 4);
@@ -557,7 +559,7 @@ void twofish_ofb(void *context, unsigned char *dest,
 
   while (len > 0)
     {      
-      twofish_encrypt(iv, iv, ctx->k, ctx->s);
+      ssh_twofish_encrypt(iv, iv, ctx->k, ctx->s);
 
       t = SSH_GET_32BIT_LSB_FIRST(src) ^ iv[0];
       SSH_PUT_32BIT_LSB_FIRST(dest, t);      
@@ -584,14 +586,14 @@ void twofish_ofb(void *context, unsigned char *dest,
 
 /* Encrypt/decrypt in cipher feedback mode */
 
-void twofish_cfb(void *context, unsigned char *dest,
+void ssh_twofish_cfb(void *context, unsigned char *dest,
                  const unsigned char *src, size_t len,
                  unsigned char *iv_arg)
 {
-  TwofishContext *ctx;
+  SshTwofishContext *ctx;
   SshUInt32 t, iv[4];
   
-  ctx = (TwofishContext *) context;  
+  ctx = (SshTwofishContext *) context;  
 
   iv[0] = SSH_GET_32BIT_LSB_FIRST(iv_arg);
   iv[1] = SSH_GET_32BIT_LSB_FIRST(iv_arg + 4);
@@ -602,7 +604,7 @@ void twofish_cfb(void *context, unsigned char *dest,
     {
       while (len > 0)
         {
-          twofish_encrypt(iv, iv, ctx->k, ctx->s);
+          ssh_twofish_encrypt(iv, iv, ctx->k, ctx->s);
 
           iv[0] ^= SSH_GET_32BIT_LSB_FIRST(src);
           SSH_PUT_32BIT_LSB_FIRST(dest, iv[0]);           
@@ -622,7 +624,7 @@ void twofish_cfb(void *context, unsigned char *dest,
     {      
       while (len > 0)
         {
-          twofish_encrypt(iv, iv, ctx->k, ctx->s);        
+          ssh_twofish_encrypt(iv, iv, ctx->k, ctx->s);        
                   
           t = SSH_GET_32BIT_LSB_FIRST(src);     
           SSH_PUT_32BIT_LSB_FIRST(dest, iv[0] ^ t);

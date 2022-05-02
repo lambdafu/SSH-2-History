@@ -11,29 +11,30 @@
 #define TWOFISH_H
 
 /* Gets the size of twofish context. */
-size_t twofish_ctxsize(void);
+size_t ssh_twofish_ctxsize(void);
 
 /* Sets an already allocated twofish key */
-void twofish_init(void *context, const unsigned char *key, size_t keylen,
-                  Boolean for_encryption);
+Boolean ssh_twofish_init(void *context, const unsigned char *key,
+                         size_t keylen,
+                         Boolean for_encryption);
 
 /* Encrypt/decrypt in electronic code book mode. */
-void twofish_ecb(void *context, unsigned char *dest,
+void ssh_twofish_ecb(void *context, unsigned char *dest,
                  const unsigned char *src, size_t len,
                  unsigned char *iv);
 
 /* Encrypt/decrypt in cipher block chaining mode. */
-void twofish_cbc(void *context, unsigned char *dest,
+void ssh_twofish_cbc(void *context, unsigned char *dest,
                  const unsigned char *src, size_t len,
                  unsigned char *iv);
 
 /* Encrypt/decrypt in cipher feedback mode. */
-void twofish_cfb(void *context, unsigned char *dest,
+void ssh_twofish_cfb(void *context, unsigned char *dest,
                  const unsigned char *src, size_t len,
                  unsigned char *iv);
 
 /* Encrypt/decrypt in output feedback mode. */
-void twofish_ofb(void *context, unsigned char *dest,
+void ssh_twofish_ofb(void *context, unsigned char *dest,
                  const unsigned char *src, size_t len,
                  unsigned char *iv);
 

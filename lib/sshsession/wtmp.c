@@ -15,7 +15,15 @@ In particular, this updates:
 
 */
 
+/* This appears to be needed to make wtmpx work on glibc 2.0.100+. */
+#ifndef __USE_GNU
+#define __USE_GNU
+#endif
+
 #include "sshsessionincludes.h"
+#ifdef HAVE_UTIL_H
+#include <util.h>
+#endif /* HAVE_UTIL_H */
 #ifdef HAVE_UTMP_H
 #include <utmp.h>
 #ifdef HAVE_LASTLOG_H
@@ -26,7 +34,7 @@ In particular, this updates:
 #include <utmpx.h>
 #ifndef SCO
 #ifdef HAVE_SYS_MKDEV_H
-#include <sys/mkdev.h>	/* for minor() */
+#include <sys/mkdev.h>  /* for minor() */
 #endif /* HAVE_SYS_MKDEV_H */
 #endif
 #endif /* HAVE_UTMPX_H */
@@ -49,8 +57,8 @@ extern Boolean ssh_string_to_addr(const char *s, struct in_addr *addr);
 
 #ifdef LASTLOG_IS_DIR
 time_t ssh_user_get_last_login_time(SshUser user,
-				    char *hostbuf,
-				    unsigned int hostbufsize)
+                                    char *hostbuf,
+                                    unsigned int hostbufsize)
 {
 #if defined(HAVE_LASTLOG_H) || defined(HAVE_LASTLOG)
   struct lastlog ll;
@@ -59,14 +67,14 @@ time_t ssh_user_get_last_login_time(SshUser user,
 
 #ifdef _PATH_LASTLOG
   snprintf(lastlogfile, sizeof(lastlogfile),
-	   "%.200s/%.200s", _PATH_LASTLOG, ssh_user_name(user));
+           "%.200s/%.200s", _PATH_LASTLOG, ssh_user_name(user));
 #else
 #ifdef LASTLOG_FILE
   snprintf(lastlogfile, sizeof(lastlogfile),
-	   "%.200s/%.200s", LASTLOG_FILE, ssh_user_name(user));
+           "%.200s/%.200s", LASTLOG_FILE, ssh_user_name(user));
 #else
   snprintf(lastlogfile, sizeof(lastlogfile),
-	   "%.200s/%.200s", SSH_LASTLOG, ssh_user_name(user));
+           "%.200s/%.200s", SSH_LASTLOG, ssh_user_name(user));
 #endif
 #endif
 
@@ -97,8 +105,8 @@ time_t ssh_user_get_last_login_time(SshUser user,
 #else /* LASTLOG_IS_DIR */
 
 time_t ssh_user_get_last_login_time(SshUser user,
-				    char *hostbuf,
-				    unsigned int hostbufsize)
+                                    char *hostbuf,
+                                    unsigned int hostbufsize)
 {
 #if defined(HAVE_LASTLOG_H) || defined(HAVE_LASTLOG)
 
@@ -143,13 +151,13 @@ time_t ssh_user_get_last_login_time(SshUser user,
   if (setuserdb(S_READ) < 0)
     return 0;
   if (getuserattr((char *)ssh_user_name(user), S_LASTTIME,
-		  &lasttime, SEC_INT) < 0)
+                  &lasttime, SEC_INT) < 0)
     {
       enduserdb();
       return 0;
     }
   if (getuserattr((char *)ssh_user_name(user), S_LASTHOST,
-		  &lasthost, SEC_CHAR) < 0)
+                  &lasthost, SEC_CHAR) < 0)
     {
       enduserdb();
       return 0;
@@ -182,7 +190,7 @@ time_t ssh_user_get_last_login_time(SshUser user,
       ip      ip address of the host the user logged in from. */
 
 void ssh_user_record_login(SshUser user, pid_t pid, const char *ttyname,
-			   const char *host, const char *ip)
+                           const char *host, const char *ip)
 {
   int fd;
 
@@ -265,7 +273,7 @@ void ssh_user_record_login(SshUser user, pid_t pid, const char *ttyname,
   if (fd >= 0)
     {
       if (write(fd, &u, sizeof(u)) != sizeof(u))
-	ssh_warning("Could not write %.100s: %.100s", wtmp, strerror(errno));
+        ssh_warning("Could not write %.100s: %.100s", wtmp, strerror(errno));
       close(fd);
     }
 
@@ -289,36 +297,36 @@ void ssh_user_record_login(SshUser user, pid_t pid, const char *ttyname,
 #endif /* ultrix || NeXT */
         lseek(fd, (off_t)(n*sizeof(u)), 0);
         if (write(fd, &u, sizeof(u)) != sizeof(u))
-	  ssh_warning("Could not write to %.100s: %.100s", 
-		      utmp, strerror(errno));
+          ssh_warning("Could not write to %.100s: %.100s", 
+                      utmp, strerror(errno));
       } else
 #endif /* HAVE_TTYSLOT */
       while (1)
-	{
-	  off_t offset;
-	  struct utmp u2;
-	  offset = lseek(fd, (off_t)0L, 1);
-	  if (read(fd, &u2, sizeof(u2)) != sizeof(u2))
-	    {
-	      lseek(fd, offset, 0);
-	      if (write(fd, &u, sizeof(u)) != sizeof(u))
-		ssh_warning("Could not append to %.100s: %.100s", 
-			    utmp, strerror(errno));
-	      break;
-	    }
+        {
+          off_t offset;
+          struct utmp u2;
+          offset = lseek(fd, (off_t)0L, 1);
+          if (read(fd, &u2, sizeof(u2)) != sizeof(u2))
+            {
+              lseek(fd, offset, 0);
+              if (write(fd, &u, sizeof(u)) != sizeof(u))
+                ssh_warning("Could not append to %.100s: %.100s", 
+                            utmp, strerror(errno));
+              break;
+            }
 #if defined(ultrix) || defined(NeXT)            /* corey */
-	  if (strcmp(u2.ut_line, ttyname + 5) == 0 && *u2.ut_name)
+          if (strcmp(u2.ut_line, ttyname + 5) == 0 && *u2.ut_name)
 #else   /* ultrix || NeXT */
-	  if (strncmp(u2.ut_line, ttyname + 5, sizeof(u2.ut_line)) == 0)
+          if (strncmp(u2.ut_line, ttyname + 5, sizeof(u2.ut_line)) == 0)
 #endif  /* ultrix || NeXT */
-	    {
-	      lseek(fd, offset, 0);
-	      if (write(fd, &u, sizeof(u)) != sizeof(u))
-		ssh_warning("Could not write to %.100s: %.100s", 
-			    utmp, strerror(errno));
-	      break;
-	    }
-	}
+            {
+              lseek(fd, offset, 0);
+              if (write(fd, &u, sizeof(u)) != sizeof(u))
+                ssh_warning("Could not write to %.100s: %.100s", 
+                            utmp, strerror(errno));
+              break;
+            }
+        }
       close(fd);
     }
 #endif /* HAVE_LIBUTIL_LOGIN */
@@ -331,24 +339,24 @@ void ssh_user_record_login(SshUser user, pid_t pid, const char *ttyname,
     strncpy(ux.ut_line, ttyname + 5, sizeof(ux.ut_line));
     if (user == NULL)
       {
-	/* logout; find previous entry for pid and zonk it */
-	setutxent();
-	while ((uxp = getutxent()))
-	  {
-	    if (uxp->ut_pid != pid)
-	      continue;
-	    ux = *uxp;
-	    break;
-	  }
-	endutxent();
+        /* logout; find previous entry for pid and zonk it */
+        setutxent();
+        while ((uxp = getutxent()))
+          {
+            if (uxp->ut_pid != pid)
+              continue;
+            ux = *uxp;
+            break;
+          }
+        endutxent();
       }
     else
       {
-	/* login: find appropriate slot for this tty */
-	uxp = getutxline(&ux);
-	if (uxp)
-	  ux = *uxp;
-	strncpy(ux.ut_user, ssh_user_name(user), sizeof(ux.ut_user));
+        /* login: find appropriate slot for this tty */
+        uxp = getutxline(&ux);
+        if (uxp)
+          ux = *uxp;
+        strncpy(ux.ut_user, ssh_user_name(user), sizeof(ux.ut_user));
       }
 #if defined(__sgi) || defined(SCO)
     strncpy(ux.ut_id, ttyname + 8, sizeof(ux.ut_id)); /* /dev/ttyq99 -> q99 */
@@ -362,9 +370,9 @@ void ssh_user_record_login(SshUser user, pid_t pid, const char *ttyname,
       
       buf[0] = 0;
       if (stat(ttyname, &st) == 0) {
-	/* allow for 1000 /dev/pts devices */
-	snprintf(buf, sizeof (buf), "P%03d", (int)minor(st.st_rdev));
-	
+        /* allow for 1000 /dev/pts devices */
+        snprintf(buf, sizeof (buf), "P%03d", (int)minor(st.st_rdev));
+        
       }
       strncpy(ux.ut_id, buf, sizeof(ux.ut_id));
 #else /* HAVE_MINOR */
@@ -372,13 +380,13 @@ void ssh_user_record_login(SshUser user, pid_t pid, const char *ttyname,
          from ttyname. */
       size_t ttyname_len = strlen(ttyname);
       if(ttyname_len > 3)
-	{
-	  snprintf(buf, sizeof (buf), "P%03s", &ttyname[ttyname_len - 3]);
-	}
+        {
+          snprintf(buf, sizeof (buf), "P%03s", &ttyname[ttyname_len - 3]);
+        }
       else
-	{
-	  snprintf(buf, sizeof (buf), "P%03s", ttyname);
-	}
+        {
+          snprintf(buf, sizeof (buf), "P%03s", ttyname);
+        }
 #endif /* HAVE_MINOR */
     }
 #endif /* __sgi */
@@ -403,17 +411,15 @@ void ssh_user_record_login(SshUser user, pid_t pid, const char *ttyname,
     strncpy(ux.ut_host, host, sizeof(ux.ut_host));
     ux.ut_host[sizeof(ux.ut_host) - 1] = 0;
     ux.ut_syslen = strlen(ux.ut_host);
-    ux.ut_exit.e_termination = 0;
-    ux.ut_exit.e_exit = 0;
 #ifdef HAVE_MAKEUTX
     /*
      * modutx/makeutx notify init(1) to clean up utmpx for this pid
      * automatically if we don't manage to, for some odd reason
      */
     if (user == NULL)
-	modutx(&ux);
+        modutx(&ux);
     else
-	makeutx(&ux);
+        makeutx(&ux);
 #else
     pututxline(&ux);
     updwtmpx(WTMPX_FILE, &ux);
@@ -438,7 +444,7 @@ void ssh_user_record_login(SshUser user, pid_t pid, const char *ttyname,
   if (user != NULL) /* only on login ... */
     {
       /* It is safer to bzero the lastlog structure first because some
-	 systems might have some extra fields in it (e.g. SGI) */
+         systems might have some extra fields in it (e.g. SGI) */
       memset(&ll, 0, sizeof(ll));
 
       /* Update lastlog. */
@@ -447,33 +453,33 @@ void ssh_user_record_login(SshUser user, pid_t pid, const char *ttyname,
       strncpy(ll.ll_host, host, sizeof(ll.ll_host));
 #ifdef LASTLOG_IS_DIR
       snprintf(lastlogfile, 
-	       sizeof (lastlogfile), 
-	       "%.100s/%.100s", 
-	       lastlog,
-	       user);
+               sizeof (lastlogfile), 
+               "%.100s/%.100s", 
+               lastlog,
+               ssh_user_name(user));
       fd = open(lastlogfile, O_WRONLY | O_CREAT, 0644);
       if (fd >= 0)
-	{
-	  if (write(fd, &ll, sizeof(ll)) != sizeof(ll))
-	    ssh_warning("Could not write %.100s: %.100s", 
-			lastlogfile, strerror(errno));
-	  close(fd);
-	} 
+        {
+          if (write(fd, &ll, sizeof(ll)) != sizeof(ll))
+            ssh_warning("Could not write %.100s: %.100s", 
+                        lastlogfile, strerror(errno));
+          close(fd);
+        } 
       else 
-	{
-	  ssh_warning("Could not open %.100s: %.100s",
-		      lastlogfile, strerror(errno));
-	}
+        {
+          ssh_warning("Could not open %.100s: %.100s",
+                      lastlogfile, strerror(errno));
+        }
 #else /* LASTLOG_IS_DIR */
       fd = open(lastlog, O_RDWR);
       if (fd >= 0)
-	{
-	  lseek(fd, (off_t)((long)ssh_user_uid(user) * sizeof(ll)), 0);
-	  if (write(fd, &ll, sizeof(ll)) != sizeof(ll))
-	    ssh_warning("Could not write %.100s: %.100s",
-			lastlog, strerror(errno));
-	  close(fd);
-	}
+        {
+          lseek(fd, (off_t)((long)ssh_user_uid(user) * sizeof(ll)), 0);
+          if (write(fd, &ll, sizeof(ll)) != sizeof(ll))
+            ssh_warning("Could not write %.100s: %.100s",
+                        lastlog, strerror(errno));
+          close(fd);
+        }
 #endif /* LASTLOG_IS_DIR */
     }
 #endif /* HAVE_LASTLOG_H || HAVE_LASTLOG */
@@ -484,22 +490,22 @@ void ssh_user_record_login(SshUser user, pid_t pid, const char *ttyname,
     {
       int lasttime = time(NULL);
       if (setuserdb(S_WRITE) < 0)
-	ssh_warning("setuserdb S_WRITE failed: %.100s", strerror(errno));
+        ssh_warning("setuserdb S_WRITE failed: %.100s", strerror(errno));
       if (putuserattr((char *)ssh_user_name(user),
-		      S_LASTTIME, (void *)lasttime, SEC_INT) < 0)
-	ssh_warning("putuserattr S_LASTTIME failed: %.100s", strerror(errno));
+                      S_LASTTIME, (void *)lasttime, SEC_INT) < 0)
+        ssh_warning("putuserattr S_LASTTIME failed: %.100s", strerror(errno));
       if (putuserattr((char *)ssh_user_name(user),
-		      S_LASTTTY, (void *)(ttyname + 5), SEC_CHAR) < 0)
-	ssh_warning("putuserattr S_LASTTTY %.900s failed: %.100s", 
-		    ttyname, strerror(errno));
+                      S_LASTTTY, (void *)(ttyname + 5), SEC_CHAR) < 0)
+        ssh_warning("putuserattr S_LASTTTY %.900s failed: %.100s", 
+                    ttyname, strerror(errno));
       if (putuserattr((char *)ssh_user_name(user),
-		      S_LASTHOST, (void *)host, SEC_CHAR) < 0)
-	ssh_warning("putuserattr S_LASTHOST %.900s failed: %.100s", 
-		    host, strerror(errno));
+                      S_LASTHOST, (void *)host, SEC_CHAR) < 0)
+        ssh_warning("putuserattr S_LASTHOST %.900s failed: %.100s", 
+                    host, strerror(errno));
       if (putuserattr((char *)ssh_user_name(user), 0, NULL, SEC_COMMIT) < 0)
-	ssh_warning("putuserattr SEC_COMMIT failed: %.100s", strerror(errno));
+        ssh_warning("putuserattr SEC_COMMIT failed: %.100s", strerror(errno));
       if (enduserdb() < 0)
-	ssh_warning("enduserdb failed: %.100s", strerror(errno));
+        ssh_warning("enduserdb failed: %.100s", strerror(errno));
     }
 #endif /* HAVE_USERSEC_H */
 }

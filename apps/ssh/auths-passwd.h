@@ -25,15 +25,15 @@ auth-passwd.h
      `session_id_len' length of session identifier
      `state_placeholder' place to store context data between packets
      `longtime_placeholder'  can hold data between authentications
-     		    (this is per-method)
+                    (this is per-method)
      `method_context'   passed to the method function */
 SshAuthServerResult ssh_server_auth_passwd(SshAuthServerOperation op,
-					   const char *user,
-					   SshBuffer *packet,
-					   const unsigned char *session_id,
-					   size_t session_id_len,
-					   void **state_placeholder,
-					   void **longtime_placeholder,
-					   void *method_context);
+                                           const char *user,
+                                           SshBuffer *packet,
+                                           const unsigned char *session_id,
+                                           size_t session_id_len,
+                                           void **state_placeholder,
+                                           void **longtime_placeholder,
+                                           void *method_context);
 
 #endif /* AUTH_PASSWD_H */

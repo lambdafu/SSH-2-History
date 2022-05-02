@@ -29,21 +29,17 @@ The ssh authentication agent.
 #include "sshunixeloop.h"
 #include "sshgetopt.h"
 #include "pubkeyencode.h"
-#include "sshurl.h"
 #include "gmp.h"
-
-#define SSH_AGENT_SSH1_COMPATIBLE
 
 #define SSH_DEBUG_MODULE "SshAgent"
 
+#ifdef HAVE_LIBWRAP
+int allow_severity = SSH_LOG_INFORMATIONAL;
+int deny_severity = SSH_LOG_WARNING;
+#endif /* HAVE_LIBWRAP */
+
 #define SSH_AGENT_CHECK_PARENT_INTERVAL         10
 #define SSH_AGENT_CHECK_EXPIRED_KEYS_INTERVAL   60
-
-#ifdef SSHDIST_SSH2_F_SECURE_COMMERCIAL
-
-
-
-#endif /* SSHDIST_SSH2_F_SECURE_COMMERCIAL */
 
 typedef struct SshAgentImplRec *SshAgentImpl;
 
@@ -63,13 +59,20 @@ typedef struct SshAgentKeyRec {
   char *description;
   struct SshAgentKeyAttrsRec attr;
 
-#ifdef SSHDIST_SSH2_F_SECURE_COMMERCIAL
-
-
-
-
-#endif /* SSHDIST_SSH2_F_SECURE_COMMERCIAL */
+#ifdef WITH_SSH_AGENT1_COMPAT
+  Boolean ssh1_key_available;
+#endif /* WITH_SSH_AGENT1_COMPAT */
 } *SshAgentKey;
+
+#ifdef WITH_SSH_AGENT1_COMPAT
+typedef struct SshAgentSsh1KeyRec {
+  struct SshAgentSsh1KeyRec *next;
+  MP_INT n;
+  MP_INT e;
+  MP_INT d;
+  char *description;
+} *SshAgentSsh1Key;
+#endif /* WITH_SSH_AGENT1_COMPAT */
 
 struct SshAgentImplRec {
   SshAgentConnection connections;
@@ -79,22 +82,11 @@ struct SshAgentImplRec {
   char *socket_dir_name;
   char *lock_password;
   SshRandomState random_state;
-#ifdef SSH_AGENT_SSH1_COMPATIBLE
+#ifdef WITH_SSH_AGENT1_COMPAT
   /* Is `-1' flag on? */
   Boolean ssh1_compat;
-#endif /* SSH_AGENT_SSH1_COMPATIBLE */
-#ifdef SSHDIST_SSH2_F_SECURE_COMMERCIAL
-
-
-
-
-
-
-
-
-
-
-#endif /* SSHDIST_SSH2_F_SECURE_COMMERCIAL */
+  SshAgentSsh1Key ssh1_keys;
+#endif /* WITH_SSH_AGENT1_COMPAT */
 };
 
 const char *av0; /* Program name */
@@ -130,7 +122,8 @@ Boolean ssh_agenti_add_key(SshAgentImpl agent,
                            unsigned char *public_blob,
                            size_t public_len,
                            char *description,
-                           SshAgentKeyAttrs attrs);
+                           SshAgentKeyAttrs attrs,
+                           Boolean ssh1_key_available);
 
 /* Deletes all keys from the agent. */
 void ssh_agenti_delete_keys(SshAgentImpl agent);
@@ -167,11 +160,6 @@ void ssh_agenti_received_eof(void *context);
    a new client connects. */
 void ssh_agenti_connection(SshStream stream, void *context);
 
-/* Process URL sent by ssh-add. */
-Boolean ssh_agenti_process_url(SshAgentImpl agent, 
-                               char *url,
-                               SshAgentKeyAttrs attrs);
-
 /* Creates the authentication agent and starts listening for connections. */
 SshAgentImpl ssh_agenti_create(char **path_return);
 
@@ -189,7 +177,7 @@ void ssh_agenti_check_timeout_keys(void *context);
 Boolean ssh_agenti_invalid_key(SshAgentConnection conn, 
                                SshAgentKeyAttrs attrs);
 
-#ifdef SSH_AGENT_SSH1_COMPATIBLE
+#ifdef WITH_SSH_AGENT1_COMPAT
 
 /* Make ssh1 style (length in two bytes) encoding of long integer */
 void ssh_agenti_ssh1_encode_mp(SshBuffer *buffer, MP_INT *n);
@@ -200,17 +188,17 @@ Boolean ssh_agenti_ssh1_decode_mp(SshBuffer *buffer, MP_INT *n);
 /* Reply to the list query from ssh-agent1 */
 void ssh_agenti_ssh1_list_keys(SshAgentConnection conn);
 
-/* Reply to the rsa challenge from ssh-agent1 */
-void ssh_agenti_ssh1_rsa_challenge(SshAgentConnection conn, 
-                                   const unsigned char *data, 
-                                   size_t len);
+/* Reply to the challenge from ssh-agent1 */
+void ssh_agenti_ssh1_challenge(SshAgentConnection conn, 
+                               const unsigned char *data, 
+                               size_t len);
 
-/* Add rsa key send by ssh-agent1 */
+/* Add a private key send by ssh-agent1 */
 void ssh_agenti_ssh1_add_key(SshAgentConnection conn, 
                              const unsigned char *data, 
                              size_t len);
 
-/* Remove rsa key by request of ssh-agent1 */
+/* Remove a private key by request of ssh-agent1 */
 void ssh_agenti_ssh1_remove_key(SshAgentConnection conn, 
                                 const unsigned char *data, 
                                 size_t len);
@@ -224,34 +212,27 @@ void ssh_agenti_handle_ssh1_packet(SshAgentConnection conn,
                                    const unsigned char *data, 
                                    size_t len);
 
-#endif /* SSH_AGENT_SSH1_COMPATIBLE */
+/* Find ssh1 key with the given public part */
+SshAgentSsh1Key ssh_agenti_ssh1key_find(SshAgentImpl agent,
+                                         MP_INT *n, 
+                                         MP_INT *e);
 
-#ifdef SSHDIST_SSH2_F_SECURE_COMMERCIAL
+/* Adds the given ssh1 private key to be managed by the agent. */
+Boolean ssh_agenti_ssh1key_add(SshAgentImpl agent,
+                               MP_INT *n, 
+                               MP_INT *e,
+                               MP_INT *d,
+                               char *description);
 
+/* Delete a ssh1 key with given public key */
+Boolean ssh_agenti_ssh1key_delete(SshAgentImpl agent,
+                                   MP_INT *n, 
+                                   MP_INT *e);
 
+/* Delete all ssh1 keys */
+void ssh_agenti_ssh1key_delete_all(SshAgentImpl agent);
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#endif /* SSHDIST_SSH2_F_SECURE_COMMERCIAL */
+#endif /* WITH_SSH_AGENT1_COMPAT */
 
 /* Note: we don't process can_send callbacks.  This assumes that we always
    send small enough packets that they fit in buffers. */
@@ -289,18 +270,7 @@ SshAgentKey ssh_agenti_find_key(SshAgentImpl agent,
     if (key->certs_len == certs_len &&
         memcmp(key->certs, certs, certs_len) == 0)
       return key;
-
-#ifdef SSHDIST_SSH2_F_SECURE_COMMERCIAL
-
-
-
-
-
-
-
-#else /* SSHDIST_SSH2_F_SECURE_COMMERCIAL */
   return  NULL;
-#endif /* SSHDIST_SSH2_F_SECURE_COMMERCIAL */
 }
 
 /* Generate a name string from public key */
@@ -421,22 +391,21 @@ Boolean ssh_agenti_add_key(SshAgentImpl agent,
                            unsigned char *public_blob,
                            size_t public_len,
                            char *description,
-                           SshAgentKeyAttrs attrs)
+                           SshAgentKeyAttrs attrs,
+                           Boolean ssh1_key_available)
 {
   SshAgentKey key;
-  Boolean r;
   unsigned char *certs_copy;
 
-  /* Check if this is an URL. */
+  /* Check if this is an URL.  Can't process them. */
   if ((private_len == 0) && (public_len == 0))
     {
       ssh_xfree(private_blob);
       ssh_xfree(public_blob);
       if (private_key)
         ssh_private_key_free(private_key);
-      r = ssh_agenti_process_url(agent, description, attrs);
       ssh_xfree(description);
-      return r;
+      return FALSE;
     }
 
   /* Check if we already have the key. */
@@ -480,11 +449,9 @@ Boolean ssh_agenti_add_key(SshAgentImpl agent,
   key->description = description;
   key->next = agent->keys;
   agent->keys = key;
-#ifdef SSHDIST_SSH2_F_SECURE_COMMERCIAL
-
-
-
-#endif /* SSHDIST_SSH2_F_SECURE_COMMERCIAL */
+#ifdef WITH_SSH_AGENT1_COMPAT
+  key->ssh1_key_available = ssh1_key_available;
+#endif /* WITH_SSH_AGENT1_COMPAT */
   return TRUE;
 }
 
@@ -492,12 +459,6 @@ Boolean ssh_agenti_add_key(SshAgentImpl agent,
 void ssh_agenti_delete_keys(SshAgentImpl agent)
 {
   SshAgentKey key;
-
-#ifdef SSHDIST_SSH2_F_SECURE_COMMERCIAL
-
-
-
-#endif /* SSHDIST_SSH2_F_SECURE_COMMERCIAL */
 
   while (agent->keys != NULL)
     {
@@ -510,6 +471,10 @@ void ssh_agenti_delete_keys(SshAgentImpl agent)
       memset(key, 'F', sizeof(*key));
       ssh_xfree(key);
     }
+#ifdef WITH_SSH_AGENT1_COMPAT
+  /* This deletes also all possible ssh1 keys. */
+  ssh_agenti_ssh1key_delete_all(agent);
+#endif /* WITH_SSH_AGENT1_COMPAT */
 }
 
 /* Delete a key with given certs */
@@ -568,17 +533,6 @@ void ssh_agenti_list_keys(SshAgentConnection conn)
   SshAgentKey key;
   unsigned long num_keys;
   SshBuffer buffer;
-#ifdef SSHDIST_SSH2_F_SECURE_COMMERCIAL
-
-
-
-
-
-
-
-
-
-#endif /* SSHDIST_SSH2_F_SECURE_COMMERCIAL */
 
   if (conn->agent->lock_password)
     {
@@ -607,67 +561,6 @@ void ssh_agenti_list_keys(SshAgentConnection conn)
         }
     }
 
-#ifdef SSHDIST_SSH2_F_SECURE_COMMERCIAL
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#endif /* SSHDIST_SSH2_F_SECURE_COMMERCIAL */
-
   /* Construct and send the final response packet. */
   ssh_agenti_send(conn, SSH_AGENT_KEY_LIST,
                   SSH_FORMAT_UINT32, num_keys,
@@ -695,16 +588,7 @@ void ssh_agenti_private_key_op(SshAgentConnection conn, char *op_name,
   SshPrivateKey privkey;
 
   SSH_DEBUG(7, ("op=%s", op_name));
-#ifdef SSHDIST_SMART_CARD
-
-
-
-
-
-
-#else /* SSHDIST_SMART_CARD */
   key = ssh_agenti_find_key(conn->agent, public_blob, public_len, TRUE);
-#endif /* SSHDIST_SMART_CARD */
   if (key == NULL)
     {
       SSH_DEBUG(5, ("key not found"));
@@ -802,15 +686,6 @@ void ssh_agenti_private_key_op(SshAgentConnection conn, char *op_name,
     }
 
  cleanup_and_return:
-#ifdef SSHDIST_SSH2_F_SECURE_COMMERCIAL
-
-
-
-
-
-
-
-#endif /* SSHDIST_SSH2_F_SECURE_COMMERCIAL */
   return;
 }
 
@@ -842,7 +717,7 @@ void ssh_agenti_received_packet(SshCrossPacketType type,
                      conn->forwarding_path :
                      "(local)"),
                     conn->forwarding_path_len));
-#ifdef SSH_AGENT_SSH1_COMPATIBLE
+#ifdef WITH_SSH_AGENT1_COMPAT
       if (conn->agent->ssh1_compat && (len == 0))
         {
           SSH_DEBUG(7, ("translate it to ssh1 query."));
@@ -853,7 +728,7 @@ void ssh_agenti_received_packet(SshCrossPacketType type,
                                         len);
         }
       else
-#endif /* SSH_AGENT_SSH1_COMPATIBLE */
+#endif /* WITH_SSH_AGENT1_COMPAT */
         {
           /* If len != 0 here, the remote version string could be decoded
              from the query packet as a SSH_FORMAT_UINT32_STR string.
@@ -893,7 +768,8 @@ void ssh_agenti_received_packet(SshCrossPacketType type,
         {
           if (ssh_agenti_add_key(conn->agent, private_blob, private_len,
                                  NULL, public_blob, public_len, description,
-                                 NULL))
+                                 NULL,
+                                 FALSE))
             ssh_agenti_send(conn, SSH_AGENT_SUCCESS, SSH_FORMAT_END);
           else
             ssh_agenti_send_error(conn, SSH_AGENT_ERROR_FAILURE);
@@ -1012,7 +888,8 @@ void ssh_agenti_received_packet(SshCrossPacketType type,
                                      NULL, 
                                      public_blob, public_len, 
                                      description,
-                                     &attrs))
+                                     &attrs,
+                                     FALSE))
                 {
                   SSH_DEBUG(5, ("ADD_KEY key addition ok"));
                   ssh_agenti_send(conn, SSH_AGENT_SUCCESS, SSH_FORMAT_END);
@@ -1073,7 +950,7 @@ void ssh_agenti_received_packet(SshCrossPacketType type,
         }
       else
         {
-          /* It's an URL.  Cannot really remove those. */
+          /* It's an URL.  Cannot process them. */
           ssh_xfree(description);
           ssh_xfree(public_blob);
           ssh_agenti_send_error(conn, SSH_AGENT_ERROR_UNSUPPORTED_OP);
@@ -1188,8 +1065,8 @@ void ssh_agenti_received_packet(SshCrossPacketType type,
       conn->forwarding_path_len++;
       break;
       
-#ifdef SSH_AGENT_SSH1_COMPATIBLE
-    case SSH1_AGENT_RSA_CHALLENGE:
+#ifdef WITH_SSH_AGENT1_COMPAT
+    case SSH1_AGENT_AUTH_CHALLENGE:
     case SSH1_AGENT_ADD_KEY:
     case SSH1_AGENT_REMOVE_KEY:
     case SSH1_AGENT_REMOVE_ALL_KEYS:
@@ -1200,7 +1077,7 @@ void ssh_agenti_received_packet(SshCrossPacketType type,
         }
       ssh_agenti_handle_ssh1_packet(conn, type, data, len);
       break;
-#endif /* SSH_AGENT_SSH1_COMPATIBLE */
+#endif /* WITH_SSH_AGENT1_COMPAT */
     default:
       ssh_agenti_send_error(conn, SSH_AGENT_ERROR_UNSUPPORTED_OP);
       break;
@@ -1251,109 +1128,6 @@ void ssh_agenti_connection(SshStream stream, void *context)
   ssh_cross_down_can_receive(conn->down, TRUE);
 }
 
-/* Process URL sent by ssh-add. */
-Boolean ssh_agenti_process_url(SshAgentImpl agent,
-                               char *url,
-                               SshAgentKeyAttrs attrs)
-{
-  Boolean r;
-  char *scheme, *host, *port, *username, *password, *path;
-
-  if (!url)
-    return FALSE;
-
-  r = ssh_url_parse_and_decode(url, &scheme, &host, &port, 
-                               &username, &password, &path);
-  if (r == FALSE)
-    {
-      SSH_DEBUG(3, ("invalid url \"%s\".", url));
-      if (host)
-        ssh_xfree(host);
-      return FALSE;
-    }
-  if (scheme && (strcasecmp(scheme, "http") == 0))
-    {
-      SSH_DEBUG(3, ("\"http\" not used by agent."));
-      if (scheme)
-        ssh_xfree(scheme);
-      if (host)
-        ssh_xfree(host);
-      if (port)
-        ssh_xfree(port);
-      if (username)
-        ssh_xfree(username);
-      if (password)
-        ssh_xfree(password);
-      if (path)
-        ssh_xfree(path);
-      return FALSE;
-    }
-#ifdef SSHDIST_SSH2_F_SECURE_COMMERCIAL
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#endif /* SSHDIST_SSH2_F_SECURE_COMMERCIAL */
-  SSH_DEBUG(3, ("unknown scheme \"%s\".", scheme));
-  if (scheme)
-    ssh_xfree(scheme);
-  if (host)
-    ssh_xfree(host);
-  if (port)
-    ssh_xfree(port);
-  if (username)
-    ssh_xfree(username);
-  if (password)
-    ssh_xfree(password);
-  if (path)
-    ssh_xfree(path);
-  return FALSE;
-}
-
 /* Creates the authentication agent and starts listening for connections. */
 SshAgentImpl ssh_agenti_create(char **path_return)
 {
@@ -1367,27 +1141,15 @@ SshAgentImpl ssh_agenti_create(char **path_return)
                                                ssh_agenti_connection,
                                                FALSE,
                                                (void *)agent);
-#ifdef SSH_AGENT_SSH1_COMPATIBLE
+#ifdef WITH_SSH_AGENT1_COMPAT
   agent->ssh1_compat = FALSE;
-#endif /* SSH_AGENT_SSH1_COMPATIBLE */
+#endif /* WITH_SSH_AGENT1_COMPAT */
 
   if (!agent->listener)
     {
       ssh_xfree(agent);
       return NULL;
     }
-#ifdef SSHDIST_SSH2_F_SECURE_COMMERCIAL
-
-
-
-
-
-
-
-
-
-#endif /* SSHDIST_SSH2_F_SECURE_COMMERCIAL */
-
   return agent;
 }
 
@@ -1515,7 +1277,7 @@ Boolean ssh_agenti_invalid_key(SshAgentConnection conn,
 static void usage(void);
 static void usage()
 {
-  fprintf(stderr, "Usage: ssh-agent [-c] [-s] [-1] [-u url] [command [args...]]\n");
+  fprintf(stderr, "Usage: ssh-agent [-c] [-s] [-1] [command [args...]]\n");
   exit(1);
 }
 
@@ -1530,10 +1292,9 @@ int main(int argc, char **argv)
   int pid;
   SshUser user;
   Boolean debug_mode;
-  char *cmd_url = NULL;
-#ifdef SSH_AGENT_SSH1_COMPATIBLE
+#ifdef WITH_SSH_AGENT1_COMPAT
   Boolean ssh1_compat = FALSE;
-#endif /* SSH_AGENT_SSH1_COMPATIBLE */
+#endif /* WITH_SSH_AGENT1_COMPAT */
 
   /* Save program name. */
   if (strchr(argv[0], '/'))
@@ -1565,15 +1326,12 @@ int main(int argc, char **argv)
           debug_mode = TRUE;
           ssh_debug_set_level_string(ssh_optarg);
           break;
-        case 'u':
-          cmd_url = ssh_optarg;
-          break;
         case '1':
-#ifdef SSH_AGENT_SSH1_COMPATIBLE
+#ifdef WITH_SSH_AGENT1_COMPAT
           ssh1_compat = TRUE;
-#else /* SSH_AGENT_SSH1_COMPATIBLE */
+#else /* WITH_SSH_AGENT1_COMPAT */
           ssh_warning("warning: ssh-agent1 compatibility not supported.\n");
-#endif /* SSH_AGENT_SSH1_COMPATIBLE */
+#endif /* WITH_SSH_AGENT1_COMPAT */
           break;  
         default:
           fprintf(stderr, "%s: unknown option '%c'.\n", av0, ssh_optopt);
@@ -1590,9 +1348,9 @@ int main(int argc, char **argv)
 
   /* Determine the path of the agent socket and create the agent. */
   agent = ssh_agenti_create(&socket_name);
-#ifdef SSH_AGENT_SSH1_COMPATIBLE
+#ifdef WITH_SSH_AGENT1_COMPAT
   agent->ssh1_compat = ssh1_compat;
-#endif /* SSH_AGENT_SSH1_COMPATIBLE */
+#endif /* WITH_SSH_AGENT1_COMPAT */
 
   if (agent == NULL)
     {
@@ -1635,7 +1393,7 @@ int main(int argc, char **argv)
                      SSH_AGENT_VAR, socket_name, SSH_AGENT_VAR);
               printf("%s=%lu; export %s;\n", 
                      SSH_AGENT_PID, (unsigned long)pid, SSH_AGENT_PID);
-#ifdef SSH_AGENT_SSH1_COMPATIBLE
+#ifdef WITH_SSH_AGENT1_COMPAT
               if (ssh1_compat)
                 {
                   if (strcmp(SSH1_AGENT_VAR, SSH_AGENT_VAR) != 0)
@@ -1645,14 +1403,14 @@ int main(int argc, char **argv)
                     printf("%s=%lu; export %s;\n", 
                            SSH1_AGENT_PID, (unsigned long)pid, SSH1_AGENT_PID);
                 }
-#endif /* SSH_AGENT_SSH1_COMPATIBLE */
+#endif /* WITH_SSH_AGENT1_COMPAT */
               printf("echo Agent pid %lu;\n", (unsigned long)pid);
             }
           else
             {                   /* shell is *csh */
               printf("setenv %s %s;\n", SSH_AGENT_VAR, socket_name);
               printf("setenv %s %lu;\n", SSH_AGENT_PID, (unsigned long)pid);
-#ifdef SSH_AGENT_SSH1_COMPATIBLE
+#ifdef WITH_SSH_AGENT1_COMPAT
               if (ssh1_compat)
                 {
                   if (strcmp(SSH1_AGENT_VAR, SSH_AGENT_VAR) != 0)
@@ -1661,7 +1419,7 @@ int main(int argc, char **argv)
                     printf("setenv %s %lu;\n", 
                            SSH1_AGENT_PID, (unsigned long)pid);
                 }
-#endif /* SSH_AGENT_SSH1_COMPATIBLE */
+#endif /* WITH_SSH_AGENT1_COMPAT */
               printf("echo Agent pid %lu;\n", (unsigned long)pid);
             }
           exit(0);
@@ -1675,7 +1433,7 @@ int main(int argc, char **argv)
           snprintf(buf, sizeof(buf), "%s=%lu",
                    SSH_AGENT_PID, (unsigned long)pid);
           putenv(ssh_xstrdup(buf));
-#ifdef SSH_AGENT_SSH1_COMPATIBLE
+#ifdef WITH_SSH_AGENT1_COMPAT
               if (ssh1_compat)
                 {
                   if (strcmp(SSH1_AGENT_VAR, SSH_AGENT_VAR) != 0)
@@ -1691,7 +1449,7 @@ int main(int argc, char **argv)
                       putenv(ssh_xstrdup(buf));
                     }
                 }
-#endif /* SSH_AGENT_SSH1_COMPATIBLE */
+#endif /* WITH_SSH_AGENT1_COMPAT */
           execvp(argv[ssh_optind], argv + ssh_optind);
           perror(argv[ssh_optind]);
           exit(1);
@@ -1716,7 +1474,7 @@ int main(int argc, char **argv)
                  SSH_AGENT_VAR, socket_name, SSH_AGENT_VAR);
           printf("%s=%lu; export %s;\n", 
                  SSH_AGENT_PID, (unsigned long)getpid(), SSH_AGENT_PID);
-#ifdef SSH_AGENT_SSH1_COMPATIBLE
+#ifdef WITH_SSH_AGENT1_COMPAT
           if (ssh1_compat)
             {
               if (strcmp(SSH1_AGENT_VAR, SSH_AGENT_VAR) != 0)
@@ -1728,14 +1486,14 @@ int main(int argc, char **argv)
                        (unsigned long)getpid(),
                        SSH1_AGENT_PID);
             }
-#endif /* SSH_AGENT_SSH1_COMPATIBLE */
+#endif /* WITH_SSH_AGENT1_COMPAT */
           printf("echo Agent pid %lu;\n", (unsigned long)getpid());
         }
       else
         {                   /* shell is *csh */
           printf("setenv %s %s;\n", SSH_AGENT_VAR, socket_name);
           printf("setenv %s %lu;\n", SSH_AGENT_PID, (unsigned long)getpid());
-#ifdef SSH_AGENT_SSH1_COMPATIBLE
+#ifdef WITH_SSH_AGENT1_COMPAT
           if (ssh1_compat)
             {
               if (strcmp(SSH1_AGENT_VAR, SSH_AGENT_VAR) != 0)
@@ -1744,7 +1502,7 @@ int main(int argc, char **argv)
                 printf("setenv %s %lu;\n",
                        SSH1_AGENT_PID, (unsigned long)getpid());
             }
-#endif /* SSH_AGENT_SSH1_COMPATIBLE */
+#endif /* WITH_SSH_AGENT1_COMPAT */
           printf("echo Agent pid %lu;\n", (unsigned long)getpid());
         }
     }
@@ -1779,9 +1537,6 @@ int main(int argc, char **argv)
 
   agent->socket_name = ssh_xstrdup(socket_name);
 
-  if (cmd_url)
-    ssh_agenti_process_url(agent, cmd_url, NULL);
-
   /* Load the random seed file. */
   agent->random_state = ssh_randseed_open(user, NULL);
 
@@ -1807,12 +1562,6 @@ int main(int argc, char **argv)
   /* Uninitialize the event loop. */
   ssh_event_loop_uninitialize();
 
-#ifdef SSHDIST_SSH2_F_SECURE_COMMERCIAL
-
-
-
-#endif /* SSHDIST_SSH2_F_SECURE_COMMERCIAL */
-
   if (agent->random_state)
     {
       /* Update the random seed file. */
@@ -1834,7 +1583,7 @@ int main(int argc, char **argv)
   return 0;
 }
 
-#ifdef SSH_AGENT_SSH1_COMPATIBLE
+#ifdef WITH_SSH_AGENT1_COMPAT
 void ssh_agenti_ssh1_encode_mp(SshBuffer *buffer, MP_INT *n)
 {
   SshUInt32 len;
@@ -1878,18 +1627,12 @@ Boolean ssh_agenti_ssh1_decode_mp(SshBuffer *buffer, MP_INT *n)
 void ssh_agenti_ssh1_list_keys(SshAgentConnection conn)
 {
   SshAgentKey key;
+  SshAgentSsh1Key ssh1_key;
   unsigned long num_keys;
   SshBuffer buffer;
   char *key_name;
   SshPublicKey public_key;
-#ifdef SSHDIST_SSH2_F_SECURE_COMMERCIAL
-
-
-
-
-
-
-#endif /* SSHDIST_SSH2_F_SECURE_COMMERCIAL */
+  size_t bits;
 
   if (conn->agent->lock_password)
     {
@@ -1904,9 +1647,29 @@ void ssh_agenti_ssh1_list_keys(SshAgentConnection conn)
   num_keys = 0;
   ssh_buffer_init(&buffer);
 
+  for (ssh1_key = conn->agent->ssh1_keys; ssh1_key; ssh1_key = ssh1_key->next)
+    {
+      bits = ssh_mp_get_size(&(ssh1_key->n), 2);
+      if (bits <= 0x10000)
+        {
+          num_keys++;
+          ssh_encode_buffer(&buffer,
+                            SSH_FORMAT_UINT32, 
+                            (SshUInt32)bits,
+                            SSH_FORMAT_END);
+          ssh_agenti_ssh1_encode_mp(&buffer, &(ssh1_key->e));
+          ssh_agenti_ssh1_encode_mp(&buffer, &(ssh1_key->n));
+          ssh_encode_buffer(&buffer,
+                            SSH_FORMAT_UINT32_STR, 
+                            ssh1_key->description, 
+                            strlen(ssh1_key->description),
+                            SSH_FORMAT_END);
+        }
+    }
   for (key = conn->agent->keys; key; key = key->next)
     {
       if ((key->attr.compat_allowed) &&
+          (! key->ssh1_key_available) &&
           (! ssh_agenti_invalid_key(conn, &(key->attr))))
         {
           if (key->private_key)
@@ -1923,7 +1686,6 @@ void ssh_agenti_ssh1_list_keys(SshAgentConnection conn)
               if (public_key)
                 {
                   MP_INT n, e;
-                  size_t bits;
                   
                   mpz_init(&n);
                   mpz_init(&e);
@@ -1965,98 +1727,6 @@ void ssh_agenti_ssh1_list_keys(SshAgentConnection conn)
         }
     }
 
-#ifdef SSHDIST_SSH2_F_SECURE_COMMERCIAL
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#endif /* SSHDIST_SSH2_F_SECURE_COMMERCIAL */
-
   ssh_agenti_send(conn, SSH1_AGENT_KEY_LIST,
                   SSH_FORMAT_UINT32, 
                   (SshUInt32)num_keys,
@@ -2066,11 +1736,11 @@ void ssh_agenti_ssh1_list_keys(SshAgentConnection conn)
   ssh_buffer_uninit(&buffer);
 }
 
-void ssh_agenti_ssh1_rsa_challenge(SshAgentConnection conn, 
+void ssh_agenti_ssh1_challenge(SshAgentConnection conn, 
                                    const unsigned char *data, 
                                    size_t len)
 {
-  MP_INT e, n, challenge;
+  MP_INT e, n, challenge, output;
   SshBuffer buffer;
   SshBuffer reply;
   size_t bits;
@@ -2083,6 +1753,7 @@ void ssh_agenti_ssh1_rsa_challenge(SshAgentConnection conn,
   size_t public_blob_len, output_len, challenge_len, output_digest_len;
   SshHash hash;
   SshAgentKey key = NULL;
+  SshAgentSsh1Key ssh1_key = NULL;
   SshUInt32 response_type;
   Boolean success = FALSE;
   SshCryptoStatus cr;
@@ -2093,6 +1764,7 @@ void ssh_agenti_ssh1_rsa_challenge(SshAgentConnection conn,
   mpz_init(&n);
   mpz_init(&e);
   mpz_init(&challenge);
+  mpz_init(&output);
 
   SSH_DEBUG(7, ("got ssh1 challenge from the server"));
 
@@ -2131,79 +1803,104 @@ void ssh_agenti_ssh1_rsa_challenge(SshAgentConnection conn,
       session_id = ssh_xmalloc(16);
       memset(session_id, 0, 16);
     }
-  /* Make public key */
-  cr = ssh_public_key_define(&public_key, 
-                             SSH_CRYPTO_RSA, 
-                             SSH_PKF_MODULO_N, &n,
-                             SSH_PKF_PUBLIC_E, &e,
-                             SSH_PKF_END);
-  if (cr != SSH_CRYPTO_OK)
+  ssh1_key = ssh_agenti_ssh1key_find(conn->agent, &n, &e);
+  if (ssh1_key)
     {
-      SSH_DEBUG(6, ("failed to make public key (%d)", (int)cr));
-      goto cleanup_reply_and_return;
+      SSH_DEBUG(7, ("Using ssh1 key to decrypt challenge."));
+      /* Decrypt the challenge. */
+      mpz_powm(&output, &challenge, &(ssh1_key->d), &(ssh1_key->n));
+      /* Linearize the output */
+      output_len = ((ssh_mp_get_size(&output, 2) + 7) >> 3) & 0xffff;
+      if (output_len == 0)
+        {
+          SSH_DEBUG(6, ("failed to linearize the decrypted challenge"));
+          goto cleanup_reply_and_return;
+        }
+      if (output_len < 32)
+        output_len = 32;
+      output_buf = ssh_xcalloc(output_len, sizeof (unsigned char));
+      ssh_mp_get_buf(output_buf, output_len, &output);
+      /* Use at most lowest 32 bytes (256 bits) of the output. */
+      if (output_len > 32)
+        {
+          memcpy(output_buf, &(output_buf[output_len - 32]), 32);
+          output_len = 32;
+        }
+      SSH_DEBUG_HEXDUMP(9, ("Decrypted (internal) ssh1 challenge"), 
+                        output_buf, output_len);
     }
-
-  /* Linearize the public key to blob */
-  if ((public_blob_len = ssh_encode_pubkeyblob(public_key, &public_blob)) == 0)
+  else
     {
-      SSH_DEBUG(6, ("failed to linearize public key"));
-      goto cleanup_reply_and_return;
+      SSH_DEBUG(7, ("Attempting to use ssh2 key to decrypt challenge."));
+      /* Make public key */
+      cr = ssh_public_key_define(&public_key, 
+                                 SSH_CRYPTO_RSA, 
+                                 SSH_PKF_MODULO_N, &n,
+                                 SSH_PKF_PUBLIC_E, &e,
+                                 SSH_PKF_END);
+      if (cr != SSH_CRYPTO_OK)
+        {
+          SSH_DEBUG(6, ("failed to make public key (%d)", (int)cr));
+          goto cleanup_reply_and_return;
+        }
+
+      /* Linearize the public key to blob */
+      if ((public_blob_len = 
+           ssh_encode_pubkeyblob(public_key, &public_blob)) == 0)
+        {
+          SSH_DEBUG(6, ("failed to linearize public key"));
+          goto cleanup_reply_and_return;
+        }
+
+      /* Search the key */
+      key = ssh_agenti_find_key(conn->agent, 
+                                public_blob,
+                                public_blob_len, 
+                                TRUE);
+      if (key == NULL)
+        {
+          SSH_DEBUG(5, ("failed to find secret key"));
+          goto cleanup_reply_and_return;
+        }
+      else if (! key->attr.compat_allowed ||
+               ssh_agenti_invalid_key(conn, &(key->attr)))
+        {
+          SSH_DEBUG(5, ("secret key not available for restriction"));
+          goto cleanup_reply_and_return;
+        }
+
+      /* Linearize the challenge */
+      challenge_len = ((ssh_mp_get_size(&challenge, 2) + 7) >> 3) & 0xffff;
+      if (challenge_len == 0)
+        {
+          SSH_DEBUG(6, ("failed to linearize the challenge"));
+          goto cleanup_reply_and_return;
+        }
+      challenge_buf = ssh_xmalloc(challenge_len);
+      ssh_mp_get_buf(challenge_buf, challenge_len, &challenge);
+
+      /* Decrypt challenge */
+      output_len = ssh_private_key_max_decrypt_output_len(key->private_key);
+      if (output_len == 0)
+        {
+          SSH_DEBUG(6, ("failed to define output length"));
+          goto cleanup_reply_and_return;
+        }
+
+      output_buf = ssh_xmalloc(output_len);
+      cr = ssh_private_key_decrypt(key->private_key, 
+                                   challenge_buf, challenge_len,
+                                   output_buf, output_len,
+                                   &output_len);
+      if (cr != SSH_CRYPTO_OK)
+        {
+          SSH_DEBUG(6, ("failed to decrypt ssh1 challenge (%d)", 
+                        (int)cr));
+          goto cleanup_reply_and_return;
+        }
+      SSH_DEBUG_HEXDUMP(9, ("Decrypted (crypto lib) ssh1 challenge"), 
+                        output_buf, output_len);
     }
-
-  /* Search the key */
-#ifdef SSHDIST_SSH2_F_SECURE_COMMERCIAL
-
-
-
-
-
-
-
-
-#else /* SSHDIST_SSH2_F_SECURE_COMMERCIAL */
-  key = ssh_agenti_find_key(conn->agent, public_blob, public_blob_len, TRUE);
-#endif /* SSHDIST_SSH2_F_SECURE_COMMERCIAL */
-  if (key == NULL)
-    {
-      SSH_DEBUG(5, ("failed to find secret key"));
-      goto cleanup_reply_and_return;
-    }
-  else if (! key->attr.compat_allowed ||
-           ssh_agenti_invalid_key(conn, &(key->attr)))
-    {
-      SSH_DEBUG(5, ("secret key not available for restriction"));
-      goto cleanup_reply_and_return;
-    }
-
-  /* Linearize the challenge */
-  challenge_len = ((ssh_mp_get_size(&challenge, 2) + 7) >> 3) & 0xffff;
-  if (challenge_len == 0)
-    {
-      SSH_DEBUG(6, ("failed to linearize the challenge"));
-      goto cleanup_reply_and_return;
-    }
-  challenge_buf = ssh_xmalloc(challenge_len);
-  ssh_mp_get_buf(challenge_buf, challenge_len, &challenge);
-
-  /* Decrypt challenge */
-  output_len = ssh_private_key_max_decrypt_output_len(key->private_key);
-  if (output_len == 0)
-    {
-      SSH_DEBUG(6, ("failed to define rsa output length"));
-      goto cleanup_reply_and_return;
-    }
-
-  output_buf = ssh_xmalloc(output_len);
-  cr = ssh_private_key_decrypt(key->private_key, 
-                               challenge_buf, challenge_len,
-                               output_buf, output_len,
-                               &output_len);
-  if (cr != SSH_CRYPTO_OK)
-    {
-      SSH_DEBUG(6, ("failed to decrypt challenge with rsa key (%d)", (int)cr));
-      goto cleanup_reply_and_return;
-    }
-
   /* Compute the desired response. */
   switch (response_type)
     {
@@ -2243,6 +1940,7 @@ void ssh_agenti_ssh1_rsa_challenge(SshAgentConnection conn,
   mpz_clear(&n);
   mpz_clear(&e);
   mpz_clear(&challenge);
+  mpz_clear(&output);
   if (public_key)
     ssh_public_key_free(public_key);
   ssh_xfree(public_blob);
@@ -2250,17 +1948,8 @@ void ssh_agenti_ssh1_rsa_challenge(SshAgentConnection conn,
   ssh_xfree(challenge_buf);
   ssh_xfree(session_id);
   ssh_xfree(output_digest);
-#ifdef SSHDIST_SSH2_F_SECURE_COMMERCIAL
-
-
-
-
-
-
-
-#endif /* SSHDIST_SSH2_F_SECURE_COMMERCIAL */
   ssh_agenti_send(conn, 
-                  (success ? SSH1_AGENT_RSA_RESPONSE : SSH1_AGENT_FAILURE),
+                  (success ? SSH1_AGENT_AUTH_RESPONSE : SSH1_AGENT_FAILURE),
                   SSH_FORMAT_DATA, 
                   ssh_buffer_ptr(&reply), ssh_buffer_len(&reply),
                   SSH_FORMAT_END);
@@ -2296,7 +1985,7 @@ void ssh_agenti_ssh1_add_key(SshAgentConnection conn,
                         SSH_FORMAT_END) == 0)
     goto cleanup_reply_and_return;
 
-  /* Get RSA key numbers */
+  /* Get key numbers */
   if (! (ssh_agenti_ssh1_decode_mp(&buffer, &n) &&
          ssh_agenti_ssh1_decode_mp(&buffer, &e) &&
          ssh_agenti_ssh1_decode_mp(&buffer, &d) &&
@@ -2311,6 +2000,12 @@ void ssh_agenti_ssh1_add_key(SshAgentConnection conn,
                         SSH_FORMAT_END) == 0)
     goto cleanup_reply_and_return;
 
+  success = ssh_agenti_ssh1key_add(conn->agent, &n, &e, &d, comment);
+  /*
+   * If there is no RSA support in crypto library, the following
+   * ssh_private_key_generate call will fail and the key will
+   * be only visible for ssh-agent1.
+   */
   /* Create the SSH private key from the extracted numbers */
   if (ssh_private_key_generate(conn->agent->random_state, &private_key,
                                SSH_CRYPTO_RSA,
@@ -2337,7 +2032,8 @@ void ssh_agenti_ssh1_add_key(SshAgentConnection conn,
                                NULL, 0, private_key,
                                public_blob, public_blob_len, 
                                comment,
-                               NULL);
+                               NULL,
+                               TRUE);
 
   /* Following space is freed by ssh_agenti_add_key so we NULL them
      in order to avoid free in cleanup. */
@@ -2388,11 +2084,17 @@ void ssh_agenti_ssh1_remove_key(SshAgentConnection conn,
                         SSH_FORMAT_END) == 0)
     goto cleanup_reply_and_return;
 
-  /* Get RSA key numbers */
+  /* Get public key numbers */
   if (! (ssh_agenti_ssh1_decode_mp(&buffer, &e) &&
          ssh_agenti_ssh1_decode_mp(&buffer, &n)))
     goto cleanup_reply_and_return;
 
+  success = ssh_agenti_ssh1key_delete(conn->agent, &n, &e);
+  /*
+   * If there is no RSA support in crypto library, the following
+   * ssh_public_key_define call will fail.  In this case, it's not
+   * possible, that key would be in the list in the first place.
+   */
   /* Make public key */
   if (ssh_public_key_define(&key, 
                             SSH_CRYPTO_RSA, 
@@ -2442,8 +2144,8 @@ void ssh_agenti_handle_ssh1_packet(SshAgentConnection conn,
     case SSH1_AGENT_LIST_KEYS:
       ssh_agenti_ssh1_list_keys(conn);
       break;
-    case SSH1_AGENT_RSA_CHALLENGE:
-      ssh_agenti_ssh1_rsa_challenge(conn, data, len);
+    case SSH1_AGENT_AUTH_CHALLENGE:
+      ssh_agenti_ssh1_challenge(conn, data, len);
       break;
     case SSH1_AGENT_ADD_KEY:
       ssh_agenti_ssh1_add_key(conn, data, len);
@@ -2460,211 +2162,97 @@ void ssh_agenti_handle_ssh1_packet(SshAgentConnection conn,
       break;
     }
 }
-#endif /* SSH_AGENT_SSH1_COMPATIBLE */
 
-#ifdef SSHDIST_SSH2_F_SECURE_COMMERCIAL
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-#endif /* SSHDIST_SSH2_F_SECURE_COMMERCIAL */
+/* Find ssh1 key with the given public part */
+SshAgentSsh1Key ssh_agenti_ssh1key_find(SshAgentImpl agent,
+                                        MP_INT *n, 
+                                        MP_INT *e)
+{
+  SshAgentSsh1Key key;
+
+  key = agent->ssh1_keys;
+  while (key)
+    {
+      if ((mpz_cmp(n, &(key->n)) == 0) && (mpz_cmp(e, &(key->e)) == 0))
+        return key;
+      key = key->next;
+    }
+  return NULL;
+}
+
+/* Adds the given ssh1 private key to be managed by the agent. */
+Boolean ssh_agenti_ssh1key_add(SshAgentImpl agent,
+                               MP_INT *n, 
+                               MP_INT *e,
+                               MP_INT *d,
+                               char *description)
+{
+  SshAgentSsh1Key key;
+
+  if (! agent->ssh1_compat)
+    return FALSE;
+  (void)ssh_agenti_ssh1key_delete(agent, n, e);
+  key = ssh_xcalloc(1, sizeof (*key));
+  key->description = ssh_xstrdup(description);
+  mpz_init_set(&(key->n), n);
+  mpz_init_set(&(key->e), e);
+  mpz_init_set(&(key->d), d);
+  key->next = agent->ssh1_keys;
+  agent->ssh1_keys = key;
+  return TRUE;
+}
+
+/* Delete a ssh1 key with given public key */
+Boolean ssh_agenti_ssh1key_delete(SshAgentImpl agent,
+                                  MP_INT *n, 
+                                  MP_INT *e)
+{
+  SshAgentSsh1Key key, prev;
+  Boolean success = FALSE;
+
+  prev = NULL;
+  key = agent->ssh1_keys;
+  while (key)
+    {
+      if ((mpz_cmp(n, &(key->n)) == 0) && (mpz_cmp(e, &(key->e)) == 0))
+        {
+          if (prev)
+            prev->next = key->next;
+          else
+            agent->ssh1_keys = key->next;
+          mpz_clear(&key->n);
+          mpz_clear(&key->e);
+          mpz_clear(&key->d);
+          ssh_xfree(key->description);
+          ssh_xfree(key);
+          success = TRUE;
+        }
+      else
+        {
+          prev = key;
+        }
+      key = key->next;
+    }
+  return success;
+}
+
+/* Delete all ssh1 keys */
+void ssh_agenti_ssh1key_delete_all(SshAgentImpl agent)
+{
+  SshAgentSsh1Key key;
+
+  for (key = agent->ssh1_keys; key; key = key->next)
+    {
+      mpz_clear(&key->n);
+      mpz_clear(&key->e);
+      mpz_clear(&key->d);
+      ssh_xfree(key->description);
+      ssh_xfree(key);
+    }
+  agent->ssh1_keys = NULL;
+  return;
+}
+
+#endif /* WITH_SSH_AGENT1_COMPAT */
 
 /* eof (ssh-agent2.c) */

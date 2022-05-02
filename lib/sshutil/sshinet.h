@@ -17,7 +17,7 @@
 
 #include "sshenum.h"
 
-/* Keyword mapping for IP protocol identifier numbers and names */
+/* IP protocol names to keywords definitions */
 extern const SshKeyword ssh_ip_protocol_id_keywords[];
 
 /* IP protocol identifiers */
@@ -144,7 +144,7 @@ typedef enum {
 #define IP_PROTOCOL_ID_MAX (255)
 #define IP_PROTOCOL_ID_MAX (255)
 
-/* IP protocol identifiers */
+/* ICMP types and codes */
 typedef enum {
   IP_ICMP_TYPE_ECHOREPLY = 0,           /* Echo reply */
   IP_ICMP_TYPE_UNREACH = 3,             /* Destination unreachable */

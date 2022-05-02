@@ -11,7 +11,7 @@ Interface to sockets.
 */
 
 /*
- * $Id: sshtcp.h,v 1.14 1998/07/29 18:31:14 tmo Exp $
+ * $Id: sshtcp.h,v 1.16 1998/11/26 13:46:55 sjl Exp $
  * $Log: sshtcp.h,v $
  * $EndLog$
  */
@@ -59,8 +59,8 @@ ssh_tcp_error_string(SshIpError error);
 /* Callback function for socket creation.  The given function is called when
    a connection is ready. */
 typedef void (*SshTcpCallback)(SshIpError error,
-			       SshStream stream,
-			       void *context);
+                               SshStream stream,
+                               void *context);
 /* Opens a TCP/IP connection to the given port on the host, and calls
    the callback when the connection is either ready or has failed.  The
    connection is attempted several times before giving up.  The callback
@@ -84,11 +84,11 @@ typedef void (*SshTcpCallback)(SshIpError error,
    those cases). */
 DLLEXPORT void DLLCALLCONV
 ssh_tcp_connect_with_socks(const char *host_name_or_address,
-			   const char *port_or_service,
-			   const char *socks_server_url,
-			   unsigned int connection_attempts,
-			   SshTcpCallback callback,
-			   void *context);
+                           const char *port_or_service,
+                           const char *socks_server_url,
+                           unsigned int connection_attempts,
+                           SshTcpCallback callback,
+                           void *context);
 
 /* Opens a connection to the specified host, and calls the callback
    when the connection has been established or has failed.  If
@@ -98,9 +98,9 @@ ssh_tcp_connect_with_socks(const char *host_name_or_address,
    reason for the connection failing, and the stream will be NULL. */
 DLLEXPORT void DLLCALLCONV
 ssh_tcp_connect(const char *host_name_or_address,
-		const char *port_or_service,
-		SshTcpCallback callback,
-		void *context);
+                const char *port_or_service,
+                SshTcpCallback callback,
+                void *context);
 
 /* --------- function for listening for connections ---------- */
 
@@ -113,9 +113,9 @@ typedef struct SshTcpListenerRec *SshTcpListener;
    a new connection is received at the socket.  This returns NULL on error. */
 DLLEXPORT SshTcpListener DLLCALLCONV
 ssh_tcp_make_listener(const char *local_address,
-		      const char *port_or_service,
-		      SshTcpCallback callback,
-		      void *context);
+                      const char *port_or_service,
+                      SshTcpCallback callback,
+                      void *context);
 
 /* Destroys the socket.  It is safe to call this from a callback.  If
    the listener was local, and a socket was created in the file system, this
@@ -162,16 +162,16 @@ ssh_tcp_get_host_name(char *buf, size_t buflen);
    should copy the result; the argument string is only valid until this
    call returns.  The result is only valid if error is SSH_IP_OK. */
 typedef void (*SshLookupCallback)(SshIpError error,
-				  const char *result,
-				  void *context);
+                                  const char *result,
+                                  void *context);
 
 /* Looks up all ip-addresses of the host, returning them as a comma-separated
    list when calling the callback.  The host name may already be an ip
    address, in which case it is returned directly. */
 DLLEXPORT void DLLCALLCONV
 ssh_tcp_get_host_addrs_by_name(const char *name, 
-				  SshLookupCallback callback,
-				  void *context);
+                               SshLookupCallback callback,
+                               void *context);
 
 /* Looks up the name of the host by its ip-address.  Verifies that the
    address returned by the name servers also has the original ip address.
@@ -179,7 +179,7 @@ ssh_tcp_get_host_addrs_by_name(const char *name,
    copy the returned name. */
 DLLEXPORT void DLLCALLCONV
 ssh_tcp_get_host_by_addr(const char *addr, SshLookupCallback callback,
-			    void *context);
+                         void *context);
 
 /* Looks up the service (port number) by name and protocol.  `protocol' must
    be either "tcp" or "udp".  Returns -1 if the service could not be found. */
@@ -193,7 +193,7 @@ ssh_tcp_get_port_by_service(const char *name, const char *proto);
    truncated if it is too long. */
 DLLEXPORT void DLLCALLCONV
 ssh_tcp_get_service_by_port(unsigned int port, const char *protocol,
-			       char *buf, size_t buflen);
+                            char *buf, size_t buflen);
 
 /* --------------------- functions for socket options ----------------*/
 
@@ -208,6 +208,6 @@ ssh_socket_set_nodelay(SshStream stream, Boolean on);
    invalid. */
 DLLEXPORT int DLLCALLCONV
 ssh_socket_port_number_compare(const char *port1, const char *port2,
-			       const char *proto);
+                               const char *proto);
 
 #endif /* SSHTCP_H */

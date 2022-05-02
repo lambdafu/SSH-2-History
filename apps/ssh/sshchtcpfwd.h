@@ -79,12 +79,12 @@ typedef struct SshChannelTypeTcpDirectRec
 /* This function is called whenever an open request is received for a
    remote forwarded tcp/ip channel. */
 void ssh_channel_ftcp_open_request(const char *type,
-				   int channel_id,
-				   const unsigned char *data,
-				   size_t len,
-				   SshConnOpenCompletionProc completion,
-				   void *completion_context,
-				   void *context);
+                                   int channel_id,
+                                   const unsigned char *data,
+                                   size_t len,
+                                   SshConnOpenCompletionProc completion,
+                                   void *completion_context,
+                                   void *context);
 
 /* This function is called once when a SshCommon object is created. */
 void *ssh_channel_ftcp_create(SshCommon common);
@@ -97,16 +97,16 @@ void ssh_channel_ftcp_destroy(void *context);
 /* This function is called whenever a protocol request is received to
    set up a remote TCP/IP forwarding. */
 Boolean ssh_channel_ftcp_global_forward(const char *type,
-					const unsigned char *data,
-					size_t len,
-					void *context);
+                                        const unsigned char *data,
+                                        size_t len,
+                                        void *context);
 
 /* This function is called whenever a protocol request is received to cancel
    a remote TCP/IP forwarding. */
 Boolean ssh_channel_ftcp_global_cancel_forward(const char *type,
-					       const unsigned char *data,
-					       size_t len,
-					       void *context);
+                                               const unsigned char *data,
+                                               size_t len,
+                                               void *context);
 
 /* Returns the channel type context from the SshCommon object. */
 
@@ -115,12 +115,12 @@ SshChannelTypeTcpForward ssh_channel_ftcp_ct(SshCommon common);
 /* This function is called whenever an open request is received for a
    locally forwarded tcp/ip channel. */
 void ssh_channel_dtcp_open_request(const char *type,
-				   int channel_id,
-				   const unsigned char *data,
-				   size_t len,
-				   SshConnOpenCompletionProc completion,
-				   void *completion_context,
-				   void *context);
+                                   int channel_id,
+                                   const unsigned char *data,
+                                   size_t len,
+                                   SshConnOpenCompletionProc completion,
+                                   void *completion_context,
+                                   void *context);
 
 /* This function is called once when a SshCommon object is created. */
 void *ssh_channel_dtcp_create(SshCommon common);
@@ -136,34 +136,34 @@ SshChannelTypeTcpDirect ssh_channel_dtcp_ct(SshCommon common);
 
 /* Processes a received request to set up remote TCP/IP forwarding. */
 Boolean ssh_channel_remote_tcp_forward_request(const char *type,
-					       const unsigned char *data,
-					       size_t len,
-					       void *context);
+                                               const unsigned char *data,
+                                               size_t len,
+                                               void *context);
 
 /* Processes a received request to cancel remote TCP/IP forwarding. */
 Boolean ssh_channel_tcp_forward_cancel(const char *type,
-				       const unsigned char *data,
-				       size_t len,
-				       void *context);
+                                       const unsigned char *data,
+                                       size_t len,
+                                       void *context);
 
 /* Requests forwarding of the given remote TCP/IP port.  If the completion
    procedure is non-NULL, it will be called when done. */
 void ssh_channel_start_remote_tcp_forward(SshCommon common,
-					  const char *address_to_bind,
-					  const char *port,
-					  const char *connect_to_host,
-					  const char *connect_to_port,
-					  void (*completion)(Boolean ok,
-							     void *context),
-					  void *context);
+                                          const char *address_to_bind,
+                                          const char *port,
+                                          const char *connect_to_host,
+                                          const char *connect_to_port,
+                                          void (*completion)(Boolean ok,
+                                                             void *context),
+                                          void *context);
 
 /* Requests forwarding of the given local TCP/IP port.  Returns TRUE if
    forwarding was successfully started, FALSE otherwise. */
 Boolean ssh_channel_start_local_tcp_forward(SshCommon common,
-					const char *address_to_bind,
-					const char *port,
-					const char *connect_to_host,
-					const char *connect_to_port);
+                                        const char *address_to_bind,
+                                        const char *port,
+                                        const char *connect_to_host,
+                                        const char *connect_to_port);
 
 /* Opens a direct connection to the given TCP/IP port at the remote side.
    The originator values should be set to useful values and are passed
@@ -171,9 +171,9 @@ Boolean ssh_channel_start_local_tcp_forward(SshCommon common,
    The stream will be closed when the channel is closed, or if opening
    the channel fails. */
 void ssh_channel_dtcp_open_to_remote(SshCommon common, SshStream stream,
-				     const char *connect_to_host,
-				     const char *connect_to_port,
-				     const char *originator_ip,
-				     const char *originator_port);
+                                     const char *connect_to_host,
+                                     const char *connect_to_port,
+                                     const char *originator_ip,
+                                     const char *originator_port);
 
 #endif /* SSHCHTCPFWD_H */

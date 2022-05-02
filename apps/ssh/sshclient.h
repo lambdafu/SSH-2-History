@@ -88,8 +88,8 @@ typedef struct {
      `msg'        disconnect message in English
      `context'    context argument from when the callback was registered */
 typedef void (*SshClientDisconnectProc)(int reason,
-					const char *msg,
-					void *context);
+                                        const char *msg,
+                                        void *context);
 
 /* Callback function called when a debug message is received from the other
    side.  If this is NULL, all received debug messages are ignored.
@@ -97,14 +97,14 @@ typedef void (*SshClientDisconnectProc)(int reason,
      `msg'     the debugging message (normally English)
      `context' context argument passed when the callback was registered. */
 typedef void (*SshClientDebugProc)(int type,
-				   const char *msg,
-				   void *context);
+                                   const char *msg,
+                                   void *context);
 
 /* Callback function to be called whenever a channel is closed.
      `channel_id'    the channel id passed when the channel was created
      `context'       context argument from ssh_client_wrap. */
 typedef void (*SshClientChannelCloseProc)(int channel_id,
-					  void *context);
+                                          void *context);
 
 /* Takes a stream, and creates an SSH client for processing that
    connection.  This closes the stream and returns NULL (without
@@ -125,15 +125,15 @@ typedef void (*SshClientChannelCloseProc)(int channel_id,
    The object should be destroyed from the ``disconnect'' callback or from
    a ``close_notify'' callback (see below).  */
 SshClient ssh_client_wrap(SshStream stream, SshConfig config,
-			  SshUser user_data,
-			  const char *server_host_name,
-			  const char *user,
-			  SshRandomState random_state,
-			  SshClientDisconnectProc disconnect,
-			  SshClientDebugProc debug,
-			  void (*authentiated_notify)(const char *user,
-						      void *context),
-			  void *context);
+                          SshUser user_data,
+                          const char *server_host_name,
+                          const char *user,
+                          SshRandomState random_state,
+                          SshClientDisconnectProc disconnect,
+                          SshClientDebugProc debug,
+                          void (*authentiated_notify)(const char *user,
+                                                      void *context),
+                          void *context);
 
 /* Forcibly destroys the given connection. */
 void ssh_client_destroy(SshClient client);
@@ -160,42 +160,42 @@ void ssh_client_destroy(SshClient client);
    the cannnel fails.  It is legal to call ssh_conn_destroy from
    ``close_notify'', unless it has already been called. */
 void ssh_client_start_session(SshClient client, SshStream stdio_stream,
-			      SshStream stderr_stream, Boolean auto_close,
-			      Boolean is_subsystem, const char *command,
-			      Boolean allocate_pty, const char *term,
-			      const char **env,
-			      Boolean forward_x11, Boolean forward_agent,
-			      void (*completion)(Boolean success,
-						 void *context),
-			      void (*close_notify)(void *context),
-			      void *context);
+                              SshStream stderr_stream, Boolean auto_close,
+                              Boolean is_subsystem, const char *command,
+                              Boolean allocate_pty, const char *term,
+                              const char **env,
+                              Boolean forward_x11, Boolean forward_agent,
+                              void (*completion)(Boolean success,
+                                                 void *context),
+                              void (*close_notify)(void *context),
+                              void *context);
 
 /* Requests forwarding of the given remote TCP/IP port.  If the completion
    procedure is non-NULL, it will be called when done. */
 void ssh_client_remote_tcp_ip_forward(SshClient client,
-				      const char *address_to_bind,
-				      const char *port,
-				      const char *connect_to_host,
-				      const char *connect_to_port,
-				      void (*completion)(Boolean success,
-							 void *context),
-				      void *context);
+                                      const char *address_to_bind,
+                                      const char *port,
+                                      const char *connect_to_host,
+                                      const char *connect_to_port,
+                                      void (*completion)(Boolean success,
+                                                         void *context),
+                                      void *context);
 
 /* Requests forwarding of the given local TCP/IP port.  If the completion
    procedure is non-NULL, it will be called when done. */
 Boolean ssh_client_local_tcp_ip_forward(SshClient client,
-					const char *address_to_bind,
-					const char *port,
-					const char *connect_to_host,
-					const char *connect_to_port);
+                                        const char *address_to_bind,
+                                        const char *port,
+                                        const char *connect_to_host,
+                                        const char *connect_to_port);
 
 /* Opens a direct connection to the given TCP/IP port at the remote side.
    The originator values should be set to useful values and are passed
    to the other side.  ``stream'' will be used to transfer channel data. */
 void ssh_client_open_remote_tcp_ip(SshClient client, SshStream stream,
-				   const char *connect_to_host,
-				   const char *connect_to_port,
-				   const char *originator_ip,
-				   const char *originator_port);
+                                   const char *connect_to_host,
+                                   const char *connect_to_port,
+                                   const char *originator_ip,
+                                   const char *originator_port);
 
 #endif /* SSHCLIENT_H */
