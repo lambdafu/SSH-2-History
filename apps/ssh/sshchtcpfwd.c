@@ -28,6 +28,16 @@ Code implementing TCP/IP forwarding channels for SSH2 servers and clients.
 
 #include "sshchtcpfwd.h"
 
+#ifdef HAVE_LIBWRAP
+#include <netdb.h>
+#include <tcpd.h>
+#include <syslog.h>
+#include "sshunixfdstream.h"
+#ifdef NEED_SYS_SYSLOG_H
+#include <sys/syslog.h>
+#endif /* NEED_SYS_SYSLOG_H */
+#endif /* HAVE_LIBWRAP */
+
 #define SSH_DEBUG_MODULE "Ssh2ChannelTcpFwd"
 
 #define SSH_TCPIP_WINDOW         30000
@@ -412,6 +422,48 @@ void ssh_channel_ftcp_incoming_connection(SshIpError error, SshStream stream,
 
   ssh_debug("Connection to forwarded port %s from %s:%s",
 	    fwd->port, ip, port);
+  /* XXXXXXXX */
+#ifdef LIBWRAP
+  {
+    struct request_info req;
+    struct servent *serv;
+    char fwdportname[32];
+		
+    /* try to find port's name in /etc/services */
+    /*    serv = getservbyport(htons(ch->listening_port), "tcp"); */
+    serv = getservbyport(atoi(fwd->port), "tcp");
+    if (serv == NULL)
+      {
+	/* not found (or faulty getservbyport) -
+	   use the number as a name */
+	/* snprintf(fwdportname, sizeof(fwdportname), "sshdfwd-%d", ch->listening_port); */
+	snprintf(fwdportname, sizeof(fwdportname), "sshdfwd-%s", fwd->port);
+      }
+    else
+      {
+	snprintf(fwdportname, sizeof(fwdportname), "sshdfwd-%.20s", serv->s_name);
+      }
+    /* fill req struct with port name and fd number */
+    request_init(&req, RQ_DAEMON, fwdportname,
+		 RQ_FILE, ssh_stream_fd_get_readfd(stream), NULL);
+    fromhost(&req);
+    if (!hosts_access(&req))
+      {
+	ssh_conn_send_debug(fwd->common->conn, TRUE,
+			    "Fwd connection from %.500s to local port %s refused by tcp_wrappers.",
+			    eval_client(&req), fwdportname);
+	/*	error("Fwd connection from %.500s to local port %s refused by tcp_wrappers.",
+	      eval_client(&req), fwdportname);*/
+	ssh_stream_destroy(stream);
+	/*	shutdown(newsock, 2);
+	close(newsock);*/
+	return;
+      }
+    ssh_log_event(SSH_LOGFACILITY_SECURITY, SSH_LOG_INFORMATIONAL,
+		  "Remote fwd connect from %.500s to local port %s",
+		  eval_client(&req), fwdportname);
+  }
+#endif /* LIBWRAP */
 
   /* Register that we have an open channel. */
   ssh_common_new_channel(fwd->common);
@@ -420,7 +472,7 @@ void ssh_channel_ftcp_incoming_connection(SshIpError error, SshStream stream,
   ssh_buffer_init(&buffer);
   ssh_encode_buffer(&buffer,
 		    SSH_FORMAT_UINT32_STR,
-		      fwd->address_to_bind, strlen(fwd->address_to_bind),
+		    fwd->address_to_bind, strlen(fwd->address_to_bind),
 		    SSH_FORMAT_UINT32, atol(fwd->port),
 		    SSH_FORMAT_UINT32_STR, ip, strlen(ip),
 		    SSH_FORMAT_UINT32, atol(port),
@@ -637,7 +689,50 @@ void ssh_channel_dtcp_incoming_connection(SshStreamNotification op,
     strcpy(ip, "UNKNOWN");
   if (!ssh_tcp_get_remote_port(stream, port, sizeof(port)))
     strcpy(port, "UNKNOWN");
-  
+
+  /* XXXXXXXX */
+#ifdef LIBWRAP
+  {
+    struct request_info req;
+    struct servent *serv;
+    char fwdportname[32];
+		
+    /* try to find port's name in /etc/services */
+    /* serv = getservbyport(htons(ch->listening_port), "tcp"); */
+    serv = getservbyport(atoi(fwd->port), "tcp");
+    if (serv == NULL)
+      {
+	/* not found (or faulty getservbyport) -
+	   use the number as a name */
+	/*snprintf(fwdportname, sizeof(fwdportname), "sshdfwd-%d", ch->listening_port);*/
+	snprintf(fwdportname, sizeof(fwdportname), "sshdfwd-%s", fwd->port);
+      }
+    else
+      {
+	snprintf(fwdportname, sizeof(fwdportname), "sshdfwd-%.20s", serv->s_name);
+      }
+    /* fill req struct with port name and fd number */
+    request_init(&req, RQ_DAEMON, fwdportname,
+		 RQ_FILE, ssh_stream_fd_get_readfd(stream), NULL);
+    fromhost(&req);
+    if (!hosts_access(&req))
+      {
+	ssh_conn_send_debug(fwd->common->conn, TRUE,
+			    "Fwd connection from %.500s to local port %s refused by tcp_wrappers.",
+			    eval_client(&req), fwdportname);
+	/*	error("Fwd connection from %.500s to local port %s refused by tcp_wrappers.",
+	      eval_client(&req), fwdportname);*/
+	ssh_stream_destroy(stream);
+	/*	shutdown(newsock, 2);
+	close(newsock);*/
+	return;
+      }
+    ssh_log_event(SSH_LOGFACILITY_SECURITY, SSH_LOG_INFORMATIONAL,
+		  "direct fwd connect from %.500s to local port %s",
+		  eval_client(&req), fwdportname);
+  }
+#endif /* LIBWRAP */
+
   /* Send a request to open a channel and connect it to the given port. */
   ssh_channel_dtcp_open_to_remote(fwd->common, stream,
 				  fwd->connect_to_host,
@@ -678,6 +773,7 @@ Boolean ssh_channel_start_local_tcp_forward(SshCommon common,
       return FALSE;
     }
 
+  fwd->port = ssh_xstrdup(port);
   fwd->connect_to_host = ssh_xstrdup(connect_to_host);
   fwd->connect_to_port = ssh_xstrdup(connect_to_port);
 

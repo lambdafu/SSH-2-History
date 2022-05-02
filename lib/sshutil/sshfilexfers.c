@@ -203,9 +203,9 @@ void ssh_file_server_receive_proc(SshPacketType type,
   int i;
   char resolved[MAXPATHLEN];
 
-#if defined(HAVE_LUTIMES) || defined(HAVE_FUTIMES) 
+#if defined(HAVE_LUTIMES) || defined(HAVE_FUTIMES) || defined(HAVE_UTIMES)
   struct timeval times[2];
-#endif /* HAVE_LUTIMES || HAVE_FUTIMES */
+#endif /* HAVE_LUTIMES || HAVE_FUTIMES || HAVE_UTIMES */
 
 #ifdef HAVE_UTIME
   struct utimbuf timep;
@@ -599,13 +599,20 @@ void ssh_file_server_receive_proc(SshPacketType type,
 	}
       if (attrs->flags & SSH_FILEXFER_ATTR_ACMODTIME)
 	{
-#ifdef HAVE_LUTIMES
+#if defined(HAVE_LUTIMES) || defined(HAVE_UTIMES)
 	  times[0].tv_sec = attrs->atime;
 	  times[1].tv_sec = attrs->mtime;
 	  times[0].tv_usec = times[1].tv_usec = 0L;
-	  if (lutimes(name, times))
-	      ret = -1;
+
+	  if (
+#ifdef HAVE_LUTIMES
+	      lutimes(name, times)
 #else /* HAVE_LUTIMES */
+	      utimes(name, times)
+#endif /* HAVE_LUTIMES */
+	      )
+	    ret = -1;
+#else /* HAVE_LUTIMES || HAVE_UTIMES */
 #ifdef HAVE_UTIME
 	  timep.actime = attrs->atime;
 	  timep.modtime = attrs->mtime;
@@ -613,7 +620,7 @@ void ssh_file_server_receive_proc(SshPacketType type,
 	     ret = -1;
 #endif /* HAVE_UTIME */
 	  ret = -1;
-#endif /* HAVE_LUTIMES */
+#endif /* HAVE_LUTIMES || HAVE_UTIMES */
 	}
       
       /* XXX some operation(s) may fail, but that is no excuse to stop

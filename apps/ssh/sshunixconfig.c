@@ -213,7 +213,7 @@ Boolean ssh_server_load_host_key(SshConfig config,
   char hostkeyfile[256];
   SshPrivateKey privkey;
 
-  if ((user = ssh_user_initialize(NULL)) == NULL)
+  if ((user = ssh_user_initialize(NULL, TRUE)) == NULL)
     ssh_fatal("ssh_server_load_host_key: ssh_user_initialize failed");
       
 
@@ -330,8 +330,8 @@ Boolean ssh_config_read_file(SshUser user, SshConfig config,
   if (filename == NULL || strlen(filename) == 0)
     return FALSE;
   
-  if (user_data == NULL)
-    user_data = ssh_user_initialize(NULL);
+  if (user == NULL)
+    user_data = ssh_user_initialize(NULL, FALSE);
   else
     user_data = user;
 

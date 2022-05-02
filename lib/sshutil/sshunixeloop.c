@@ -13,7 +13,7 @@
   */
 
 /*
- * $Id: sshunixeloop.c,v 1.16 1998/08/23 06:36:52 ylo Exp $
+ * $Id: sshunixeloop.c,v 1.17 1998/09/09 21:50:22 kivinen Exp $
  * $Log: sshunixeloop.c,v $
  * $EndLog$
  */
@@ -612,7 +612,6 @@ void ssh_event_loop_run(void)
 	      if (time_temp->killed == FALSE)
 		{
 		  modified_time = current_time;
-		  modified_time.tv_usec += 100000;
 		  if (modified_time.tv_usec >= 1000000)
 		    {
 		      modified_time.tv_usec -= 1000000;
@@ -659,9 +658,6 @@ void ssh_event_loop_run(void)
 		}
 	      else
 		usec = usec - current_time.tv_usec;
-
-	      if (sec == 0 && usec < 100000)
-		usec = 0;
 
 	      select_timeout.tv_sec = sec;
 	      select_timeout.tv_usec = usec;

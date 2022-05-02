@@ -67,7 +67,7 @@
 #endif /* SSHDIST_CRYPT_SKIPJACK */
 
 #ifdef SSHDIST_CRYPT_MARS
-#include "mars.h"
+
 #endif /* SSHDIST_CRYPT_MARS */
 
 /* Algorithm definitions */
@@ -250,14 +250,14 @@ static const SshCipherDef ssh_cipher_algorithms[] =
 #endif /* SSHDIST_CRYPT_SKIPJACK */
   
 #ifdef SSHDIST_CRYPT_MARS
-  { "mars-ecb", 16, 0, mars_ctxsize, mars_init, 
-    mars_ecb, mars_set_iv, mars_get_iv },
-  { "mars-cbc", 16, 0, mars_ctxsize, mars_init, 
-    mars_cbc, mars_set_iv, mars_get_iv },
-  { "mars-cfb", 16, 0, mars_ctxsize, mars_init,
-    mars_cfb, mars_set_iv, mars_get_iv },
-  { "mars-ofb", 16, 0, mars_ctxsize, mars_init,
-    mars_ofb, mars_set_iv, mars_get_iv },
+
+
+
+
+
+
+
+
 #endif /* SSHDIST_CRYPT_MARS */
 
   { "none", 1, 0, NULL, NULL, none_transform, NULL, NULL },

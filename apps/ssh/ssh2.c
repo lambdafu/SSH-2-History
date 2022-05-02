@@ -33,6 +33,16 @@
 
 #define SSH_DEBUG_MODULE "Ssh2"
 
+#ifdef HAVE_LIBWRAP
+#include <tcpd.h>
+#include <syslog.h>
+#ifdef NEED_SYS_SYSLOG_H
+#include <sys/syslog.h>
+#endif /* NEED_SYS_SYSLOG_H */
+int allow_severity = SSH_LOG_INFORMATIONAL;
+int deny_severity = SSH_LOG_WARNING;
+#endif /* LIBWRAP */
+
 /* Program name, without path. */
 const char *av0;
 SshRandomState random_state;
@@ -351,6 +361,10 @@ void connect_done(SshIpError error, SshStream stream, void *context)
 				 client_disconnect, client_debug,
 				 client_authenticated, (void *)data);
 
+  /* This is done, because in ssh_common_* functions we don't know anything
+     about the SshClient* structures. no_session_channel's value must
+     however be known there.*/
+  data->client->common->no_session_channel = data->no_session_channel;
 }
 
 static char *str_concat_3(char *s1, char *s2, char *s3)
@@ -399,7 +413,11 @@ static void finalize_password_prompt(char **prompt, char *host, char *user)
 
 void ssh2_version(const char *name)
 {
-  fprintf(stderr, "%s: SSH Version %s\n", name, SSH2_VERSION);
+  fprintf(stderr, "%s: ", name);
+#ifdef SSHDIST_F_SECURE_COMMERCIAL
+
+#endif /* SSHDIST_F_SECURE_COMMERCIAL */
+  fprintf(stderr, "SSH Version %s\n", SSH2_VERSION);
 }
 
 void ssh2_help(const char *name)
@@ -497,7 +515,7 @@ int main(int argc, char **argv)
     av0 = argv[0];
   
   /* Initializations. */
-  tuser = ssh_user_initialize(NULL);
+  tuser = ssh_user_initialize(NULL, FALSE);
   user = ssh_xstrdup(ssh_user_name(tuser));
   data = ssh_xcalloc(1, sizeof(*data));
   ssh_event_loop_initialize();

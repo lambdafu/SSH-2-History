@@ -146,6 +146,12 @@ char *ssh_userdir(SshUser user, Boolean create_if_needed);
    when no longer needed. */
 char *ssh_randseed_file(SshUser user, SshConfig config);
 
+/* Get the random state from the file.  This loads and merges any data
+   in the seed file into the generator. */
+
+void ssh_randseed_load(SshUser user, SshRandomState random_state,
+		       SshConfig config);
+
 #endif /* SSHDIST_WINDOWS */
 
 /* Reads a blob into a buffer. Return TRUE on failure.  The caller must free

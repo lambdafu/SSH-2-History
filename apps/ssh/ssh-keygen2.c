@@ -121,12 +121,13 @@ KeyGenCtx *keygen_init_ctx()
 {
   KeyGenCtx *kgc;
 
-  kgc = ssh_xmalloc(sizeof (KeyGenCtx));
+  kgc = ssh_xcalloc(1, sizeof (KeyGenCtx));
   kgc->keybits = FALSE;
   kgc->newkey = FALSE;
   kgc->convert = FALSE;
   kgc->status = FALSE;
   kgc->read_stdin = FALSE;
+  kgc->edit_key = FALSE;
   
   kgc->keytype = NULL;
   kgc->keytypecommon = NULL;
@@ -136,7 +137,7 @@ KeyGenCtx *keygen_init_ctx()
   kgc->passphrase = NULL;
   kgc->pass_empty = FALSE;
 
-  kgc->user = ssh_user_initialize(NULL);  
+  kgc->user = ssh_user_initialize(NULL, FALSE);  
   kgc->random_state = ssh_randseed_open(kgc->user, NULL);
   kgc->public_key = NULL;
   kgc->private_key = NULL;
@@ -675,6 +676,7 @@ int main(int argc, char **argv)
   char *t;
   time_t now;
   extern char *optarg;
+  extern int optind;
   int r = 0, rr = 0;
   
   /* Initialize the context */

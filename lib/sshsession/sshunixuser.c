@@ -264,10 +264,13 @@ Boolean ssh_login_permitted(const char *user, SshUser uc)
 }
 
 /* Allocates and initializes a context for the user.  The context is used
-   to cache information about the particular user.  Returns NULL if the user
-   does not exist. If `user' is NULL, use getuid(). */
+   to cache information about the particular user.  Returns NULL if the
+   user does not exist. If `user' is NULL, use getuid(). 'privileged'
+   should only be set, when the process is supposedly run with root
+   privileges. If it is FALSE, ssh_user_initialize doesn't try to look for
+   shadow passwords etc. */
 
-SshUser ssh_user_initialize(const char *user)
+SshUser ssh_user_initialize(const char *user, Boolean privileged)
 {
 
   SshUser uc;
@@ -293,6 +296,9 @@ SshUser ssh_user_initialize(const char *user)
   uc->gid = pw->pw_gid;
   uc->shell = ssh_xstrdup(pw->pw_shell);
 
+  if (privileged)
+    {
+      
   /* Save the encrypted password. */
   strncpy(correct_passwd, pw->pw_passwd, sizeof(correct_passwd));
 
@@ -381,7 +387,14 @@ SshUser ssh_user_initialize(const char *user)
   uc->correct_encrypted_passwd = ssh_xstrdup(correct_passwd);
 
   uc->login_allowed = ssh_login_permitted(uc->name, uc);
-
+    }
+  else /* !privileged */
+    {
+      uc->correct_encrypted_passwd = NULL;
+      uc->login_allowed = TRUE;
+      uc->password_needs_change = FALSE;
+    }
+  
   /* XXX should check password expirations (some systems already do this in
      ssh_login_permitted). */
   

@@ -247,7 +247,7 @@ Disable X11 connection forwarding.
 .ne 3
 .TP
 .BI \-i "\ file
-Spefifies the identity file for public key authentication. This option
+Specifies the identity file for public key authentication. This option
 can also be specified in the configuration file.
 .ne 3
 .TP
@@ -435,6 +435,7 @@ must be
 Specifies whether to use password authentication. The argument
 must be
 .YN  
+(not yet implemented)  
 .ne 3
 .TP
 .B RHostsAuthentication
@@ -472,6 +473,7 @@ compatibility with
 .B ssh1\fR.
 The argument must be
 .YN  
+(not yet implemented)  
 .ne 3
 .TP
 .B Port
@@ -496,13 +498,17 @@ and
 .IR arcfour
 are in all distributions. Multiple ciphers can be specified as a
 comma-separated list.  Special values to this option are
-.I any
-and
-.I anycipher
+.IR any ",
+.IR anystd ",
+that allows only standard (see below) ciphers, and
+.IR anycipher
 that allows either any available cipher or excludes nonencrypting
 cipher mode
 .IR none
 but allows all others.
+.IR anystdcipher
+is the same as above, but includes only those ciphers mentioned in the
+IETF-SecSH-draft (excluding 'none').
 .ne 3
 .TP 
 .B IdentityFile
@@ -775,15 +781,14 @@ three space-separated values: client ip-address, client port number,
 and server port number.
 .ne 3
 .TP
-.\" Is this used anywhere? grepping the source tree didn't give
- \" any results.
-.\" .B SSH_ORIGINAL_COMMAND
-.\" This will be the original command line given to 
-.\" .B ssh2 
-.\" if forced command is run. It can be used to fetch arguments etc
-.\" from the other end.
-.\" .ne 3
-.\" .TP
+.B SSH_ORIGINAL_COMMAND
+This will be the original command given to 
+.B ssh2 
+if a forced command is run. It can be used to fetch arguments etc.
+from the other end. This need not be a real command, it can be a name of
+a file, device, parameters or anything else.
+.ne 3
+.TP
 .B SSH2_TTY
 This is set to the name of the tty (path to the device) associated
 with the current shell or command.  If the current session has no tty,

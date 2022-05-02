@@ -21,6 +21,16 @@
 
 #define MAX_IP_ADDR_LEN 16
 
+#ifdef HAVE_NETINET_IN_H
+#include <netinet/in.h>
+#else /* HAVE_NETINET_IN_H */
+#ifndef WINDOWS /* already defined in most OS */
+struct in_addr {
+  SshUInt32 s_addr;
+};
+#endif /* ! WINDOWS */
+#endif /* HAVE_NETINET_IN_H */
+
 /* Mapping between protocol name and doi protocol number */
 const SshKeyword ssh_ip_protocol_id_keywords[] = 
 {
@@ -142,12 +152,6 @@ const SshKeyword ssh_ip_protocol_id_keywords[] =
   { "reserved", IP_PROTOCOL_ID_RESERVED },
   { NULL, 0 }
 };
-
-#ifndef WINDOWS /* allready defined in most OS */
-struct in_addr {
-  SshUInt32 s_addr;
-};
-#endif
 
 typedef enum {
   SSH_INET_ADDR_V4,

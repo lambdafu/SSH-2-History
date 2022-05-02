@@ -24,6 +24,11 @@ void ssh_debug_output(const char *file, unsigned int line,
 		      const char *module, const char *function, char *message);
 Boolean ssh_debug_enabled(const char *module, int level);
 void ssh_debug_hexdump(size_t offset, const unsigned char *buf, size_t len);
+void ssh_generic_assert(int value, const char *expression,
+			const char *file, unsigned int line,
+			const char *module,
+			const char *function, int type);
+
 
 /***********************************************************************
  * Debugging macros
@@ -56,7 +61,85 @@ void ssh_debug_hexdump(size_t offset, const unsigned char *buf, size_t len);
 
    The debugging message will automatically include the file name and line
    number of the debugging macro.  With some compilers, also the
-   function name will be included. */
+   function name will be included.
+
+   Use SSH_PRECOND(expr), SSH_POSTCOND(expr), SSH_ASSERT(expr) and
+   SSH_INVARIANT(expr) to check that the evaluated value of `expr'
+   is non-zero. If `expr' evaluates to zero, the program aborts
+   immediately with a descriptive error message.
+   Do not include in `expr' anything that causes side-effects,
+   because these macros will be enabled only if DEBUG_LIGHT is defined.
+   If DEBUG_LIGHT is not defined, SSH_PRECOND(expr) does nothing.
+   In particular, it does NOT evaluate `expr', and this can change
+   the behaviour of your code if `expr' contains statements with
+   side-effects.
+
+   Basically these four are the same macro, but they should be
+   used in the following contexts:
+
+   SSH_PRECOND(...) is used to check at the beginning of a function
+   that the arguments given to the function are in their ranges,
+   and that the system in general is in a state where running
+   the code of the function is allowable.
+
+   SSH_POSTCOND(...) is used to check that after the execution
+   of a function's code the system is left in consistent state and
+   the return value is in correct relation with the arguments.
+
+   SSH_INVARIANT(...) is used exclusively in for- and while-loops.
+   It is used to check that a certain invariant holds for all
+   iterations.
+
+   SSH_ASSERT(...) is a generic assert to be used when none of the
+   three above can be used.
+
+   SSH_VERIFY(expr) will be _always_ compiled. -DNDEBUG, -DDEBUG_LIGHT
+   and -DDEBUG_HEAVY do not have, in particular, any effect on it.
+   SSH_VERIFY(expr) is roughly equivalent to
+
+     if (!(expr)) ssh_fatal("expr barfed")
+
+   SSH_NOTREACHED barfs immediately if the place where SSH_NOTREACHED
+   appears is actually reached during execution. SSH_NOTREACHED
+   is not compiled unless DEBUG_LIGHT is defined. Here are simple
+   examples:
+
+   int array_sum(int *array, int array_size)
+   {
+     int sum = 0;
+     int i;
+
+     SSH_PRECOND(array != NULL);
+     SSH_PRECOND(array_size >= 1);
+ 
+     for (i = 0; i < array_size; i++)
+     {
+       sum += array[i];
+       SSH_INVARIANT(sum >= array[i]);
+     }
+
+     SSH_POSTCOND(i == array_size);
+     return sum;
+   }
+
+   {
+     ...
+     SSH_VERIFY((ptr = get_ptr_from_somewhere()) != NULL);
+     ...
+   }
+
+   {
+     ...
+     switch (zap)
+       {
+      case 1: goo(); break;
+      case 2: foo(); break;
+      default:
+          SSH_NOTREACHED;
+       }
+     ...
+   }
+   */
      
 #ifdef __GNUC__
 #define SSH_DEBUG_FUNCTION __FUNCTION__
@@ -91,6 +174,30 @@ do { \
     ssh_debug_hexdump(0, buf, len); \
   } \
 } while (0)
+
+/* Check assertions. SSH_PRECOND, SSH_POSTCOND, SSH_ASSERT, SSH_INVARIANT
+   and SSH_NOTREACHED are compiled only if DEBUG_LIGHT is defined.
+   SSH_VERIFY is compiled always. */
+
+#define _SSH_GEN_ASSERT(expr, type) \
+        ssh_generic_assert((int)(expr), #expr, __FILE__, __LINE__, \
+			   SSH_DEBUG_MODULE, SSH_DEBUG_FUNCTION, type)
+
+#define SSH_VERIFY(expr)	_SSH_GEN_ASSERT(expr, 5)
+
+#ifdef DEBUG_LIGHT
+#define SSH_PRECOND(expr) 	_SSH_GEN_ASSERT(expr, 0)
+#define SSH_POSTCOND(expr) 	_SSH_GEN_ASSERT(expr, 1)
+#define SSH_ASSERT(expr) 	_SSH_GEN_ASSERT(expr, 2)
+#define SSH_INVARIANT(expr)	_SSH_GEN_ASSERT(expr, 3)
+#define SSH_NOTREACHED		_SSH_GEN_ASSERT(0,    4)
+#else
+#define SSH_PRECOND(x)
+#define SSH_POSTCOND(x)
+#define SSH_ASSERT(x)
+#define SSH_INVARIANT(x)
+#define SSH_NOTREACHED
+#endif
 
 /* SSH_DEBUG is compiled in only if DEBUG_LIGHT is defined. */
 #ifdef DEBUG_LIGHT

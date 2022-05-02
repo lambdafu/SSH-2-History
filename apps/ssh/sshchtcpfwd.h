@@ -33,6 +33,9 @@ typedef struct SshLocalTcpForwardRec
   char *connect_to_host;
   char *connect_to_port;
 
+  /* Port number to listen. */
+  char *port;
+
   /* Listener for the port. */
   SshTcpListener listener;
 } *SshLocalTcpForward;
@@ -105,6 +108,10 @@ Boolean ssh_channel_ftcp_global_cancel_forward(const char *type,
 					       size_t len,
 					       void *context);
 
+/* Returns the channel type context from the SshCommon object. */
+
+SshChannelTypeTcpForward ssh_channel_ftcp_ct(SshCommon common);
+
 /* This function is called whenever an open request is received for a
    locally forwarded tcp/ip channel. */
 void ssh_channel_dtcp_open_request(const char *type,
@@ -122,6 +129,10 @@ void *ssh_channel_dtcp_create(SshCommon common);
    destroyed.  This should destroy all locally forwarded tcp/ip
    channels and listeners and free the context. */
 void ssh_channel_dtcp_destroy(void *context);
+
+/* Returns the channel type context from the SshCommon object. */
+
+SshChannelTypeTcpDirect ssh_channel_dtcp_ct(SshCommon common);
 
 /* Processes a received request to set up remote TCP/IP forwarding. */
 Boolean ssh_channel_remote_tcp_forward_request(const char *type,

@@ -14,7 +14,7 @@
   */
 
 /*
- * $Id: base64.c,v 1.4 1998/05/23 21:24:05 kivinen Exp $
+ * $Id: base64.c,v 1.5 1998/09/14 08:27:45 sjl Exp $
  * $Log: base64.c,v $
  * $EndLog$
  */
@@ -64,7 +64,7 @@ size_t ssh_is_base64_buf(unsigned char *buf, size_t buf_len)
   return i;
 }
 
-unsigned char *ssh_buf_to_base64(unsigned char *buf, size_t buf_len)
+unsigned char *ssh_buf_to_base64(const unsigned char *buf, size_t buf_len)
 {
   unsigned char *out;
   int i, j;

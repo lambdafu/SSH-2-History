@@ -11,7 +11,7 @@
 
 AUTOMAKE_OPTIONS = 1.0 foreign dist-zip no-dependencies
 
-etcdir = /etc
+etcdir = @ETCDIR@
 
 bin_PROGRAMS = ssh2 scp2 sftp2 sftp-server2 \
                ssh-agent2 ssh-keygen2 ssh-add2 @CONFPROGRAMS@
@@ -39,7 +39,7 @@ ssh2_SOURCES = ssh2.c sshauthmethodc.c readpass.c sshunixuserfiles.c \
 	       sshuserfiles.c \
 	       sshchx11.c sshchsession.c sshchagent.c sshchssh1agent.c \
 	       sshchtcpfwd.c sshstdiofilter.c \
-       	       sshcommon.c sshconfig.c sshunixconfig.c sshclient.c \
+	       sshcommon.c sshconfig.c sshunixconfig.c sshclient.c \
 	       agentpath.c authc-pubkey.c authc-passwd.c agentclient.c
 
 ssh2_DEPENDENCIES = $(DEPENDENCIES)
@@ -70,6 +70,8 @@ ssh_askpass2_LDADD = $(LDADD) $(X_LIBS) $(X_PRE_LIBS) -lX11
 ssh_keygen2_SOURCES = readpass.c ssh-keygen2.c sshunixuserfiles.c \
 	              sshuserfiles.c \
 		      sshconfig.c sshunixconfig.c 
+ssh_keygen2_DEPENDENCIES = $(DEPENDENCIES) ../../lib/sshreadline/libsshreadline.a
+ssh_keygen2_LDADD = $(LDADD) -L../../lib/sshreadline -lsshreadline
 
 scp2_SOURCES = scp2.c 
 scp2_DEPENDENCIES = $(DEPENDENCIES)
@@ -90,56 +92,67 @@ COMPILE = $(CC) $(KERBEROS_INCS) $(INCLUDES) $(SSH_DEFS) $(DEFS) $(CPPFLAGS) $(C
 includes:
 
 make-install-dirs:
-	-if test '!' -d $(etcdir)/ssh2; then mkdir $(etcdir)/ssh2; fi
+	-if test '!' -d $(DESTDIR)$(etcdir)/ssh2; then mkdir -p $(DESTDIR)$(etcdir)/ssh2; fi
 
 generate-host-key:
-	-@if test -f $(etcdir)/ssh2/hostkey; \
-	  then echo "You already have a host key in $(etcdir)/ssh2/hostkey"; \
+	-@if test -f $(DESTDIR)$(etcdir)/ssh2/hostkey; \
+	  then echo "You already have a host key in $(DESTDIR)$(etcdir)/ssh2/hostkey"; \
 	else \
 	    umask 022; echo "Generating 1024 bit host key."; \
-	    ./ssh-keygen2 -P -b 1024 -t dsa -c "1024-bit dsa hostkey" -o $(etcdir)/ssh2/hostkey; \
+	    ./ssh-keygen2 -P -b 1024 -t dsa -c "1024-bit dsa hostkey" -o $(DESTDIR)$(etcdir)/ssh2/hostkey; \
 	  fi
 
 install-symlinks:
-	mv -f $(bindir)/ssh $(bindir)/ssh.old
-	mv -f $(bindir)/ssh-agent $(bindir)/ssh-agent.old
-	mv -f $(bindir)/ssh-add $(bindir)/ssh-add.old
-	mv -f $(bindir)/ssh-askpass $(bindir)/ssh-askpass.old
-	mv -f $(bindir)/ssh-keygen $(bindir)/ssh-keygen.old
-	mv -f $(bindir)/scp $(bindir)/scp.old
-	mv -f $(bindir)/sftp $(bindir)/sftp.old
-	mv -f $(bindir)/sftp-server $(bindir)/sftp-server.old
-	(cd $(bindir) && $(LN_S) ssh2 ssh)
-	(cd $(bindir) && $(LN_S) ssh-agent2 ssh-agent)
-	(cd $(bindir) && $(LN_S) ssh-add2 ssh-add)
-	(cd $(bindir) && $(LN_S) ssh-askpass2 ssh-askpass)
-	(cd $(bindir) && $(LN_S) ssh-keygen2 ssh-keygen)
-	(cd $(bindir) && $(LN_S) scp2 scp)
-	(cd $(bindir) && $(LN_S) sftp2 sftp)
-	(cd $(bindir) && $(LN_S) sftp-server2 sftp-server)
-	mv -f $(sbindir)/sshd $(sbindir)/sshd.old
-	(cd $(sbindir) && $(LN_S) sshd2 sshd)
-	mv -f $(mandir)/man1/ssh.1 $(mandir)/man1/ssh.old.1
-	mv -f $(mandir)/man1/ssh-add.1 $(mandir)/man1/ssh-add.old.1
-	mv -f $(mandir)/man1/ssh-agent.1 $(mandir)/man1/ssh-agent.old.1
-	mv -f $(mandir)/man1/ssh-keygen.1 $(mandir)/man1/ssh-keygen.old.1
-	mv -f $(mandir)/man1/scp.1 $(mandir)/man1/scp.old.1
-	mv -f $(mandir)/man1/sftp.1 $(mandir)/man1/sftp.old.1
-	(cd $(mandir)/man1 && $(LN_S) ssh2.1 ssh.1)
-	(cd $(mandir)/man1 && $(LN_S) ssh-add2.1 ssh-add.1)
-	(cd $(mandir)/man1 && $(LN_S) ssh-agent2.1 ssh-agent.1)
-	(cd $(mandir)/man1 && $(LN_S) ssh-keygen2.1 ssh-keygen.1)
-	(cd $(mandir)/man1 && $(LN_S) scp2.1 scp.1)
-	(cd $(mandir)/man1 && $(LN_S) sftp2.1 sftp.1)
-	mv -f $(mandir)/man8/sshd.8 $(mandir)/man8/sshd.old.8
-	(cd $(mandir)/man8 && $(LN_S) sshd2.8 sshd.8)
+	-mv -f $(DESTDIR)$(bindir)/ssh $(DESTDIR)$(bindir)/ssh.old
+	-mv -f $(DESTDIR)$(bindir)/ssh-agent $(DESTDIR)$(bindir)/ssh-agent.old
+	-mv -f $(DESTDIR)$(bindir)/ssh-add $(DESTDIR)$(bindir)/ssh-add.old
+	-mv -f $(DESTDIR)$(bindir)/ssh-askpass $(DESTDIR)$(bindir)/ssh-askpass.old
+	-mv -f $(DESTDIR)$(bindir)/ssh-keygen $(DESTDIR)$(bindir)/ssh-keygen.old
+	-mv -f $(DESTDIR)$(bindir)/scp $(DESTDIR)$(bindir)/scp.old
+	-mv -f $(DESTDIR)$(bindir)/sftp $(DESTDIR)$(bindir)/sftp.old
+	-mv -f $(DESTDIR)$(bindir)/sftp-server $(DESTDIR)$(bindir)/sftp-server.old
+	(cd $(DESTDIR)$(bindir) && $(LN_S) ssh2 ssh)
+	(cd $(DESTDIR)$(bindir) && $(LN_S) ssh-agent2 ssh-agent)
+	(cd $(DESTDIR)$(bindir) && $(LN_S) ssh-add2 ssh-add)
+	(cd $(DESTDIR)$(bindir) && $(LN_S) ssh-askpass2 ssh-askpass)
+	(cd $(DESTDIR)$(bindir) && $(LN_S) ssh-keygen2 ssh-keygen)
+	(cd $(DESTDIR)$(bindir) && $(LN_S) scp2 scp)
+	(cd $(DESTDIR)$(bindir) && $(LN_S) sftp2 sftp)
+	(cd $(DESTDIR)$(bindir) && $(LN_S) sftp-server2 sftp-server)
+	-mv -f $(DESTDIR)$(sbindir)/sshd $(DESTDIR)$(sbindir)/sshd.old
+	(cd $(DESTDIR)$(sbindir) && $(LN_S) sshd2 sshd)
+	-mv -f $(DESTDIR)$(mandir)/man1/ssh.1 $(DESTDIR)$(mandir)/man1/ssh.old.1
+	-mv -f $(DESTDIR)$(mandir)/man1/ssh-add.1 $(DESTDIR)$(mandir)/man1/ssh-add.old.1
+	-mv -f $(DESTDIR)$(mandir)/man1/ssh-agent.1 $(DESTDIR)$(mandir)/man1/ssh-agent.old.1
+	-mv -f $(DESTDIR)$(mandir)/man1/ssh-keygen.1 $(DESTDIR)$(mandir)/man1/ssh-keygen.old.1
+	-mv -f $(DESTDIR)$(mandir)/man1/scp.1 $(DESTDIR)$(mandir)/man1/scp.old.1
+	-mv -f $(DESTDIR)$(mandir)/man1/sftp.1 $(DESTDIR)$(mandir)/man1/sftp.old.1
+	(cd $(DESTDIR)$(mandir)/man1 && $(LN_S) ssh2.1 ssh.1)
+	(cd $(DESTDIR)$(mandir)/man1 && $(LN_S) ssh-add2.1 ssh-add.1)
+	(cd $(DESTDIR)$(mandir)/man1 && $(LN_S) ssh-agent2.1 ssh-agent.1)
+	(cd $(DESTDIR)$(mandir)/man1 && $(LN_S) ssh-keygen2.1 ssh-keygen.1)
+	(cd $(DESTDIR)$(mandir)/man1 && $(LN_S) scp2.1 scp.1)
+	(cd $(DESTDIR)$(mandir)/man1 && $(LN_S) sftp2.1 sftp.1)
+	-mv -f $(DESTDIR)$(mandir)/man8/sshd.8 $(DESTDIR)$(mandir)/man8/sshd.old.8
+	(cd $(DESTDIR)$(mandir)/man8 && $(LN_S) sshd2.8 sshd.8)
+
+clean-up-old:
+	 -rm -f $(DESTDIR)$(bindir)/ssh.old $(DESTDIR)$(bindir)/ssh-agent.old \
+	 $(DESTDIR)$(bindir)/ssh-add.old $(DESTDIR)$(bindir)/ssh-askpass.old  \
+	 $(DESTDIR)$(bindir)/ssh-keygen.old $(DESTDIR)$(bindir)/scp.old	  \
+	 $(DESTDIR)$(bindir)/sftp.old $(DESTDIR)$(bindir)/sftp-server.old     \
+	 $(sbindir)/sshd.old 
+	 -rm -f $(DESTDIR)$(mandir)/man1/ssh-add.old.1 $(DESTDIR)$(mandir)/man1/ssh.old.1   \
+	 $(DESTDIR)$(mandir)/man1/ssh-agent.old.1 $(DESTDIR)$(mandir)/man1/ssh-keygen.old.1	\
+	 $(DESTDIR)$(mandir)/man1/scp.old.1 $(DESTDIR)$(mandir)/man1/sftp.old.1             \
+	 $(DESTDIR)$(mandir)/man8/sshd.old.8
 
 install-data-hook: make-install-dirs generate-host-key install-symlinks
-	-@if test '!' -f $(etcdir)/ssh2/sshd2_config ; then \
-	 echo Installing $(etcdir)/ssh2/sshd2_config ; \
-	 $(INSTALL_DATA) $(srcdir)/sshd2_config $(etcdir)/ssh2/sshd2_config ; \
+	-@if test '!' -f $(DESTDIR)$(etcdir)/ssh2/sshd2_config ; then \
+	 echo Installing $(DESTDIR)$(etcdir)/ssh2/sshd2_config ; \
+	 $(INSTALL_DATA) $(srcdir)/sshd2_config $(DESTDIR)$(etcdir)/ssh2/sshd2_config ; \
 	fi
-	-@if test '!' -f $(etcdir)/ssh2/ssh2_config ; then \
-	 echo Installing $(etcdir)/ssh2/ssh2_config ; \
-	 $(INSTALL_DATA) $(srcdir)/ssh2_config $(etcdir)/ssh2/ssh2_config ; \
+	-@if test '!' -f $(DESTDIR)$(etcdir)/ssh2/ssh2_config ; then \
+	 echo Installing $(DESTDIR)$(etcdir)/ssh2/ssh2_config ; \
+	 $(INSTALL_DATA) $(srcdir)/ssh2_config $(DESTDIR)$(etcdir)/ssh2/ssh2_config ; \
 	fi

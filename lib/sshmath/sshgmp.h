@@ -16,7 +16,7 @@
   */
 
 /*
- * $Id: sshgmp.h,v 1.2 1998/06/24 13:26:27 kivinen Exp $
+ * $Id: sshgmp.h,v 1.3 1998/08/27 09:17:55 sjl Exp $
  * $Log: sshgmp.h,v $
  * $EndLog$
  */

@@ -541,7 +541,7 @@ int main(int ac, char **av)
   SshUser user;
 
   /* Get user database information for the current user. */
-  user = ssh_user_initialize(NULL);
+  user = ssh_user_initialize(NULL, FALSE);
   
   while ((opt = getopt(ac, av, "cs")) != EOF)
     switch (opt)

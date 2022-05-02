@@ -25,7 +25,9 @@ In particular, this updates:
 #ifdef HAVE_UTMPX_H
 #include <utmpx.h>
 #ifndef SCO
+#ifdef HAVE_SYS_MKDEV_H
 #include <sys/mkdev.h>	/* for minor() */
+#endif /* HAVE_SYS_MKDEV_H */
 #endif
 #endif /* HAVE_UTMPX_H */
 #ifdef HAVE_USERSEC_H
@@ -354,15 +356,30 @@ void ssh_user_record_login(SshUser user, pid_t pid, const char *ttyname,
     if (sizeof(ux.ut_id) > 4)
       strncpy(ux.ut_id, ttyname + 5, sizeof(ux.ut_id));
     else {
-      struct stat st;
       char buf[20];
+#ifdef HAVE_MINOR
+      struct stat st;
       
       buf[0] = 0;
       if (stat(ttyname, &st) == 0) {
 	/* allow for 1000 /dev/pts devices */
 	snprintf(buf, sizeof (buf), "P%03d", (int)minor(st.st_rdev));
+	
       }
       strncpy(ux.ut_id, buf, sizeof(ux.ut_id));
+#else /* HAVE_MINOR */
+      /* if we don't have minor, we just dig out the last three letters
+         from ttyname. */
+      size_t ttyname_len = strlen(ttyname);
+      if(ttyname_len > 3)
+	{
+	  snprintf(buf, sizeof (buf), "P%03s", &ttyname[ttyname_len - 3]);
+	}
+      else
+	{
+	  snprintf(buf, sizeof (buf), "P%03s", ttyname);
+	}
+#endif /* HAVE_MINOR */
     }
 #endif /* __sgi */
     ux.ut_pid = pid;

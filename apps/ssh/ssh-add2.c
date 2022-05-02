@@ -16,7 +16,7 @@ Adds an identity to the authentication server, or removes an identity.
 */
 
 /*
- * $Id: ssh-add2.c,v 1.4 1998/08/06 10:13:54 sjl Exp $
+ * $Id: ssh-add2.c,v 1.5 1998/09/14 01:11:02 sjl Exp $
  * $Log: ssh-add2.c,v $
  * $EndLog$
  */
@@ -306,7 +306,7 @@ int main(int ac, char **av)
   Boolean dynamic_array = FALSE;
   struct dirent * cand;
   
-  user = ssh_user_initialize(NULL);
+  user = ssh_user_initialize(NULL, FALSE);
   
   action = ADD;
   while ((opt = getopt(ac, av, "ldDp")) != EOF)

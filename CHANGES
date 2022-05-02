@@ -1,0 +1,52 @@
+1998-09-17  Sami Lehtinen  <sjl@ssh.fi>
+
+	* Added support for environment variable DESTDIR in
+ 	apps/ssh/Makefile.
+
+	* Added --with-etcdir configuration option.
+
+	* Added libwrap-support. (still partially untested)
+
+	* Fixed a bug in sshd2, which caused sshd2  to go to busy-loop if
+	ssh2-client was killed with, for example, kill -9 .
+
+	* Fixed bug in sshmp.c, which caused FPE in ssh-keygen2, when it
+	was compiled on Alpha with gcc.
+
+	* Fixed little bugs here and there.
+	
+1998-09-07  Sami Lehtinen  <sjl@ssh.fi>
+
+	* Added clean-up-old -target to apps/ssh/Makefile.am to allow easy
+	removal of the *.old-files made by the installation.
+
+	* Fixed a bug in initilization of variables in ssh2 (and other
+	programs, which were run with user-privileges) which caused
+	annoying messages with shadow passwords etc.
+
+	* Fixed a bug in 'make install'.
+
+Thu Aug 27 20:39:48 1998  Sami Lehtinen  <sjl@ssh.fi>
+
+	* Changed 'make install' so that it now renames the old files to
+	have '.old'-trailer.
+
+Wed Aug 26 19:09:52 1998  Sami Lehtinen  <sjl@ssh.fi>
+
+	* Earlier addition: Fixed ssh2-client to not kill all forwarded
+	connections on session_close, but instead fork to background to
+	wait for their completion.
+
+	* Fixed problems with compilation.
+	
+1998-08-06  Timo Rinne  <tri@ssh.fi>
+
+	* Made ssh forward also ssh1 agent connections.
+
+Wed Aug  5 12:49:02 1998  Sami Lehtinen  <sjl@ssh.fi>
+
+	* Changed ssh-add2 to fetch first key named 'id_*' when executed
+	without aurguments.
+	
+	* Changed ssh-add2 to use ssh-askpass2 instead of ssh2-askpass.
+	

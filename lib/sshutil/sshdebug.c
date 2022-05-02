@@ -493,6 +493,42 @@ void ssh_fatal(const char *fmt, ...)
   exit(1);
 }
 
+/* Checks an assertion and calls ssh_fatal if the assertion has
+   failed. */
+
+void ssh_generic_assert(int value, const char *expression,
+			const char *file,
+			unsigned int line, const char *module,
+			const char *function, int type)
+{
+  char *msg;
+
+  if (value) return; /* Assertion ok */
+
+  switch (type)
+    {
+    case 0: msg = "Precondition"; /* FALL THROUGH */
+    case 1: msg = "Postcondition"; /* FALL THROUGH */
+    case 2: msg = "Assertion"; /* FALL THROUGH */
+    case 3: msg = "Invariant"; /* FALL THROUGH */
+    case 5: msg = "Verified expression";
+      ssh_debug_output(file, line, module, function,
+		       ssh_debug_format("%s %s failed.", msg, expression));
+      break;
+
+    case 4:
+      ssh_debug_output(file, line, module, function,
+		       ssh_xstrdup("Invalid code reached."));
+      break;
+
+    default: ssh_fatal("Internal bug in ssh_generic_assert.");
+    }
+
+  /* Call ssh_fatal() to exit. */
+
+  ssh_fatal("Assertion failed (check debug output for more info).");
+}
+
 /* Defines callbacks that will receive the debug, warning, and fatal error
    messages.  Any of the callbacks can be NULL to specify default
    handling. */

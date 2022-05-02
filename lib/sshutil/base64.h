@@ -14,7 +14,7 @@
   */
 
 /*
- * $Id: base64.h,v 1.4 1998/07/20 16:38:00 mkojo Exp $
+ * $Id: base64.h,v 1.5 1998/09/14 08:28:01 sjl Exp $
  * $Log: base64.h,v $
  * $EndLog$
  */
@@ -31,7 +31,7 @@ size_t ssh_is_base64_buf(unsigned char *buf, size_t buf_len);
 
 /* Convert data from binary to format to base 64 format. Returns null
  * terminated xmallocated string. */
-unsigned char *ssh_buf_to_base64(unsigned char *buf, size_t buf_len);
+unsigned char *ssh_buf_to_base64(const unsigned char *buf, size_t buf_len);
 
 /* Convert data from base64 format to binary. Returns xmallocated data buffer
  * and length in buf_len. */

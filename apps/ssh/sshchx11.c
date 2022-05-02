@@ -24,6 +24,7 @@ Code for X11 forwarding channels for SSH2 servers and clients.
 #include "sshmsgs.h"
 #include "sshlocalstream.h"
 #include "sshcommon.h"
+#include "sshunixfdstream.h"
 
 #ifdef SSH_CHANNEL_X11
 
@@ -47,7 +48,17 @@ Code for X11 forwarding channels for SSH2 servers and clients.
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
 #endif /* HAVE_SYS_SELECT_H */
+#ifdef HAVE_SYS_UTSNAME_H
+#include <sys/utsname.h>
+#endif /* HAVE_SYS_UTSNAME_H */
 #endif /* XAUTH_PATH || HPSUX_NONSTANDARD_X11_KLUDGE */
+#ifdef HAVE_LIBWRAP
+#include <tcpd.h>
+#include <syslog.h>
+#ifdef NEED_SYS_SYSLOG_H
+#include <sys/syslog.h>
+#endif /* NEED_SYS_SYSLOG_H */
+#endif /* HAVE_LIBWRAP */
 
 #define SSH_DEBUG_MODULE "Ssh2ChannelX11"
 
@@ -355,7 +366,36 @@ void ssh_channel_x11_connection(SshIpError error, SshStream stream,
   /* Increase the number of open channels.  This will be decremented in
      the destroy function. */
   ssh_common_new_channel(session->common);
-  
+
+  /* XXXXXXXX */
+#ifdef HAVE_LIBWRAP
+  {
+    struct request_info req;
+    /* struct servent *serv;*/
+		
+    /* Fill req struct with port name and fd number */
+    request_init(&req, RQ_DAEMON, "sshdfwd-X11",
+		 RQ_FILE, ssh_stream_fd_get_readfd(stream), NULL);
+    fromhost(&req);
+    if (!hosts_access(&req))
+      {
+	ssh_conn_send_debug(session->common->conn, TRUE, "Fwd X11 connection "
+			    "from %.500s refused by tcp_wrappers.",
+			    eval_client(&req));
+	ssh_stream_destroy(stream);
+	/*	packet_send_debug("Fwd X11 connection from %.500s refused by tcp_wrappers.", eval_client(&req));
+		error("Fwd X11 connection from %.500s refused by tcp_wrappers.",
+		eval_client(&req));
+		shutdown(newsock, 2);
+		close(newsock); 
+		break; */
+	return;
+      }
+    ssh_log_event(SSH_LOGFACILITY_SECURITY, SSH_LOG_INFORMATIONAL, "fwd X11 connect from %.500s",
+		  eval_client(&req));
+  }
+#endif /* HAVE_LIBWRAP */
+
   /* Send a channel open request to the other side. */
   ssh_buffer_init(&buffer);
   ssh_encode_buffer(&buffer,

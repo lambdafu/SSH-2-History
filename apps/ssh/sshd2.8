@@ -163,6 +163,7 @@ must be
 Specifies whether to use password authentication. The argument
 must be
 .YN  
+(not yet implemented)
 .ne 3
 .TP
 .B RHostsAuthentication
@@ -197,6 +198,7 @@ compatibility with
 .B ssh1\fR.
 The argument must be
 .YN  
+(not yet implemented)
 .ne 3
 .TP
 .B Port
@@ -222,13 +224,17 @@ and
 .IR arcfour
 are in all distributions. Multiple ciphers can be specified as a
 comma-separated list.  Special values to this option are
-.I any
-and
-.I anycipher
+.IR any ",
+.IR anystd ",
+that allows only standard (see below) ciphers, and
+.IR anycipher
 that allows either any available cipher or excludes nonencrypting
 cipher mode
 .IR none
 but allows all others.
+.IR anystdcipher
+is the same as above, but includes only those ciphers mentioned in the
+IETF-SecSH-draft (excluding 'none').
 .ne 3
 .TP 
 .B AuthorizationFile

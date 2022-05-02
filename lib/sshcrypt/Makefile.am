@@ -32,9 +32,6 @@ libsshcrypt_a_SOURCES = \
   nociph.c \
   des.c \
   arcfour.c \
-#ifdef SSHDIST_CRYPT_MARS
-  mars.c \
-#endif SSHDIST_CRYPT_MARS
   \
   genpkcs.c \
   genmp.c \
@@ -64,45 +61,12 @@ include_HEADERS = \
   ripemd160.h \
   des.h \
   arcfour.h \
-#ifdef SSHDIST_CRYPT_MARS
-  mars.h \
-#endif SSHDIST_CRYPT_MARS
-#ifdef SSHDIST_CRYPT_SKIPJACK
-#
-#endif SSHDIST_CRYPT_SKIPJACK
-#ifdef SSHDIST_CRYPT_HMAC
   hmac.h \
-#endif SSHDIST_CRYPT_HMAC
-#ifdef SSHDIST_CRYPT_SSHMACS
   macs.h \
-#endif SSHDIST_CRYPT_SSHMACS
-#ifdef SSHDIST_CRYPT_GENPKCS
   genmp.h \
-#endif SSHDIST_CRYPT_GENPKCS
-#ifdef SSHDIST_CRYPT_RSA
-#
-#endif SSHDIST_CRYPT_RSA
-#ifdef SSHDIST_CRYPT_ECP
-#
-#
-#endif SSHDIST_CRYPT_ECP
-#ifdef SSHDIST_CRYPT_EC2N
-#
-#
-#endif SSHDIST_CRYPT_EC2N
-#ifdef SSHDIST_CRYPT_RSA
-#
-#endif SSHDIST_CRYPT_RSA
-#ifdef SSHDIST_CRYPT_DL
   dlglue.h \
   dlfix.h \
-#endif SSHDIST_CRYPT_DL
-#ifdef SSHDIST_CRYPT_COMPRESS
   bufzip.h \
-#endif SSHDIST_CRYPT_COMPRESS
-#ifdef SSHDIST_CRYPT_COMPRESS_LZS
-#
-#endif SSHDIST_CRYPT_COMPRESS_LZS
   libmonitor.h
 
 

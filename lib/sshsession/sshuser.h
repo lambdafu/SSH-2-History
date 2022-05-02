@@ -17,9 +17,12 @@ Manipulating user information in SSH server (mostly password validation).
 typedef struct SshUserRec *SshUser;
 
 /* Allocates and initializes a context for the user.  The context is used
-   to cache information about the particular user.  Returns NULL if the user
-   does not exist. If `user' is NULL, use getuid() to get the current user. */
-SshUser ssh_user_initialize(const char *user);
+   to cache information about the particular user.  Returns NULL if the
+   user does not exist. If `user' is NULL, use getuid() to get the current
+   user. 'privileged' should only be set, when the process is supposedly
+   run with root privileges. If it is FALSE, ssh_user_initialize doesn't
+   try to look for shadow passwords etc.*/
+SshUser ssh_user_initialize(const char *user, Boolean privileged);
 
 /* Frees information about the user.  If ``undo'' is TRUE, undoes any
    cached state related to e.g. Kerberos and Secure RPC.  Returns

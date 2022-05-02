@@ -16,7 +16,7 @@
   */
 
 /*
- * $Id: gmp.h,v 1.4 1998/06/24 13:26:00 kivinen Exp $
+ * $Id: gmp.h,v 1.5 1998/08/27 09:17:18 sjl Exp $
  * $Log: gmp.h,v $
  * $EndLog$
  */

@@ -169,7 +169,7 @@ void ssh_common_special(SshCrossPacketType type, const unsigned char *data,
 	 is not used in the client. */
       if (!common->client)
 	{
-	  common->user_data = ssh_user_initialize(common->user);
+	  common->user_data = ssh_user_initialize(common->user, TRUE);
 	  if (!common->user_data)
 	    ssh_fatal("ssh_common_special: user data init failed for '%s'",
 		      common->user);
@@ -239,6 +239,7 @@ SshCommon ssh_common_wrap(SshStream connection,
   common->random_state = random_state;
   common->server_host_name =
     server_host_name ? ssh_xstrdup(server_host_name) : NULL;
+  common->being_destroyed = FALSE;
   
   /* Get information from the connection. */
   common->remote_ip = ssh_xmalloc(100);
@@ -317,6 +318,14 @@ void ssh_common_destroy(SshCommon common)
 {
   int i;
 
+  /* If the common-object is already being destroyed, just return */
+  if (common->being_destroyed == TRUE)
+    return;
+  
+  /* We set this flag, so that we wouldn't try to destroy this struct from
+     other functions or callbacks. */
+  common->being_destroyed = TRUE;
+  
   /* If there are timeouts already waiting to destroy this structure,
      cancel them*/
   
@@ -327,9 +336,12 @@ void ssh_common_destroy(SshCommon common)
     {
       if (ssh_channel_types[i].type_destroy_proc)
 	(*ssh_channel_types[i].type_destroy_proc)(common->type_contexts[i]);
+      common->type_contexts[i] = NULL;
     }
+  
   ssh_xfree(common->type_contexts);
-
+  common->type_contexts = NULL;
+  
   /* Destroy global requests and open procs. */
   ssh_xfree(common->global_requests);
   ssh_xfree(common->channel_opens);
@@ -361,11 +373,18 @@ void *ssh_common_get_channel_type_context(SshCommon common, const char *name)
 {
   int i;
 
+  if (common->type_contexts == NULL)
+    {
+      SSH_DEBUG(5, ("type_contexts is already destroyed."));
+      return NULL;
+    }
+  
   for (i = 0; ssh_channel_types[i].name; i++)
     {
       if (strcmp(ssh_channel_types[i].name, name) == 0)
 	return common->type_contexts[i];
     }
+  
   SSH_DEBUG(5, ("type '%s' not found", name));
   return NULL;
 }
@@ -381,7 +400,10 @@ void ssh_common_destroy_channel(SshCommon common)
   common->num_channels--;
   SSH_DEBUG(1, ("num_channels now %d", common->num_channels));
 
-  if (common->num_channels == 0)
+  /* If the common-object is already being destroyed, the set timeout would
+     be accessing memory that has already been freed. That would not be
+     legal. */
+  if (common->num_channels == 0 && !common->no_session_channel && !common->being_destroyed)
     {
       /* Schedule the destruction of common struct from the bottom of the
        event loop */

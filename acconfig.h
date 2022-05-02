@@ -10,6 +10,9 @@
 /* IPSec harness */
 #undef HARNESS
 
+/* EFENCE memory debugger */
+#undef EFENCE
+
 /* Light debugging */
 #undef DEBUG_LIGHT
 

@@ -16,8 +16,7 @@
 #include "sshdllist.h"
 #include "sshtimemeasure.h"
 
-#define TEST_NUMBERS_MIN 0
-#define TEST_NUMBERS_MAX 20
+#define TEST_NUMBERS 20
 #define ITEMS_TO_ADD_TO_THE_LIST 50000
 
 /* Test data object */
@@ -27,15 +26,6 @@ typedef struct TestDataRec
 } TestData;
 
 TestData *test_data;
-
-/* Initializes the test data structures. */
-void init_test_data(int min, int max)
-{
-  int i, j;
-
-  for (i=0, j=min; j <= max; i++, j++)
-    test_data[i].number = j;
-}
 
 /* Mapper to print out the contents of single list element. Used by
    print_list. */
@@ -88,23 +78,26 @@ int main(int argc, char *argv[])
   srand((unsigned int)time(NULL));
   ssh_timer = ssh_time_measure_allocate();
 
+  printf("Running test for SshDlList");
+
   /* Check for verbose output option */
   if (argc == 2 && !strcmp("-v", argv[1]))
-    verbose = TRUE;
-
-  /* Really necessary consistency check :) */
-  if (TEST_NUMBERS_MAX < TEST_NUMBERS_MIN)
-    ssh_fatal("Error in source code: TEST_NUMBERS_MAX < TEST_NUMBERS_MIN. Test failed.");
+    {
+      verbose = TRUE;
+      printf(".\n\n");
+    }
+  else
+    printf(", use -v for verbose output.\n");
 
   /* Initialize the test data */
-  test_data = ssh_xmalloc((TEST_NUMBERS_MAX - TEST_NUMBERS_MIN + 1) * sizeof(TestData));
-  init_test_data(TEST_NUMBERS_MIN, TEST_NUMBERS_MAX);
+  test_data = ssh_xmalloc(TEST_NUMBERS * sizeof(TestData));
+  for (i=0; i < TEST_NUMBERS; i++)
+    test_data[i].number = i;
 
   t_list = ssh_dllist_allocate();
 
   /* List addition tests */
-  k = (TEST_NUMBERS_MAX + TEST_NUMBERS_MIN) / 2;
-  for (i=k; i <= TEST_NUMBERS_MAX; i++)
+  for (i=TEST_NUMBERS/2; i < TEST_NUMBERS; i++)
     if (ssh_dllist_add_item(t_list, (void *)&test_data[i], SSH_DLLIST_END)
 	!= SSH_DLLIST_OK)
       ssh_fatal("t-dllist: list addition failed. Test failed.");
@@ -112,7 +105,7 @@ int main(int argc, char *argv[])
   if (verbose)
     print_list(t_list);
 
-  for (i=k-1; i >= TEST_NUMBERS_MIN; i--)
+  for (i=TEST_NUMBERS/2-1; i >= 0; i--)
     if (ssh_dllist_add_item(t_list, (void *)&test_data[i], SSH_DLLIST_BEGIN)
 	!= SSH_DLLIST_OK)
       ssh_fatal("t-dllist: list addition failed. Test failed.");
@@ -155,7 +148,12 @@ int main(int argc, char *argv[])
   evens = odds = 0;
   for (k=0; k < ITEMS_TO_ADD_TO_THE_LIST; k++)
     {
-      i = (int)(((long)rand() / 256) * TEST_NUMBERS_MAX / (RAND_MAX/256));
+      i = (int)((rand() / 256) % TEST_NUMBERS);
+
+      if (i < 0 || i >= TEST_NUMBERS)
+	ssh_fatal("t-dllist: random number calculation produced index out "
+		  "of range.");
+
       if (i % 2 == 0)
 	evens++;
       else

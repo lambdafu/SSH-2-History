@@ -48,7 +48,7 @@ SshAuthServerResult ssh_server_auth_passwd(SshAuthServerOperation op,
       /* If user context not yet allocated, do it now. */
       if (uc == NULL)
 	{
-	  uc = ssh_user_initialize(user);
+	  uc = ssh_user_initialize(user, TRUE);
 	  *longtime_placeholder = (void *)uc;
 	}
 

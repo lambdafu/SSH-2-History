@@ -45,7 +45,7 @@ struct SshCommonRec
 {
   /* TRUE if we are a client, FALSE if we are a server. */
   Boolean client;
-
+  
   /* The connection protocol object. */
   SshConn conn;
 
@@ -75,7 +75,11 @@ struct SshCommonRec
 
   /* Name of the server host in client (NULL in server). */
   char *server_host_name;
-  
+
+  /* Whether client should not request for a session channel (and keep
+     alive even if number of channels go to 0)*/
+  Boolean no_session_channel;
+
   /* Authenticated user name. */
   char *user;
   
@@ -106,6 +110,10 @@ struct SshCommonRec
      using ssh_xmalloc. */
   unsigned int num_channel_opens;
   SshConnChannelOpen *channel_opens;
+
+  /* TRUE if context is being destroyed. */
+  Boolean being_destroyed;
+  
 };
 
 /* A function of this type will be called to notify the application that

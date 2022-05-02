@@ -1,9 +1,9 @@
-SSH 2.0.8
+SSH 2.0.9
 ==============
 
         Timo J. Rinne <tri@ssh.fi>
 	Sami Lehtinen <sjl@ssh.fi>
-        26 August 1998
+        17 September 1998
 	
 	See file LICENSING for licensing terms.
 
@@ -81,15 +81,13 @@ Installation
    2. compile ssh2
    ---------------
 
+      Read the NOTES-section found in the end of this file.
+
       > ./configure
       > make
 
       If this fails, find and fix the problem. Report it to ssh2-bugs@ssh.fi.
       Try again :-)
-
-      Note for Linux-users: if you are using the commercial version, please
-      run configure with --without-crypt-asm. There is a problem in how gcc
-      mangles function names. This problem will be fixed in future releases.
 
    3. run the install script
    -------------------------
@@ -99,6 +97,13 @@ Installation
       # make install
 
       This should set everything up and create the host key.
+
+      The old files are moved to *.old names. If you don't want them
+      around, run 
+
+      # make clean-up-old
+
+      which will delete them.
 
       NOTE: This host key has relatively little entropy. We'll have
             to actually stir in more randomness to create strong
@@ -200,4 +205,37 @@ Platforms
 	ix86		FreeBSD		2.2.x, 3.0-current
 	ix86		Linux		2.0.34
 	sparc		Solaris		2.6
+			AIX		4.1
 
+NOTES ON INSTALLATION AND USE:
+
+	* Scp2 isn't fully compatible with scp1. If target server is
+	running ssh-1.x.x, use scp1-command (the compatibility will, if
+	possible, get fixed in the future).
+
+	* If your system doesn't support, or has a broken version of
+	non-blocking connect, run ./configure with
+	-enable-blocking-connect .
+
+	* compability with ssh1 works correctly ONLY IF your ssh1-version
+	is 1.2.26 or better (1.2.26 is the latest). So be sure you have
+	that!
+
+	* If you're getting 'protocol error: packet length too long <insert
+	very large positive or negative number here>', and you're using
+	the commercial version, then you've probably got a version of gcc
+	which mangles function names in assembler in a way that our
+	crypto functions can't handle. This is essentially a bug in our
+	configure-script. Workaround: configure with
+	--without-crypto-asm.  This should especially be noted when
+	compiling the commercial version on Linux.  This bug will be
+	fixed in future releases.
+
+	* IRIX-support still isn't complete.
+
+	* If you're Sun boots during a connect to sshd2, do the following.
+	Fetch the latest patches from Sun, generate a new hostkey with the
+	patched version, and try again (also, you might want to try
+	--enable-blocking-connect etc).
+
+	

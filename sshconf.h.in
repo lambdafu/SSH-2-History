@@ -45,6 +45,9 @@
 /* IPSec harness */
 #undef HARNESS
 
+/* EFENCE memory debugger */
+#undef EFENCE
+
 /* Light debugging */
 #undef DEBUG_LIGHT
 
@@ -344,6 +347,9 @@
 /* Define if you have the memset function.  */
 #undef HAVE_MEMSET
 
+/* Define if you have the minor function.  */
+#undef HAVE_MINOR
+
 /* Define if you have the openpty function.  */
 #undef HAVE_OPENPTY
 
@@ -425,6 +431,9 @@
 /* Define if you have the utime function.  */
 #undef HAVE_UTIME
 
+/* Define if you have the utimes function.  */
+#undef HAVE_UTIMES
+
 /* Define if you have the vhangup function.  */
 #undef HAVE_VHANGUP
 
@@ -455,6 +464,9 @@
 /* Define if you have the <ndir.h> header file.  */
 #undef HAVE_NDIR_H
 
+/* Define if you have the <netinet/in.h> header file.  */
+#undef HAVE_NETINET_IN_H
+
 /* Define if you have the <netinet/in_systm.h> header file.  */
 #undef HAVE_NETINET_IN_SYSTM_H
 
@@ -481,6 +493,9 @@
 
 /* Define if you have the <sys/ioctl.h> header file.  */
 #undef HAVE_SYS_IOCTL_H
+
+/* Define if you have the <sys/mkdev.h> header file.  */
+#undef HAVE_SYS_MKDEV_H
 
 /* Define if you have the <sys/ndir.h> header file.  */
 #undef HAVE_SYS_NDIR_H

@@ -46,7 +46,6 @@ libsshutil_a_SOURCES = \
 	sshunixrealpath.c	\
 	sshurl.c		\
 	sshinet.c		\
-	sshgenutils.c 		\
 	cstack.c		\
 	vlint32.c		\
 	crc32.c			\
@@ -87,7 +86,6 @@ include_HEADERS = \
 	sshfilexfer.h		\
 	sshurl.h		\
 	sshinet.h		\
-	sshgenutils.h		\
 	cstack.h		\
 	vlint32.h		\
 	crc32.h			\
@@ -104,7 +102,7 @@ EXTRA_DIST = \
 INCLUDES = -I../.. -I. -I$(srcdir) 		\
 	-I../sshmath -I$(srcdir)/../sshmath 	\
 	-I../zlib -I$(srcdir)/../zlib 		\
-	-I../trq
+	-I../trq -I$(srcdir)/../trq
 
 includes:
 	for file in $(include_HEADERS); do \

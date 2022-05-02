@@ -1735,7 +1735,7 @@ void ssh_conn_send_disconnect(SshConn conn, int reason, const char *fmt, ...)
 
 /* Sends a debug message to the stream. 
      `conn'      the connection protocol object
-     `reason'    numeric disconnection reason
+     `display'   whether `always_display' parameter will be set
      `fmt'       printf-style format string */
 
 void ssh_conn_send_debug(SshConn conn, Boolean display, const char *fmt, ...)

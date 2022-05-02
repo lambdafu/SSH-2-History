@@ -1251,27 +1251,34 @@ void ssh_channel_session_destroy(void *context)
     
     direct_tcp_ctx = ssh_channel_dtcp_ct(common);
     forwarded_tcp_ctx = ssh_channel_ftcp_ct(common);
-
-    local_forwards = direct_tcp_ctx->local_forwards;
-    remote_forwards = forwarded_tcp_ctx->remote_forwards;
-
-    for (remote_forwards; remote_forwards;
-	 remote_forwards = remote_forwards->next)
+    
+    if (forwarded_tcp_ctx != NULL)
       {
-	if (remote_forwards->listener)
+	remote_forwards = forwarded_tcp_ctx->remote_forwards;
+	
+	for (; remote_forwards;
+	     remote_forwards = remote_forwards->next)
 	  {
-	    ssh_tcp_destroy_listener(remote_forwards->listener);
-	    remote_forwards->listener = NULL;
+	    if (remote_forwards->listener)
+	      {
+		ssh_tcp_destroy_listener(remote_forwards->listener);
+		remote_forwards->listener = NULL;
+	      }
 	  }
       }
-
-    for (local_forwards; local_forwards;
-       local_forwards = local_forwards->next)
+    
+    if (direct_tcp_ctx != NULL)
       {
-	if (local_forwards->listener)
+	local_forwards = direct_tcp_ctx->local_forwards;
+
+	for (; local_forwards;
+	     local_forwards = local_forwards->next)
 	  {
-	    ssh_tcp_destroy_listener(local_forwards->listener);
-	    local_forwards->listener = NULL;
+	    if (local_forwards->listener)
+	      {
+		ssh_tcp_destroy_listener(local_forwards->listener);
+		local_forwards->listener = NULL;
+	      }
 	  }
       }
   }

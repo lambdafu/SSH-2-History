@@ -948,7 +948,7 @@ void ssh_file_client_receive_proc(SshPacketType type,
 	  
 	   if (bytes == 0)
 	    {
-	      ssh_warning("ssh_file_client_receive_proc: bad NAME %d", i);
+	      ssh_warning("ssh_file_client_receive_proc: bad NAME");
 	      return;
 	    }
 	 

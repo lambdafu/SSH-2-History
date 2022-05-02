@@ -30,6 +30,16 @@
 #include "sigchld.h"
 #include <syslog.h>
 
+#ifdef HAVE_LIBWRAP
+#include <tcpd.h>
+#include <syslog.h>
+#ifdef NEED_SYS_SYSLOG_H
+#include <sys/syslog.h>
+#endif /* NEED_SYS_SYSLOG_H */
+int allow_severity = LOG_INFO;
+int deny_severity = LOG_WARNING;
+#endif /* LIBWRAP */
+
 #define SSH_DEBUG_MODULE "Sshd2"
 
 /* Program name, without path. */
@@ -266,7 +276,7 @@ void new_connection_callback(SshIpError error, SshStream stream,
     }
 
   ssh_debug("new_connection_callback");
-  
+
   /* Fork to execute the new child, unless in debug mode. */
   if (data->debug)
     ret = 0;
@@ -286,6 +296,28 @@ void new_connection_callback(SshIpError error, SshStream stream,
 	 compatibility mode. */
       data->config->ssh1_fd = ssh_stream_fd_get_readfd(stream);
       
+#ifdef HAVE_LIBWRAP
+  {
+    struct request_info req;
+    void *old_handler;
+    
+    old_handler = signal(SIGCHLD, SIG_DFL);
+		
+    request_init(&req, RQ_DAEMON, av0, RQ_FILE, ssh_stream_fd_get_readfd(stream), NULL);
+    fromhost(&req); /* validate client host info */
+    if (!hosts_access(&req))
+      {
+	ssh_warning("Denied connection from %s by tcp wrappers.", eval_client(&req));
+	ssh_log_event(SSH_LOGFACILITY_SECURITY, SSH_LOG_NOTICE,
+		      "Denied connection from %s by tcp wrappers.", eval_client(&req));
+	refuse(&req); /* If connection is not allowed, clean up and exit. */
+      }
+
+    signal(SIGCHLD, old_handler);
+    
+  }
+#endif /* HAVE_LIBWRAP */
+  
       /* Create a context structure for the connection. */
       c = ssh_xcalloc(1, sizeof(*c));
       c->shared = data;
@@ -304,7 +336,7 @@ void new_connection_callback(SshIpError error, SshStream stream,
 	{
 	  s = "Forking a server for a new connection failed.";
 	  ssh_warning(s);
-	  ssh_log_event(SSH_LOGFACILITY, SSH_LOG_WARNING, s);
+	  ssh_log_event(SSH_LOGFACILITY_DAEMON, SSH_LOG_WARNING, s);
 	  ssh_stream_write(stream, (const unsigned char *)s, strlen(s));
 	  ssh_stream_write(stream, (const unsigned char *)"\r\n", 2);
 	}
@@ -488,7 +520,7 @@ int main(int argc, char **argv)
   ssh_split_arguments(argc, argv, &ac, &av);
   
   data = ssh_xcalloc(1, sizeof(*data));
-  user = ssh_user_initialize(NULL);
+  user = ssh_user_initialize(NULL, TRUE);
   
   data->ssh_fatal_called = FALSE;
 
