@@ -20,7 +20,6 @@ Processing configuration data in SSH (both client and server).
 #include "sshuser.h"
 #include "userfile.h"
 #include "sshuserfiles.h"
-#include "match.h"
 #include "sshcipherlist.h"
 #include "namelist.h"
 

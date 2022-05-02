@@ -97,8 +97,6 @@ AUTOMAKE_OPTIONS = 1.0 foreign dist-zip no-dependencies
 
 SUBDIRS = tests
 
-bin_PROGRAMS = ssh-keygen
-
 noinst_LIBRARIES = libsshcrypt.a
 
 libsshcrypt_a_SOURCES = \
@@ -204,12 +202,6 @@ INCLUDES = -I../.. -I. -I$(srcdir) -I../sshutil -I$(srcdir)/../sshutil \
 	-I../sshmath -I$(srcdir)/../sshmath -I../zlib -I$(srcdir)/../zlib \
 	-I../sshscard -I$(srcdir)/../sshscard \
 	-I../trq -I$(srcdir)/../trq
-
-ssh_keygen_SOURCES = ssh-keygen.c 
-ssh_keygen_LDADD = libsshcrypt.a \
-../sshutil/libsshutil.a \
-  ../zlib/libz.a \
-  ../sshmath/libsshmath.a
 mkinstalldirs = $(SHELL) $(top_srcdir)/mkinstalldirs
 CONFIG_HEADER = ../../sshconf.h
 CONFIG_CLEAN_FILES = 
@@ -228,12 +220,6 @@ libsshcrypt_a_OBJECTS =  genhash.o md5.o sha.o ripemd160.o genmac.o \
 hmac.o macs.o genciph.o nociph.o des.o arcfour.o mars.o genpkcs.o \
 genmp.o dlglue.o dlfix.o bufzip.o genaux.o genrand.o namelist.o \
 keyblob.o libmonitor.o
-PROGRAMS =  $(bin_PROGRAMS)
-
-ssh_keygen_OBJECTS =  ssh-keygen.o
-ssh_keygen_DEPENDENCIES =  libsshcrypt.a ../sshutil/libsshutil.a \
-../zlib/libz.a ../sshmath/libsshmath.a
-ssh_keygen_LDFLAGS = 
 CFLAGS = @CFLAGS@
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS)
 LINK = $(CC) $(CFLAGS) $(LDFLAGS) -o $@
@@ -246,8 +232,8 @@ DISTFILES = $(DIST_COMMON) $(SOURCES) $(HEADERS) $(TEXINFOS) $(EXTRA_DIST)
 
 TAR = tar
 GZIP = --best
-SOURCES = $(libsshcrypt_a_SOURCES) $(ssh_keygen_SOURCES)
-OBJECTS = $(libsshcrypt_a_OBJECTS) $(ssh_keygen_OBJECTS)
+SOURCES = $(libsshcrypt_a_SOURCES)
+OBJECTS = $(libsshcrypt_a_OBJECTS)
 
 all: all-recursive all-am
 
@@ -287,35 +273,6 @@ libsshcrypt.a: $(libsshcrypt_a_OBJECTS) $(libsshcrypt_a_DEPENDENCIES)
 	-rm -f libsshcrypt.a
 	$(AR) cru libsshcrypt.a $(libsshcrypt_a_OBJECTS) $(libsshcrypt_a_LIBADD)
 	$(RANLIB) libsshcrypt.a
-
-mostlyclean-binPROGRAMS:
-
-clean-binPROGRAMS:
-	-test -z "$(bin_PROGRAMS)" || rm -f $(bin_PROGRAMS)
-
-distclean-binPROGRAMS:
-
-maintainer-clean-binPROGRAMS:
-
-install-binPROGRAMS: $(bin_PROGRAMS)
-	@$(NORMAL_INSTALL)
-	$(mkinstalldirs) $(DESTDIR)$(bindir)
-	@list='$(bin_PROGRAMS)'; for p in $$list; do \
-	  if test -f $$p; then \
-	    echo "  $(INSTALL_PROGRAM) $$p $(DESTDIR)$(bindir)/`echo $$p|sed '$(transform)'`"; \
-	     $(INSTALL_PROGRAM) $$p $(DESTDIR)$(bindir)/`echo $$p|sed '$(transform)'`; \
-	  else :; fi; \
-	done
-
-uninstall-binPROGRAMS:
-	@$(NORMAL_UNINSTALL)
-	list='$(bin_PROGRAMS)'; for p in $$list; do \
-	  rm -f $(DESTDIR)$(bindir)/`echo $$p|sed '$(transform)'`; \
-	done
-
-ssh-keygen: $(ssh_keygen_OBJECTS) $(ssh_keygen_DEPENDENCIES)
-	@rm -f ssh-keygen
-	$(LINK) $(ssh_keygen_LDFLAGS) $(ssh_keygen_OBJECTS) $(ssh_keygen_LDADD) $(LIBS)
 
 install-includeHEADERS: $(include_HEADERS)
 	@$(NORMAL_INSTALL)
@@ -421,21 +378,19 @@ dvi: dvi-recursive
 check: all-am
 	$(MAKE) check-recursive
 installcheck: installcheck-recursive
-all-am: Makefile $(LIBRARIES) $(PROGRAMS) $(HEADERS)
-
-install-exec-am: install-binPROGRAMS
+all-am: Makefile $(LIBRARIES) $(HEADERS)
 
 install-data-am: install-includeHEADERS
 
-uninstall-am: uninstall-binPROGRAMS uninstall-includeHEADERS
+uninstall-am: uninstall-includeHEADERS
 
-install-exec: install-exec-recursive install-exec-am
+install-exec: install-exec-recursive
 	@$(NORMAL_INSTALL)
 
 install-data: install-data-recursive install-data-am
 	@$(NORMAL_INSTALL)
 
-install: install-recursive install-exec-am install-data-am
+install: install-recursive install-data-am
 	@:
 
 uninstall: uninstall-recursive uninstall-am
@@ -443,7 +398,7 @@ uninstall: uninstall-recursive uninstall-am
 install-strip:
 	$(MAKE) INSTALL_PROGRAM='$(INSTALL_PROGRAM) -s' INSTALL_SCRIPT='$(INSTALL_PROGRAM)' install
 installdirs: installdirs-recursive
-	$(mkinstalldirs)  $(DATADIR)$(bindir) $(DATADIR)$(includedir)
+	$(mkinstalldirs)  $(DATADIR)$(includedir)
 
 
 mostlyclean-generic:
@@ -461,20 +416,17 @@ maintainer-clean-generic:
 	-test -z "$(MAINTAINERCLEANFILES)" || rm -f $(MAINTAINERCLEANFILES)
 	-test -z "$(BUILT_SOURCES)" || rm -f $(BUILT_SOURCES)
 mostlyclean-am:  mostlyclean-noinstLIBRARIES mostlyclean-compile \
-		mostlyclean-binPROGRAMS mostlyclean-tags \
-		mostlyclean-generic
+		mostlyclean-tags mostlyclean-generic
 
-clean-am:  clean-noinstLIBRARIES clean-compile clean-binPROGRAMS \
-		clean-tags clean-generic mostlyclean-am
+clean-am:  clean-noinstLIBRARIES clean-compile clean-tags clean-generic \
+		mostlyclean-am
 
 distclean-am:  distclean-noinstLIBRARIES distclean-compile \
-		distclean-binPROGRAMS distclean-tags distclean-generic \
-		clean-am
+		distclean-tags distclean-generic clean-am
 
 maintainer-clean-am:  maintainer-clean-noinstLIBRARIES \
-		maintainer-clean-compile maintainer-clean-binPROGRAMS \
-		maintainer-clean-tags maintainer-clean-generic \
-		distclean-am
+		maintainer-clean-compile maintainer-clean-tags \
+		maintainer-clean-generic distclean-am
 
 mostlyclean:  mostlyclean-recursive mostlyclean-am
 
@@ -490,25 +442,31 @@ maintainer-clean:  maintainer-clean-recursive maintainer-clean-am
 .PHONY: mostlyclean-noinstLIBRARIES distclean-noinstLIBRARIES \
 clean-noinstLIBRARIES maintainer-clean-noinstLIBRARIES \
 mostlyclean-compile distclean-compile clean-compile \
-maintainer-clean-compile mostlyclean-binPROGRAMS distclean-binPROGRAMS \
-clean-binPROGRAMS maintainer-clean-binPROGRAMS uninstall-binPROGRAMS \
-install-binPROGRAMS uninstall-includeHEADERS install-includeHEADERS \
-install-data-recursive uninstall-data-recursive install-exec-recursive \
-uninstall-exec-recursive installdirs-recursive uninstalldirs-recursive \
-all-recursive check-recursive installcheck-recursive info-recursive \
-dvi-recursive mostlyclean-recursive distclean-recursive clean-recursive \
+maintainer-clean-compile uninstall-includeHEADERS \
+install-includeHEADERS install-data-recursive uninstall-data-recursive \
+install-exec-recursive uninstall-exec-recursive installdirs-recursive \
+uninstalldirs-recursive all-recursive check-recursive \
+installcheck-recursive info-recursive dvi-recursive \
+mostlyclean-recursive distclean-recursive clean-recursive \
 maintainer-clean-recursive tags tags-recursive mostlyclean-tags \
 distclean-tags clean-tags maintainer-clean-tags distdir info dvi \
-installcheck all-am install-exec-am install-data-am uninstall-am \
-install-exec install-data install uninstall all installdirs \
-mostlyclean-generic distclean-generic clean-generic \
-maintainer-clean-generic clean mostlyclean distclean maintainer-clean
+installcheck all-am install-data-am uninstall-am install-exec \
+install-data install uninstall all installdirs mostlyclean-generic \
+distclean-generic clean-generic maintainer-clean-generic clean \
+mostlyclean distclean maintainer-clean
 
 #ifdef SSHDIST_CRYPT_MARS
 #endif SSHDIST_CRYPT_MARS
 
 list_libssh_a_objects:
 	@echo BEGIN_FILE_LIST: $(libsshcrypt_a_OBJECTS) $(libsshcrypt_a_LIBADD) :END_FILE_LIST
+
+#ssh_keygen_SOURCES = ssh-keygen.c 
+#ssh_keygen_LDADD = libsshcrypt.a \
+#../sshutil/libsshutil.a \
+#  ../zlib/libz.a \
+#  ../sshmath/libsshmath.a
+
 .s.o:
 	$(CC) -c $(CFLAGS) $(SFLAGS) $<
 

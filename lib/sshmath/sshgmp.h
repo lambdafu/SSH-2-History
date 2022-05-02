@@ -4,7 +4,7 @@
   
   Author: Mika Kojo <mkojo@ssh.fi>
 
-  Copyright (C) 1996,1997 SSH Communications Security Oy, Espoo, Finland
+  Copyright (C) 1996-1998 SSH Communications Security Oy, Espoo, Finland
   All rights reserved.
 
   Created: Wed Jan 28 17:58:56 1998 [mkojo]

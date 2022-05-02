@@ -101,9 +101,14 @@ generate-host-key:
 	  fi
 
 install-symlinks:
-	rm -f $(bindir)/ssh $(bindir)/ssh-agent $(bindir)/ssh-add
-	rm -f $(bindir)/ssh-askpass $(bindir)/ssh-keygen $(bindir)/scp
-	rm -f $(bindir)/sftp $(bindir)/sftp-server
+	mv -f $(bindir)/ssh $(bindir)/ssh.old
+	mv -f $(bindir)/ssh-agent $(bindir)/ssh-agent.old
+	mv -f $(bindir)/ssh-add $(bindir)/ssh-add.old
+	mv -f $(bindir)/ssh-askpass $(bindir)/ssh-askpass.old
+	mv -f $(bindir)/ssh-keygen $(bindir)/ssh-keygen.old
+	mv -f $(bindir)/scp $(bindir)/scp.old
+	mv -f $(bindir)/sftp $(bindir)/sftp.old
+	mv -f $(bindir)/sftp-server $(bindir)/sftp-server.old
 	(cd $(bindir) && $(LN_S) ssh2 ssh)
 	(cd $(bindir) && $(LN_S) ssh-agent2 ssh-agent)
 	(cd $(bindir) && $(LN_S) ssh-add2 ssh-add)
@@ -112,18 +117,21 @@ install-symlinks:
 	(cd $(bindir) && $(LN_S) scp2 scp)
 	(cd $(bindir) && $(LN_S) sftp2 sftp)
 	(cd $(bindir) && $(LN_S) sftp-server2 sftp-server)
-	rm -f $(sbindir)/sshd
+	mv -f $(sbindir)/sshd $(sbindir)/sshd.old
 	(cd $(sbindir) && $(LN_S) sshd2 sshd)
-	rm -f $(mandir)/man1/ssh.1 $(mandir)/man1/ssh-add.1
-	rm -f $(mandir)/man1/ssh-agent.1 $(mandir)/man1/ssh-keygen.1
-	rm -f $(mandir)/man1/scp.1 $(mandir)/man1/sftp.1
+	mv -f $(mandir)/man1/ssh.1 $(mandir)/man1/ssh.old.1
+	mv -f $(mandir)/man1/ssh-add.1 $(mandir)/man1/ssh-add.old.1
+	mv -f $(mandir)/man1/ssh-agent.1 $(mandir)/man1/ssh-agent.old.1
+	mv -f $(mandir)/man1/ssh-keygen.1 $(mandir)/man1/ssh-keygen.old.1
+	mv -f $(mandir)/man1/scp.1 $(mandir)/man1/scp.old.1
+	mv -f $(mandir)/man1/sftp.1 $(mandir)/man1/sftp.old.1
 	(cd $(mandir)/man1 && $(LN_S) ssh2.1 ssh.1)
 	(cd $(mandir)/man1 && $(LN_S) ssh-add2.1 ssh-add.1)
 	(cd $(mandir)/man1 && $(LN_S) ssh-agent2.1 ssh-agent.1)
 	(cd $(mandir)/man1 && $(LN_S) ssh-keygen2.1 ssh-keygen.1)
 	(cd $(mandir)/man1 && $(LN_S) scp2.1 scp.1)
 	(cd $(mandir)/man1 && $(LN_S) sftp2.1 sftp.1)
-	rm -f $(mandir)/man8/sshd.8
+	mv -f $(mandir)/man8/sshd.8 $(mandir)/man8/sshd.old.8
 	(cd $(mandir)/man8 && $(LN_S) sshd2.8 sshd.8)
 
 install-data-hook: make-install-dirs generate-host-key install-symlinks

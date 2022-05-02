@@ -203,15 +203,13 @@ void ssh_file_server_receive_proc(SshPacketType type,
   int i;
   char resolved[MAXPATHLEN];
 
-#if defined(HAVE_LUTIMES) || defined(HAVE_FUTIMES)
+#if defined(HAVE_LUTIMES) || defined(HAVE_FUTIMES) 
   struct timeval times[2];
-#else /* HAVE_LUTIMES || HAVE_FUTIMES */
+#endif /* HAVE_LUTIMES || HAVE_FUTIMES */
 
 #ifdef HAVE_UTIME
   struct utimbuf timep;
 #endif /* HAVE_UTIME */
-
-#endif /* HAVE_LUTIMES || HAVE_FUTIMES */
 
 #ifndef NO_LONG_NAMES
 #ifdef HAVE_GETPWUID

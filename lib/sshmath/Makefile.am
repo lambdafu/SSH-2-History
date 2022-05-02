@@ -19,12 +19,19 @@ SUBDIRS = tests
 noinst_LIBRARIES = libsshmath.a 
 
 
-libsshmath_a_SOURCES = sshmp.c gf2n.c ecpmath.c ec2nmath.c sieve.c
+libsshmath_a_SOURCES =	\
+sshmp.c			\
+sieve.c
+
 list_libssh_a_objects:
 	@echo BEGIN_FILE_LIST: $(libsshmath_a_OBJECTS) $(libsshmath_a_LIBADD) :END_FILE_LIST
 
-include_HEADERS = sshmp.h sshgmp.h gmp.h gf2n.h sshmath-types.h ecpmath.h \
- 	ec2nmath.h sieve.h
+include_HEADERS =	\
+sshgmp.h		\
+gmp.h			\
+sshmp.h			\
+sieve.h			\
+sshmath-types.h
 
 noinst_HEADERS = 
 

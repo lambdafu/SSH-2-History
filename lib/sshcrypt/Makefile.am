@@ -16,8 +16,6 @@ AUTOMAKE_OPTIONS = 1.0 foreign dist-zip no-dependencies
 
 SUBDIRS = tests
 
-bin_PROGRAMS = ssh-keygen
-
 noinst_LIBRARIES = libsshcrypt.a
 
 libsshcrypt_a_SOURCES = \
@@ -130,11 +128,12 @@ INCLUDES = -I../.. -I. -I$(srcdir) -I../sshutil -I$(srcdir)/../sshutil \
 	-I../sshscard -I$(srcdir)/../sshscard \
 	-I../trq -I$(srcdir)/../trq
 
-ssh_keygen_SOURCES = ssh-keygen.c 
-ssh_keygen_LDADD = libsshcrypt.a \
-../sshutil/libsshutil.a \
-  ../zlib/libz.a \
-  ../sshmath/libsshmath.a
+#ssh_keygen_SOURCES = ssh-keygen.c 
+#ssh_keygen_LDADD = libsshcrypt.a \
+#../sshutil/libsshutil.a \
+#  ../zlib/libz.a \
+#  ../sshmath/libsshmath.a
+
 .s.o:
 	$(CC) -c $(CFLAGS) $(SFLAGS) $<
 

@@ -40,4 +40,5 @@ size_t ssh_read_binary_file(const char *filename, char **buf);
 size_t ssh_write_binary_file(const char *filename, size_t file_size, char *buf);
 
 
-#endif
+#endif /* SSHGENUTILSH */
+

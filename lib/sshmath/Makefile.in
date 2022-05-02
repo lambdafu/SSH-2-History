@@ -99,10 +99,16 @@ SUBDIRS = tests
 
 noinst_LIBRARIES = libsshmath.a 
 
-libsshmath_a_SOURCES = sshmp.c gf2n.c ecpmath.c ec2nmath.c sieve.c
+libsshmath_a_SOURCES =	\
+sshmp.c			\
+sieve.c
 
-include_HEADERS = sshmp.h sshgmp.h gmp.h gf2n.h sshmath-types.h ecpmath.h \
- 	ec2nmath.h sieve.h
+include_HEADERS =	\
+sshgmp.h		\
+gmp.h			\
+sshmp.h			\
+sieve.h			\
+sshmath-types.h
 
 noinst_HEADERS = 
 
@@ -132,7 +138,7 @@ X_CFLAGS = @X_CFLAGS@
 X_LIBS = @X_LIBS@
 X_EXTRA_LIBS = @X_EXTRA_LIBS@
 X_PRE_LIBS = @X_PRE_LIBS@
-libsshmath_a_OBJECTS =  sshmp.o gf2n.o ecpmath.o ec2nmath.o sieve.o
+libsshmath_a_OBJECTS =  sshmp.o sieve.o
 CFLAGS = @CFLAGS@
 COMPILE = $(CC) $(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS)
 LINK = $(CC) $(CFLAGS) $(LDFLAGS) -o $@
@@ -367,6 +373,7 @@ installcheck all-am install-data-am uninstall-am install-exec \
 install-data install uninstall all installdirs mostlyclean-generic \
 distclean-generic clean-generic maintainer-clean-generic clean \
 mostlyclean distclean maintainer-clean
+
 
 list_libssh_a_objects:
 	@echo BEGIN_FILE_LIST: $(libsshmath_a_OBJECTS) $(libsshmath_a_LIBADD) :END_FILE_LIST
